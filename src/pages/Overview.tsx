@@ -2,13 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MetricCard } from "@/components/MetricCard";
 import { HealthChart } from "@/components/HealthChart";
+import { InterventionTracker } from "@/components/InterventionTracker";
+import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
 
 const Overview = () => {
+  // Enable real-time updates
+  useRealtimeHealthScores();
+
   // Fetch daily summary
   const { data: summary, isLoading: summaryLoading } = useQuery<DailySummary | null>({
     queryKey: ['daily-summary'],
@@ -63,6 +69,38 @@ const Overview = () => {
       }, {});
       
       return Object.values(latestByCoach || {});
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Fetch interventions
+  const { data: interventions = [] } = useQuery({
+    queryKey: ['interventions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('intervention_log')
+        .select('*')
+        .order('intervention_date', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Fetch weekly patterns
+  const { data: weeklyPatterns = [] } = useQuery({
+    queryKey: ['weekly-patterns'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('weekly_patterns')
+        .select('*')
+        .order('week_start_date', { ascending: false })
+        .limit(4);
+      
+      if (error) throw error;
+      return data || [];
     },
     refetchInterval: 5 * 60 * 1000,
   });
@@ -197,6 +235,12 @@ const Overview = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Interventions & Analytics Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <InterventionTracker interventions={interventions} />
+          <WeeklyAnalytics patterns={weeklyPatterns} />
         </div>
 
         {/* Coach Performance Table */}
