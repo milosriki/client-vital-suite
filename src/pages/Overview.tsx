@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { MetricCard } from "@/components/MetricCard";
 import { HealthChart } from "@/components/HealthChart";
 import { InterventionTracker } from "@/components/InterventionTracker";
