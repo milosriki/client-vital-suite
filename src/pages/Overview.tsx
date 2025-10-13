@@ -5,8 +5,9 @@ import { HealthChart } from "@/components/HealthChart";
 import { InterventionTracker } from "@/components/InterventionTracker";
 import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
@@ -16,14 +17,14 @@ const Overview = () => {
   useRealtimeHealthScores();
 
   // Fetch daily summary
-  const { data: summary, isLoading: summaryLoading } = useQuery<DailySummary | null>({
+  const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useQuery<DailySummary | null>({
     queryKey: ['daily-summary'],
     queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await (supabase as any)
         .from('daily_summary')
         .select('*')
-        .order('summary_date', { ascending: false })
-        .limit(1)
+        .eq('summary_date', today)
         .maybeSingle();
       
       if (error) throw error;
@@ -33,16 +34,18 @@ const Overview = () => {
   });
 
   // Fetch critical clients (RED zone)
-  const { data: criticalClients } = useQuery<ClientHealthScore[]>({
+  const { data: criticalClients, refetch: refetchCritical } = useQuery<ClientHealthScore[]>({
     queryKey: ['critical-clients'],
     queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await (supabase as any)
         .from('client_health_scores')
         .select('*')
         .eq('health_zone', 'RED')
+        .eq('calculated_at::date', today)
         .order('health_score', { ascending: true })
         .limit(10);
-      
+
       if (error) throw error;
       return (data as ClientHealthScore[]) || [];
     },
@@ -50,31 +53,24 @@ const Overview = () => {
   });
 
   // Fetch coach performance
-  const { data: coaches } = useQuery<CoachPerformance[]>({
+  const { data: coaches, refetch: refetchCoaches } = useQuery<CoachPerformance[]>({
     queryKey: ['coach-performance'],
     queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await (supabase as any)
         .from('coach_performance')
         .select('*')
-        .order('report_date', { ascending: false });
-      
+        .eq('report_date', today)
+        .order('avg_health_score', { ascending: false });
+
       if (error) throw error;
-      
-      // Get latest record for each coach
-      const latestByCoach = (data as CoachPerformance[])?.reduce((acc: Record<string, CoachPerformance>, curr: CoachPerformance) => {
-        if (!acc[curr.coach_name] || new Date(curr.report_date) > new Date(acc[curr.coach_name].report_date)) {
-          acc[curr.coach_name] = curr;
-        }
-        return acc;
-      }, {});
-      
-      return Object.values(latestByCoach || {});
+      return (data as CoachPerformance[]) || [];
     },
     refetchInterval: 5 * 60 * 1000,
   });
 
   // Fetch interventions
-  const { data: interventions = [] } = useQuery({
+  const { data: interventions = [], refetch: refetchInterventions } = useQuery({
     queryKey: ['interventions'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -90,7 +86,7 @@ const Overview = () => {
   });
 
   // Fetch weekly patterns
-  const { data: weeklyPatterns = [] } = useQuery({
+  const { data: weeklyPatterns = [], refetch: refetchWeekly } = useQuery({
     queryKey: ['weekly-patterns'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -105,12 +101,20 @@ const Overview = () => {
     refetchInterval: 5 * 60 * 1000,
   });
 
+  const handleRefresh = () => {
+    refetchSummary();
+    refetchCritical();
+    refetchCoaches();
+    refetchInterventions();
+    refetchWeekly();
+  };
+
   const getHealthColor = (zone: string) => {
     switch (zone) {
-      case 'RED': return 'bg-red-500 text-white';
-      case 'YELLOW': return 'bg-yellow-500 text-white';
-      case 'GREEN': return 'bg-green-500 text-white';
-      case 'PURPLE': return 'bg-purple-500 text-white';
+      case 'RED': return 'bg-[#ef4444] text-white';
+      case 'YELLOW': return 'bg-[#eab308] text-white';
+      case 'GREEN': return 'bg-[#22c55e] text-white';
+      case 'PURPLE': return 'bg-[#a855f7] text-white';
       default: return 'bg-gray-500 text-white';
     }
   };
@@ -134,8 +138,40 @@ const Overview = () => {
 
   if (summaryLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg text-muted-foreground">Loading dashboard...</p>
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <Skeleton className="h-12 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+          </div>
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    );
+  }
+
+  if (summaryError) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className="p-12 text-center">
+            <p className="text-destructive mb-4">Failed to load dashboard data</p>
+            <Button onClick={handleRefresh}>Try Again</Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className="p-12 text-center">
+            <p className="text-muted-foreground mb-2">No data yet</p>
+            <p className="text-sm text-muted-foreground">Run your n8n workflow to populate the database.</p>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -149,7 +185,15 @@ const Overview = () => {
             <h1 className="text-4xl font-bold mb-2">PTD Fitness Dashboard</h1>
             <p className="text-muted-foreground">Client Health Score Overview</p>
           </div>
-          <Button>Export Report</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm">
+              Export Report
+            </Button>
+          </div>
         </div>
 
         {/* Metric Cards */}
