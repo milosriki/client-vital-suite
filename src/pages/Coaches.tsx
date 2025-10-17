@@ -40,7 +40,7 @@ const Coaches = () => {
         .from('client_health_scores')
         .select('*')
         .eq('assigned_coach', selectedCoach)
-        .eq('calculated_at::date', today)
+        .eq('calculated_on', today)
         .order('health_score', { ascending: true });
 
       if (error) throw error;

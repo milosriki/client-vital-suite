@@ -31,7 +31,7 @@ const Analytics = () => {
       const { data, error } = await supabase
         .from('client_health_scores')
         .select('*')
-        .eq('calculated_at::date', today);
+        .eq('calculated_on', today);
       
       if (error) throw error;
       return data || [];

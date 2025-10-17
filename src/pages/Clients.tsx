@@ -27,7 +27,7 @@ const Clients = () => {
       let query = (supabase as any)
         .from('client_health_scores')
         .select('*')
-        .eq('calculated_at::date', today)
+        .eq('calculated_on', today)
         .order('health_score', { ascending: true });
 
       if (healthZoneFilter !== 'All') {

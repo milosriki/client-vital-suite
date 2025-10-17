@@ -54,7 +54,7 @@ const Overview = () => {
         .from('client_health_scores')
         .select('*')
         .eq('health_zone', 'RED')
-        .eq('calculated_at::date', today)
+        .eq('calculated_on', today)
         .order('health_score', { ascending: true })
         .limit(10);
 
