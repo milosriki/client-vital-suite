@@ -223,6 +223,7 @@ export type Database = {
       }
       daily_summary: {
         Row: {
+          at_risk_revenue: number | null
           at_risk_revenue_aed: number | null
           avg_health_score: number | null
           clients_green: number | null
@@ -247,6 +248,7 @@ export type Database = {
           zone_changes_24h: Json | null
         }
         Insert: {
+          at_risk_revenue?: number | null
           at_risk_revenue_aed?: number | null
           avg_health_score?: number | null
           clients_green?: number | null
@@ -271,6 +273,7 @@ export type Database = {
           zone_changes_24h?: Json | null
         }
         Update: {
+          at_risk_revenue?: number | null
           at_risk_revenue_aed?: number | null
           avg_health_score?: number | null
           clients_green?: number | null
@@ -493,7 +496,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_at_risk_clients: {
+        Args: { target_date: string }
+        Returns: {
+          assigned_coach: string
+          churn_risk_score: number
+          client_name: string
+          days_since_last_session: number
+          email: string
+          health_score: number
+          health_zone: string
+          id: number
+        }[]
+      }
+      get_overall_avg: {
+        Args: { target_date: string }
+        Returns: {
+          avg_score: number
+        }[]
+      }
+      get_zone_distribution: {
+        Args: { target_date: string }
+        Returns: {
+          count: number
+          health_zone: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
