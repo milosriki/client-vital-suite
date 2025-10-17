@@ -1,1 +1,7 @@
 project_id = "ztjndilxurtsfqdsvfds"
+
+[functions.fix-n8n-workflows]
+verify_jwt = false
+
+[functions.setup-workflows]
+verify_jwt = false

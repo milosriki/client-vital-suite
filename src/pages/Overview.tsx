@@ -1,18 +1,24 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { MetricCard } from "@/components/MetricCard";
 import { HealthChart } from "@/components/HealthChart";
 import { InterventionTracker } from "@/components/InterventionTracker";
 import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
+import { useToast } from "@/hooks/use-toast";
 import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
 
 const Overview = () => {
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupStatus, setSetupStatus] = useState("");
+  const { toast } = useToast();
+  
   // Enable real-time updates
   useRealtimeHealthScores();
 
@@ -109,6 +115,49 @@ const Overview = () => {
     refetchWeekly();
   };
 
+  const handleSetupWorkflows = async () => {
+    setSetupLoading(true);
+    
+    try {
+      setSetupStatus("Connecting to n8n...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setSetupStatus("Fixing workflow configurations...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setSetupStatus("Running Daily Calculator...");
+      const { data, error } = await supabase.functions.invoke("setup-workflows");
+      
+      if (error) throw error;
+      
+      setSetupStatus("Populating database...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (data?.success) {
+        setSetupStatus("Success! Dashboard ready.");
+        toast({
+          title: "Setup Complete",
+          description: "Workflows fixed and data populated successfully. Refreshing dashboard...",
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        window.location.reload();
+      } else {
+        throw new Error(data?.error || "Setup failed");
+      }
+    } catch (error) {
+      console.error("Setup error:", error);
+      toast({
+        title: "Setup Failed",
+        description: error instanceof Error ? error.message : "Failed to setup workflows",
+        variant: "destructive",
+      });
+      setSetupStatus("");
+    } finally {
+      setSetupLoading(false);
+    }
+  };
+
   const getHealthColor = (zone: string) => {
     switch (zone) {
       case 'RED': return 'bg-[#ef4444] text-white';
@@ -166,10 +215,41 @@ const Overview = () => {
   if (!summary) {
     return (
       <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto">
-          <Card className="p-12 text-center">
-            <p className="text-muted-foreground mb-2">No data yet</p>
-            <p className="text-sm text-muted-foreground">Run your n8n workflow to populate the database.</p>
+        <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[80vh]">
+          <Card className="max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Settings className="h-6 w-6 text-blue-600" />
+              </div>
+              <CardTitle>Setup Required</CardTitle>
+              <CardDescription>
+                Fix workflows and populate database to get started
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {setupStatus && (
+                <div className="text-center p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">{setupStatus}</p>
+                </div>
+              )}
+              <Button 
+                className="w-full"
+                onClick={handleSetupWorkflows}
+                disabled={setupLoading}
+              >
+                {setupLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Setting up...
+                  </>
+                ) : (
+                  <>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Fix & Run Now
+                  </>
+                )}
+              </Button>
+            </CardContent>
           </Card>
         </div>
       </div>
