@@ -10,6 +10,7 @@ import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
 import Coaches from "./pages/Coaches";
 import WorkflowFixer from "./pages/WorkflowFixer";
+import WorkflowStrategy from "./pages/WorkflowStrategy";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { path: "/clients", element: <Clients /> },
       { path: "/coaches", element: <Coaches /> },
       { path: "/fix-workflows", element: <WorkflowFixer /> },
+      { path: "/workflow-strategy", element: <WorkflowStrategy /> },
       { path: "*", element: <NotFound /> },
     ],
   },

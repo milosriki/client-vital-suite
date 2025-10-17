@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, Settings } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, Settings, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Navigation = () => {
@@ -10,6 +10,7 @@ export const Navigation = () => {
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
     { path: "/fix-workflows", label: "Fix Workflows", icon: Settings },
+    { path: "/workflow-strategy", label: "Strategy Guide", icon: BookOpen },
   ];
 
   return (
