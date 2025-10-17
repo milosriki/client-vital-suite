@@ -15,38 +15,51 @@ import { format } from "date-fns";
 export default function ClientDetail() {
   const { email } = useParams<{ email: string }>();
   const navigate = useNavigate();
+  
+  // Decode email parameter in case it has special characters
+  const decodedEmail = email ? decodeURIComponent(email) : '';
 
   const { data: client, isLoading: clientLoading } = useQuery({
-    queryKey: ["client", email],
+    queryKey: ["client", decodedEmail],
     queryFn: async () => {
+      if (!decodedEmail) return null;
+      
       const { data, error } = await supabase
         .from("client_health_scores")
         .select("*")
-        .eq("email", email)
+        .eq("email", decodedEmail)
         .order("calculated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching client:', error);
+        throw error;
+      }
       return data;
     },
-    enabled: !!email,
+    enabled: !!decodedEmail,
   });
 
   const { data: interventions, isLoading: interventionsLoading } = useQuery({
-    queryKey: ["interventions", email],
+    queryKey: ["interventions", decodedEmail],
     queryFn: async () => {
+      if (!decodedEmail) return [];
+      
       const { data, error } = await supabase
         .from("intervention_log")
         .select("*")
-        .or(`client_email.eq.${email},email.eq.${email}`)
+        .or(`client_email.eq.${decodedEmail},email.eq.${decodedEmail}`)
         .order("triggered_at", { ascending: false })
         .limit(5);
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching interventions:', error);
+        throw error;
+      }
+      return data || [];
     },
-    enabled: !!email,
+    enabled: !!decodedEmail,
   });
 
   if (clientLoading) {
@@ -84,7 +97,8 @@ export default function ClientDetail() {
     );
   }
 
-  const fullName = `${client.firstname || ''} ${client.lastname || ''}`.trim() || client.email;
+  const fullName = `${client.firstname || ''} ${client.lastname || ''}`.trim() || decodedEmail;
+  const displayEmail = (client as any).email || decodedEmail;
   
   const sessionData = [
     { period: "Last 7 Days", sessions: client.sessions_last_7d || 0 },
@@ -150,7 +164,7 @@ export default function ClientDetail() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-2">{fullName}</h1>
-              <p className="text-slate-400 mb-4">{client.email}</p>
+              <p className="text-slate-400 mb-4">{displayEmail}</p>
               <div className="flex items-center gap-2">
                 <Badge className={`${
                   client.health_zone === 'RED' ? 'bg-red-500' :

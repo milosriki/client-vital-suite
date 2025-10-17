@@ -133,12 +133,12 @@ export const ClientTable = ({ clients }: ClientTableProps) => {
               <TableRow 
                 key={client.id} 
                 className="hover:bg-muted/50 cursor-pointer"
-                onClick={() => navigate(`/clients/${encodeURIComponent(client.client_email)}`)}
+                onClick={() => navigate(`/clients/${encodeURIComponent((client as any).email || client.client_email)}`)}
               >
                 <TableCell className="font-medium">
                   {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{client.client_email}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{(client as any).email || client.client_email}</TableCell>
                 <TableCell className="text-center">
                   <div className="flex justify-center">
                     <HealthScoreBadge 
