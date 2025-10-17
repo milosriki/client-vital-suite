@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ClientTable } from "@/components/ClientTable";
 import { HealthScoreBadge } from "@/components/HealthScoreBadge";
+import { ZoneDistributionChart } from "@/components/ZoneDistributionChart";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -131,6 +132,15 @@ const Clients = () => {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Zone Distribution Chart */}
+        {!isLoading && clients && clients.length > 0 && (
+          <ZoneDistributionChart 
+            clients={clients}
+            selectedZone={healthZoneFilter}
+            onZoneSelect={setHealthZoneFilter}
+          />
+        )}
 
         {/* Results Count */}
         <p className="text-sm text-muted-foreground">
