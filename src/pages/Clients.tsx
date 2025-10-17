@@ -2,12 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ClientTable } from "@/components/ClientTable";
-import { HealthScoreBadge } from "@/components/HealthScoreBadge";
 import { ZoneDistributionChart } from "@/components/ZoneDistributionChart";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +16,6 @@ const Clients = () => {
   const [healthZoneFilter, setHealthZoneFilter] = useState("All");
   const [segmentFilter, setSegmentFilter] = useState("All");
   const [coachFilter, setCoachFilter] = useState("All");
-  const [selectedClient, setSelectedClient] = useState<ClientHealthScore | null>(null);
 
   const { data: clients, isLoading, error, refetch } = useQuery<ClientHealthScore[]>({
     queryKey: ['clients', healthZoneFilter, segmentFilter, coachFilter],
@@ -56,16 +52,6 @@ const Clients = () => {
     return fullName.includes(searchTerm.toLowerCase()) ||
       client.client_email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
-
-  const getHealthColor = (zone: string) => {
-    switch (zone) {
-      case 'RED': return 'text-[#ef4444]';
-      case 'YELLOW': return 'text-[#eab308]';
-      case 'GREEN': return 'text-[#22c55e]';
-      case 'PURPLE': return 'text-[#a855f7]';
-      default: return 'text-gray-500';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -171,98 +157,9 @@ const Clients = () => {
           </Card>
         ) : (
           <ClientTable 
-            clients={filteredClients || []} 
-            onViewDetails={setSelectedClient}
+            clients={filteredClients || []}
           />
         )}
-
-        {/* Client Detail Modal */}
-        <Dialog open={!!selectedClient} onOpenChange={() => setSelectedClient(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <div className="flex items-center gap-4 mb-4">
-                <HealthScoreBadge 
-                  score={selectedClient?.health_score || 0} 
-                  zone={selectedClient?.health_zone as any}
-                  size="lg"
-                />
-                <div>
-                  <DialogTitle className="text-2xl">
-                    {`${selectedClient?.firstname || ''} ${selectedClient?.lastname || ''}`.trim() || 'Unknown Client'}
-                  </DialogTitle>
-                  <DialogDescription>{selectedClient?.client_email}</DialogDescription>
-                </div>
-              </div>
-            </DialogHeader>
-
-            <Tabs defaultValue="health">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="health">Health History</TabsTrigger>
-                <TabsTrigger value="activity">Session Activity</TabsTrigger>
-                <TabsTrigger value="interventions">Interventions</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="health" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Engagement Score</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.engagement_score?.toFixed(1) || 'N/A'}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Momentum Score</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.momentum_score?.toFixed(1) || 'N/A'}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Package Health</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.package_health_score?.toFixed(1) || 'N/A'}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Relationship Score</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.relationship_score?.toFixed(1) || 'N/A'}</p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="activity" className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Last 7 Days</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.sessions_last_7_days}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Last 30 Days</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.sessions_last_30_days}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Last 90 Days</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.sessions_last_90_days}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Outstanding Sessions</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.outstanding_sessions}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Purchased Sessions</p>
-                    <p className="text-2xl font-semibold">{selectedClient?.purchased_sessions}</p>
-                  </div>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Days Since Last Session</p>
-                  <p className="text-2xl font-semibold">{selectedClient?.days_since_last_session || 'N/A'}</p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="interventions">
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Intervention history will be displayed here</p>
-                  <p className="text-sm mt-2">This feature connects to the intervention_log table</p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

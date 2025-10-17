@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
 import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
 import Analytics from "./pages/Analytics";
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
+      { path: "/clients/:email", element: <ClientDetail /> },
       { path: "/coaches", element: <Coaches /> },
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <Analytics /> },

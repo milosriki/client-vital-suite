@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { HealthScoreBadge } from "./HealthScoreBadge";
 import { TrendIndicator } from "./TrendIndicator";
 import { Badge } from "@/components/ui/badge";
@@ -9,13 +10,13 @@ import type { ClientHealthScore } from "@/types/database";
 
 interface ClientTableProps {
   clients: ClientHealthScore[];
-  onViewDetails: (client: ClientHealthScore) => void;
 }
 
 type SortField = 'name' | 'health_score' | 'health_zone' | 'days_since_last_session' | 'assigned_coach';
 type SortDirection = 'asc' | 'desc';
 
-export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
+export const ClientTable = ({ clients }: ClientTableProps) => {
+  const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('health_score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -125,12 +126,15 @@ export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
                 </div>
               </TableHead>
               <TableHead className="text-center">Priority</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedClients.map((client) => (
-              <TableRow key={client.id} className="hover:bg-muted/50">
+              <TableRow 
+                key={client.id} 
+                className="hover:bg-muted/50 cursor-pointer"
+                onClick={() => navigate(`/clients/${encodeURIComponent(client.client_email)}`)}
+              >
                 <TableCell className="font-medium">
                   {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
                 </TableCell>
@@ -166,15 +170,6 @@ export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
                   ) : (
                     <span className="text-muted-foreground text-sm">-</span>
                   )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => onViewDetails(client)}
-                  >
-                    View
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}
