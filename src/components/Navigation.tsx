@@ -1,16 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, Settings, BookOpen } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Navigation = () => {
   const location = useLocation();
 
   const navItems = [
-    { path: "/", label: "Overview", icon: LayoutDashboard },
+    { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
-    { path: "/fix-workflows", label: "Fix Workflows", icon: Settings },
-    { path: "/workflow-strategy", label: "Strategy Guide", icon: BookOpen },
+    { path: "/interventions", label: "Interventions", icon: AlertTriangle },
+    { path: "/analytics", label: "Analytics", icon: BarChart3 },
+    { path: "/fix-workflows", label: "Workflows", icon: Settings },
+    { path: "/workflow-strategy", label: "Strategy", icon: BookOpen },
   ];
 
   return (

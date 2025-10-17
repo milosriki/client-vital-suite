@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { ClientCard } from "@/components/ClientCard";
+import { ClientTable } from "@/components/ClientTable";
+import { HealthScoreBadge } from "@/components/HealthScoreBadge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -136,10 +137,10 @@ const Clients = () => {
           Showing {filteredClients?.length || 0} clients
         </p>
 
-        {/* Client Cards Grid */}
+        {/* Client Table */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-64" />)}
+          <div className="space-y-4">
+            <Skeleton className="h-96" />
           </div>
         ) : error ? (
           <Card className="p-12 text-center">
@@ -158,36 +159,28 @@ const Clients = () => {
             )}
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredClients?.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                onViewDetails={() => setSelectedClient(client)}
-              />
-            ))}
-          </div>
+          <ClientTable 
+            clients={filteredClients || []} 
+            onViewDetails={setSelectedClient}
+          />
         )}
 
         {/* Client Detail Modal */}
         <Dialog open={!!selectedClient} onOpenChange={() => setSelectedClient(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-2xl">{selectedClient?.client_name}</DialogTitle>
-              <DialogDescription>{selectedClient?.client_email}</DialogDescription>
+              <div className="flex items-center gap-4 mb-4">
+                <HealthScoreBadge 
+                  score={selectedClient?.health_score || 0} 
+                  zone={selectedClient?.health_zone as any}
+                  size="lg"
+                />
+                <div>
+                  <DialogTitle className="text-2xl">{selectedClient?.client_name}</DialogTitle>
+                  <DialogDescription>{selectedClient?.client_email}</DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
-
-            <div className="flex items-center space-x-4 mb-6">
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center ${selectedClient?.health_zone === 'RED' ? 'bg-red-500' : selectedClient?.health_zone === 'YELLOW' ? 'bg-yellow-500' : selectedClient?.health_zone === 'GREEN' ? 'bg-green-500' : 'bg-purple-500'} text-white font-bold text-2xl`}>
-                {selectedClient?.health_score?.toFixed(0)}
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Health Score</p>
-                <p className={`text-xl font-semibold ${getHealthColor(selectedClient?.health_zone || '')}`}>
-                  {selectedClient?.health_zone}
-                </p>
-              </div>
-            </div>
 
             <Tabs defaultValue="health">
               <TabsList className="grid w-full grid-cols-3">

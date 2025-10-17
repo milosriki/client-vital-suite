@@ -2,16 +2,18 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { MetricCard } from "@/components/MetricCard";
-import { HealthChart } from "@/components/HealthChart";
+import { ZoneDistributionBar } from "@/components/ZoneDistributionBar";
 import { InterventionTracker } from "@/components/InterventionTracker";
 import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Settings } from "lucide-react";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
 
 const Overview = () => {
@@ -19,7 +21,9 @@ const Overview = () => {
   const [setupStatus, setSetupStatus] = useState("");
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [zoneFilter, setZoneFilter] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Enable real-time updates
   useRealtimeHealthScores();
@@ -438,8 +442,12 @@ const Overview = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">PTD Fitness Dashboard</h1>
-            <p className="text-muted-foreground">Client Health Score Overview</p>
+            <h1 className="text-4xl font-bold mb-2">PTD Client Health Score Dashboard</h1>
+            <div className="flex items-center gap-4 text-muted-foreground">
+              <p>Client Health Score Overview</p>
+              <span>•</span>
+              <p className="text-sm">Last updated: {format(new Date(), 'PPp')}</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleRefresh}>
@@ -488,14 +496,18 @@ const Overview = () => {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Health Distribution Chart */}
           <div className="lg:col-span-3">
-            <HealthChart
+            <ZoneDistributionBar
               data={{
-                red: summary?.red_clients ?? 0,
-                yellow: summary?.yellow_clients ?? 0,
-                green: summary?.green_clients ?? 0,
-                purple: summary?.purple_clients ?? 0,
+                RED: summary?.red_clients ?? 0,
+                YELLOW: summary?.yellow_clients ?? 0,
+                GREEN: summary?.green_clients ?? 0,
+                PURPLE: summary?.purple_clients ?? 0,
               }}
               total={summary?.total_active_clients ?? 0}
+              onZoneClick={(zone) => {
+                setZoneFilter(zone);
+                navigate('/clients');
+              }}
             />
           </div>
 
