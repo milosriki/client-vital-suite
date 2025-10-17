@@ -60,6 +60,11 @@ serve(async (req) => {
 
       const workflowData = await getResponse.json();
       let fixesApplied: string[] = [];
+      
+      console.log(`Original workflow structure for ${workflow.name}:`, {
+        nodeCount: workflowData.nodes?.length,
+        connectionCount: Object.keys(workflowData.connections || {}).length
+      });
 
       // Fix 1: Update SQL queries
       if (workflowData.nodes) {
@@ -162,13 +167,111 @@ serve(async (req) => {
           }
         });
 
-        // Fix 4: Ensure PostgreSQL nodes use correct credentials
+        // Fix 4: Ensure PostgreSQL nodes use correct credentials and always output data
         workflowData.nodes.forEach((node: any) => {
           if (node.type === "n8n-nodes-base.postgres") {
+            // Fix credentials
             if (node.credentials?.postgres?.name !== "Supabase PostgreSQL") {
               if (!node.credentials) node.credentials = {};
               node.credentials.postgres = { name: "Supabase PostgreSQL" };
               fixesApplied.push(`Updated PostgreSQL credentials in node: ${node.name}`);
+            }
+            
+            // Ensure the node always outputs data even if query returns nothing
+            if (!node.alwaysOutputData) {
+              node.alwaysOutputData = true;
+              fixesApplied.push(`Enabled alwaysOutputData for node: ${node.name}`);
+            }
+            
+            // Fix query syntax for proper data passing
+            if (node.parameters?.query) {
+              let query = node.parameters.query;
+              
+              // Ensure UPSERT queries use proper ON CONFLICT syntax
+              if (query.includes("ON CONFLICT") && query.includes("DO UPDATE SET")) {
+                // Make sure EXCLUDED is used correctly
+                if (!query.includes("EXCLUDED.")) {
+                  fixesApplied.push(`Query in ${node.name} may need EXCLUDED prefix check`);
+                }
+              }
+            }
+          }
+        });
+
+        // Fix 5: Ensure HTTP Request nodes always output data
+        workflowData.nodes.forEach((node: any) => {
+          if (node.type === "n8n-nodes-base.httpRequest") {
+            if (!node.alwaysOutputData) {
+              node.alwaysOutputData = true;
+              fixesApplied.push(`Enabled alwaysOutputData for HTTP node: ${node.name}`);
+            }
+            
+            // Ensure response is properly configured
+            if (!node.parameters.options) {
+              node.parameters.options = {};
+            }
+            if (!node.parameters.options.response) {
+              node.parameters.options.response = {};
+            }
+            if (!node.parameters.options.response.response) {
+              node.parameters.options.response.response = {};
+            }
+            node.parameters.options.response.response.neverError = false;
+          }
+        });
+
+        // Fix 6: Ensure proper node connections and execution order
+        if (workflowData.connections) {
+          let hasConnectionIssues = false;
+          
+          workflowData.nodes.forEach((node: any) => {
+            // Check if this node is supposed to receive data but has no input connections
+            const hasInputConnection = Object.values(workflowData.connections).some(
+              (conn: any) => {
+                return Object.values(conn).some((connArray: any) => {
+                  return connArray.some((c: any) => c.some((connection: any) => 
+                    connection.node === node.name
+                  ));
+                });
+              }
+            );
+            
+            // Nodes that transform or use data should have input connections
+            if (node.type === "n8n-nodes-base.set" || 
+                node.type === "n8n-nodes-base.code" ||
+                (node.type === "n8n-nodes-base.postgres" && node.parameters?.query?.includes("$json"))) {
+              if (!hasInputConnection && node.type !== "n8n-nodes-base.set" && !node.name.toLowerCase().includes("trigger")) {
+                hasConnectionIssues = true;
+                console.log(`Warning: Node ${node.name} may be missing input connection`);
+              }
+            }
+          });
+          
+          if (hasConnectionIssues) {
+            fixesApplied.push("Detected potential connection issues - please verify workflow connections manually");
+          }
+        }
+
+        // Fix 7: Fix Code/Function nodes to properly pass data
+        workflowData.nodes.forEach((node: any) => {
+          if (node.type === "n8n-nodes-base.code" || node.type === "n8n-nodes-base.function") {
+            if (!node.alwaysOutputData) {
+              node.alwaysOutputData = true;
+              fixesApplied.push(`Enabled alwaysOutputData for Code node: ${node.name}`);
+            }
+          }
+        });
+
+        // Fix 8: Ensure Set nodes properly pass all data
+        workflowData.nodes.forEach((node: any) => {
+          if (node.type === "n8n-nodes-base.set") {
+            if (!node.parameters.options) {
+              node.parameters.options = {};
+            }
+            // Ensure it includes all input data
+            if (node.parameters.options.includeOtherFields === undefined) {
+              node.parameters.options.includeOtherFields = true;
+              fixesApplied.push(`Enabled includeOtherFields for Set node: ${node.name}`);
             }
           }
         });
