@@ -61,7 +61,7 @@ const Overview = () => {
         .from('coach_performance')
         .select('*')
         .eq('report_date', today)
-        .order('avg_health_score', { ascending: false });
+        .order('avg_client_health', { ascending: false });
 
       if (error) throw error;
       return (data as CoachPerformance[]) || [];
@@ -312,8 +312,8 @@ const Overview = () => {
                     <tr key={coach.id} className="border-b hover:bg-accent/50 transition-colors">
                       <td className="py-3 px-4 font-medium">{coach.coach_name}</td>
                       <td className="text-center py-3 px-4">{coach.total_clients}</td>
-                      <td className={`text-center py-3 px-4 font-semibold ${getScoreColor(coach.avg_health_score)}`}>
-                        {coach.avg_health_score?.toFixed(1)}
+                      <td className={`text-center py-3 px-4 font-semibold ${getScoreColor(coach.avg_client_health)}`}>
+                        {coach.avg_client_health?.toFixed(1)}
                       </td>
                       <td className="text-center py-3 px-4 text-red-500 font-semibold">{coach.red_clients}</td>
                       <td className="text-center py-3 px-4 text-yellow-500 font-semibold">{coach.yellow_clients}</td>

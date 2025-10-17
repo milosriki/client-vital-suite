@@ -18,9 +18,11 @@ export type Database = {
         Row: {
           assigned_coach: string | null
           calculated_at: string | null
+          calculated_on: string | null
           calculation_version: string | null
           churn_risk_score: number | null
           client_segment: string | null
+          created_at: string | null
           days_since_last_session: number | null
           days_until_renewal: number | null
           email: string
@@ -44,13 +46,16 @@ export type Database = {
           sessions_last_7d: number | null
           sessions_last_90d: number | null
           sessions_purchased: number | null
+          updated_at: string | null
         }
         Insert: {
           assigned_coach?: string | null
           calculated_at?: string | null
+          calculated_on?: string | null
           calculation_version?: string | null
           churn_risk_score?: number | null
           client_segment?: string | null
+          created_at?: string | null
           days_since_last_session?: number | null
           days_until_renewal?: number | null
           email: string
@@ -74,13 +79,16 @@ export type Database = {
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
           sessions_purchased?: number | null
+          updated_at?: string | null
         }
         Update: {
           assigned_coach?: string | null
           calculated_at?: string | null
+          calculated_on?: string | null
           calculation_version?: string | null
           churn_risk_score?: number | null
           client_segment?: string | null
+          created_at?: string | null
           days_since_last_session?: number | null
           days_until_renewal?: number | null
           email?: string
@@ -104,165 +112,328 @@ export type Database = {
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
           sessions_purchased?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
       coach_performance: {
         Row: {
-          avg_health_score: number | null
+          active_clients: number | null
+          at_risk_revenue_aed: number | null
+          avg_client_health: number | null
+          avg_health_change_7d: number | null
+          avg_sessions_per_client: number | null
+          churn_risk_30d: number | null
+          clients_at_risk: number | null
           clients_declining: number | null
+          clients_green: number | null
           clients_improving: number | null
+          clients_purple: number | null
+          clients_red: number | null
+          clients_yellow: number | null
           coach_name: string
+          coach_rank: number | null
           created_at: string | null
-          green_clients: number | null
+          critical_interventions: number | null
+          declining_clients: number | null
+          health_score_stdev: number | null
+          health_trend: string | null
+          highest_health_client: string | null
           id: number
-          purple_clients: number | null
-          red_clients: number | null
+          improving_clients: number | null
+          intervention_success_rate: number | null
+          lowest_health_client: string | null
+          median_client_health: number | null
+          performance_score: number | null
+          red_flags: Json | null
           report_date: string
+          strengths: string | null
           total_clients: number | null
-          trend: string | null
-          updated_at: string | null
-          yellow_clients: number | null
+          weaknesses: string | null
         }
         Insert: {
-          avg_health_score?: number | null
+          active_clients?: number | null
+          at_risk_revenue_aed?: number | null
+          avg_client_health?: number | null
+          avg_health_change_7d?: number | null
+          avg_sessions_per_client?: number | null
+          churn_risk_30d?: number | null
+          clients_at_risk?: number | null
           clients_declining?: number | null
+          clients_green?: number | null
           clients_improving?: number | null
+          clients_purple?: number | null
+          clients_red?: number | null
+          clients_yellow?: number | null
           coach_name: string
+          coach_rank?: number | null
           created_at?: string | null
-          green_clients?: number | null
+          critical_interventions?: number | null
+          declining_clients?: number | null
+          health_score_stdev?: number | null
+          health_trend?: string | null
+          highest_health_client?: string | null
           id?: number
-          purple_clients?: number | null
-          red_clients?: number | null
+          improving_clients?: number | null
+          intervention_success_rate?: number | null
+          lowest_health_client?: string | null
+          median_client_health?: number | null
+          performance_score?: number | null
+          red_flags?: Json | null
           report_date: string
+          strengths?: string | null
           total_clients?: number | null
-          trend?: string | null
-          updated_at?: string | null
-          yellow_clients?: number | null
+          weaknesses?: string | null
         }
         Update: {
-          avg_health_score?: number | null
+          active_clients?: number | null
+          at_risk_revenue_aed?: number | null
+          avg_client_health?: number | null
+          avg_health_change_7d?: number | null
+          avg_sessions_per_client?: number | null
+          churn_risk_30d?: number | null
+          clients_at_risk?: number | null
           clients_declining?: number | null
+          clients_green?: number | null
           clients_improving?: number | null
+          clients_purple?: number | null
+          clients_red?: number | null
+          clients_yellow?: number | null
           coach_name?: string
+          coach_rank?: number | null
           created_at?: string | null
-          green_clients?: number | null
+          critical_interventions?: number | null
+          declining_clients?: number | null
+          health_score_stdev?: number | null
+          health_trend?: string | null
+          highest_health_client?: string | null
           id?: number
-          purple_clients?: number | null
-          red_clients?: number | null
+          improving_clients?: number | null
+          intervention_success_rate?: number | null
+          lowest_health_client?: string | null
+          median_client_health?: number | null
+          performance_score?: number | null
+          red_flags?: Json | null
           report_date?: string
+          strengths?: string | null
           total_clients?: number | null
-          trend?: string | null
-          updated_at?: string | null
-          yellow_clients?: number | null
+          weaknesses?: string | null
         }
         Relationships: []
       }
       daily_summary: {
         Row: {
-          at_risk_revenue: number | null
+          at_risk_revenue_aed: number | null
           avg_health_score: number | null
+          clients_green: number | null
+          clients_purple: number | null
+          clients_red: number | null
+          clients_yellow: number | null
           created_at: string | null
           critical_interventions: number | null
-          green_clients: number | null
-          green_percentage: number | null
+          generated_at: string | null
+          green_count: number | null
           id: number
-          purple_clients: number | null
-          purple_percentage: number | null
-          red_clients: number | null
-          red_percentage: number | null
+          interventions_recommended: number | null
+          new_risks_identified: number | null
+          patterns_detected: Json | null
+          purple_count: number | null
+          red_count: number | null
           summary_date: string
-          total_active_clients: number | null
-          updated_at: string | null
-          yellow_clients: number | null
-          yellow_percentage: number | null
+          top_risks: Json | null
+          total_at_risk: number | null
+          total_clients: number | null
+          yellow_count: number | null
+          zone_changes_24h: Json | null
         }
         Insert: {
-          at_risk_revenue?: number | null
+          at_risk_revenue_aed?: number | null
           avg_health_score?: number | null
+          clients_green?: number | null
+          clients_purple?: number | null
+          clients_red?: number | null
+          clients_yellow?: number | null
           created_at?: string | null
           critical_interventions?: number | null
-          green_clients?: number | null
-          green_percentage?: number | null
+          generated_at?: string | null
+          green_count?: number | null
           id?: number
-          purple_clients?: number | null
-          purple_percentage?: number | null
-          red_clients?: number | null
-          red_percentage?: number | null
+          interventions_recommended?: number | null
+          new_risks_identified?: number | null
+          patterns_detected?: Json | null
+          purple_count?: number | null
+          red_count?: number | null
           summary_date: string
-          total_active_clients?: number | null
-          updated_at?: string | null
-          yellow_clients?: number | null
-          yellow_percentage?: number | null
+          top_risks?: Json | null
+          total_at_risk?: number | null
+          total_clients?: number | null
+          yellow_count?: number | null
+          zone_changes_24h?: Json | null
         }
         Update: {
-          at_risk_revenue?: number | null
+          at_risk_revenue_aed?: number | null
           avg_health_score?: number | null
+          clients_green?: number | null
+          clients_purple?: number | null
+          clients_red?: number | null
+          clients_yellow?: number | null
           created_at?: string | null
           critical_interventions?: number | null
-          green_clients?: number | null
-          green_percentage?: number | null
+          generated_at?: string | null
+          green_count?: number | null
           id?: number
-          purple_clients?: number | null
-          purple_percentage?: number | null
-          red_clients?: number | null
-          red_percentage?: number | null
+          interventions_recommended?: number | null
+          new_risks_identified?: number | null
+          patterns_detected?: Json | null
+          purple_count?: number | null
+          red_count?: number | null
           summary_date?: string
-          total_active_clients?: number | null
-          updated_at?: string | null
-          yellow_clients?: number | null
-          yellow_percentage?: number | null
+          top_risks?: Json | null
+          total_at_risk?: number | null
+          total_clients?: number | null
+          yellow_count?: number | null
+          zone_changes_24h?: Json | null
         }
         Relationships: []
       }
       intervention_log: {
         Row: {
+          actioned_at: string | null
+          ai_confidence: number | null
+          ai_insight: string | null
           ai_recommendation: string | null
-          assigned_coach: string | null
-          client_id: string
-          client_name: string | null
+          assigned_to: string | null
+          churn_risk_at_trigger: number | null
+          client_email: string
+          communication_method: string | null
+          communication_timing: string | null
+          completed_at: string | null
           created_at: string | null
+          due_date: string | null
+          email: string
+          executed_by: string | null
+          firstname: string | null
           follow_up_date: string | null
+          health_score: number | null
+          health_score_after: number | null
+          health_score_at_trigger: number | null
+          health_score_before: number | null
+          health_trend: string | null
+          health_zone: string | null
+          health_zone_after: string | null
+          health_zone_at_trigger: string | null
+          hubspot_contact_id: string | null
           id: number
           intervention_date: string | null
           intervention_type: string
+          lastname: string | null
+          message_tone: string | null
           notes: string | null
           outcome: string | null
+          owner_notes: string | null
+          priority: string | null
+          psychological_insight: string | null
+          recommended_action: string | null
+          recommended_by: string | null
+          revenue_protected_aed: number | null
+          root_cause: string | null
+          sessions_recovered: number | null
           status: string | null
-          success_rating: number | null
-          updated_at: string | null
+          success_probability: number | null
+          trigger_reason: string | null
+          triggered_at: string | null
         }
         Insert: {
+          actioned_at?: string | null
+          ai_confidence?: number | null
+          ai_insight?: string | null
           ai_recommendation?: string | null
-          assigned_coach?: string | null
-          client_id: string
-          client_name?: string | null
+          assigned_to?: string | null
+          churn_risk_at_trigger?: number | null
+          client_email: string
+          communication_method?: string | null
+          communication_timing?: string | null
+          completed_at?: string | null
           created_at?: string | null
+          due_date?: string | null
+          email: string
+          executed_by?: string | null
+          firstname?: string | null
           follow_up_date?: string | null
+          health_score?: number | null
+          health_score_after?: number | null
+          health_score_at_trigger?: number | null
+          health_score_before?: number | null
+          health_trend?: string | null
+          health_zone?: string | null
+          health_zone_after?: string | null
+          health_zone_at_trigger?: string | null
+          hubspot_contact_id?: string | null
           id?: number
           intervention_date?: string | null
           intervention_type: string
+          lastname?: string | null
+          message_tone?: string | null
           notes?: string | null
           outcome?: string | null
+          owner_notes?: string | null
+          priority?: string | null
+          psychological_insight?: string | null
+          recommended_action?: string | null
+          recommended_by?: string | null
+          revenue_protected_aed?: number | null
+          root_cause?: string | null
+          sessions_recovered?: number | null
           status?: string | null
-          success_rating?: number | null
-          updated_at?: string | null
+          success_probability?: number | null
+          trigger_reason?: string | null
+          triggered_at?: string | null
         }
         Update: {
+          actioned_at?: string | null
+          ai_confidence?: number | null
+          ai_insight?: string | null
           ai_recommendation?: string | null
-          assigned_coach?: string | null
-          client_id?: string
-          client_name?: string | null
+          assigned_to?: string | null
+          churn_risk_at_trigger?: number | null
+          client_email?: string
+          communication_method?: string | null
+          communication_timing?: string | null
+          completed_at?: string | null
           created_at?: string | null
+          due_date?: string | null
+          email?: string
+          executed_by?: string | null
+          firstname?: string | null
           follow_up_date?: string | null
+          health_score?: number | null
+          health_score_after?: number | null
+          health_score_at_trigger?: number | null
+          health_score_before?: number | null
+          health_trend?: string | null
+          health_zone?: string | null
+          health_zone_after?: string | null
+          health_zone_at_trigger?: string | null
+          hubspot_contact_id?: string | null
           id?: number
           intervention_date?: string | null
           intervention_type?: string
+          lastname?: string | null
+          message_tone?: string | null
           notes?: string | null
           outcome?: string | null
+          owner_notes?: string | null
+          priority?: string | null
+          psychological_insight?: string | null
+          recommended_action?: string | null
+          recommended_by?: string | null
+          revenue_protected_aed?: number | null
+          root_cause?: string | null
+          sessions_recovered?: number | null
           status?: string | null
-          success_rating?: number | null
-          updated_at?: string | null
+          success_probability?: number | null
+          trigger_reason?: string | null
+          triggered_at?: string | null
         }
         Relationships: []
       }

@@ -29,7 +29,7 @@ export interface CoachPerformance {
   coach_name: string;
   report_date: string;
   total_clients: number;
-  avg_health_score: number;
+  avg_client_health: number;
   red_clients: number;
   yellow_clients: number;
   green_clients: number;

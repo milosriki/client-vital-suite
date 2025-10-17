@@ -6,7 +6,7 @@ interface CoachCardProps {
   coach: {
     coach_name: string;
     total_clients: number;
-    avg_health_score: number;
+    avg_client_health: number;
     red_clients: number;
     yellow_clients: number;
     green_clients: number;
@@ -54,8 +54,8 @@ export const CoachCard = ({ coach, onViewClients }: CoachCardProps) => {
 
         <div className="mb-4">
           <p className="text-sm text-muted-foreground mb-1">Average Health Score</p>
-          <p className={`text-3xl font-bold ${getScoreColor(coach.avg_health_score)}`}>
-            {coach.avg_health_score.toFixed(1)}
+          <p className={`text-3xl font-bold ${getScoreColor(coach.avg_client_health)}`}>
+            {coach.avg_client_health.toFixed(1)}
           </p>
         </div>
 

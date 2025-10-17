@@ -22,7 +22,7 @@ const Coaches = () => {
         .from('coach_performance')
         .select('*')
         .eq('report_date', today)
-        .order('avg_health_score', { ascending: false });
+        .order('avg_client_health', { ascending: false });
 
       if (error) throw error;
       return (data as CoachPerformance[]) || [];
