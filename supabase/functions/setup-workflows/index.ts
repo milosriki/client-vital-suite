@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const N8N_API_URL = "https://personaltrainersdubai.app.n8n.cloud/api/v1";
 const N8N_API_KEY = Deno.env.get("N8N_API_KEY");
+const SUPABASE_URL = "https://boowptjtwadxpjkpctna.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvb3dwdGp0d2FkeHBqa3BjdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNzg4NTQsImV4cCI6MjA3Mjc1NDg1NH0.ka1coMBcGClLN9nrnuuLZq3S48tVuzb9qbe5aQLhDpU";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,27 +96,51 @@ serve(async (req) => {
             }
           });
 
-          // Fix 2: Fix RPC function calls
+          // Fix 2: Fix all HTTP Request nodes URLs and headers
           workflowData.nodes.forEach((node: any) => {
             if (node.type === "n8n-nodes-base.httpRequest" && node.parameters?.url) {
-              const url = node.parameters.url;
+              let url = node.parameters.url;
+              const originalUrl = url;
               
-              if (url.includes("/rpc/get_zone_distribution") || url.includes("/rpc/get_overall_avg")) {
+              // Fix Supabase base URL to use correct project
+              url = url.replace(/https:\/\/[^\/]+\.supabase\.co/g, SUPABASE_URL);
+              
+              // Fix RPC endpoints to use POST with proper body
+              if (url.includes("/rpc/get_zone_distribution") || url.includes("/rpc/get_overall_avg") || url.includes("/rpc/get_at_risk_clients")) {
                 node.parameters.method = "POST";
-                node.parameters.body = {
-                  bodyParameters: {
-                    parameters: [
-                      {
-                        name: "target_date",
-                        value: "={{$now.toFormat('yyyy-MM-dd')}}",
-                      },
-                    ],
-                  },
-                };
                 node.parameters.sendBody = true;
                 node.parameters.contentType = "application/json";
-                fixesApplied.push(`Fixed RPC call to POST in node: ${node.name}`);
+                node.parameters.jsonParameters = true;
+                node.parameters.bodyParametersJson = JSON.stringify({
+                  target_date: "={{$now.toFormat('yyyy-MM-dd')}}"
+                });
+                
+                // Set proper authentication headers
+                node.parameters.headerParametersJson = JSON.stringify({
+                  apikey: SUPABASE_ANON_KEY,
+                  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                  "Content-Type": "application/json"
+                });
+                fixesApplied.push(`Fixed RPC call in node: ${node.name}`);
                 console.log(`  - Fixed RPC call in node: ${node.name}`);
+              }
+              
+              // Fix REST API endpoints to have proper headers
+              if (url.includes("/rest/v1/")) {
+                node.parameters.headerParametersJson = JSON.stringify({
+                  apikey: SUPABASE_ANON_KEY,
+                  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                  "Content-Type": "application/json",
+                  Prefer: "return=representation"
+                });
+                fixesApplied.push(`Fixed REST API headers in node: ${node.name}`);
+                console.log(`  - Fixed REST API headers in node: ${node.name}`);
+              }
+              
+              if (url !== originalUrl) {
+                node.parameters.url = url;
+                fixesApplied.push(`Updated URL in node: ${node.name}`);
+                console.log(`  - Updated URL in node: ${node.name}`);
               }
             }
           });
