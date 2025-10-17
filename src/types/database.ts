@@ -2,7 +2,8 @@
 export interface ClientHealthScore {
   id: string;
   client_id: string;
-  client_name: string;
+  firstname: string | null;
+  lastname: string | null;
   client_email: string | null;
   health_score: number;
   health_zone: 'RED' | 'YELLOW' | 'GREEN' | 'PURPLE';

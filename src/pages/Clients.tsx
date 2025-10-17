@@ -51,10 +51,11 @@ const Clients = () => {
   // Get unique coaches for filter
   const coaches = [...new Set(clients?.map(c => c.assigned_coach).filter(Boolean))];
 
-  const filteredClients = clients?.filter((client) =>
-    client.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.client_email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients?.filter((client) => {
+    const fullName = `${client.firstname || ''} ${client.lastname || ''}`.toLowerCase();
+    return fullName.includes(searchTerm.toLowerCase()) ||
+      client.client_email?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const getHealthColor = (zone: string) => {
     switch (zone) {
@@ -186,7 +187,9 @@ const Clients = () => {
                   size="lg"
                 />
                 <div>
-                  <DialogTitle className="text-2xl">{selectedClient?.client_name}</DialogTitle>
+                  <DialogTitle className="text-2xl">
+                    {`${selectedClient?.firstname || ''} ${selectedClient?.lastname || ''}`.trim() || 'Unknown Client'}
+                  </DialogTitle>
                   <DialogDescription>{selectedClient?.client_email}</DialogDescription>
                 </div>
               </div>

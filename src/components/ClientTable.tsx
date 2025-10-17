@@ -12,7 +12,7 @@ interface ClientTableProps {
   onViewDetails: (client: ClientHealthScore) => void;
 }
 
-type SortField = 'client_name' | 'health_score' | 'health_zone' | 'days_since_last_session' | 'assigned_coach';
+type SortField = 'name' | 'health_score' | 'health_zone' | 'days_since_last_session' | 'assigned_coach';
 type SortDirection = 'asc' | 'desc';
 
 export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
@@ -31,8 +31,17 @@ export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
   };
 
   const sortedClients = [...clients].sort((a, b) => {
-    let aValue = a[sortField];
-    let bValue = b[sortField];
+    let aValue: any;
+    let bValue: any;
+
+    // Handle name field specially by combining firstname and lastname
+    if (sortField === 'name') {
+      aValue = `${a.firstname || ''} ${a.lastname || ''}`.trim();
+      bValue = `${b.firstname || ''} ${b.lastname || ''}`.trim();
+    } else {
+      aValue = a[sortField];
+      bValue = b[sortField];
+    }
 
     // Handle null values
     if (aValue === null) return 1;
@@ -83,7 +92,7 @@ export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => handleSort('client_name')}>
+              <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
                 <div className="flex items-center gap-2">
                   Name
                   <ArrowUpDown className="h-4 w-4" />
@@ -123,7 +132,7 @@ export const ClientTable = ({ clients, onViewDetails }: ClientTableProps) => {
             {paginatedClients.map((client) => (
               <TableRow key={client.id} className="hover:bg-muted/50">
                 <TableCell className="font-medium">
-                  {client.client_name}
+                  {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{client.client_email}</TableCell>
                 <TableCell className="text-center">

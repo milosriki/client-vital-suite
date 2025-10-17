@@ -5,7 +5,8 @@ import { Eye } from "lucide-react";
 
 interface ClientCardProps {
   client: {
-    client_name: string;
+    firstname: string | null;
+    lastname: string | null;
     client_email: string | null;
     health_score: number;
     health_zone: string;
@@ -33,7 +34,9 @@ export const ClientCard = ({ client, onViewDetails }: ClientCardProps) => {
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg mb-1">{client.client_name}</h3>
+            <h3 className="font-semibold text-lg mb-1">
+              {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
+            </h3>
             <p className="text-sm text-muted-foreground">{client.client_email}</p>
           </div>
           <div className="flex flex-col items-center">

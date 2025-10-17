@@ -523,7 +523,9 @@ const Overview = () => {
                     <div key={client.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-semibold">{client.client_name}</p>
+                          <p className="font-semibold">
+                            {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
+                          </p>
                           <p className="text-sm text-muted-foreground">{client.client_email}</p>
                         </div>
                         <Badge className={getHealthColor(client.health_zone)}>
