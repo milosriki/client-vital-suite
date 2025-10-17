@@ -84,7 +84,7 @@ serve(async (req) => {
           }
         });
 
-        // Fix 2: Fix all HTTP Request nodes to use correct Supabase URLs
+        // Fix 2: Fix all HTTP Request nodes to use correct Supabase URLs and settings
         workflowData.nodes.forEach((node: any) => {
           if (node.type === "n8n-nodes-base.httpRequest" && node.parameters?.url) {
             let url = node.parameters.url;
@@ -104,25 +104,43 @@ serve(async (req) => {
               });
               
               // Ensure proper headers
-              if (!node.parameters.headerParametersJson) {
-                node.parameters.headerParametersJson = JSON.stringify({
-                  apikey: SUPABASE_ANON_KEY,
-                  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                  "Content-Type": "application/json"
-                });
-              }
+              node.parameters.sendHeaders = true;
+              node.parameters.headerParametersJson = JSON.stringify({
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                "Content-Type": "application/json"
+              });
               fixesApplied.push(`Fixed RPC call in node: ${node.name}`);
             }
             
-            // Fix REST API endpoints
+            // Fix REST API endpoints for INSERT/UPSERT operations
             if (url.includes("/rest/v1/")) {
               // Ensure proper headers for Supabase REST API
+              node.parameters.sendHeaders = true;
               node.parameters.headerParametersJson = JSON.stringify({
                 apikey: SUPABASE_ANON_KEY,
                 Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
                 "Content-Type": "application/json",
                 Prefer: "return=representation"
               });
+              
+              // If it's an insert operation, ensure POST method and proper body
+              if (url.includes("client_health_scores") || url.includes("daily_summary") || 
+                  url.includes("coach_performance") || url.includes("weekly_patterns") || 
+                  url.includes("intervention_log")) {
+                node.parameters.method = "POST";
+                node.parameters.sendBody = true;
+                node.parameters.contentType = "application/json";
+                node.parameters.jsonParameters = true;
+                
+                // Ensure the body contains the data from previous node
+                if (!node.parameters.bodyParametersJson) {
+                  node.parameters.bodyParametersJson = "={{ JSON.stringify($input.all()) }}";
+                }
+                
+                fixesApplied.push(`Fixed REST API insert in node: ${node.name}`);
+              }
+              
               fixesApplied.push(`Fixed REST API headers in node: ${node.name}`);
             }
             
