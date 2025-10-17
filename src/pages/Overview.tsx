@@ -17,6 +17,8 @@ import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/
 const Overview = () => {
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupStatus, setSetupStatus] = useState("");
+  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
   const { toast } = useToast();
   
   // Enable real-time updates
@@ -117,8 +119,10 @@ const Overview = () => {
 
   const handleSetupWorkflows = async () => {
     setSetupLoading(true);
+    setErrorDetails(null);
     
     try {
+      console.log("Starting setup workflow...");
       setSetupStatus("Connecting to n8n...");
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -128,28 +132,112 @@ const Overview = () => {
       setSetupStatus("Running Daily Calculator...");
       const { data, error } = await supabase.functions.invoke("setup-workflows");
       
-      if (error) throw error;
+      console.log("Setup response:", { data, error });
+      
+      if (error) {
+        console.error("Supabase function error:", error);
+        setErrorDetails({
+          type: "Supabase Function Error",
+          message: error.message,
+          details: error,
+          timestamp: new Date().toISOString()
+        });
+        throw error;
+      }
+      
+      if (!data?.success) {
+        console.error("Setup failed:", data);
+        
+        const errorMsg = data?.error || "Setup failed";
+        const executionError = data?.execution?.message;
+        const workflowErrors = data?.workflowFixes?.filter((w: any) => w.status === "error");
+        
+        let detailedMessage = errorMsg;
+        if (executionError) {
+          detailedMessage += `\n\nExecution: ${executionError}`;
+        }
+        if (workflowErrors && workflowErrors.length > 0) {
+          detailedMessage += `\n\nWorkflow Errors:\n${workflowErrors.map((w: any) => 
+            `- ${w.workflow}: ${w.message}`
+          ).join('\n')}`;
+        }
+        
+        setErrorDetails({
+          type: "Setup Error",
+          message: errorMsg,
+          executionError: data?.execution,
+          workflowErrors,
+          fullResponse: data,
+          timestamp: new Date().toISOString()
+        });
+        
+        toast({
+          title: "Setup Failed",
+          description: (
+            <div className="space-y-2">
+              <p>{errorMsg}</p>
+              {executionError && (
+                <p className="text-xs text-muted-foreground">Execution: {executionError}</p>
+              )}
+              {data?.execution?.statusCode && (
+                <p className="text-xs text-muted-foreground">Status: {data.execution.statusCode}</p>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowErrorModal(true)}
+                className="mt-2"
+              >
+                View Full Error
+              </Button>
+            </div>
+          ),
+          variant: "destructive",
+        });
+        
+        setSetupStatus("");
+        return;
+      }
       
       setSetupStatus("Populating database...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (data?.success) {
-        setSetupStatus("Success! Dashboard ready.");
-        toast({
-          title: "Setup Complete",
-          description: "Workflows fixed and data populated successfully. Refreshing dashboard...",
-        });
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        window.location.reload();
-      } else {
-        throw new Error(data?.error || "Setup failed");
-      }
+      setSetupStatus("Success! Dashboard ready.");
+      toast({
+        title: "Setup Complete",
+        description: `Fixed ${data.summary?.fixed || 0} workflows. Refreshing dashboard...`,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      window.location.reload();
+      
     } catch (error) {
       console.error("Setup error:", error);
+      
+      if (!errorDetails) {
+        setErrorDetails({
+          type: "Unexpected Error",
+          message: error instanceof Error ? error.message : "Unknown error",
+          error,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       toast({
         title: "Setup Failed",
-        description: error instanceof Error ? error.message : "Failed to setup workflows",
+        description: (
+          <div className="space-y-2">
+            <p>{error instanceof Error ? error.message : "Failed to setup workflows"}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowErrorModal(true)}
+              className="mt-2"
+            >
+              View Error Details
+            </Button>
+          </div>
+        ),
         variant: "destructive",
       });
       setSetupStatus("");
@@ -232,26 +320,114 @@ const Overview = () => {
                   <p className="text-sm text-muted-foreground">{setupStatus}</p>
                 </div>
               )}
-              <Button 
-                className="w-full"
-                onClick={handleSetupWorkflows}
-                disabled={setupLoading}
-              >
-                {setupLoading ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Setting up...
-                  </>
-                ) : (
-                  <>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Fix & Run Now
-                  </>
+              <div className="space-y-2">
+                <Button 
+                  className="w-full"
+                  onClick={handleSetupWorkflows}
+                  disabled={setupLoading}
+                >
+                  {setupLoading ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Setting up...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Fix & Run Now
+                    </>
+                  )}
+                </Button>
+                {errorDetails && !setupLoading && (
+                  <Button 
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleSetupWorkflows}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry Setup
+                  </Button>
                 )}
-              </Button>
+              </div>
+              {errorDetails && (
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setShowErrorModal(true)}
+                >
+                  View Error Logs
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Error Details Modal */}
+        {showErrorModal && errorDetails && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowErrorModal(false)}>
+            <Card className="max-w-3xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <CardHeader>
+                <CardTitle>Error Details</CardTitle>
+                <CardDescription>{errorDetails.type} - {errorDetails.timestamp}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 overflow-y-auto max-h-[60vh]">
+                <div>
+                  <h3 className="font-semibold mb-2">Error Message</h3>
+                  <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+                    {errorDetails.message}
+                  </pre>
+                </div>
+                
+                {errorDetails.executionError && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Execution Details</h3>
+                    <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+                      {JSON.stringify(errorDetails.executionError, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                
+                {errorDetails.workflowErrors && errorDetails.workflowErrors.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Workflow Errors</h3>
+                    <div className="space-y-2">
+                      {errorDetails.workflowErrors.map((w: any, i: number) => (
+                        <div key={i} className="bg-muted p-3 rounded-lg">
+                          <p className="font-medium">{w.workflow}</p>
+                          <p className="text-sm text-muted-foreground">{w.message}</p>
+                          {w.details && (
+                            <pre className="mt-2 text-xs overflow-x-auto">{w.details}</pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <h3 className="font-semibold mb-2">Full Response</h3>
+                  <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto">
+                    {JSON.stringify(errorDetails.fullResponse || errorDetails, null, 2)}
+                  </pre>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button onClick={() => setShowErrorModal(false)}>Close</Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
+                      toast({ title: "Copied to clipboard" });
+                    }}
+                  >
+                    Copy Error
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     );
   }

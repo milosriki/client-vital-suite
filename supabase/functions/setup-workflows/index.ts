@@ -6,6 +6,7 @@ const N8N_API_KEY = Deno.env.get("N8N_API_KEY");
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 const workflows = [
@@ -22,136 +23,180 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Starting workflow setup...");
+    console.log("=== Starting workflow setup ===");
+    console.log("N8N API URL:", N8N_API_URL);
+    console.log("N8N API Key present:", !!N8N_API_KEY);
+    
+    if (!N8N_API_KEY) {
+      const error = "N8N_API_KEY is not configured in Supabase secrets";
+      console.error("ERROR:", error);
+      return new Response(JSON.stringify({ 
+        error,
+        success: false,
+        details: "Please configure the N8N_API_KEY secret in Supabase"
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    
     const results = [];
 
     // Step 1: Fix workflows
-    console.log("Step 1: Fixing workflow configurations...");
+    console.log("=== Step 1: Fixing workflow configurations ===");
     for (const workflow of workflows) {
-      console.log(`Processing workflow: ${workflow.name} (${workflow.id})`);
+      console.log(`\nProcessing workflow: ${workflow.name} (${workflow.id})`);
       
-      const getResponse = await fetch(`${N8N_API_URL}/workflows/${workflow.id}`, {
-        headers: {
-          "X-N8N-API-KEY": N8N_API_KEY!,
-          "Accept": "application/json",
-        },
-      });
-
-      if (!getResponse.ok) {
-        results.push({
-          workflow: workflow.name,
-          status: "error",
-          message: `Failed to fetch: ${getResponse.statusText}`,
-        });
-        continue;
-      }
-
-      const workflowData = await getResponse.json();
-      let fixesApplied: string[] = [];
-
-      // Fix 1: Update SQL queries
-      if (workflowData.nodes) {
-        workflowData.nodes.forEach((node: any) => {
-          if (node.parameters?.query) {
-            let query = node.parameters.query;
-            const originalQuery = query;
-            
-            query = query.replace(/client_id/gi, "id");
-            query = query.replace(
-              /client_name/gi,
-              "COALESCE(firstname || ' ' || lastname, email) as client_name"
-            );
-            
-            if (query !== originalQuery) {
-              node.parameters.query = query;
-              fixesApplied.push(`Updated SQL in node: ${node.name}`);
-            }
-          }
-        });
-
-        // Fix 2: Fix RPC function calls
-        workflowData.nodes.forEach((node: any) => {
-          if (node.type === "n8n-nodes-base.httpRequest" && node.parameters?.url) {
-            const url = node.parameters.url;
-            
-            if (url.includes("/rpc/get_zone_distribution") || url.includes("/rpc/get_overall_avg")) {
-              node.parameters.method = "POST";
-              node.parameters.body = {
-                bodyParameters: {
-                  parameters: [
-                    {
-                      name: "target_date",
-                      value: "={{$now.toFormat('yyyy-MM-dd')}}",
-                    },
-                  ],
-                },
-              };
-              node.parameters.sendBody = true;
-              node.parameters.contentType = "application/json";
-              fixesApplied.push(`Fixed RPC call to POST in node: ${node.name}`);
-            }
-          }
-        });
-
-        // Fix 3: Add query parameters to intervention_log requests
-        workflowData.nodes.forEach((node: any) => {
-          if (node.parameters?.url?.includes("/intervention_log")) {
-            const currentUrl = node.parameters.url;
-            if (!currentUrl.includes("?")) {
-              node.parameters.url = `${currentUrl}?created_at=gte.{{$now.startOf('day').toISO()}}&select=*`;
-              fixesApplied.push(`Added query params to intervention_log in node: ${node.name}`);
-            }
-          }
-        });
-
-        // Fix 4: Ensure PostgreSQL nodes use correct credentials
-        workflowData.nodes.forEach((node: any) => {
-          if (node.type === "n8n-nodes-base.postgres") {
-            if (node.credentials?.postgres?.name !== "Supabase PostgreSQL") {
-              if (!node.credentials) node.credentials = {};
-              node.credentials.postgres = { name: "Supabase PostgreSQL" };
-              fixesApplied.push(`Updated PostgreSQL credentials in node: ${node.name}`);
-            }
-          }
-        });
-      }
-
-      // Update the workflow if fixes were applied
-      if (fixesApplied.length > 0) {
-        const updateResponse = await fetch(`${N8N_API_URL}/workflows/${workflow.id}`, {
-          method: "PATCH",
+      try {
+        const getResponse = await fetch(`${N8N_API_URL}/workflows/${workflow.id}`, {
           headers: {
             "X-N8N-API-KEY": N8N_API_KEY!,
-            "Content-Type": "application/json",
             "Accept": "application/json",
           },
-          body: JSON.stringify(workflowData),
         });
 
-        if (updateResponse.ok) {
-          results.push({
-            workflow: workflow.name,
-            status: "fixed",
-            fixes: fixesApplied,
-          });
-        } else {
+        console.log(`Fetch response status: ${getResponse.status} ${getResponse.statusText}`);
+
+        if (!getResponse.ok) {
+          const errorText = await getResponse.text();
+          console.error(`Failed to fetch workflow ${workflow.name}:`, errorText);
           results.push({
             workflow: workflow.name,
             status: "error",
-            message: `Failed to update: ${updateResponse.statusText}`,
+            message: `Failed to fetch: ${getResponse.status} ${getResponse.statusText}`,
+            details: errorText,
+          });
+          continue;
+        }
+
+        const workflowData = await getResponse.json();
+        console.log(`Workflow data fetched successfully for ${workflow.name}`);
+        let fixesApplied: string[] = [];
+
+        // Fix 1: Update SQL queries
+        if (workflowData.nodes) {
+          workflowData.nodes.forEach((node: any) => {
+            if (node.parameters?.query) {
+              let query = node.parameters.query;
+              const originalQuery = query;
+              
+              query = query.replace(/client_id/gi, "id");
+              query = query.replace(
+                /client_name/gi,
+                "COALESCE(firstname || ' ' || lastname, email) as client_name"
+              );
+              
+              if (query !== originalQuery) {
+                node.parameters.query = query;
+                fixesApplied.push(`Updated SQL in node: ${node.name}`);
+                console.log(`  - Fixed SQL in node: ${node.name}`);
+              }
+            }
+          });
+
+          // Fix 2: Fix RPC function calls
+          workflowData.nodes.forEach((node: any) => {
+            if (node.type === "n8n-nodes-base.httpRequest" && node.parameters?.url) {
+              const url = node.parameters.url;
+              
+              if (url.includes("/rpc/get_zone_distribution") || url.includes("/rpc/get_overall_avg")) {
+                node.parameters.method = "POST";
+                node.parameters.body = {
+                  bodyParameters: {
+                    parameters: [
+                      {
+                        name: "target_date",
+                        value: "={{$now.toFormat('yyyy-MM-dd')}}",
+                      },
+                    ],
+                  },
+                };
+                node.parameters.sendBody = true;
+                node.parameters.contentType = "application/json";
+                fixesApplied.push(`Fixed RPC call to POST in node: ${node.name}`);
+                console.log(`  - Fixed RPC call in node: ${node.name}`);
+              }
+            }
+          });
+
+          // Fix 3: Add query parameters to intervention_log requests
+          workflowData.nodes.forEach((node: any) => {
+            if (node.parameters?.url?.includes("/intervention_log")) {
+              const currentUrl = node.parameters.url;
+              if (!currentUrl.includes("?")) {
+                node.parameters.url = `${currentUrl}?created_at=gte.{{$now.startOf('day').toISO()}}&select=*`;
+                fixesApplied.push(`Added query params to intervention_log in node: ${node.name}`);
+                console.log(`  - Added query params in node: ${node.name}`);
+              }
+            }
+          });
+
+          // Fix 4: Ensure PostgreSQL nodes use correct credentials
+          workflowData.nodes.forEach((node: any) => {
+            if (node.type === "n8n-nodes-base.postgres") {
+              if (node.credentials?.postgres?.name !== "Supabase PostgreSQL") {
+                if (!node.credentials) node.credentials = {};
+                node.credentials.postgres = { name: "Supabase PostgreSQL" };
+                fixesApplied.push(`Updated PostgreSQL credentials in node: ${node.name}`);
+                console.log(`  - Updated PostgreSQL credentials in node: ${node.name}`);
+              }
+            }
           });
         }
-      } else {
+
+        // Update the workflow if fixes were applied
+        if (fixesApplied.length > 0) {
+          console.log(`Updating workflow ${workflow.name} with ${fixesApplied.length} fixes...`);
+          const updateResponse = await fetch(`${N8N_API_URL}/workflows/${workflow.id}`, {
+            method: "PATCH",
+            headers: {
+              "X-N8N-API-KEY": N8N_API_KEY!,
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: JSON.stringify(workflowData),
+          });
+
+          console.log(`Update response status: ${updateResponse.status} ${updateResponse.statusText}`);
+
+          if (updateResponse.ok) {
+            console.log(`✓ Successfully updated ${workflow.name}`);
+            results.push({
+              workflow: workflow.name,
+              status: "fixed",
+              fixes: fixesApplied,
+            });
+          } else {
+            const errorText = await updateResponse.text();
+            console.error(`✗ Failed to update ${workflow.name}:`, errorText);
+            results.push({
+              workflow: workflow.name,
+              status: "error",
+              message: `Failed to update: ${updateResponse.status} ${updateResponse.statusText}`,
+              details: errorText,
+            });
+          }
+        } else {
+          console.log(`✓ ${workflow.name} - No fixes needed`);
+          results.push({
+            workflow: workflow.name,
+            status: "ok",
+            message: "No fixes needed",
+          });
+        }
+      } catch (workflowError) {
+        const errorMsg = workflowError instanceof Error ? workflowError.message : "Unknown error";
+        console.error(`✗ Error processing workflow ${workflow.name}:`, errorMsg);
         results.push({
           workflow: workflow.name,
-          status: "ok",
-          message: "No fixes needed",
+          status: "error",
+          message: `Error: ${errorMsg}`,
         });
       }
     }
 
     // Step 2: Trigger Daily Calculator workflow
-    console.log("Step 2: Triggering Daily Calculator workflow...");
+    console.log("\n=== Step 2: Triggering Daily Calculator workflow ===");
     const executeResponse = await fetch(`${N8N_API_URL}/workflows/eSzjByOJHo3Si03y/execute`, {
       method: "POST",
       headers: {
@@ -160,33 +205,59 @@ serve(async (req) => {
       },
     });
 
+    console.log(`Execute response status: ${executeResponse.status} ${executeResponse.statusText}`);
+
     let executionResult;
     if (executeResponse.ok) {
+      const execData = await executeResponse.json();
+      console.log("✓ Daily Calculator executed successfully");
+      console.log("Execution data:", JSON.stringify(execData, null, 2));
       executionResult = {
         status: "success",
         message: "Daily Calculator executed successfully",
+        data: execData,
       };
     } else {
       const errorText = await executeResponse.text();
+      console.error("✗ Failed to execute Daily Calculator:", errorText);
       executionResult = {
         status: "error",
-        message: `Failed to execute: ${executeResponse.statusText}`,
+        message: `Failed to execute: ${executeResponse.status} ${executeResponse.statusText}`,
+        statusCode: executeResponse.status,
         details: errorText,
       };
     }
 
-    console.log("Setup complete!");
+    const hasErrors = results.some(r => r.status === "error") || executionResult.status === "error";
+    console.log(`\n=== Setup ${hasErrors ? "completed with errors" : "complete"} ===`);
+    
     return new Response(JSON.stringify({ 
       workflowFixes: results,
       execution: executionResult,
-      success: executionResult.status === "success"
+      success: executionResult.status === "success" && !hasErrors,
+      summary: {
+        totalWorkflows: workflows.length,
+        fixed: results.filter(r => r.status === "fixed").length,
+        ok: results.filter(r => r.status === "ok").length,
+        errors: results.filter(r => r.status === "error").length,
+      }
     }, null, 2), {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error) {
-    console.error("Setup error:", error);
+    console.error("=== CRITICAL ERROR ===");
+    console.error("Error:", error);
+    console.error("Stack:", error instanceof Error ? error.stack : "No stack trace");
+    
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: errorStack,
+      success: false,
+      timestamp: new Date().toISOString()
+    }, null, 2), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
