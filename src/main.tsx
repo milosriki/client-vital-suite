@@ -9,6 +9,7 @@ import { Layout } from "@/components/Layout";
 import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
 import Coaches from "./pages/Coaches";
+import WorkflowFixer from "./pages/WorkflowFixer";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
       { path: "/", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/coaches", element: <Coaches /> },
+      { path: "/fix-workflows", element: <WorkflowFixer /> },
       { path: "*", element: <NotFound /> },
     ],
   },
