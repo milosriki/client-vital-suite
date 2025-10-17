@@ -49,9 +49,8 @@ const Clients = () => {
 
   const filteredClients = clients?.filter((client) => {
     const fullName = `${client.firstname || ''} ${client.lastname || ''}`.toLowerCase();
-    const email = (client as any).email || client.client_email || '';
     return fullName.includes(searchTerm.toLowerCase()) ||
-      email.toLowerCase().includes(searchTerm.toLowerCase());
+      client.client_email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
