@@ -12,11 +12,11 @@ const corsHeaders = {
 };
 
 const workflows = [
-  { id: "eSzjByOJHo3Si03y", name: "Daily Calculator" },
-  { id: "BdVKbuQH6f5nYkvV", name: "AI Risk Analysis" },
-  { id: "oWCnjPfErKrjUXG", name: "Weekly Pattern Detection" },
-  { id: "S2BCDEjVrUGRzQM0", name: "Monthly Coach Review" },
-  { id: "DSj6s8POqhl40SOo", name: "Intervention Logger" },
+  { id: "BdVKbuQH6f5nYkvV", name: "Daily Calculator" },
+  { id: "2VMbW3pS7pEHkcH1", name: "AI Daily Risk Analysis" },
+  { id: "G3nWtHVguXSfo81e", name: "Daily Summary Email" },
+  { id: "QTpWugAwBcW3kMtU", name: "AI Weekly Pattern Detection" },
+  { id: "WdzfJ2s0B55XO7Ks", name: "AI Monthly Coach Review" },
 ];
 
 serve(async (req) => {

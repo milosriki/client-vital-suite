@@ -11,12 +11,11 @@ const corsHeaders = {
 };
 
 const workflows = [
-  { id: "eSzjByOJHo3Si03y", name: "Daily Calculator" },
-  { id: "BdVKbuQH6f5nYkvV", name: "AI Risk Analysis" },
-  { id: "oWCnjPfErKrjUXG", name: "Weekly Pattern Detection" },
-  { id: "S2BCDEjVrUGRzQM0", name: "Monthly Coach Review" },
-  { id: "DSj6s8POqhl40SOo", name: "Intervention Logger" },
-  { id: "6tRCQ9TdGghUUSGN", name: "Daily Summary Email" },
+  { id: "BdVKbuQH6f5nYkvV", name: "Daily Calculator" },
+  { id: "2VMbW3pS7pEHkcH1", name: "AI Daily Risk Analysis" },
+  { id: "G3nWtHVguXSfo81e", name: "Daily Summary Email" },
+  { id: "QTpWugAwBcW3kMtU", name: "AI Weekly Pattern Detection" },
+  { id: "WdzfJ2s0B55XO7Ks", name: "AI Monthly Coach Review" },
 ];
 
 // HubSpot property name mappings (HubSpot uses underscores differently)
@@ -153,13 +152,13 @@ serve(async (req) => {
             
             // Fix REST API endpoints for INSERT/UPSERT operations
             if (url.includes("/rest/v1/")) {
-              // Ensure proper headers for Supabase REST API
+              // Ensure proper headers for Supabase REST API with merge-duplicates
               node.parameters.sendHeaders = true;
               node.parameters.headerParametersJson = JSON.stringify({
                 apikey: SUPABASE_ANON_KEY,
                 Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
                 "Content-Type": "application/json",
-                Prefer: "return=representation"
+                Prefer: "return=representation,resolution=merge-duplicates"
               });
               
               // If it's an insert operation, ensure POST method and proper body
