@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
@@ -6,17 +7,45 @@ import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
 import { CoachPerformanceTable } from '@/components/dashboard/CoachPerformanceTable';
 import { InterventionTracker } from '@/components/dashboard/InterventionTracker';
 import { PatternInsights } from '@/components/dashboard/PatternInsights';
-import { useEffect } from 'react';
+import { FilterControls } from '@/components/dashboard/FilterControls';
+import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
+  const [filterMode, setFilterMode] = useState<'all' | 'high-risk' | 'early-warning'>('all');
+  const [selectedCoach, setSelectedCoach] = useState('all');
+  const [selectedZone, setSelectedZone] = useState('all');
 
-  // Auto-refresh every 60 seconds
+  // Setup realtime subscription for new data notifications
   useEffect(() => {
-    const interval = setInterval(() => {
-      window.location.reload();
-    }, 60000);
-    return () => clearInterval(interval);
+    const channel = supabase
+      .channel('health_scores_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'client_health_scores'
+        },
+        (payload) => {
+          const newClients = Array.isArray(payload.new) ? payload.new : [payload.new];
+          const highRiskCount = newClients.filter((c: any) => 
+            c.risk_category === 'HIGH' || c.risk_category === 'CRITICAL'
+          ).length;
+          
+          if (highRiskCount > 0) {
+            toast({
+              title: 'Health Scores Updated',
+              description: `${highRiskCount} new high-risk client${highRiskCount > 1 ? 's' : ''} detected`,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
@@ -31,12 +60,29 @@ export default function Dashboard() {
 
       if (!latestDate?.calculated_on) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('client_health_scores')
         .select('*')
-        .eq('calculated_on', latestDate.calculated_on)
-        .order('churn_risk_score', { ascending: false });
+        .eq('calculated_on', latestDate.calculated_on);
 
+      // Apply filters
+      if (filterMode === 'high-risk') {
+        query = query.in('risk_category', ['HIGH', 'CRITICAL']);
+      } else if (filterMode === 'early-warning') {
+        query = query.eq('early_warning_flag', true);
+      }
+
+      if (selectedCoach !== 'all') {
+        query = query.eq('assigned_coach', selectedCoach);
+      }
+
+      if (selectedZone !== 'all') {
+        query = query.eq('health_zone', selectedZone);
+      }
+
+      query = query.order('predictive_risk_score', { ascending: false });
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as any[] || [];
     },
@@ -107,14 +153,31 @@ export default function Dashboard() {
 
   const isLoading = clientsLoading || coachesLoading || interventionsLoading;
 
+  // Extract unique coaches for filter
+  const uniqueCoaches = Array.from(
+    new Set((clients || []).map((c) => c.assigned_coach).filter(Boolean))
+  ) as string[];
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
-        <div className="text-sm text-muted-foreground">Auto-refreshing every 60s</div>
+        <div className="text-sm text-muted-foreground">
+          Predictive Analytics • Real-time Updates
+        </div>
       </div>
 
       <PredictiveAlerts clients={clients || []} summary={summary} />
+
+      <FilterControls
+        filterMode={filterMode}
+        onFilterModeChange={setFilterMode}
+        selectedCoach={selectedCoach}
+        onCoachChange={setSelectedCoach}
+        selectedZone={selectedZone}
+        onZoneChange={setSelectedZone}
+        coaches={uniqueCoaches}
+      />
 
       <ClientRiskMatrix clients={clients || []} isLoading={isLoading} />
 

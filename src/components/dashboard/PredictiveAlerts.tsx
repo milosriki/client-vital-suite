@@ -7,11 +7,11 @@ interface PredictiveAlertsProps {
 }
 
 export function PredictiveAlerts({ clients, summary }: PredictiveAlertsProps) {
-  const predictedChurns = clients.filter((c) => (c.churn_risk_score || 0) > 70).length;
+  const predictedChurns = clients.filter((c) => (c.predictive_risk_score || 0) >= 70).length;
   const highRiskClients = clients.filter(
-    (c) => c.intervention_priority === 'CRITICAL' || c.intervention_priority === 'HIGH'
+    (c) => c.risk_category === 'CRITICAL' || c.risk_category === 'HIGH'
   ).length;
-  const improvingClients = clients.filter((c) => c.health_trend === 'IMPROVING').length;
+  const improvingClients = clients.filter((c) => c.momentum_indicator === 'ACCELERATING').length;
 
   const metrics = [
     {

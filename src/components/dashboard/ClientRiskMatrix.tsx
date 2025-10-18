@@ -8,15 +8,20 @@ interface ClientRiskMatrixProps {
   isLoading: boolean;
 }
 
+type RiskCategory = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+type MomentumIndicator = 'ACCELERATING' | 'STABLE' | 'DECLINING';
+
 export function ClientRiskMatrix({ clients, isLoading }: ClientRiskMatrixProps) {
-  const getPriorityColor = (priority: string | null) => {
-    switch (priority) {
+  const getRiskCategoryBorder = (riskCategory: string | null) => {
+    switch (riskCategory) {
       case 'CRITICAL':
-        return 'border-l-4 border-l-destructive';
+        return 'border-l-4 border-l-red-600';
       case 'HIGH':
         return 'border-l-4 border-l-orange-500';
       case 'MEDIUM':
         return 'border-l-4 border-l-yellow-500';
+      case 'LOW':
+        return 'border-l-4 border-l-green-500';
       default:
         return 'border-l-4 border-l-border';
     }
@@ -37,10 +42,25 @@ export function ClientRiskMatrix({ clients, isLoading }: ClientRiskMatrixProps) 
     }
   };
 
-  const getTrendIcon = (trend: string | null) => {
-    if (trend === 'IMPROVING') return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (trend === 'DECLINING') return <TrendingDown className="h-4 w-4 text-destructive" />;
+  const getMomentumIcon = (momentum: string | null) => {
+    if (momentum === 'ACCELERATING') return <TrendingUp className="h-4 w-4 text-green-500" />;
+    if (momentum === 'DECLINING') return <TrendingDown className="h-4 w-4 text-destructive" />;
     return <Minus className="h-4 w-4 text-muted-foreground" />;
+  };
+
+  const getRiskBadge = (riskCategory: string | null, score: number | null) => {
+    const colorClass = {
+      CRITICAL: 'bg-red-600 text-white',
+      HIGH: 'bg-orange-500 text-white',
+      MEDIUM: 'bg-yellow-500 text-black',
+      LOW: 'bg-green-500 text-white',
+    }[riskCategory || 'LOW'] || 'bg-gray-500 text-white';
+
+    return (
+      <Badge className={colorClass}>
+        Risk: {score?.toFixed(0) || 0}%
+      </Badge>
+    );
   };
 
   if (isLoading) {
@@ -66,11 +86,17 @@ export function ClientRiskMatrix({ clients, isLoading }: ClientRiskMatrixProps) 
           {clients.map((client) => (
             <Card
               key={client.id}
-              className={`${getPriorityColor(client.intervention_priority)} hover:shadow-lg transition-shadow`}
+              className={`${getRiskCategoryBorder(client.risk_category)} hover:shadow-lg transition-shadow relative`}
             >
               <CardContent className="p-4 space-y-3">
+                {client.early_warning_flag && (
+                  <div className="absolute top-2 right-2">
+                    <span className="text-xl" title="Early Warning">🚨</span>
+                  </div>
+                )}
+                
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
+                  <div className="flex-1 pr-8">
                     <h3 className="font-semibold truncate">
                       {client.firstname} {client.lastname}
                     </h3>
@@ -88,10 +114,17 @@ export function ClientRiskMatrix({ clients, isLoading }: ClientRiskMatrixProps) 
                       <span className="text-lg font-bold">
                         {client.health_score?.toFixed(0) || 0}
                       </span>
-                      {getTrendIcon(client.health_trend)}
+                      {getMomentumIcon(client.momentum_indicator)}
                     </div>
                   </div>
                   <Progress value={client.health_score || 0} className="h-2" />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {getRiskBadge(client.risk_category, client.predictive_risk_score)}
+                  <Badge variant="outline" className="text-xs">
+                    {client.momentum_indicator || 'STABLE'}
+                  </Badge>
                 </div>
 
                 <div className="space-y-1 text-xs">
@@ -102,9 +135,11 @@ export function ClientRiskMatrix({ clients, isLoading }: ClientRiskMatrixProps) 
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Churn Risk:</span>
-                    <span className="font-medium">
-                      {client.churn_risk_score?.toFixed(0) || 0}%
+                    <span className="text-muted-foreground">Rate of Change:</span>
+                    <span className={`font-medium ${
+                      (client.rate_of_change_percent || 0) > 0 ? 'text-green-500' : 'text-red-500'
+                    }`}>
+                      {client.rate_of_change_percent?.toFixed(0) || 0}%
                     </span>
                   </div>
                   <div className="flex justify-between">
