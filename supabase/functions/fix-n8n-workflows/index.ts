@@ -16,7 +16,23 @@ const workflows = [
   { id: "oWCnjPfErKrjUXG", name: "Weekly Pattern Detection" },
   { id: "S2BCDEjVrUGRzQM0", name: "Monthly Coach Review" },
   { id: "DSj6s8POqhl40SOo", name: "Intervention Logger" },
+  { id: "6tRCQ9TdGghUUSGN", name: "Daily Summary Email" },
 ];
+
+// HubSpot property name mappings (HubSpot uses underscores differently)
+const hubspotPropertyMappings: Record<string, string> = {
+  "outstanding_sessions": "outstanding_sessions__live_",
+  "sessions_per_month": "sessions__per_month",
+  "package_sessions_monthly": "package__sessions__monthly_",
+  "sessions_last_7d": "sessions__last_7d",
+  "sessions_last_30d": "sessions__last_30d", 
+  "sessions_last_90d": "sessions__last_90d",
+  "days_since_last_session": "days_since_last_session",
+  "days_until_renewal": "days_until_renewal",
+  "health_score": "health_score",
+  "health_zone": "health_zone",
+  "churn_risk_score": "churn_risk_score",
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -66,30 +82,39 @@ serve(async (req) => {
         connectionCount: Object.keys(workflowData.connections || {}).length
       });
 
-      // Fix 1: Update SQL queries
+      // Fix 1: Update SQL queries - COMPREHENSIVE
       if (workflowData.nodes) {
         workflowData.nodes.forEach((node: any) => {
           if (node.parameters?.query) {
             let query = node.parameters.query;
             const originalQuery = query;
             
-            // Replace client_id with id
-            query = query.replace(/client_id/gi, "id");
+            // Replace client_id with id (case insensitive)
+            query = query.replace(/\bclient_id\b/gi, "id");
             
-            // Replace client_name with proper COALESCE
+            // Replace client_name with proper COALESCE - handle all variations
             query = query.replace(
-              /client_name/gi,
-              "COALESCE(firstname || ' ' || lastname, email) as client_name"
+              /\bclient_name\b/gi,
+              "COALESCE(firstname || ' ' || lastname, email)"
             );
+            
+            // Ensure proper column names in SELECT statements
+            query = query.replace(/SELECT\s+client_name/gi, 
+              "SELECT COALESCE(firstname || ' ' || lastname, email) as client_name");
+            
+            // Fix any remaining standalone client_name references
+            if (query.includes("client_name") && !query.includes("COALESCE")) {
+              query = query.replace(/client_name/g, "COALESCE(firstname || ' ' || lastname, email) as client_name");
+            }
             
             if (query !== originalQuery) {
               node.parameters.query = query;
-              fixesApplied.push(`Updated SQL in node: ${node.name}`);
+              fixesApplied.push(`Updated SQL in node: ${node.name} - fixed client_id and client_name`);
             }
           }
         });
 
-        // Fix 2: Fix all HTTP Request nodes to use correct Supabase URLs and settings
+        // Fix 2: Fix all HTTP Request nodes to use correct Supabase URLs and settings - COMPREHENSIVE
         workflowData.nodes.forEach((node: any) => {
           if (node.type === "n8n-nodes-base.httpRequest" && node.parameters?.url) {
             let url = node.parameters.url;
@@ -98,24 +123,32 @@ serve(async (req) => {
             // Fix Supabase base URL
             url = url.replace(/https:\/\/[^\/]+\.supabase\.co/g, SUPABASE_URL);
             
-            // Fix RPC endpoints to use POST
-            if (url.includes("/rpc/get_zone_distribution") || url.includes("/rpc/get_overall_avg") || url.includes("/rpc/get_at_risk_clients")) {
+            // Fix ALL RPC endpoints to use POST with proper date parameters
+            if (url.includes("/rpc/")) {
               node.parameters.method = "POST";
               node.parameters.sendBody = true;
               node.parameters.contentType = "application/json";
               node.parameters.jsonParameters = true;
-              node.parameters.bodyParametersJson = JSON.stringify({
-                target_date: "={{$now.toFormat('yyyy-MM-dd')}}"
-              });
               
-              // Ensure proper headers
+              // Set body based on the RPC function
+              if (url.includes("get_zone_distribution") || 
+                  url.includes("get_overall_avg") || 
+                  url.includes("get_at_risk_clients")) {
+                node.parameters.bodyParametersJson = '={"target_date": "{{$now.toFormat(\'yyyy-MM-dd\')}}"}';
+              } else {
+                // Default to providing target_date for any RPC call
+                node.parameters.bodyParametersJson = '={"target_date": "{{$now.toFormat(\'yyyy-MM-dd\')}}"}';
+              }
+              
+              // Ensure proper headers for all RPC calls
               node.parameters.sendHeaders = true;
               node.parameters.headerParametersJson = JSON.stringify({
                 apikey: SUPABASE_ANON_KEY,
                 Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                Prefer: "return=representation"
               });
-              fixesApplied.push(`Fixed RPC call in node: ${node.name}`);
+              fixesApplied.push(`Fixed RPC call to POST with date parameters in node: ${node.name}`);
             }
             
             // Fix REST API endpoints for INSERT/UPSERT operations
@@ -275,6 +308,79 @@ serve(async (req) => {
             }
           }
         });
+
+        // Fix 9: Fix HubSpot property mappings in HTTP Request nodes
+        workflowData.nodes.forEach((node: any) => {
+          if ((node.type === "n8n-nodes-base.httpRequest" || node.type === "n8n-nodes-base.set") && 
+              (node.name?.toLowerCase().includes("hubspot") || node.parameters?.url?.includes("hubspot"))) {
+            
+            // Check if this node is setting properties for HubSpot
+            if (node.parameters?.options?.bodyParametersJson || node.parameters?.bodyParametersJson) {
+              let bodyJson = node.parameters?.options?.bodyParametersJson || node.parameters?.bodyParametersJson || "";
+              let originalBody = bodyJson;
+              
+              // Replace our database field names with HubSpot's expected property names
+              Object.entries(hubspotPropertyMappings).forEach(([dbField, hubspotField]) => {
+                // Match the field name in JSON (accounting for quotes and various formats)
+                const regex = new RegExp(`"${dbField}"\\s*:`, 'gi');
+                bodyJson = bodyJson.replace(regex, `"${hubspotField}":`);
+              });
+              
+              if (bodyJson !== originalBody) {
+                if (node.parameters?.options?.bodyParametersJson) {
+                  node.parameters.options.bodyParametersJson = bodyJson;
+                } else {
+                  node.parameters.bodyParametersJson = bodyJson;
+                }
+                fixesApplied.push(`Fixed HubSpot property mappings in node: ${node.name}`);
+              }
+            }
+            
+            // Also check Set node values
+            if (node.parameters?.values?.values) {
+              let madeChanges = false;
+              node.parameters.values.values.forEach((value: any) => {
+                if (value.name && hubspotPropertyMappings[value.name]) {
+                  value.name = hubspotPropertyMappings[value.name];
+                  madeChanges = true;
+                }
+              });
+              if (madeChanges) {
+                fixesApplied.push(`Fixed HubSpot property names in Set node: ${node.name}`);
+              }
+            }
+          }
+        });
+
+        // Fix 10: Ensure Daily Summary Email workflow uses proper RPC calls
+        if (workflow.name === "Daily Summary Email") {
+          workflowData.nodes.forEach((node: any) => {
+            if (node.type === "n8n-nodes-base.httpRequest" && node.parameters?.url?.includes("/rpc/")) {
+              // Make sure it's using POST
+              node.parameters.method = "POST";
+              node.parameters.sendBody = true;
+              node.parameters.contentType = "application/json";
+              node.parameters.jsonParameters = true;
+              
+              // Ensure date parameter is passed correctly
+              if (!node.parameters.bodyParametersJson || 
+                  !node.parameters.bodyParametersJson.includes("target_date")) {
+                node.parameters.bodyParametersJson = '={"target_date": "{{$now.toFormat(\'yyyy-MM-dd\')}}"}';
+                fixesApplied.push(`Added date parameter to Daily Summary Email RPC call in node: ${node.name}`);
+              }
+              
+              // Ensure headers are correct
+              node.parameters.sendHeaders = true;
+              node.parameters.headerParametersJson = JSON.stringify({
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                "Content-Type": "application/json",
+                Prefer: "return=representation"
+              });
+              fixesApplied.push(`Fixed Daily Summary Email RPC configuration in node: ${node.name}`);
+            }
+          });
+        }
       }
 
       // Update the workflow if fixes were applied
