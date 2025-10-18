@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ConnectionStatus } from "./ConnectionStatus";
 
 export const Navigation = () => {
   const location = useLocation();
@@ -50,6 +51,8 @@ export const Navigation = () => {
               })}
             </div>
           </div>
+          
+          <ConnectionStatus />
         </div>
       </div>
     </nav>

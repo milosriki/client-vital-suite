@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useClientHealthScores } from "@/hooks/useClientHealthScores";
 import { ClientTable } from "@/components/ClientTable";
 import { ZoneDistributionChart } from "@/components/ZoneDistributionChart";
+import { RefreshButton } from "@/components/RefreshButton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw } from "lucide-react";
-import type { ClientHealthScore } from "@/types/database";
+import { Search } from "lucide-react";
 
 const Clients = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,31 +16,10 @@ const Clients = () => {
   const [segmentFilter, setSegmentFilter] = useState("All");
   const [coachFilter, setCoachFilter] = useState("All");
 
-  const { data: clients, isLoading, error, refetch } = useQuery<ClientHealthScore[]>({
-    queryKey: ['clients', healthZoneFilter, segmentFilter, coachFilter],
-    queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      let query = (supabase as any)
-        .from('client_health_scores')
-        .select('*')
-        .eq('calculated_on', today)
-        .order('health_score', { ascending: true });
-
-      if (healthZoneFilter !== 'All') {
-        query = query.eq('health_zone', healthZoneFilter);
-      }
-      if (segmentFilter !== 'All') {
-        query = query.eq('client_segment', segmentFilter);
-      }
-      if (coachFilter !== 'All') {
-        query = query.eq('assigned_coach', coachFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data as ClientHealthScore[]) || [];
-    },
-    refetchInterval: 5 * 60 * 1000,
+  const { data: clients, isLoading, error, refetch } = useClientHealthScores({
+    healthZone: healthZoneFilter,
+    segment: segmentFilter,
+    coach: coachFilter,
   });
 
   // Get unique coaches for filter
@@ -50,7 +28,7 @@ const Clients = () => {
   const filteredClients = clients?.filter((client) => {
     const fullName = `${client.firstname || ''} ${client.lastname || ''}`.toLowerCase();
     return fullName.includes(searchTerm.toLowerCase()) ||
-      client.client_email?.toLowerCase().includes(searchTerm.toLowerCase());
+      client.email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -62,10 +40,7 @@ const Clients = () => {
             <h1 className="text-4xl font-bold mb-2">Client Directory</h1>
             <p className="text-muted-foreground">View and manage all clients</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <RefreshButton onRefresh={async () => { await refetch(); }} />
         </div>
 
         {/* Search and Filters */}

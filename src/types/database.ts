@@ -4,25 +4,36 @@ export interface ClientHealthScore {
   client_id: string;
   firstname: string | null;
   lastname: string | null;
-  client_email: string | null;
+  email: string | null;
+  client_email?: string | null; // Alias for compatibility
   health_score: number;
   health_zone: 'RED' | 'YELLOW' | 'GREEN' | 'PURPLE';
   engagement_score: number | null;
   momentum_score: number | null;
   package_health_score: number | null;
   relationship_score: number | null;
-  sessions_last_7_days: number;
-  sessions_last_30_days: number;
-  sessions_last_90_days: number;
+  sessions_last_7d: number;
+  sessions_last_30d: number;
+  sessions_last_90d: number;
   outstanding_sessions: number;
   purchased_sessions: number;
   days_since_last_session: number | null;
   next_session_booked: boolean;
   client_segment: string | null;
   assigned_coach: string | null;
+  calculated_on: string;
   calculated_at: string;
   created_at: string;
   updated_at: string;
+  financial_score: number | null;
+  churn_risk_score: number | null;
+  health_trend: string | null;
+  intervention_priority: string | null;
+  package_type: string | null;
+  package_value_aed: number | null;
+  days_until_renewal: number | null;
+  hubspot_contact_id: string | null;
+  calculation_version: string | null;
 }
 
 export interface CoachPerformance {

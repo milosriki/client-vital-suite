@@ -17,11 +17,22 @@ const Coaches = () => {
   const { data: coaches, isLoading, error, refetch } = useQuery<CoachPerformance[]>({
     queryKey: ['coach-performance'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      // Get the most recent report_date
+      const { data: latestDate } = await (supabase as any)
+        .from('coach_performance')
+        .select('report_date')
+        .order('report_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!latestDate?.report_date) {
+        return [];
+      }
+
       const { data, error } = await (supabase as any)
         .from('coach_performance')
         .select('*')
-        .eq('report_date', today)
+        .eq('report_date', latestDate.report_date)
         .order('avg_client_health', { ascending: false });
 
       if (error) throw error;
@@ -35,12 +46,23 @@ const Coaches = () => {
     queryFn: async () => {
       if (!selectedCoach) return [];
 
-      const today = new Date().toISOString().split('T')[0];
+      // Get the most recent calculated_on date
+      const { data: latestDate } = await (supabase as any)
+        .from('client_health_scores')
+        .select('calculated_on')
+        .order('calculated_on', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!latestDate?.calculated_on) {
+        return [];
+      }
+
       const { data, error } = await (supabase as any)
         .from('client_health_scores')
         .select('*')
         .eq('assigned_coach', selectedCoach)
-        .eq('calculated_on', today)
+        .eq('calculated_on', latestDate.calculated_on)
         .order('health_score', { ascending: true });
 
       if (error) throw error;

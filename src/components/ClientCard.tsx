@@ -7,11 +7,11 @@ interface ClientCardProps {
   client: {
     firstname: string | null;
     lastname: string | null;
-    client_email: string | null;
+    email: string | null;
     health_score: number;
     health_zone: string;
-    sessions_last_7_days: number;
-    sessions_last_30_days: number;
+    sessions_last_7d: number;
+    sessions_last_30d: number;
     outstanding_sessions: number;
     assigned_coach: string | null;
   };
@@ -37,7 +37,7 @@ export const ClientCard = ({ client, onViewDetails }: ClientCardProps) => {
             <h3 className="font-semibold text-lg mb-1">
               {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
             </h3>
-            <p className="text-sm text-muted-foreground">{client.client_email}</p>
+            <p className="text-sm text-muted-foreground">{client.email}</p>
           </div>
           <div className="flex flex-col items-center">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center ${getHealthColor(client.health_zone)} font-bold text-xl shadow-md`}>
@@ -55,11 +55,11 @@ export const ClientCard = ({ client, onViewDetails }: ClientCardProps) => {
         <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
           <div>
             <p className="text-muted-foreground text-xs">7 Days</p>
-            <p className="font-semibold">{client.sessions_last_7_days}</p>
+            <p className="font-semibold">{client.sessions_last_7d}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs">30 Days</p>
-            <p className="font-semibold">{client.sessions_last_30_days}</p>
+            <p className="font-semibold">{client.sessions_last_30d}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs">Outstanding</p>
