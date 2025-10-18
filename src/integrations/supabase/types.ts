@@ -17,6 +17,7 @@ export type Database = {
       ai_insights: {
         Row: {
           action_recommended: string | null
+          affected_client_count: number | null
           affected_clients: Json | null
           confidence_score: number | null
           created_at: string | null
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           action_recommended?: string | null
+          affected_client_count?: number | null
           affected_clients?: Json | null
           confidence_score?: number | null
           created_at?: string | null
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           action_recommended?: string | null
+          affected_client_count?: number | null
           affected_clients?: Json | null
           confidence_score?: number | null
           created_at?: string | null
@@ -53,6 +56,7 @@ export type Database = {
       churn_patterns: {
         Row: {
           avg_health_score_drop: number | null
+          avg_risk_score_increase: number | null
           avg_session_frequency_drop: number | null
           common_behaviors: Json | null
           confidence_score: number | null
@@ -64,6 +68,7 @@ export type Database = {
         }
         Insert: {
           avg_health_score_drop?: number | null
+          avg_risk_score_increase?: number | null
           avg_session_frequency_drop?: number | null
           common_behaviors?: Json | null
           confidence_score?: number | null
@@ -75,6 +80,7 @@ export type Database = {
         }
         Update: {
           avg_health_score_drop?: number | null
+          avg_risk_score_increase?: number | null
           avg_session_frequency_drop?: number | null
           common_behaviors?: Json | null
           confidence_score?: number | null
@@ -214,6 +220,7 @@ export type Database = {
           health_score: number | null
           health_zone: string | null
           id: number
+          predictive_risk_score: number | null
           sessions_previous_week: number | null
           sessions_this_week: number | null
           week_ending_date: string
@@ -226,6 +233,7 @@ export type Database = {
           health_score?: number | null
           health_zone?: string | null
           id?: number
+          predictive_risk_score?: number | null
           sessions_previous_week?: number | null
           sessions_this_week?: number | null
           week_ending_date: string
@@ -238,6 +246,7 @@ export type Database = {
           health_score?: number | null
           health_zone?: string | null
           id?: number
+          predictive_risk_score?: number | null
           sessions_previous_week?: number | null
           sessions_this_week?: number | null
           week_ending_date?: string
@@ -456,6 +465,7 @@ export type Database = {
           hubspot_contact_id: string | null
           id: number
           intervention_date: string | null
+          intervention_effectiveness_score: number | null
           intervention_type: string
           lastname: string | null
           message_tone: string | null
@@ -505,6 +515,7 @@ export type Database = {
           hubspot_contact_id?: string | null
           id?: number
           intervention_date?: string | null
+          intervention_effectiveness_score?: number | null
           intervention_type: string
           lastname?: string | null
           message_tone?: string | null
@@ -554,6 +565,7 @@ export type Database = {
           hubspot_contact_id?: string | null
           id?: number
           intervention_date?: string | null
+          intervention_effectiveness_score?: number | null
           intervention_type?: string
           lastname?: string | null
           message_tone?: string | null
@@ -589,6 +601,10 @@ export type Database = {
           intervention_id: number | null
           intervention_type: string | null
           outcome_success_score: number | null
+          risk_score_30d_after: number | null
+          risk_score_7d_after: number | null
+          risk_score_at_intervention: number | null
+          risk_score_before: number | null
           sessions_booked_within_7d: number | null
           trend_changed_to_positive: boolean | null
         }
@@ -605,6 +621,10 @@ export type Database = {
           intervention_id?: number | null
           intervention_type?: string | null
           outcome_success_score?: number | null
+          risk_score_30d_after?: number | null
+          risk_score_7d_after?: number | null
+          risk_score_at_intervention?: number | null
+          risk_score_before?: number | null
           sessions_booked_within_7d?: number | null
           trend_changed_to_positive?: boolean | null
         }
@@ -621,6 +641,10 @@ export type Database = {
           intervention_id?: number | null
           intervention_type?: string | null
           outcome_success_score?: number | null
+          risk_score_30d_after?: number | null
+          risk_score_7d_after?: number | null
+          risk_score_at_intervention?: number | null
+          risk_score_before?: number | null
           sessions_booked_within_7d?: number | null
           trend_changed_to_positive?: boolean | null
         }
