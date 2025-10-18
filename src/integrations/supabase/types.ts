@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_insights: {
+        Row: {
+          action_recommended: string | null
+          affected_clients: Json | null
+          confidence_score: number | null
+          created_at: string | null
+          id: number
+          insight_category: string | null
+          insight_date: string
+          insight_text: string | null
+          insight_type: string
+        }
+        Insert: {
+          action_recommended?: string | null
+          affected_clients?: Json | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: number
+          insight_category?: string | null
+          insight_date: string
+          insight_text?: string | null
+          insight_type: string
+        }
+        Update: {
+          action_recommended?: string | null
+          affected_clients?: Json | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: number
+          insight_category?: string | null
+          insight_date?: string
+          insight_text?: string | null
+          insight_type?: string
+        }
+        Relationships: []
+      }
+      churn_patterns: {
+        Row: {
+          avg_health_score_drop: number | null
+          avg_session_frequency_drop: number | null
+          common_behaviors: Json | null
+          confidence_score: number | null
+          days_before_churn: number
+          id: number
+          last_updated: string | null
+          pattern_name: string
+          sample_size: number | null
+        }
+        Insert: {
+          avg_health_score_drop?: number | null
+          avg_session_frequency_drop?: number | null
+          common_behaviors?: Json | null
+          confidence_score?: number | null
+          days_before_churn: number
+          id?: number
+          last_updated?: string | null
+          pattern_name: string
+          sample_size?: number | null
+        }
+        Update: {
+          avg_health_score_drop?: number | null
+          avg_session_frequency_drop?: number | null
+          common_behaviors?: Json | null
+          confidence_score?: number | null
+          days_before_churn?: number
+          id?: number
+          last_updated?: string | null
+          pattern_name?: string
+          sample_size?: number | null
+        }
+        Relationships: []
+      }
       client_health_scores: {
         Row: {
           assigned_coach: string | null
@@ -25,6 +97,7 @@ export type Database = {
           created_at: string | null
           days_since_last_session: number | null
           days_until_renewal: number | null
+          early_warning_flag: boolean | null
           email: string
           engagement_score: number | null
           financial_score: number | null
@@ -36,12 +109,17 @@ export type Database = {
           id: number
           intervention_priority: string | null
           lastname: string | null
+          momentum_indicator: string | null
           momentum_score: number | null
           outstanding_sessions: number | null
           package_health_score: number | null
           package_type: string | null
           package_value_aed: number | null
+          predictive_risk_score: number | null
+          rate_of_change_percent: number | null
           relationship_score: number | null
+          risk_category: string | null
+          risk_factors: Json | null
           sessions_last_30d: number | null
           sessions_last_7d: number | null
           sessions_last_90d: number | null
@@ -58,6 +136,7 @@ export type Database = {
           created_at?: string | null
           days_since_last_session?: number | null
           days_until_renewal?: number | null
+          early_warning_flag?: boolean | null
           email: string
           engagement_score?: number | null
           financial_score?: number | null
@@ -69,12 +148,17 @@ export type Database = {
           id?: number
           intervention_priority?: string | null
           lastname?: string | null
+          momentum_indicator?: string | null
           momentum_score?: number | null
           outstanding_sessions?: number | null
           package_health_score?: number | null
           package_type?: string | null
           package_value_aed?: number | null
+          predictive_risk_score?: number | null
+          rate_of_change_percent?: number | null
           relationship_score?: number | null
+          risk_category?: string | null
+          risk_factors?: Json | null
           sessions_last_30d?: number | null
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
@@ -91,6 +175,7 @@ export type Database = {
           created_at?: string | null
           days_since_last_session?: number | null
           days_until_renewal?: number | null
+          early_warning_flag?: boolean | null
           email?: string
           engagement_score?: number | null
           financial_score?: number | null
@@ -102,17 +187,61 @@ export type Database = {
           id?: number
           intervention_priority?: string | null
           lastname?: string | null
+          momentum_indicator?: string | null
           momentum_score?: number | null
           outstanding_sessions?: number | null
           package_health_score?: number | null
           package_type?: string | null
           package_value_aed?: number | null
+          predictive_risk_score?: number | null
+          rate_of_change_percent?: number | null
           relationship_score?: number | null
+          risk_category?: string | null
+          risk_factors?: Json | null
           sessions_last_30d?: number | null
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
           sessions_purchased?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      client_lifecycle_history: {
+        Row: {
+          created_at: string | null
+          email: string
+          engagement_trend: string | null
+          health_score: number | null
+          health_zone: string | null
+          id: number
+          sessions_previous_week: number | null
+          sessions_this_week: number | null
+          week_ending_date: string
+          week_over_week_change: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          engagement_trend?: string | null
+          health_score?: number | null
+          health_zone?: string | null
+          id?: number
+          sessions_previous_week?: number | null
+          sessions_this_week?: number | null
+          week_ending_date: string
+          week_over_week_change?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          engagement_trend?: string | null
+          health_score?: number | null
+          health_zone?: string | null
+          id?: number
+          sessions_previous_week?: number | null
+          sessions_this_week?: number | null
+          week_ending_date?: string
+          week_over_week_change?: number | null
         }
         Relationships: []
       }
@@ -223,7 +352,6 @@ export type Database = {
       }
       daily_summary: {
         Row: {
-          at_risk_revenue: number | null
           at_risk_revenue_aed: number | null
           avg_health_score: number | null
           clients_green: number | null
@@ -248,7 +376,6 @@ export type Database = {
           zone_changes_24h: Json | null
         }
         Insert: {
-          at_risk_revenue?: number | null
           at_risk_revenue_aed?: number | null
           avg_health_score?: number | null
           clients_green?: number | null
@@ -273,7 +400,6 @@ export type Database = {
           zone_changes_24h?: Json | null
         }
         Update: {
-          at_risk_revenue?: number | null
           at_risk_revenue_aed?: number | null
           avg_health_score?: number | null
           clients_green?: number | null
@@ -304,10 +430,12 @@ export type Database = {
           actioned_at: string | null
           ai_confidence: number | null
           ai_insight: string | null
+          ai_reasoning: string | null
           ai_recommendation: string | null
           assigned_to: string | null
           churn_risk_at_trigger: number | null
           client_email: string
+          client_persona: string | null
           communication_method: string | null
           communication_timing: string | null
           completed_at: string | null
@@ -333,6 +461,7 @@ export type Database = {
           message_tone: string | null
           notes: string | null
           outcome: string | null
+          outcome_measured_at: string | null
           owner_notes: string | null
           priority: string | null
           psychological_insight: string | null
@@ -350,10 +479,12 @@ export type Database = {
           actioned_at?: string | null
           ai_confidence?: number | null
           ai_insight?: string | null
+          ai_reasoning?: string | null
           ai_recommendation?: string | null
           assigned_to?: string | null
           churn_risk_at_trigger?: number | null
           client_email: string
+          client_persona?: string | null
           communication_method?: string | null
           communication_timing?: string | null
           completed_at?: string | null
@@ -379,6 +510,7 @@ export type Database = {
           message_tone?: string | null
           notes?: string | null
           outcome?: string | null
+          outcome_measured_at?: string | null
           owner_notes?: string | null
           priority?: string | null
           psychological_insight?: string | null
@@ -396,10 +528,12 @@ export type Database = {
           actioned_at?: string | null
           ai_confidence?: number | null
           ai_insight?: string | null
+          ai_reasoning?: string | null
           ai_recommendation?: string | null
           assigned_to?: string | null
           churn_risk_at_trigger?: number | null
           client_email?: string
+          client_persona?: string | null
           communication_method?: string | null
           communication_timing?: string | null
           completed_at?: string | null
@@ -425,6 +559,7 @@ export type Database = {
           message_tone?: string | null
           notes?: string | null
           outcome?: string | null
+          outcome_measured_at?: string | null
           owner_notes?: string | null
           priority?: string | null
           psychological_insight?: string | null
@@ -439,6 +574,65 @@ export type Database = {
           triggered_at?: string | null
         }
         Relationships: []
+      }
+      intervention_outcomes: {
+        Row: {
+          client_email: string
+          client_persona: string | null
+          created_at: string | null
+          executed_at: string | null
+          health_score_30d_after: number | null
+          health_score_7d_after: number | null
+          health_score_before: number | null
+          health_zone_at_intervention: string | null
+          id: number
+          intervention_id: number | null
+          intervention_type: string | null
+          outcome_success_score: number | null
+          sessions_booked_within_7d: number | null
+          trend_changed_to_positive: boolean | null
+        }
+        Insert: {
+          client_email: string
+          client_persona?: string | null
+          created_at?: string | null
+          executed_at?: string | null
+          health_score_30d_after?: number | null
+          health_score_7d_after?: number | null
+          health_score_before?: number | null
+          health_zone_at_intervention?: string | null
+          id?: number
+          intervention_id?: number | null
+          intervention_type?: string | null
+          outcome_success_score?: number | null
+          sessions_booked_within_7d?: number | null
+          trend_changed_to_positive?: boolean | null
+        }
+        Update: {
+          client_email?: string
+          client_persona?: string | null
+          created_at?: string | null
+          executed_at?: string | null
+          health_score_30d_after?: number | null
+          health_score_7d_after?: number | null
+          health_score_before?: number | null
+          health_zone_at_intervention?: string | null
+          id?: number
+          intervention_id?: number | null
+          intervention_type?: string | null
+          outcome_success_score?: number | null
+          sessions_booked_within_7d?: number | null
+          trend_changed_to_positive?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_outcomes_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_log"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_patterns: {
         Row: {
