@@ -386,7 +386,7 @@ serve(async (req) => {
       // Update the workflow if fixes were applied
       if (fixesApplied.length > 0) {
         const updateResponse = await fetch(`${N8N_API_URL}/workflows/${workflow.id}`, {
-          method: "PATCH",
+          method: "PUT",
           headers: {
             "X-N8N-API-KEY": N8N_API_KEY!,
             "Content-Type": "application/json",

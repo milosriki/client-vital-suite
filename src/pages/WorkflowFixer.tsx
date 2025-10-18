@@ -501,11 +501,16 @@ export default function WorkflowFixer() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-xs font-mono">
-                <div><span className="font-semibold">Host:</span> db.ztjndilxurtsfqdsvfds.supabase.co</div>
+                <div><span className="font-semibold">Host:</span> db.boowptjtwadxpjkpctna.supabase.co</div>
                 <div><span className="font-semibold">Database:</span> postgres</div>
-                <div><span className="font-semibold">User:</span> postgres</div>
-                <div><span className="font-semibold">Port:</span> 5432</div>
+                <div><span className="font-semibold">User:</span> postgres.boowptjtwadxpjkpctna</div>
+                <div><span className="font-semibold">Port:</span> 6543</div>
                 <div><span className="font-semibold">SSL:</span> require</div>
+                <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded">
+                  <p className="text-xs text-blue-800 dark:text-blue-200">
+                    ⚠️ Update your n8n PostgreSQL credentials with these values
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
