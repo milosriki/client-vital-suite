@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.send-to-stape-capi]
 verify_jwt = false
+
+[functions.sync-hubspot-to-capi]
+verify_jwt = false
+
+[functions.enrich-with-stripe]
+verify_jwt = false
+
+[functions.process-capi-batch]
+verify_jwt = false

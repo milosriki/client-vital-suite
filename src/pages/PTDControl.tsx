@@ -10,6 +10,7 @@ import CAPITab from "@/components/ptd/CAPITab";
 import AutomationTab from "@/components/ptd/AutomationTab";
 import SettingsTab from "@/components/ptd/SettingsTab";
 import EventMappingTab from "@/components/ptd/EventMappingTab";
+import DataEnrichmentTab from "@/components/ptd/DataEnrichmentTab";
 export default function PTDControl() {
   const [mode, setMode] = useState<"test" | "live">("test");
   
@@ -109,11 +110,12 @@ export default function PTDControl() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6">
+          <TabsList className="grid w-full grid-cols-7 mb-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="health">Health Intelligence</TabsTrigger>
+            <TabsTrigger value="health">Health</TabsTrigger>
+            <TabsTrigger value="enrichment">Data Pipeline</TabsTrigger>
             <TabsTrigger value="capi">CAPI</TabsTrigger>
-            <TabsTrigger value="events">Event Mapping</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="automation">Automation</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -124,6 +126,10 @@ export default function PTDControl() {
 
           <TabsContent value="health">
             <HealthIntelligenceTab mode={mode} />
+          </TabsContent>
+
+          <TabsContent value="enrichment">
+            <DataEnrichmentTab mode={mode} />
           </TabsContent>
 
           <TabsContent value="capi">
