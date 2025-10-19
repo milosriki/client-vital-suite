@@ -905,8 +905,6 @@ export type Database = {
           purple_count: number | null
           red_count: number | null
           red_pct: number | null
-          report_date: string | null
-          total_clients: number | null
           yellow_count: number | null
         }
         Relationships: []
