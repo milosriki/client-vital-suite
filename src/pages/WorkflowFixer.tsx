@@ -280,6 +280,56 @@ export default function WorkflowFixer() {
     }
   };
 
+  const addPredictiveIntelligence = async () => {
+    setIsFixing(true);
+    setExecutionLog(['Adding predictive intelligence to workflow...']);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('update-n8n-workflow', {
+        body: {}
+      });
+
+      if (error) {
+        setExecutionLog(prev => [...prev, `❌ Error: ${error.message}`]);
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: error.message
+        });
+        return;
+      }
+
+      if (data?.success) {
+        setExecutionLog(prev => [...prev, '✅ Predictive intelligence node added successfully']);
+        setExecutionLog(prev => [...prev, `📊 Workflow: ${data.workflow.name}`]);
+        setExecutionLog(prev => [...prev, `📝 Total nodes: ${data.workflow.nodes}`]);
+        
+        toast({
+          title: "Success!",
+          description: "Workflow updated with predictive intelligence features",
+        });
+      } else {
+        setExecutionLog(prev => [...prev, `❌ Update failed: ${data?.error || 'Unknown error'}`]);
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: data?.error || 'Unknown error occurred'
+        });
+      }
+
+      await fetchWorkflows();
+    } catch (error: any) {
+      setExecutionLog(prev => [...prev, `❌ Error: ${error.message}`]);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: error.message
+      });
+    } finally {
+      setIsFixing(false);
+    }
+  };
+
   const activateWorkflow = async (workflowId: string) => {
     try {
       const response = await fetch(`${N8N_API_URL}/workflows/${workflowId}`, {
@@ -371,6 +421,23 @@ export default function WorkflowFixer() {
                 <>
                   <RefreshCw className="w-4 h-4" />
                   Fix All Workflows
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={addPredictiveIntelligence} 
+              disabled={isFixing}
+              className="bg-purple-600 hover:bg-purple-700 flex items-center gap-2"
+            >
+              {isFixing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4" />
+                  Add Predictive Intelligence
                 </>
               )}
             </Button>

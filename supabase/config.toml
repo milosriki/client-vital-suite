@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.setup-workflows]
 verify_jwt = false
+
+[functions.update-n8n-workflow]
+verify_jwt = false
