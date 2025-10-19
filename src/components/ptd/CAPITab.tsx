@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Send, Eye, Play, AlertTriangle, CheckCircle, Loader2, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Send, Eye, Play, AlertTriangle, CheckCircle, Loader2, RefreshCw, ShoppingCart, UserPlus, FileText, Search, CreditCard, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -336,9 +337,345 @@ export default function CAPITab({ mode }: CAPITabProps) {
     }
   };
 
+  const sendStandardEvent = async (eventName: string, value?: number) => {
+    if (!email || !phone) {
+      toast({
+        title: "Missing Data",
+        description: "Email and phone are required for all events",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const normalizedPhone = normalizePhoneUAE(phone);
+      const eventData = {
+        event_name: eventName,
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: `${eventName}_${Date.now()}`,
+        event_source_url: "https://ptdfitness.com",
+        action_source: "website",
+        user_data: {
+          email,
+          phone: normalizedPhone,
+          fbp: fbp || undefined,
+          fbc: fbc || undefined,
+        },
+        custom_data: value ? {
+          currency: "AED",
+          value: value,
+        } : undefined,
+        test_event_code: useTestCode ? testCode : undefined,
+      };
+
+      const { data, error } = await supabase.functions.invoke('send-to-stape-capi', {
+        body: { eventData, mode }
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      toast({
+        title: `${eventName} Event Sent`,
+        description: `Successfully sent to Meta CAPI in ${mode} mode`,
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Event send error:', error);
+      toast({
+        title: "Send Failed",
+        description: error instanceof Error ? error.message : "Failed to send event",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const syncHubSpotContacts = async (lifecycleStage: string) => {
+    setIsLoading(true);
+    setProgress(20);
+    
+    try {
+      toast({
+        title: "Syncing HubSpot Contacts",
+        description: `Fetching ${lifecycleStage} contacts...`,
+      });
+
+      setProgress(50);
+
+      const { data, error } = await supabase.functions.invoke('sync-hubspot-to-capi', {
+        body: { 
+          lifecycle_stage: lifecycleStage,
+          mode 
+        }
+      });
+
+      if (error) throw error;
+
+      setProgress(100);
+
+      toast({
+        title: "Sync Complete",
+        description: `Synced ${data.events_synced || 0} contacts from HubSpot`,
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('HubSpot sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "Failed to sync HubSpot contacts",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setProgress(0), 1000);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Live Mode Confirmation Dialog */}
+      <Tabs defaultValue="quick-send" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="quick-send">Standard Events</TabsTrigger>
+          <TabsTrigger value="hubspot-sync">HubSpot Sync</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced Test</TabsTrigger>
+        </TabsList>
+
+        {/* Standard Events Quick Send */}
+        <TabsContent value="quick-send" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Send Standard Events</CardTitle>
+              <CardDescription>
+                Send standard Meta events with pre-filled data. Perfect Meta CAPI format.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quick-email">Email</Label>
+                  <Input
+                    id="quick-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quick-phone">Phone (971...)</Label>
+                  <Input
+                    id="quick-phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="971501234567"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quick-fbp">FBP (optional)</Label>
+                  <Input
+                    id="quick-fbp"
+                    value={fbp}
+                    onChange={(e) => setFbp(e.target.value)}
+                    placeholder="fb.1.1234567890.1234567890"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quick-fbc">FBC (optional)</Label>
+                  <Input
+                    id="quick-fbc"
+                    value={fbc}
+                    onChange={(e) => setFbc(e.target.value)}
+                    placeholder="fb.1.1234567890.AbCdEf"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="quick-test-code"
+                  checked={useTestCode}
+                  onCheckedChange={(checked) => setUseTestCode(checked as boolean)}
+                />
+                <Label htmlFor="quick-test-code" className="text-sm">
+                  Use test_event_code (for test mode)
+                </Label>
+              </div>
+
+              {useTestCode && (
+                <div className="space-y-2">
+                  <Label htmlFor="quick-test-code-input">Test Event Code</Label>
+                  <Input
+                    id="quick-test-code-input"
+                    value={testCode}
+                    onChange={(e) => setTestCode(e.target.value)}
+                    placeholder="TEST12345"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Button
+                  onClick={() => sendStandardEvent("Purchase", parseFloat(value) || 5000)}
+                  disabled={isLoading || !email || !phone}
+                  className="w-full"
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Purchase
+                </Button>
+                <Button
+                  onClick={() => sendStandardEvent("Lead")}
+                  disabled={isLoading || !email || !phone}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Lead
+                </Button>
+                <Button
+                  onClick={() => sendStandardEvent("CompleteRegistration")}
+                  disabled={isLoading || !email || !phone}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Registration
+                </Button>
+                <Button
+                  onClick={() => sendStandardEvent("InitiateCheckout", parseFloat(value) || 3000)}
+                  disabled={isLoading || !email || !phone}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Checkout
+                </Button>
+                <Button
+                  onClick={() => sendStandardEvent("Schedule")}
+                  disabled={isLoading || !email || !phone}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Schedule
+                </Button>
+                <Button
+                  onClick={() => sendStandardEvent("ViewContent")}
+                  disabled={isLoading || !email || !phone}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="quick-value">Default Value (AED) for Purchase/Checkout</Label>
+                <Input
+                  id="quick-value"
+                  type="number"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="5000"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* HubSpot Sync */}
+        <TabsContent value="hubspot-sync" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sync HubSpot Contacts</CardTitle>
+              <CardDescription>
+                Pull contacts by lifecycle stage, enrich with Stripe, and send to Meta CAPI
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <AlertDescription>
+                  This will fetch contacts from HubSpot, enrich with Stripe data, and send to Meta in perfect CAPI format.
+                  Events are queued in capi_events_enriched for batch processing.
+                </AlertDescription>
+              </Alert>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Button
+                  onClick={() => syncHubSpotContacts("customer")}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Customers
+                </Button>
+                <Button
+                  onClick={() => syncHubSpotContacts("opportunity")}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Opportunities
+                </Button>
+                <Button
+                  onClick={() => syncHubSpotContacts("lead")}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Leads
+                </Button>
+                <Button
+                  onClick={() => syncHubSpotContacts("marketingqualifiedlead")}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  MQLs
+                </Button>
+                <Button
+                  onClick={() => syncHubSpotContacts("salesqualifiedlead")}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  SQLs
+                </Button>
+                <Button
+                  onClick={() => syncHubSpotContacts("subscriber")}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Subscribers
+                </Button>
+              </div>
+
+              {progress > 0 && (
+                <div className="space-y-2">
+                  <Progress value={progress} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Syncing... {progress}%
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Advanced Test (Original Form) */}
+        <TabsContent value="advanced" className="space-y-4">
+          {/* Live Mode Confirmation Dialog */}
       <Dialog open={showLiveConfirm} onOpenChange={setShowLiveConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -565,6 +902,67 @@ export default function CAPITab({ mode }: CAPITabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Recent Events */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent CAPI Events</CardTitle>
+          <CardDescription>Last 50 events from Supabase</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event Name</TableHead>
+                  <TableHead>Event Time</TableHead>
+                  <TableHead>Currency</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {events?.map((event: any) => (
+                  <TableRow key={event.id}>
+                    <TableCell className="font-medium">{event.event_name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(event.event_time).toLocaleString()}
+                    </TableCell>
+                    <TableCell>{event.currency}</TableCell>
+                    <TableCell>{event.value_aed}</TableCell>
+                    <TableCell className="text-xs">{event.email || "-"}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          event.status === "success"
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-yellow-500/10 text-yellow-500"
+                        }
+                      >
+                        {event.status || "pending"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Progress Bar */}
+      {progress > 0 && (
+        <div className="space-y-2">
+          <Progress value={progress} className="h-2" />
+          <p className="text-xs text-muted-foreground text-center">
+            Processing... {progress}%
+          </p>
+        </div>
+      )}
 
       {/* Recent Events */}
       <Card>
