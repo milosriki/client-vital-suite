@@ -131,6 +131,102 @@ export type Database = {
         }
         Relationships: []
       }
+      batch_config: {
+        Row: {
+          batch_size: number | null
+          batch_time: string
+          config_name: string
+          created_at: string | null
+          days_of_week: number[] | null
+          enabled: boolean | null
+          id: string
+          last_run: string | null
+          mode: string | null
+          next_run: string | null
+          notes: string | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          batch_size?: number | null
+          batch_time: string
+          config_name: string
+          created_at?: string | null
+          days_of_week?: number[] | null
+          enabled?: boolean | null
+          id?: string
+          last_run?: string | null
+          mode?: string | null
+          next_run?: string | null
+          notes?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          batch_size?: number | null
+          batch_time?: string
+          config_name?: string
+          created_at?: string | null
+          days_of_week?: number[] | null
+          enabled?: boolean | null
+          id?: string
+          last_run?: string | null
+          mode?: string | null
+          next_run?: string | null
+          notes?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      batch_jobs: {
+        Row: {
+          batch_name: string
+          completed_at: string | null
+          created_at: string | null
+          error_log: Json | null
+          events_count: number | null
+          events_failed: number | null
+          events_sent: number | null
+          execution_time: string | null
+          id: string
+          mode: string | null
+          notes: string | null
+          scheduled_time: string
+          status: string | null
+        }
+        Insert: {
+          batch_name: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_log?: Json | null
+          events_count?: number | null
+          events_failed?: number | null
+          events_sent?: number | null
+          execution_time?: string | null
+          id?: string
+          mode?: string | null
+          notes?: string | null
+          scheduled_time: string
+          status?: string | null
+        }
+        Update: {
+          batch_name?: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_log?: Json | null
+          events_count?: number | null
+          events_failed?: number | null
+          events_sent?: number | null
+          execution_time?: string | null
+          id?: string
+          mode?: string | null
+          notes?: string | null
+          scheduled_time?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       capi_events: {
         Row: {
           created_at: string | null
@@ -197,6 +293,150 @@ export type Database = {
           user_email?: string | null
           user_phone?: string | null
           value_aed?: number | null
+        }
+        Relationships: []
+      }
+      capi_events_enriched: {
+        Row: {
+          action_source: string | null
+          batch_id: string | null
+          batch_scheduled_for: string | null
+          city: string | null
+          content_category: string | null
+          content_ids: string[] | null
+          content_name: string | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          email: string | null
+          event_id: string
+          event_name: string
+          event_source_url: string | null
+          event_time: string
+          external_id: string | null
+          fbc: string | null
+          fbp: string | null
+          first_name: string | null
+          hubspot_contact_id: string | null
+          hubspot_deal_id: string | null
+          id: string
+          last_name: string | null
+          lead_source: string | null
+          lifecycle_stage: string | null
+          meta_event_id: string | null
+          meta_response: Json | null
+          mode: string | null
+          num_items: number | null
+          original_source: string | null
+          payment_method: string | null
+          phone: string | null
+          raw_payload: Json | null
+          send_attempts: number | null
+          send_status: string | null
+          sent_at: string | null
+          state: string | null
+          stripe_charge_id: string | null
+          stripe_customer_id: string | null
+          stripe_invoice_id: string | null
+          subscription_id: string | null
+          subscription_status: string | null
+          updated_at: string | null
+          value: number | null
+          zip_code: string | null
+        }
+        Insert: {
+          action_source?: string | null
+          batch_id?: string | null
+          batch_scheduled_for?: string | null
+          city?: string | null
+          content_category?: string | null
+          content_ids?: string[] | null
+          content_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          event_id: string
+          event_name: string
+          event_source_url?: string | null
+          event_time: string
+          external_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          first_name?: string | null
+          hubspot_contact_id?: string | null
+          hubspot_deal_id?: string | null
+          id?: string
+          last_name?: string | null
+          lead_source?: string | null
+          lifecycle_stage?: string | null
+          meta_event_id?: string | null
+          meta_response?: Json | null
+          mode?: string | null
+          num_items?: number | null
+          original_source?: string | null
+          payment_method?: string | null
+          phone?: string | null
+          raw_payload?: Json | null
+          send_attempts?: number | null
+          send_status?: string | null
+          sent_at?: string | null
+          state?: string | null
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+          subscription_status?: string | null
+          updated_at?: string | null
+          value?: number | null
+          zip_code?: string | null
+        }
+        Update: {
+          action_source?: string | null
+          batch_id?: string | null
+          batch_scheduled_for?: string | null
+          city?: string | null
+          content_category?: string | null
+          content_ids?: string[] | null
+          content_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          event_id?: string
+          event_name?: string
+          event_source_url?: string | null
+          event_time?: string
+          external_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          first_name?: string | null
+          hubspot_contact_id?: string | null
+          hubspot_deal_id?: string | null
+          id?: string
+          last_name?: string | null
+          lead_source?: string | null
+          lifecycle_stage?: string | null
+          meta_event_id?: string | null
+          meta_response?: Json | null
+          mode?: string | null
+          num_items?: number | null
+          original_source?: string | null
+          payment_method?: string | null
+          phone?: string | null
+          raw_payload?: Json | null
+          send_attempts?: number | null
+          send_status?: string | null
+          sent_at?: string | null
+          state?: string | null
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+          subscription_status?: string | null
+          updated_at?: string | null
+          value?: number | null
+          zip_code?: string | null
         }
         Relationships: []
       }
