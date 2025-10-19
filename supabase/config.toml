@@ -1,4 +1,4 @@
-project_id = "ztjndilxurtsfqdsvfds"
+project_id = "boowptjtwadxpjkpctna"
 
 [functions.fix-n8n-workflows]
 verify_jwt = false
@@ -7,4 +7,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.update-n8n-workflow]
+verify_jwt = false
+
+[functions.send-to-stape-capi]
 verify_jwt = false

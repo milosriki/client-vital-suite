@@ -22,16 +22,18 @@ export default function CAPITab({ mode }: CAPITabProps) {
   const [value, setValue] = useState("");
   const [fbp, setFbp] = useState("");
   const [fbc, setFbc] = useState("");
-  const [useTestCode, setUseTestCode] = useState(true);
+  const [useTestCode, setUseTestCode] = useState(mode === "test");
+  const [testCode, setTestCode] = useState("TEST12345");
   const [payload, setPayload] = useState<any>(null);
 
   // Fetch recent CAPI events
-  const { data: events } = useQuery({
-    queryKey: ["capi-events"],
+  const { data: events, refetch } = useQuery({
+    queryKey: ["capi-events", mode],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("capi_events")
         .select("*")
+        .eq("mode", mode)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -42,18 +44,17 @@ export default function CAPITab({ mode }: CAPITabProps) {
   const handlePreflight = () => {
     const testPayload = {
       event_name: "Purchase",
-      event_time: Math.floor(Date.now() / 1000),
       user_data: {
-        em: email ? hashSHA256(email) : undefined,
-        ph: phone ? hashSHA256(phone) : undefined,
+        email,
+        phone,
+        fbp,
+        fbc,
       },
       custom_data: {
         currency: "AED",
         value: parseFloat(value),
       },
-      fbp,
-      fbc,
-      test_event_code: useTestCode ? "TEST12345" : undefined,
+      test_event_code: useTestCode ? testCode : undefined,
     };
     setPayload(testPayload);
     toast({
@@ -71,30 +72,44 @@ export default function CAPITab({ mode }: CAPITabProps) {
   };
 
   const handleSend = async () => {
+    const eventData: any = {
+      event_name: "Purchase",
+      user_data: {
+        email,
+        phone,
+        fbp,
+        fbc,
+      },
+      custom_data: {
+        currency: "AED",
+        value: parseFloat(value) || 0,
+      },
+    };
+
+    if (useTestCode) {
+      eventData.test_event_code = testCode;
+    }
+
     try {
-      // Call backend CAPI endpoint
-      const response = await fetch(`${window.location.origin}/api/events/purchase`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          value: parseFloat(value),
-          currency: "AED",
-          userData: { emails: [email], phones: [phone] },
-          fbp,
-          fbc,
-        }),
+      const { data, error } = await supabase.functions.invoke('send-to-stape-capi', {
+        body: { eventData, mode }
       });
 
-      if (!response.ok) throw new Error("Failed to send event");
-      
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
       toast({
-        title: "Success",
-        description: `Event sent to CAPI (${mode} mode)`,
+        title: "Event Sent via Stape CAPI",
+        description: `Purchase event sent successfully in ${mode} mode`,
       });
+
+      // Refetch recent events
+      refetch();
     } catch (error) {
+      console.error('CAPI send error:', error);
       toast({
         title: "Error",
-        description: "Failed to send event",
+        description: error instanceof Error ? error.message : "Failed to send event",
         variant: "destructive",
       });
     }
@@ -163,21 +178,33 @@ export default function CAPITab({ mode }: CAPITabProps) {
                 onChange={(e) => setFbc(e.target.value)}
                 placeholder="fb.1.1234567890.AbCdEf"
               />
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="test-code"
-              checked={useTestCode}
-              onCheckedChange={(checked) => setUseTestCode(checked as boolean)}
-            />
-            <Label htmlFor="test-code" className="text-sm">
-              Use test_event_code (required in test mode)
-            </Label>
-          </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="test-code"
+                checked={useTestCode}
+                onCheckedChange={(checked) => setUseTestCode(checked as boolean)}
+              />
+              <Label htmlFor="test-code" className="text-sm">
+                Use test_event_code (for test mode)
+              </Label>
+            </div>
 
-          <div className="flex gap-2">
+            {useTestCode && (
+              <div className="space-y-2">
+                <Label htmlFor="test-code-input">Test Event Code</Label>
+                <Input
+                  id="test-code-input"
+                  value={testCode}
+                  onChange={(e) => setTestCode(e.target.value)}
+                  placeholder="TEST12345"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-2">
             <Button variant="outline" onClick={handlePreflight}>
               <Eye className="h-4 w-4 mr-2" />
               Preflight
