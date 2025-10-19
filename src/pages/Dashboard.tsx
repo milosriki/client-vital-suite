@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
 import { ClientRiskMatrix } from '@/components/dashboard/ClientRiskMatrix';
@@ -8,10 +9,14 @@ import { CoachPerformanceTable } from '@/components/dashboard/CoachPerformanceTa
 import { InterventionTracker } from '@/components/dashboard/InterventionTracker';
 import { PatternInsights } from '@/components/dashboard/PatternInsights';
 import { FilterControls } from '@/components/dashboard/FilterControls';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Command, Activity, Settings, Zap, TrendingUp, Database } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
+  const navigate = useNavigate();
   const [filterMode, setFilterMode] = useState<'all' | 'high-risk' | 'early-warning'>('all');
   const [selectedCoach, setSelectedCoach] = useState('all');
   const [selectedZone, setSelectedZone] = useState('all');
@@ -166,6 +171,71 @@ export default function Dashboard() {
           Predictive Analytics • Real-time Updates
         </div>
       </div>
+
+      {/* Quick Access to PTD Control Panel Features */}
+      <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-background border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Command className="h-5 w-5" />
+            PTD Control Panel
+          </CardTitle>
+          <CardDescription>
+            Quick access to conversion tracking, automation, and system settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate('/ptd-control')}
+            >
+              <Command className="h-5 w-5" />
+              <span className="text-xs">Full Control Panel</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate('/meta-dashboard')}
+            >
+              <Activity className="h-5 w-5" />
+              <span className="text-xs">CAPI Events</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate('/analytics')}
+            >
+              <TrendingUp className="h-5 w-5" />
+              <span className="text-xs">Analytics</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate('/fix-workflows')}
+            >
+              <Zap className="h-5 w-5" />
+              <span className="text-xs">Automation</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate('/ptd-control?tab=settings')}
+            >
+              <Settings className="h-5 w-5" />
+              <span className="text-xs">Settings</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => window.open('https://boowptjtwadxpjkpctna.supabase.co', '_blank')}
+            >
+              <Database className="h-5 w-5" />
+              <span className="text-xs">Supabase</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <PredictiveAlerts clients={clients || []} summary={summary} />
 
