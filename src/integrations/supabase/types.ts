@@ -53,6 +53,135 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          capi_base_url: string | null
+          created_at: string | null
+          id: string
+          meta_access_token: string | null
+          meta_pixel_id: string | null
+          n8n_base_url: string | null
+          supabase_anon_key: string | null
+          supabase_url: string | null
+          telegram_bot_token: string | null
+          telegram_chat_id: string | null
+          test_event_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          capi_base_url?: string | null
+          created_at?: string | null
+          id?: string
+          meta_access_token?: string | null
+          meta_pixel_id?: string | null
+          n8n_base_url?: string | null
+          supabase_anon_key?: string | null
+          supabase_url?: string | null
+          telegram_bot_token?: string | null
+          telegram_chat_id?: string | null
+          test_event_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          capi_base_url?: string | null
+          created_at?: string | null
+          id?: string
+          meta_access_token?: string | null
+          meta_pixel_id?: string | null
+          n8n_base_url?: string | null
+          supabase_anon_key?: string | null
+          supabase_url?: string | null
+          telegram_bot_token?: string | null
+          telegram_chat_id?: string | null
+          test_event_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      automation_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          mode: string | null
+          payload: Json | null
+          response_data: Json | null
+          status: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          mode?: string | null
+          payload?: Json | null
+          response_data?: Json | null
+          status?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          mode?: string | null
+          payload?: Json | null
+          response_data?: Json | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      capi_events: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          event_id: string | null
+          event_name: string
+          external_id: string | null
+          fbc: string | null
+          fbp: string | null
+          id: string
+          mode: string | null
+          phone: string | null
+          response_data: Json | null
+          status: string | null
+          test_event_code: string | null
+          value_aed: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          event_id?: string | null
+          event_name: string
+          external_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          id?: string
+          mode?: string | null
+          phone?: string | null
+          response_data?: Json | null
+          status?: string | null
+          test_event_code?: string | null
+          value_aed?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          event_id?: string | null
+          event_name?: string
+          external_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          id?: string
+          mode?: string | null
+          phone?: string | null
+          response_data?: Json | null
+          status?: string | null
+          test_event_code?: string | null
+          value_aed?: number | null
+        }
+        Relationships: []
+      }
       churn_patterns: {
         Row: {
           avg_health_score_drop: number | null
@@ -711,7 +840,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      company_health_aggregates: {
+        Row: {
+          clients_declining: number | null
+          clients_improving: number | null
+          company_avg_score: number | null
+          green_count: number | null
+          health_score_stdev: number | null
+          median_health_score: number | null
+          purple_count: number | null
+          red_count: number | null
+          red_pct: number | null
+          report_date: string | null
+          total_clients: number | null
+          yellow_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_at_risk_clients: {
