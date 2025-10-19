@@ -56,7 +56,9 @@ return clients.map(client => {
       
       // Individual client metrics
       deviation_from_avg: deviationFromAvg,
+      score_vs_avg: deviationFromAvg, // Alias for deviation_from_avg
       risk_score: riskScore,
+      csv_url: client.json.csv_url ?? '', // For CSV export URLs
       
       // Meta CAPI fields
       event_name: 'Purchase', // or dynamic based on client action
