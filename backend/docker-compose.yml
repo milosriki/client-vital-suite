@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  meta-capi-proxy:
+    build: .
+    container_name: ptd-meta-capi-proxy
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Dubai
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/usr/src/app/logs
+    networks:
+      - ptd-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  ptd-network:
+    driver: bridge
+
+volumes:
+  logs:

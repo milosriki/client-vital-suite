@@ -13,6 +13,7 @@ import Interventions from "./pages/Interventions";
 import Analytics from "./pages/Analytics";
 import WorkflowFixer from "./pages/WorkflowFixer";
 import WorkflowStrategy from "./pages/WorkflowStrategy";
+import MetaDashboard from "./pages/MetaDashboard";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { path: "/analytics", element: <Analytics /> },
       { path: "/fix-workflows", element: <WorkflowFixer /> },
       { path: "/workflow-strategy", element: <WorkflowStrategy /> },
+      { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "*", element: <NotFound /> },
     ],
   },

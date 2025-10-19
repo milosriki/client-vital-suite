@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PTD Meta CAPI Proxy Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+    .section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .section h2 {
+      color: #555;
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+    .input-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #555;
+      font-weight: 500;
+    }
+    input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .result pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 0.85rem;
+      color: #333;
+    }
+    .success { border-left: 4px solid #28a745; }
+    .error { border-left: 4px solid #dc3545; }
+    .loading { opacity: 0.6; }
+    .info {
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 PTD Meta CAPI Proxy Dashboard</h1>
+    <p class="subtitle">Timezone: Asia/Dubai | Currency: AED</p>
+
+    <div class="info">
+      <strong>Server Status:</strong> <span id="server-status">Checking...</span>
+    </div>
+
+    <!-- Health Check -->
+    <div class="section">
+      <h2>🏥 Health Check</h2>
+      <button onclick="checkHealth()">Run Health Check</button>
+      <div id="health-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- Test Purchase -->
+    <div class="section">
+      <h2>🛒 Send Test Purchase</h2>
+      <div class="input-group">
+        <label>Email:</label>
+        <input type="email" id="test-email" value="test@ptdfitness.com" />
+      </div>
+      <div class="input-group">
+        <label>Value (AED):</label>
+        <input type="number" id="test-value" value="500" />
+      </div>
+      <button onclick="sendTestPurchase()">Send Test Purchase</button>
+      <div id="purchase-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- n8n Backfill -->
+    <div class="section">
+      <h2>🔄 Trigger n8n Backfill</h2>
+      <div class="input-group">
+        <label>n8n Backfill Webhook URL:</label>
+        <input type="url" id="backfill-url" placeholder="https://your-n8n.com/webhook/backfill" />
+      </div>
+      <button onclick="triggerBackfill()">Trigger Backfill</button>
+      <div id="backfill-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- n8n Health -->
+    <div class="section">
+      <h2>📊 Run n8n Health Check</h2>
+      <div class="input-group">
+        <label>n8n Health Webhook URL:</label>
+        <input type="url" id="health-webhook-url" placeholder="https://your-n8n.com/webhook/health" />
+      </div>
+      <button onclick="runHealthWebhook()">Run Health Webhook</button>
+      <div id="health-webhook-result" class="result" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    // Check server status on load
+    window.addEventListener('load', checkHealth);
+
+    async function checkHealth() {
+      const resultDiv = document.getElementById('health-result');
+      const statusSpan = document.getElementById('server-status');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<pre>Checking...</pre>';
+      
+      try {
+        const response = await fetch(`${API_BASE}/health`);
+        const data = await response.json();
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        statusSpan.textContent = '✓ Online';
+        statusSpan.style.color = '#28a745';
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
+        statusSpan.textContent = '✗ Offline';
+        statusSpan.style.color = '#dc3545';
+      }
+    }
+
+    async function sendTestPurchase() {
+      const resultDiv = document.getElementById('purchase-result');
+      const email = document.getElementById('test-email').value;
+      const value = parseFloat(document.getElementById('test-value').value);
+      
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<pre>Sending...</pre>';
+      
+      try {
+        const response = await fetch(`${API_BASE}/api/events/Purchase`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_time: Math.floor(Date.now() / 1000),
+            event_id: `test_${Date.now()}`,
+            user_data: {
+              email: email,
+              external_id: `test_client_${Date.now()}`
+            },
+            custom_data: {
+              currency: 'AED',
+              value: value,
+              content_name: 'Test Purchase from Dashboard'
+            }
+          })
+        });
+        
+        const data = await response.json();
+        resultDiv.className = response.ok ? 'result success' : 'result error';
+        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
+      }
+    }
+
+    async function triggerBackfill() {
+      const resultDiv = document.getElementById('backfill-result');
+      const url = document.getElementById('backfill-url').value;
+      
+      if (!url) {
+        alert('Please enter n8n backfill webhook URL');
+        return;
+      }
+      
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<pre>Triggering...</pre>';
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trigger: 'backfill', timestamp: Date.now() })
+        });
+        
+        const data = await response.json();
+        resultDiv.className = response.ok ? 'result success' : 'result error';
+        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
+      }
+    }
+
+    async function runHealthWebhook() {
+      const resultDiv = document.getElementById('health-webhook-result');
+      const url = document.getElementById('health-webhook-url').value;
+      
+      if (!url) {
+        alert('Please enter n8n health webhook URL');
+        return;
+      }
+      
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<pre>Running...</pre>';
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trigger: 'health_check', timestamp: Date.now() })
+        });
+        
+        const data = await response.json();
+        resultDiv.className = response.ok ? 'result success' : 'result error';
+        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
+      }
+    }
+  </script>
+</body>
+</html>
