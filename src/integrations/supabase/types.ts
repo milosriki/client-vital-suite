@@ -134,50 +134,68 @@ export type Database = {
       capi_events: {
         Row: {
           created_at: string | null
+          currency: string | null
           email: string | null
           event_id: string | null
           event_name: string
+          event_time: string | null
           external_id: string | null
           fbc: string | null
           fbp: string | null
           id: string
+          inserted_at: string | null
           mode: string | null
           phone: string | null
+          raw: Json | null
           response_data: Json | null
           status: string | null
           test_event_code: string | null
+          user_email: string | null
+          user_phone: string | null
           value_aed: number | null
         }
         Insert: {
           created_at?: string | null
+          currency?: string | null
           email?: string | null
           event_id?: string | null
           event_name: string
+          event_time?: string | null
           external_id?: string | null
           fbc?: string | null
           fbp?: string | null
           id?: string
+          inserted_at?: string | null
           mode?: string | null
           phone?: string | null
+          raw?: Json | null
           response_data?: Json | null
           status?: string | null
           test_event_code?: string | null
+          user_email?: string | null
+          user_phone?: string | null
           value_aed?: number | null
         }
         Update: {
           created_at?: string | null
+          currency?: string | null
           email?: string | null
           event_id?: string | null
           event_name?: string
+          event_time?: string | null
           external_id?: string | null
           fbc?: string | null
           fbp?: string | null
           id?: string
+          inserted_at?: string | null
           mode?: string | null
           phone?: string | null
+          raw?: Json | null
           response_data?: Json | null
           status?: string | null
           test_event_code?: string | null
+          user_email?: string | null
+          user_phone?: string | null
           value_aed?: number | null
         }
         Relationships: []
@@ -563,6 +581,42 @@ export type Database = {
         }
         Relationships: []
       }
+      health_scores: {
+        Row: {
+          as_of: string
+          client_id: string
+          details: Json | null
+          health_score: number
+          id: number
+          improving: boolean | null
+          inserted_at: string | null
+          risk_score: number | null
+          zone: string | null
+        }
+        Insert: {
+          as_of: string
+          client_id: string
+          details?: Json | null
+          health_score: number
+          id?: number
+          improving?: boolean | null
+          inserted_at?: string | null
+          risk_score?: number | null
+          zone?: string | null
+        }
+        Update: {
+          as_of?: string
+          client_id?: string
+          details?: Json | null
+          health_score?: number
+          id?: number
+          improving?: boolean | null
+          inserted_at?: string | null
+          risk_score?: number | null
+          zone?: string | null
+        }
+        Relationships: []
+      }
       intervention_log: {
         Row: {
           actioned_at: string | null
@@ -884,6 +938,10 @@ export type Database = {
           count: number
           health_zone: string
         }[]
+      }
+      upsert_capi_event: {
+        Args: { p_event: Json }
+        Returns: undefined
       }
     }
     Enums: {
