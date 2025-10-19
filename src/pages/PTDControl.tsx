@@ -9,6 +9,7 @@ import HealthIntelligenceTab from "@/components/ptd/HealthIntelligenceTab";
 import CAPITab from "@/components/ptd/CAPITab";
 import AutomationTab from "@/components/ptd/AutomationTab";
 import SettingsTab from "@/components/ptd/SettingsTab";
+import EventMappingTab from "@/components/ptd/EventMappingTab";
 export default function PTDControl() {
   const [mode, setMode] = useState<"test" | "live">("test");
   
@@ -108,10 +109,11 @@ export default function PTDControl() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="health">Health Intelligence</TabsTrigger>
             <TabsTrigger value="capi">CAPI</TabsTrigger>
+            <TabsTrigger value="events">Event Mapping</TabsTrigger>
             <TabsTrigger value="automation">Automation</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -126,6 +128,10 @@ export default function PTDControl() {
 
           <TabsContent value="capi">
             <CAPITab mode={mode} />
+          </TabsContent>
+
+          <TabsContent value="events">
+            <EventMappingTab mode={mode} />
           </TabsContent>
 
           <TabsContent value="automation">

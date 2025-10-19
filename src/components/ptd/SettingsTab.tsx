@@ -132,35 +132,22 @@ export default function SettingsTab() {
             </div>
           </div>
 
-          {/* n8n Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">n8n</h3>
-            <div className="space-y-2">
-              <Label htmlFor="n8n-url">n8n Base URL</Label>
-              <Input
-                id="n8n-url"
-                value={settings.n8n_base_url}
-                onChange={(e) =>
-                  setSettings({ ...settings, n8n_base_url: e.target.value })
-                }
-                placeholder="https://n8n.yourdomain.com"
-              />
-            </div>
-          </div>
-
           {/* CAPI Settings */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Meta Conversion API</h3>
-            <div className="space-y-2">
-              <Label htmlFor="capi-url">CAPI Base URL</Label>
-              <Input
-                id="capi-url"
-                value={settings.capi_base_url}
-                onChange={(e) =>
-                  setSettings({ ...settings, capi_base_url: e.target.value })
-                }
-                placeholder="https://capi.yourdomain.com"
-              />
+            <h3 className="text-lg font-semibold">Meta Conversion API (Stape)</h3>
+            <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+              <div className="text-sm">
+                <span className="font-medium">Stape CAPI Name:</span> rikiki capi
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">URL:</span> https://ap.stape.info
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">CAPIG Identifier:</span> ecxdsmmg
+              </div>
+              <div className="text-sm text-muted-foreground">
+                ✓ Configured via Supabase secret: STAPE_CAPIG_API_KEY
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="pixel-id">Meta Pixel ID</Label>
@@ -170,19 +157,7 @@ export default function SettingsTab() {
                 onChange={(e) =>
                   setSettings({ ...settings, meta_pixel_id: e.target.value })
                 }
-                placeholder="123456789012345"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="access-token">Meta Access Token</Label>
-              <Input
-                id="access-token"
-                type="password"
-                value={settings.meta_access_token}
-                onChange={(e) =>
-                  setSettings({ ...settings, meta_access_token: e.target.value })
-                }
-                placeholder="EAAxxxxxxx"
+                placeholder="1405173453873048"
               />
             </div>
             <div className="space-y-2">
@@ -195,6 +170,29 @@ export default function SettingsTab() {
                 }
                 placeholder="TEST12345"
               />
+            </div>
+          </div>
+
+          {/* n8n Settings */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">n8n Automation Webhooks</h3>
+            <div className="space-y-2">
+              <Label htmlFor="n8n-url">n8n Base URL</Label>
+              <Input
+                id="n8n-url"
+                value={settings.n8n_base_url}
+                onChange={(e) =>
+                  setSettings({ ...settings, n8n_base_url: e.target.value })
+                }
+                placeholder="https://personaltrainersdubai.app.n8n.cloud"
+              />
+            </div>
+            <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
+              <div className="font-medium mb-2">Webhook Endpoints:</div>
+              <div>• CAPI Ingest: <code className="text-xs">/webhook/capi_ingest</code></div>
+              <div>• Daily Health: <code className="text-xs">/webhook/ptd_daily_health</code></div>
+              <div>• Monthly Review: <code className="text-xs">/webhook/ptd_monthly_review</code></div>
+              <div>• AI Analysis: <code className="text-xs">/webhook/ptd_ai_analysis</code></div>
             </div>
           </div>
 

@@ -635,6 +635,36 @@ export type Database = {
         }
         Relationships: []
       }
+      event_mappings: {
+        Row: {
+          created_at: string | null
+          event_parameters: Json | null
+          hubspot_event_name: string
+          id: string
+          is_active: boolean | null
+          meta_event_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_parameters?: Json | null
+          hubspot_event_name: string
+          id?: string
+          is_active?: boolean | null
+          meta_event_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_parameters?: Json | null
+          hubspot_event_name?: string
+          id?: string
+          is_active?: boolean | null
+          meta_event_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       health_scores: {
         Row: {
           as_of: string
