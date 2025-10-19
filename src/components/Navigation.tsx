@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionStatus } from "./ConnectionStatus";
 
@@ -14,6 +14,7 @@ export const Navigation = () => {
     { path: "/interventions", label: "Interventions", icon: AlertTriangle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/meta-dashboard", label: "Meta CAPI", icon: Activity },
+    { path: "/ptd-control", label: "PTD Control", icon: Command },
     { path: "/fix-workflows", label: "Workflows", icon: Settings },
     { path: "/workflow-strategy", label: "Strategy", icon: BookOpen },
   ];

@@ -14,6 +14,7 @@ import Analytics from "./pages/Analytics";
 import WorkflowFixer from "./pages/WorkflowFixer";
 import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
+import PTDControl from "./pages/PTDControl";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: "/fix-workflows", element: <WorkflowFixer /> },
       { path: "/workflow-strategy", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
+      { path: "/ptd-control", element: <PTDControl /> },
       { path: "*", element: <NotFound /> },
     ],
   },

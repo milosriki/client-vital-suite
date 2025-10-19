@@ -401,6 +401,33 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       coach_performance: {
         Row: {
           active_clients: number | null
@@ -503,6 +530,33 @@ export type Database = {
           strengths?: string | null
           total_clients?: number | null
           weaknesses?: string | null
+        }
+        Relationships: []
+      }
+      coach_reviews: {
+        Row: {
+          coach: string
+          created_at: string | null
+          id: number
+          period_month: number
+          period_year: number
+          summary: Json | null
+        }
+        Insert: {
+          coach: string
+          created_at?: string | null
+          id?: number
+          period_month: number
+          period_year: number
+          summary?: Json | null
+        }
+        Update: {
+          coach?: string
+          created_at?: string | null
+          id?: number
+          period_month?: number
+          period_year?: number
+          summary?: Json | null
         }
         Relationships: []
       }
@@ -911,6 +965,10 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_daily_health_scores: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_at_risk_clients: {
         Args: { target_date: string }
         Returns: {
@@ -936,6 +994,10 @@ export type Database = {
           count: number
           health_zone: string
         }[]
+      }
+      monthly_coach_review: {
+        Args: { p_coach: string }
+        Returns: Json
       }
       upsert_capi_event: {
         Args: { p_event: Json }
