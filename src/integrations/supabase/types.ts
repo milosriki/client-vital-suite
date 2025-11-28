@@ -1235,10 +1235,7 @@ export type Database = {
       }
     }
     Functions: {
-      calculate_daily_health_scores: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      calculate_daily_health_scores: { Args: never; Returns: undefined }
       get_at_risk_clients: {
         Args: { target_date: string }
         Returns: {
@@ -1265,14 +1262,8 @@ export type Database = {
           health_zone: string
         }[]
       }
-      monthly_coach_review: {
-        Args: { p_coach: string }
-        Returns: Json
-      }
-      upsert_capi_event: {
-        Args: { p_event: Json }
-        Returns: undefined
-      }
+      monthly_coach_review: { Args: { p_coach: string }; Returns: Json }
+      upsert_capi_event: { Args: { p_event: Json }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
