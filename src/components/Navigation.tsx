@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command, Search, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command, Search, TrendingUp, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionStatus } from "./ConnectionStatus";
 
@@ -8,6 +8,7 @@ export const Navigation = () => {
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/setter-activity-today", label: "Today's Activity", icon: PhoneCall },
     { path: "/overview", label: "Overview", icon: BarChart3 },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
