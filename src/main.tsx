@@ -16,6 +16,7 @@ import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
 import PTDControl from "./pages/PTDControl";
 import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
+import SalesCoachTracker from "./pages/SalesCoachTracker";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
       { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "/ptd-control", element: <PTDControl /> },
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
+      { path: "/sales-coach-tracker", element: <SalesCoachTracker /> },
       { path: "*", element: <NotFound /> },
     ],
   },
