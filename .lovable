@@ -1,0 +1,66 @@
+# Lovable Sync Configuration
+# This file configures how the project syncs between GitHub and Lovable
+# See: https://docs.lovable.dev/integrations/github
+
+# Sync Settings
+# Controls which files and folders are included/excluded from sync
+sync:
+  # Files and folders to always sync (expand as needed)
+  include:
+    - src/
+    - public/
+    - supabase/
+    - backend/
+    - index.html
+    - package.json
+    - tsconfig.json
+    - tsconfig.app.json
+    - tsconfig.node.json
+    - vite.config.ts
+    - tailwind.config.ts
+    - postcss.config.js
+    - components.json
+    - eslint.config.js
+    - "*.md"
+
+  # Files and folders to exclude from sync (prevents overwrite)
+  exclude:
+    - node_modules/
+    - dist/
+    - dist-ssr/
+    - .env
+    - .env.local
+    - "*.local"
+    - "*.log"
+    - .DS_Store
+    - .vscode/
+    - .idea/
+    - bun.lockb
+
+  # Merge strategy for conflicts
+  # - "lovable": Lovable changes take precedence
+  # - "github": GitHub changes take precedence  
+  # - "manual": Require manual resolution
+  conflict_resolution: github
+
+# Deploy Configuration
+deploy:
+  # Build command for deployment
+  build_command: npm run build
+  
+  # Output directory
+  output_dir: dist
+  
+  # Environment
+  env: production
+
+# Feature Flags
+features:
+  # Enable experimental branch switching
+  experimental_branches: true
+  
+  # Auto-sync on push to main
+  auto_sync: true
+  
+  # Preserve local changes during sync
+  preserve_local: true

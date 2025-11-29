@@ -71,3 +71,46 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Lovable Auto-Sync Configuration
+
+This project uses a `.lovable` configuration file to manage automatic synchronization between GitHub and Lovable.
+
+### How Auto-Sync Works
+
+- **Two-Way Sync**: Changes made in Lovable are automatically committed to GitHub, and changes pushed to GitHub are reflected in Lovable.
+- **GitHub as Source of Truth**: When connected, GitHub serves as the single source of truth for the codebase.
+- **Conflict Resolution**: The `.lovable` file configures GitHub changes to take precedence during conflicts.
+
+### Configuration Options
+
+The `.lovable` file controls:
+
+| Setting | Description |
+|---------|-------------|
+| `sync.include` | Files and folders that are always synced |
+| `sync.exclude` | Files and folders excluded from sync (prevents overwriting) |
+| `sync.conflict_resolution` | How conflicts are resolved (`github`, `lovable`, or `manual`) |
+| `features.preserve_local` | Preserves local changes during sync operations |
+
+### Expanding the Sync Configuration
+
+To add new files/folders to sync:
+
+1. Edit the `.lovable` file
+2. Add paths to `sync.include` section
+3. Commit and push to GitHub
+
+To protect files from being overwritten:
+
+1. Add paths to `sync.exclude` section
+2. Files in exclude list won't be synced from Lovable
+
+### Best Practices
+
+- **Environment Files**: Keep `.env` and `.env.local` in the exclude list
+- **Build Artifacts**: Exclude `dist/` and `node_modules/`
+- **Local Config**: Exclude IDE-specific files like `.vscode/`
+- **Regular Backups**: Push changes to GitHub regularly
+
+For more details, see the [Lovable GitHub Integration Documentation](https://docs.lovable.dev/integrations/github).
