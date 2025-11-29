@@ -18,6 +18,7 @@ import PTDControl from "./pages/PTDControl";
 import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
 import SalesCoachTracker from "./pages/SalesCoachTracker";
 import SetterActivityToday from "./pages/SetterActivityToday";
+import YesterdayBookings from "./pages/YesterdayBookings";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
       { path: "/sales-coach-tracker", element: <SalesCoachTracker /> },
       { path: "/setter-activity-today", element: <SetterActivityToday /> },
+      { path: "/yesterday-bookings", element: <YesterdayBookings /> },
       { path: "*", element: <NotFound /> },
     ],
   },
