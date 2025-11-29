@@ -1,0 +1,139 @@
+Property,Sample Value (masked where sensitive),Category,Recommended Marketing/Tracking Use
+Latest Traffic Source,Paid Social,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Latest Traffic Source Date,2025-10-30 11:54,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Latest Traffic Source Drill-Down 1,Facebook,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Latest Traffic Source Drill-Down 2,riki leads small test,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Marketing contact status source name,1658297951,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Marketing contact status source type,Workflow,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Original Source,Paid Social,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Original Source Drill-Down 1,Facebook,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Original Source Drill-Down 2,riki leads small test,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Record source,Forms,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+Record source detail 1,Universal 13 with calendly booking,Attribution (HubSpot/Source),HubSpot source fields; use for channel analysis & creative insights.
+ASSESSMENT Confirmation Status,Pending Confirmation,Booking/Assessment,Middle-of-funnel quality events; great optimization targets when purchases are low.
+Assessment Status Outcome,Scheduled,Booking/Assessment,Middle-of-funnel quality events; great optimization targets when purchases are low.
+Associated Appointment,New appointment - unknown time [UTC],Booking/Assessment,Middle-of-funnel quality events; great optimization targets when purchases are low.
+Associated Appointment IDs,491023335090,Booking/Assessment,Middle-of-funnel quality events; great optimization targets when purchases are low.
+Last Assessment Date and Time,2025-10-31 12:00,Booking/Assessment,Middle-of-funnel quality events; great optimization targets when purchases are low.
+Time Until Assessment (HH:mm:ss),-03:48:43,Booking/Assessment,Middle-of-funnel quality events; great optimization targets when purchases are low.
+Associated Form submission,Universal 13 with calendly booking,Forms/Conversion Touchpoints,"Trigger leads, map form-level performance, and custom conversion rules."
+Associated Form submission IDs,40391815351,Forms/Conversion Touchpoints,"Trigger leads, map form-level performance, and custom conversion rules."
+Number of Form Submissions,1.0,Forms/Conversion Touchpoints,"Trigger leads, map form-level performance, and custom conversion rules."
+Number of Unique Forms Submitted,1.0,Forms/Conversion Touchpoints,"Trigger leads, map form-level performance, and custom conversion rules."
+Email,n***********i@hotmail.com,Identity Spine,Use for advanced matching & deduping across platforms (hash with SHA-256).
+Email Domain,hotmail.com,Identity Spine,Use for advanced matching & deduping across platforms (hash with SHA-256).
+First marketing email send date,2025-10-30 12:35,Identity Spine,Use for advanced matching & deduping across platforms (hash with SHA-256).
+Last marketing email name,3x5 The Truth About Your First 2 Weeks With PTD,Identity Spine,Use for advanced matching & deduping across platforms (hash with SHA-256).
+Last marketing email send date,2025-10-31 09:00,Identity Spine,Use for advanced matching & deduping across platforms (hash with SHA-256).
+Marketing emails delivered,3.0,Identity Spine,Use for advanced matching & deduping across platforms (hash with SHA-256).
+Phone Number,*********485,Identity Spine,"Use for advanced matching & deduping (E.164 format, then SHA-256 hash)."
+Record ID,170046858613,Identity Spine,Primary stable ID to join browser/server/offline events; include as external_id.
+Updated by user ID,Marko Antic,Identity Spine,Primary stable ID to join browser/server/offline events; include as external_id.
+Contact owner,Sanja Spasic,Lifecycle/CRM Ops,"Audience rules (include/exclude), routing, and funnel reporting."
+Lead Status,Customer,Lifecycle/CRM Ops,"Audience rules (include/exclude), routing, and funnel reporting."
+Lifecycle Stage,Customer,Lifecycle/CRM Ops,"Audience rules (include/exclude), routing, and funnel reporting."
+Owner assigned date,2025-10-30 14:43,Lifecycle/CRM Ops,"Audience rules (include/exclude), routing, and funnel reporting."
+HubSpot Team,PTD,Ops/Admin,Routing and internal performance analysis.
+Assigned coach,Nemanja G,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Call,Outgoing call to 971507147485;Outgoing call to 971507147485,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Call IDs,93348469831;93434240566,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Contact create attribution,240326BAldAa- 37 | WOMEN DUBAI – Copy 3 #burnout;Universal 13 with calendly booking,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Contact create attribution IDs,490620185742;490620185743,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Note,⏰Time and date stamped;Booked with shohre,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Note IDs,93344904034;93478873185,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Sales Activity,Outgoing call to 971507147485;Outgoing call to 971507147485;490619939451;490673522193,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Sales Activity IDs,490589279373;490600310584;490619939451;490673522193,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Task,🔥🔥🔥 ULTRA HOT LEAD - CALL IMMEDIATELY;🥊 FIRST 2 HOURS - Please call Ange  - Mazen Moussa ;🚨URGENT - Reassignation chance for you Mazen Moussa,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Task IDs,93350017824;93433778020;93443868565,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Average Pageviews,0.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Calculated Value for CAPI,9000.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Call Status,💰 INTERESTED - BOOKING NOW,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Contact unworked,true,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Count of Reassignations,1.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Delegation Date/Time,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+First Conversion,Facebook Lead Ads: Universal 13 with calendly booking,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+First Conversion Date,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+First Name,Ange,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+First Outbound Call Time,2025-10-30 13:20,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+First Page Seen,https://www.facebook.com/100334836038237/publishing_tools/?section=LEAD_ADS_FORMS&hsa_acc=349832333681399&hsa_cam=120231842936420033&hsa_grp=120234853940980033&hsa_ad=120234853941040033&hsa_src=%5BSITE_SOURCE_NAME%5D&utm_campaign=Riki%2Bleads%2Bsmall%2Btest&hsa_la=true&hsa_ol=false&hsa_net=facebook&hsa_ver=3&utm_source=facebook&utm_medium=paid,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+First Referring Site,https://www.facebook.com/,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Full Talk Record Link,https://api-na1.hubspot.com/recording/auth/provider/hublets/v1/external-url-retriever/getAuthRecording/portal/7973797/engagement/93348469831,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Interested Create Time,2025-10-30 12:10,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Last Activity Date,2025-10-30 14:24,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Last Contacted,2025-10-30 13:18,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Last Name,Aini,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Last Page Seen,https://www.facebook.com/100334836038237/publishing_tools/?section=LEAD_ADS_FORMS&hsa_acc=349832333681399&hsa_cam=120231842936420033&hsa_grp=120234853940980033&hsa_ad=120234853941040033&hsa_src=%5BSITE_SOURCE_NAME%5D&utm_campaign=Riki%2Bleads%2Bsmall%2Btest&hsa_la=true&hsa_ol=false&hsa_net=facebook&hsa_ver=3&utm_source=facebook&utm_medium=paid,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Last Referring Site,https://www.facebook.com/,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Lead Priority Score (0-300),95.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Location,Damac Hills 2,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Location Quality MAIN,ULTRA PREMIUM,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Location score,95.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+MAIN SCORE - PTD,100.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+MAIN SCORE - PTD ,High,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Marketing contact status,Marketing contact,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Marketing contact until next update,--,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Member has accessed private content,0.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Number of Pageviews,0.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Number of Sales Activities,7.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Number of Sessions,1.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Number of event completions,0.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Number of times contacted,2.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Recent Conversion,Facebook Lead Ads: Universal 13 with calendly booking,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Recent Conversion Date,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Registered member,0.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+SLA Sign - First Touch,🔴 20 MIN- NOT DIALED,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Sends Since Last Engagement,3.0,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Speed To Lead (HH:mm:ss),01:25:26,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Speed To Lead Range Stamp,Less Than 2 Hours,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time First Seen,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time Last Seen,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time and hour of entry,1970-01-01 04:00,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time of First Session,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time of Last Session,2025-10-30 11:54,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time of entry HH:MM,1761810896173,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time since delegation (HH:mm:ss),27:53:47,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time to move from lead to customer (HH:mm:ss),24:57:27,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time to move from marketing qualified lead to customer (HH:mm:ss),00:00:22,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time to move from opportunity to customer (HH:mm:ss),21:43:21,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Time to move from sales qualified lead to customer (HH:mm:ss),00:00:18,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Total Talk Duration,1 minute and 21 seconds,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+What Is Your Location Area ?,DAMAC hills 2,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+What is your Fitness Goal?,building_muscle_is_more_important_than_losing_fat,Other,"Review if useful for segmentation, quality scoring, or creative insights."
+Associated Deal,Ange Aini  PHONE+971 50 714 7485 Damac Hills 2,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Associated Deal IDs,47675122706,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Event Revenue,0.0,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+First Deal Created Date,2025-10-30 12:10,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Number of Associated Deals,1.0,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Recent Deal Amount,9000.0,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Time between contact creation and deal creation (HH:mm:ss),00:16:00,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Total Revenue,9000.0,Revenue/Value,Enable value-based optimization (ROAS/tROAS) and high-value lookalikes.
+Close Date,2025-10-31 12:52,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Cumulative time in ""Lead (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:00:21,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Cumulative time in ""Marketing Qualified Lead (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:15:32,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Cumulative time in ""Opportunity (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:00:02,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Cumulative time in ""Sales Qualified Lead (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",02:58:35,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Cumulative time in ""Schedule (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",21:42:54,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Currently Enrolled in Prospecting Agent,false,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date entered ""Customer (Pipeline da fase do ciclo de vida)""",2025-10-31 12:52,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date entered ""Lead (Pipeline da fase do ciclo de vida)""",2025-10-30 11:54,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date entered ""Marketing Qualified Lead (Pipeline da fase do ciclo de vida)""",2025-10-31 12:51,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date entered ""Opportunity (Pipeline da fase do ciclo de vida)""",2025-10-30 15:09,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date entered ""Sales Qualified Lead (Pipeline da fase do ciclo de vida)""",2025-10-31 12:52,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date entered ""Schedule (Pipeline da fase do ciclo de vida)""",2025-10-30 15:09,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date exited ""Lead (Pipeline da fase do ciclo de vida)""",2025-10-30 11:55,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date exited ""Marketing Qualified Lead (Pipeline da fase do ciclo de vida)""",2025-10-31 12:52,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date exited ""Opportunity (Pipeline da fase do ciclo de vida)""",2025-10-30 15:09,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date exited ""Sales Qualified Lead (Pipeline da fase do ciclo de vida)""",2025-10-31 12:52,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Date exited ""Schedule (Pipeline da fase do ciclo de vida)""",2025-10-31 12:51,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Days To Close,2.0,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Latest time in ""Lead (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:00:21,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Latest time in ""Marketing Qualified Lead (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:00:03,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Latest time in ""Opportunity (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:00:02,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Latest time in ""Sales Qualified Lead (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",00:00:18,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+"Latest time in ""Schedule (Pipeline da fase do ciclo de vida)"" (HH:mm:ss)",21:42:54,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Prospecting Agent Total Enrolled Count,0.0,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Recent Deal Close Date,2025-10-31 12:52,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Stage of prospect,Closed Won,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Time between contact creation and deal close (HH:mm:ss),24:57:39,Session/Device,"Quality checks, fraud filters, and geo/device audience refinement."
+Create Date,2025-10-30 11:54,Timestamps,Sequence modeling and eligibility windows for uploads/lookbacks.
+Last Modified Date,2025-10-31 12:53,Timestamps,Sequence modeling and eligibility windows for uploads/lookbacks.
