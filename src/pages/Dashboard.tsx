@@ -9,9 +9,10 @@ import { CoachPerformanceTable } from '@/components/dashboard/CoachPerformanceTa
 import { InterventionTracker } from '@/components/dashboard/InterventionTracker';
 import { PatternInsights } from '@/components/dashboard/PatternInsights';
 import { FilterControls } from '@/components/dashboard/FilterControls';
+import { AIAssistantPanel, AIAssistantButton } from '@/components/ai/AIAssistantPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Command, Activity, Settings, Zap, TrendingUp, Database } from 'lucide-react';
+import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [filterMode, setFilterMode] = useState<'all' | 'high-risk' | 'early-warning'>('all');
   const [selectedCoach, setSelectedCoach] = useState('all');
   const [selectedZone, setSelectedZone] = useState('all');
+  const [showAIPanel, setShowAIPanel] = useState(true);
 
   // Setup realtime subscription for new data notifications
   useEffect(() => {
@@ -164,13 +166,26 @@ export default function Dashboard() {
   ) as string[];
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
-        <div className="text-sm text-muted-foreground">
-          Predictive Analytics • Real-time Updates
+    <div className="flex gap-6 p-6">
+      {/* Main Dashboard Content */}
+      <div className={`space-y-6 ${showAIPanel ? 'flex-1' : 'w-full'}`}>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-muted-foreground">
+              Predictive Analytics • Real-time Updates
+            </div>
+            <Button
+              variant={showAIPanel ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowAIPanel(!showAIPanel)}
+              className="gap-2"
+            >
+              <Bot className="h-4 w-4" />
+              {showAIPanel ? "Hide AI" : "Show AI"}
+            </Button>
+          </div>
         </div>
-      </div>
 
       {/* Quick Access to PTD Control Panel Features */}
       <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-background border-primary/20">
@@ -255,7 +270,20 @@ export default function Dashboard() {
 
       <InterventionTracker interventions={interventions || []} isLoading={isLoading} />
 
-      <PatternInsights patterns={patterns} clients={clients || []} />
+        <PatternInsights patterns={patterns} clients={clients || []} />
+      </div>
+
+      {/* AI Assistant Panel - Right Sidebar */}
+      {showAIPanel && (
+        <div className="w-[400px] shrink-0 sticky top-6 h-[calc(100vh-48px)]">
+          <AIAssistantPanel />
+        </div>
+      )}
+
+      {/* Floating AI Button when panel is hidden */}
+      {!showAIPanel && (
+        <AIAssistantButton onClick={() => setShowAIPanel(true)} />
+      )}
     </div>
   );
 }
