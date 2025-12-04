@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  MessageSquare,
-  RefreshCw
+  MessageSquare
 } from "lucide-react";
 
 interface Message {
@@ -47,45 +47,66 @@ export function AIAssistantPanel() {
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const [isExpanded, setIsExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
 
-  // Fetch proactive insights
+  // Fetch proactive insights (gracefully handles missing table)
   const { data: insights, refetch: refetchInsights } = useQuery({
     queryKey: ["proactive-insights"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("proactive_insights")
-        .select("*")
-        .eq("is_dismissed", false)
-        .order("created_at", { ascending: false })
-        .limit(5);
+      try {
+        const { data, error } = await supabase
+          .from("proactive_insights")
+          .select("*")
+          .eq("is_dismissed", false)
+          .order("created_at", { ascending: false })
+          .limit(5);
 
-      if (error) {
-        console.error("Error fetching insights:", error);
+        if (error) {
+          // Table might not exist yet - that's okay
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.log("proactive_insights table not yet created");
+            return [];
+          }
+          console.error("Error fetching insights:", error);
+          return [];
+        }
+        return data as ProactiveInsight[];
+      } catch (e) {
+        console.error("Error in insights query:", e);
         return [];
       }
-      return data as ProactiveInsight[];
     },
-    refetchInterval: 30000 // Check every 30 seconds
+    refetchInterval: 30000, // Check every 30 seconds
+    retry: false
   });
 
-  // Fetch conversation history
+  // Fetch conversation history (gracefully handles missing table)
   const { data: messages, refetch: refetchMessages } = useQuery({
     queryKey: ["agent-messages", sessionId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agent_conversations")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("agent_conversations")
+          .select("*")
+          .eq("session_id", sessionId)
+          .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching messages:", error);
+        if (error) {
+          // Table might not exist yet - that's okay
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.log("agent_conversations table not yet created");
+            return [];
+          }
+          console.error("Error fetching messages:", error);
+          return [];
+        }
+        return data as Message[];
+      } catch (e) {
+        console.error("Error in messages query:", e);
         return [];
       }
-      return data as Message[];
     },
-    refetchInterval: false
+    refetchInterval: false,
+    retry: false
   });
 
   // Send message to agent
@@ -100,13 +121,19 @@ export function AIAssistantPanel() {
       });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Agent returned an error");
       return data;
     },
     onSuccess: () => {
       refetchMessages();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error sending message:", error);
+      toast({
+        title: "AI Agent Error",
+        description: error?.message || "Failed to get response. Make sure the agent is deployed and ANTHROPIC_API_KEY is set.",
+        variant: "destructive"
+      });
     }
   });
 
@@ -375,15 +402,21 @@ export function AIAssistantButton({ onClick }: { onClick: () => void }) {
   const { data: insights } = useQuery({
     queryKey: ["proactive-insights-count"],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("proactive_insights")
-        .select("*", { count: "exact", head: true })
-        .eq("is_dismissed", false)
-        .in("priority", ["critical", "high"]);
+      try {
+        const { count, error } = await supabase
+          .from("proactive_insights")
+          .select("*", { count: "exact", head: true })
+          .eq("is_dismissed", false)
+          .in("priority", ["critical", "high"]);
 
-      return count || 0;
+        if (error) return 0;
+        return count || 0;
+      } catch {
+        return 0;
+      }
     },
-    refetchInterval: 30000
+    refetchInterval: 30000,
+    retry: false
   });
 
   return (

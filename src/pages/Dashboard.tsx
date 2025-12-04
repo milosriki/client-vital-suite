@@ -187,88 +187,88 @@ export default function Dashboard() {
           </div>
         </div>
 
-      {/* Quick Access to PTD Control Panel Features */}
-      <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-background border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Command className="h-5 w-5" />
-            PTD Control Panel
-          </CardTitle>
-          <CardDescription>
-            Quick access to conversion tracking, automation, and system settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/ptd-control')}
-            >
+        {/* Quick Access to PTD Control Panel Features */}
+        <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-background border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <Command className="h-5 w-5" />
-              <span className="text-xs">Full Control Panel</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/meta-dashboard')}
-            >
-              <Activity className="h-5 w-5" />
-              <span className="text-xs">CAPI Events</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/analytics')}
-            >
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-xs">Analytics</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/fix-workflows')}
-            >
-              <Zap className="h-5 w-5" />
-              <span className="text-xs">Automation</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/ptd-control?tab=settings')}
-            >
-              <Settings className="h-5 w-5" />
-              <span className="text-xs">Settings</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => window.open('https://boowptjtwadxpjkpctna.supabase.co', '_blank')}
-            >
-              <Database className="h-5 w-5" />
-              <span className="text-xs">Supabase</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              PTD Control Panel
+            </CardTitle>
+            <CardDescription>
+              Quick access to conversion tracking, automation, and system settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/ptd-control')}
+              >
+                <Command className="h-5 w-5" />
+                <span className="text-xs">Full Control Panel</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/meta-dashboard')}
+              >
+                <Activity className="h-5 w-5" />
+                <span className="text-xs">CAPI Events</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/analytics')}
+              >
+                <TrendingUp className="h-5 w-5" />
+                <span className="text-xs">Analytics</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/fix-workflows')}
+              >
+                <Zap className="h-5 w-5" />
+                <span className="text-xs">Automation</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/ptd-control?tab=settings')}
+              >
+                <Settings className="h-5 w-5" />
+                <span className="text-xs">Settings</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={() => window.open('https://boowptjtwadxpjkpctna.supabase.co', '_blank')}
+              >
+                <Database className="h-5 w-5" />
+                <span className="text-xs">Supabase</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-      <PredictiveAlerts clients={clients || []} summary={summary} />
+        <PredictiveAlerts clients={clients || []} summary={summary} />
 
-      <FilterControls
-        filterMode={filterMode}
-        onFilterModeChange={setFilterMode}
-        selectedCoach={selectedCoach}
-        onCoachChange={setSelectedCoach}
-        selectedZone={selectedZone}
-        onZoneChange={setSelectedZone}
-        coaches={uniqueCoaches}
-      />
+        <FilterControls
+          filterMode={filterMode}
+          onFilterModeChange={setFilterMode}
+          selectedCoach={selectedCoach}
+          onCoachChange={setSelectedCoach}
+          selectedZone={selectedZone}
+          onZoneChange={setSelectedZone}
+          coaches={uniqueCoaches}
+        />
 
-      <ClientRiskMatrix clients={clients || []} isLoading={isLoading} />
+        <ClientRiskMatrix clients={clients || []} isLoading={isLoading} />
 
-      <CoachPerformanceTable coaches={coaches || []} isLoading={isLoading} />
+        <CoachPerformanceTable coaches={coaches || []} isLoading={isLoading} />
 
-      <InterventionTracker interventions={interventions || []} isLoading={isLoading} />
+        <InterventionTracker interventions={interventions || []} isLoading={isLoading} />
 
         <PatternInsights patterns={patterns} clients={clients || []} />
       </div>
