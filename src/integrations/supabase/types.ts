@@ -10,472 +10,703 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
-      ai_insights: {
+      analytics_events: {
         Row: {
-          action_recommended: string | null
-          affected_client_count: number | null
-          affected_clients: Json | null
-          confidence_score: number | null
-          created_at: string | null
-          id: number
-          insight_category: string | null
-          insight_date: string
-          insight_text: string | null
-          insight_type: string
+          created_at: string
+          event_name: string
+          id: string
+          ip_address: unknown
+          page_url: string | null
+          properties: Json | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+          user_properties: Json | null
         }
         Insert: {
-          action_recommended?: string | null
-          affected_client_count?: number | null
-          affected_clients?: Json | null
-          confidence_score?: number | null
-          created_at?: string | null
-          id?: number
-          insight_category?: string | null
-          insight_date: string
-          insight_text?: string | null
-          insight_type: string
+          created_at?: string
+          event_name: string
+          id?: string
+          ip_address?: unknown
+          page_url?: string | null
+          properties?: Json | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          user_properties?: Json | null
         }
         Update: {
-          action_recommended?: string | null
-          affected_client_count?: number | null
-          affected_clients?: Json | null
-          confidence_score?: number | null
-          created_at?: string | null
-          id?: number
-          insight_category?: string | null
-          insight_date?: string
-          insight_text?: string | null
-          insight_type?: string
+          created_at?: string
+          event_name?: string
+          id?: string
+          ip_address?: unknown
+          page_url?: string | null
+          properties?: Json | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          user_properties?: Json | null
         }
         Relationships: []
       }
-      app_settings: {
+      appointments: {
         Row: {
-          capi_base_url: string | null
           created_at: string | null
           id: string
-          meta_access_token: string | null
-          meta_pixel_id: string | null
-          n8n_base_url: string | null
-          supabase_anon_key: string | null
-          supabase_url: string | null
-          telegram_bot_token: string | null
-          telegram_chat_id: string | null
-          test_event_code: string | null
+          lead_id: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string | null
           updated_at: string | null
         }
         Insert: {
-          capi_base_url?: string | null
           created_at?: string | null
           id?: string
-          meta_access_token?: string | null
-          meta_pixel_id?: string | null
-          n8n_base_url?: string | null
-          supabase_anon_key?: string | null
-          supabase_url?: string | null
-          telegram_bot_token?: string | null
-          telegram_chat_id?: string | null
-          test_event_code?: string | null
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string | null
           updated_at?: string | null
         }
         Update: {
-          capi_base_url?: string | null
           created_at?: string | null
           id?: string
-          meta_access_token?: string | null
-          meta_pixel_id?: string | null
-          n8n_base_url?: string | null
-          supabase_anon_key?: string | null
-          supabase_url?: string | null
-          telegram_bot_token?: string | null
-          telegram_chat_id?: string | null
-          test_event_code?: string | null
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      automation_logs: {
+      attribution_events: {
         Row: {
-          action_type: string
-          created_at: string | null
-          error_message: string | null
-          id: string
-          mode: string | null
-          payload: Json | null
-          response_data: Json | null
-          status: string | null
-        }
-        Insert: {
-          action_type: string
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          mode?: string | null
-          payload?: Json | null
-          response_data?: Json | null
-          status?: string | null
-        }
-        Update: {
-          action_type?: string
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          mode?: string | null
-          payload?: Json | null
-          response_data?: Json | null
-          status?: string | null
-        }
-        Relationships: []
-      }
-      batch_config: {
-        Row: {
-          batch_size: number | null
-          batch_time: string
-          config_name: string
-          created_at: string | null
-          days_of_week: number[] | null
-          enabled: boolean | null
-          id: string
-          last_run: string | null
-          mode: string | null
-          next_run: string | null
-          notes: string | null
-          timezone: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          batch_size?: number | null
-          batch_time: string
-          config_name: string
-          created_at?: string | null
-          days_of_week?: number[] | null
-          enabled?: boolean | null
-          id?: string
-          last_run?: string | null
-          mode?: string | null
-          next_run?: string | null
-          notes?: string | null
-          timezone?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          batch_size?: number | null
-          batch_time?: string
-          config_name?: string
-          created_at?: string | null
-          days_of_week?: number[] | null
-          enabled?: boolean | null
-          id?: string
-          last_run?: string | null
-          mode?: string | null
-          next_run?: string | null
-          notes?: string | null
-          timezone?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      batch_jobs: {
-        Row: {
-          batch_name: string
-          completed_at: string | null
-          created_at: string | null
-          error_log: Json | null
-          events_count: number | null
-          events_failed: number | null
-          events_sent: number | null
-          execution_time: string | null
-          id: string
-          mode: string | null
-          notes: string | null
-          scheduled_time: string
-          status: string | null
-        }
-        Insert: {
-          batch_name: string
-          completed_at?: string | null
-          created_at?: string | null
-          error_log?: Json | null
-          events_count?: number | null
-          events_failed?: number | null
-          events_sent?: number | null
-          execution_time?: string | null
-          id?: string
-          mode?: string | null
-          notes?: string | null
-          scheduled_time: string
-          status?: string | null
-        }
-        Update: {
-          batch_name?: string
-          completed_at?: string | null
-          created_at?: string | null
-          error_log?: Json | null
-          events_count?: number | null
-          events_failed?: number | null
-          events_sent?: number | null
-          execution_time?: string | null
-          id?: string
-          mode?: string | null
-          notes?: string | null
-          scheduled_time?: string
-          status?: string | null
-        }
-        Relationships: []
-      }
-      capi_events: {
-        Row: {
+          attribution_model: string | null
+          attribution_weight: number | null
+          browser: string | null
+          campaign: string | null
+          city: string | null
+          contact_id: string | null
           created_at: string | null
           currency: string | null
+          device_type: string | null
           email: string | null
-          event_id: string | null
+          event_id: string
           event_name: string
           event_time: string | null
-          external_id: string | null
-          fbc: string | null
-          fbp: string | null
-          id: string
-          inserted_at: string | null
-          mode: string | null
-          phone: string | null
-          raw: Json | null
-          response_data: Json | null
-          status: string | null
-          test_event_code: string | null
-          user_email: string | null
-          user_phone: string | null
-          value_aed: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          currency?: string | null
-          email?: string | null
-          event_id?: string | null
-          event_name: string
-          event_time?: string | null
-          external_id?: string | null
-          fbc?: string | null
-          fbp?: string | null
-          id?: string
-          inserted_at?: string | null
-          mode?: string | null
-          phone?: string | null
-          raw?: Json | null
-          response_data?: Json | null
-          status?: string | null
-          test_event_code?: string | null
-          user_email?: string | null
-          user_phone?: string | null
-          value_aed?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          currency?: string | null
-          email?: string | null
-          event_id?: string | null
-          event_name?: string
-          event_time?: string | null
-          external_id?: string | null
-          fbc?: string | null
-          fbp?: string | null
-          id?: string
-          inserted_at?: string | null
-          mode?: string | null
-          phone?: string | null
-          raw?: Json | null
-          response_data?: Json | null
-          status?: string | null
-          test_event_code?: string | null
-          user_email?: string | null
-          user_phone?: string | null
-          value_aed?: number | null
-        }
-        Relationships: []
-      }
-      capi_events_enriched: {
-        Row: {
-          action_source: string | null
-          batch_id: string | null
-          batch_scheduled_for: string | null
-          city: string | null
-          content_category: string | null
-          content_ids: string[] | null
-          content_name: string | null
-          country: string | null
-          created_at: string | null
-          currency: string | null
-          email: string | null
-          event_id: string
-          event_name: string
-          event_source_url: string | null
-          event_time: string
-          external_id: string | null
-          fbc: string | null
-          fbp: string | null
           first_name: string | null
-          hubspot_contact_id: string | null
-          hubspot_deal_id: string | null
           id: string
+          ip_address: unknown
+          journey_id: string | null
+          landing_page: string | null
           last_name: string | null
-          lead_source: string | null
-          lifecycle_stage: string | null
-          meta_event_id: string | null
-          meta_response: Json | null
-          mode: string | null
-          num_items: number | null
-          original_source: string | null
-          payment_method: string | null
+          medium: string | null
+          os: string | null
+          owner_id: string | null
           phone: string | null
-          raw_payload: Json | null
-          send_attempts: number | null
-          send_status: string | null
-          sent_at: string | null
-          state: string | null
-          stripe_charge_id: string | null
-          stripe_customer_id: string | null
-          stripe_invoice_id: string | null
-          subscription_id: string | null
-          subscription_status: string | null
+          pipeline_stage: string | null
+          platform: string | null
+          referrer: string | null
+          session_id: string | null
+          source: string | null
+          touchpoint_sequence: number | null
           updated_at: string | null
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           value: number | null
-          zip_code: string | null
         }
         Insert: {
-          action_source?: string | null
-          batch_id?: string | null
-          batch_scheduled_for?: string | null
+          attribution_model?: string | null
+          attribution_weight?: number | null
+          browser?: string | null
+          campaign?: string | null
           city?: string | null
-          content_category?: string | null
-          content_ids?: string[] | null
-          content_name?: string | null
-          country?: string | null
+          contact_id?: string | null
           created_at?: string | null
           currency?: string | null
+          device_type?: string | null
           email?: string | null
           event_id: string
           event_name: string
-          event_source_url?: string | null
-          event_time: string
-          external_id?: string | null
-          fbc?: string | null
-          fbp?: string | null
+          event_time?: string | null
           first_name?: string | null
-          hubspot_contact_id?: string | null
-          hubspot_deal_id?: string | null
           id?: string
+          ip_address?: unknown
+          journey_id?: string | null
+          landing_page?: string | null
           last_name?: string | null
-          lead_source?: string | null
-          lifecycle_stage?: string | null
-          meta_event_id?: string | null
-          meta_response?: Json | null
-          mode?: string | null
-          num_items?: number | null
-          original_source?: string | null
-          payment_method?: string | null
+          medium?: string | null
+          os?: string | null
+          owner_id?: string | null
           phone?: string | null
-          raw_payload?: Json | null
-          send_attempts?: number | null
-          send_status?: string | null
-          sent_at?: string | null
-          state?: string | null
-          stripe_charge_id?: string | null
-          stripe_customer_id?: string | null
-          stripe_invoice_id?: string | null
-          subscription_id?: string | null
-          subscription_status?: string | null
+          pipeline_stage?: string | null
+          platform?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          source?: string | null
+          touchpoint_sequence?: number | null
           updated_at?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           value?: number | null
-          zip_code?: string | null
         }
         Update: {
-          action_source?: string | null
-          batch_id?: string | null
-          batch_scheduled_for?: string | null
+          attribution_model?: string | null
+          attribution_weight?: number | null
+          browser?: string | null
+          campaign?: string | null
           city?: string | null
-          content_category?: string | null
-          content_ids?: string[] | null
-          content_name?: string | null
-          country?: string | null
+          contact_id?: string | null
           created_at?: string | null
           currency?: string | null
+          device_type?: string | null
           email?: string | null
           event_id?: string
           event_name?: string
-          event_source_url?: string | null
-          event_time?: string
-          external_id?: string | null
-          fbc?: string | null
-          fbp?: string | null
+          event_time?: string | null
           first_name?: string | null
-          hubspot_contact_id?: string | null
-          hubspot_deal_id?: string | null
           id?: string
+          ip_address?: unknown
+          journey_id?: string | null
+          landing_page?: string | null
           last_name?: string | null
-          lead_source?: string | null
-          lifecycle_stage?: string | null
-          meta_event_id?: string | null
-          meta_response?: Json | null
-          mode?: string | null
-          num_items?: number | null
-          original_source?: string | null
-          payment_method?: string | null
+          medium?: string | null
+          os?: string | null
+          owner_id?: string | null
           phone?: string | null
-          raw_payload?: Json | null
-          send_attempts?: number | null
-          send_status?: string | null
-          sent_at?: string | null
-          state?: string | null
-          stripe_charge_id?: string | null
-          stripe_customer_id?: string | null
-          stripe_invoice_id?: string | null
-          subscription_id?: string | null
-          subscription_status?: string | null
+          pipeline_stage?: string | null
+          platform?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          source?: string | null
+          touchpoint_sequence?: number | null
           updated_at?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           value?: number | null
-          zip_code?: string | null
         }
         Relationships: []
       }
-      churn_patterns: {
+      attribution_models: {
         Row: {
-          avg_health_score_drop: number | null
-          avg_risk_score_increase: number | null
-          avg_session_frequency_drop: number | null
-          common_behaviors: Json | null
-          confidence_score: number | null
-          days_before_churn: number
-          id: number
-          last_updated: string | null
-          pattern_name: string
-          sample_size: number | null
+          configuration: Json | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          type: string
+          updated_at: string | null
         }
         Insert: {
-          avg_health_score_drop?: number | null
-          avg_risk_score_increase?: number | null
-          avg_session_frequency_drop?: number | null
-          common_behaviors?: Json | null
-          confidence_score?: number | null
-          days_before_churn: number
-          id?: number
-          last_updated?: string | null
-          pattern_name: string
-          sample_size?: number | null
+          configuration?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          type: string
+          updated_at?: string | null
         }
         Update: {
-          avg_health_score_drop?: number | null
-          avg_risk_score_increase?: number | null
-          avg_session_frequency_drop?: number | null
-          common_behaviors?: Json | null
+          configuration?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      audience_definitions: {
+        Row: {
+          auto_refresh: boolean | null
+          created_at: string | null
+          criteria: Json
+          description: string | null
+          id: string
+          last_synced: string | null
+          name: string
+          platform: string
+          platform_audience_id: string | null
+          refresh_frequency: string | null
+          size_estimate: number | null
+          sync_status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_refresh?: boolean | null
+          created_at?: string | null
+          criteria: Json
+          description?: string | null
+          id?: string
+          last_synced?: string | null
+          name: string
+          platform: string
+          platform_audience_id?: string | null
+          refresh_frequency?: string | null
+          size_estimate?: number | null
+          sync_status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_refresh?: boolean | null
+          created_at?: string | null
+          criteria?: Json
+          description?: string | null
+          id?: string
+          last_synced?: string | null
+          name?: string
+          platform?: string
+          platform_audience_id?: string | null
+          refresh_frequency?: string | null
+          size_estimate?: number | null
+          sync_status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      business_forecasts: {
+        Row: {
+          actual_value: number | null
+          confidence_level: number | null
+          created_at: string
+          forecast_type: string
+          id: string
+          model_used: string
+          period_month: number
+          period_year: number
+          predicted_value: number
+        }
+        Insert: {
+          actual_value?: number | null
+          confidence_level?: number | null
+          created_at?: string
+          forecast_type: string
+          id?: string
+          model_used?: string
+          period_month: number
+          period_year: number
+          predicted_value: number
+        }
+        Update: {
+          actual_value?: number | null
+          confidence_level?: number | null
+          created_at?: string
+          forecast_type?: string
+          id?: string
+          model_used?: string
+          period_month?: number
+          period_year?: number
+          predicted_value?: number
+        }
+        Relationships: []
+      }
+      business_reports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          generated_at: string
+          id: string
+          report_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          generated_at?: string
+          id?: string
+          report_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          generated_at?: string
+          id?: string
+          report_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      call_analytics: {
+        Row: {
+          answered_calls: number | null
+          avg_call_duration: number | null
+          campaign: string | null
+          conversion_rate: number | null
+          cost_per_call: number | null
+          created_at: string | null
+          date: string
+          id: string
+          missed_calls: number | null
+          revenue_generated: number | null
+          source: string | null
+          total_calls: number | null
+          total_duration_minutes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          answered_calls?: number | null
+          avg_call_duration?: number | null
+          campaign?: string | null
+          conversion_rate?: number | null
+          cost_per_call?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          missed_calls?: number | null
+          revenue_generated?: number | null
+          source?: string | null
+          total_calls?: number | null
+          total_duration_minutes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          answered_calls?: number | null
+          avg_call_duration?: number | null
+          campaign?: string | null
+          conversion_rate?: number | null
+          cost_per_call?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          missed_calls?: number | null
+          revenue_generated?: number | null
+          source?: string | null
+          total_calls?: number | null
+          total_duration_minutes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      call_integrations: {
+        Row: {
+          api_credentials: Json | null
+          configuration: Json
+          created_at: string | null
+          id: string
+          integration_name: string
+          integration_type: string
+          last_sync_at: string | null
+          status: string
+          updated_at: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          api_credentials?: Json | null
+          configuration?: Json
+          created_at?: string | null
+          id?: string
+          integration_name: string
+          integration_type: string
+          last_sync_at?: string | null
+          status?: string
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          api_credentials?: Json | null
+          configuration?: Json
+          created_at?: string | null
+          id?: string
+          integration_name?: string
+          integration_type?: string
+          last_sync_at?: string | null
+          status?: string
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      call_records: {
+        Row: {
+          appointment_set: boolean | null
+          call_direction: string | null
+          call_outcome: string | null
+          call_score: number | null
+          call_status: string
+          caller_city: string | null
+          caller_country: string | null
+          caller_number: string
+          caller_state: string | null
+          conversion_outcome: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          ended_at: string | null
+          forwarded_from: string | null
+          id: string
+          keywords_mentioned: string[] | null
+          lead_quality: string | null
+          provider_call_id: string | null
+          recording_url: string | null
+          revenue_generated: number | null
+          sentiment_score: number | null
+          started_at: string | null
+          tracking_number_id: string | null
+          transcription: string | null
+          transcription_confidence: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_set?: boolean | null
+          call_direction?: string | null
+          call_outcome?: string | null
+          call_score?: number | null
+          call_status?: string
+          caller_city?: string | null
+          caller_country?: string | null
+          caller_number: string
+          caller_state?: string | null
+          conversion_outcome?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          forwarded_from?: string | null
+          id?: string
+          keywords_mentioned?: string[] | null
+          lead_quality?: string | null
+          provider_call_id?: string | null
+          recording_url?: string | null
+          revenue_generated?: number | null
+          sentiment_score?: number | null
+          started_at?: string | null
+          tracking_number_id?: string | null
+          transcription?: string | null
+          transcription_confidence?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_set?: boolean | null
+          call_direction?: string | null
+          call_outcome?: string | null
+          call_score?: number | null
+          call_status?: string
+          caller_city?: string | null
+          caller_country?: string | null
+          caller_number?: string
+          caller_state?: string | null
+          conversion_outcome?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          forwarded_from?: string | null
+          id?: string
+          keywords_mentioned?: string[] | null
+          lead_quality?: string | null
+          provider_call_id?: string | null
+          recording_url?: string | null
+          revenue_generated?: number | null
+          sentiment_score?: number | null
+          started_at?: string | null
+          tracking_number_id?: string | null
+          transcription?: string | null
+          transcription_confidence?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_records_tracking_number_id_fkey"
+            columns: ["tracking_number_id"]
+            isOneToOne: false
+            referencedRelation: "call_tracking_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_tracking_numbers: {
+        Row: {
+          assigned_at: string | null
+          campaign: string | null
+          created_at: string | null
+          formatted_number: string
+          forward_to: string
+          id: string
+          medium: string | null
+          phone_number: string
+          provider: string
+          source: string | null
+          status: string
+          updated_at: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          campaign?: string | null
+          created_at?: string | null
+          formatted_number: string
+          forward_to: string
+          id?: string
+          medium?: string | null
+          phone_number: string
+          provider?: string
+          source?: string | null
+          status?: string
+          updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          campaign?: string | null
+          created_at?: string | null
+          formatted_number?: string
+          forward_to?: string
+          id?: string
+          medium?: string | null
+          phone_number?: string
+          provider?: string
+          source?: string | null
+          status?: string
+          updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: []
+      }
+      call_transcription_jobs: {
+        Row: {
+          call_record_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          processing_completed_at: string | null
+          processing_started_at: string | null
+          recording_url: string
+          status: string
+          transcription_result: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          call_record_id?: string | null
           confidence_score?: number | null
-          days_before_churn?: number
-          id?: number
-          last_updated?: string | null
-          pattern_name?: string
-          sample_size?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
+          recording_url: string
+          status?: string
+          transcription_result?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          call_record_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
+          recording_url?: string
+          status?: string
+          transcription_result?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_transcription_jobs_call_record_id_fkey"
+            columns: ["call_record_id"]
+            isOneToOne: false
+            referencedRelation: "call_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_performance: {
+        Row: {
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          conversions: number | null
+          cpc: number | null
+          created_at: string | null
+          ctr: number | null
+          date: string
+          id: string
+          impressions: number | null
+          leads: number | null
+          platform: string
+          revenue: number | null
+          roas: number | null
+          spend: number | null
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          cpc?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          date: string
+          id?: string
+          impressions?: number | null
+          leads?: number | null
+          platform: string
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          cpc?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          date?: string
+          id?: string
+          impressions?: number | null
+          leads?: number | null
+          platform?: string
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
         }
         Relationships: []
       }
@@ -490,7 +721,6 @@ export type Database = {
           created_at: string | null
           days_since_last_session: number | null
           days_until_renewal: number | null
-          early_warning_flag: boolean | null
           email: string
           engagement_score: number | null
           financial_score: number | null
@@ -502,17 +732,12 @@ export type Database = {
           id: number
           intervention_priority: string | null
           lastname: string | null
-          momentum_indicator: string | null
           momentum_score: number | null
           outstanding_sessions: number | null
           package_health_score: number | null
           package_type: string | null
           package_value_aed: number | null
-          predictive_risk_score: number | null
-          rate_of_change_percent: number | null
           relationship_score: number | null
-          risk_category: string | null
-          risk_factors: Json | null
           sessions_last_30d: number | null
           sessions_last_7d: number | null
           sessions_last_90d: number | null
@@ -529,7 +754,6 @@ export type Database = {
           created_at?: string | null
           days_since_last_session?: number | null
           days_until_renewal?: number | null
-          early_warning_flag?: boolean | null
           email: string
           engagement_score?: number | null
           financial_score?: number | null
@@ -541,17 +765,12 @@ export type Database = {
           id?: number
           intervention_priority?: string | null
           lastname?: string | null
-          momentum_indicator?: string | null
           momentum_score?: number | null
           outstanding_sessions?: number | null
           package_health_score?: number | null
           package_type?: string | null
           package_value_aed?: number | null
-          predictive_risk_score?: number | null
-          rate_of_change_percent?: number | null
           relationship_score?: number | null
-          risk_category?: string | null
-          risk_factors?: Json | null
           sessions_last_30d?: number | null
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
@@ -568,7 +787,6 @@ export type Database = {
           created_at?: string | null
           days_since_last_session?: number | null
           days_until_renewal?: number | null
-          early_warning_flag?: boolean | null
           email?: string
           engagement_score?: number | null
           financial_score?: number | null
@@ -580,91 +798,17 @@ export type Database = {
           id?: number
           intervention_priority?: string | null
           lastname?: string | null
-          momentum_indicator?: string | null
           momentum_score?: number | null
           outstanding_sessions?: number | null
           package_health_score?: number | null
           package_type?: string | null
           package_value_aed?: number | null
-          predictive_risk_score?: number | null
-          rate_of_change_percent?: number | null
           relationship_score?: number | null
-          risk_category?: string | null
-          risk_factors?: Json | null
           sessions_last_30d?: number | null
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
           sessions_purchased?: number | null
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      client_lifecycle_history: {
-        Row: {
-          created_at: string | null
-          email: string
-          engagement_trend: string | null
-          health_score: number | null
-          health_zone: string | null
-          id: number
-          predictive_risk_score: number | null
-          sessions_previous_week: number | null
-          sessions_this_week: number | null
-          week_ending_date: string
-          week_over_week_change: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          engagement_trend?: string | null
-          health_score?: number | null
-          health_zone?: string | null
-          id?: number
-          predictive_risk_score?: number | null
-          sessions_previous_week?: number | null
-          sessions_this_week?: number | null
-          week_ending_date: string
-          week_over_week_change?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          engagement_trend?: string | null
-          health_score?: number | null
-          health_zone?: string | null
-          id?: number
-          predictive_risk_score?: number | null
-          sessions_previous_week?: number | null
-          sessions_this_week?: number | null
-          week_ending_date?: string
-          week_over_week_change?: number | null
-        }
-        Relationships: []
-      }
-      clients: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          first_name: string | null
-          id: string
-          last_name: string | null
-          phone: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email?: string | null
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          phone?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string | null
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          phone?: string | null
         }
         Relationships: []
       }
@@ -775,28 +919,310 @@ export type Database = {
       }
       coach_reviews: {
         Row: {
-          coach: string
+          ai_recommendations: string | null
+          coach_id: string
           created_at: string | null
-          id: number
-          period_month: number
-          period_year: number
-          summary: Json | null
+          id: string
+          review_month: string
+          review_summary: Json | null
         }
         Insert: {
-          coach: string
+          ai_recommendations?: string | null
+          coach_id: string
           created_at?: string | null
-          id?: number
-          period_month: number
-          period_year: number
-          summary?: Json | null
+          id?: string
+          review_month: string
+          review_summary?: Json | null
         }
         Update: {
-          coach?: string
+          ai_recommendations?: string | null
+          coach_id?: string
           created_at?: string | null
-          id?: number
-          period_month?: number
-          period_year?: number
-          summary?: Json | null
+          id?: string
+          review_month?: string
+          review_summary?: Json | null
+        }
+        Relationships: []
+      }
+      companies: {
+        Row: {
+          annual_revenue: number | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string
+          domain: string | null
+          employee_count: number | null
+          hubspot_company_id: string | null
+          id: string
+          industry: string | null
+          updated_at: string
+        }
+        Insert: {
+          annual_revenue?: number | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          domain?: string | null
+          employee_count?: number | null
+          hubspot_company_id?: string | null
+          id?: string
+          industry?: string | null
+          updated_at?: string
+        }
+        Update: {
+          annual_revenue?: number | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          domain?: string | null
+          employee_count?: number | null
+          hubspot_company_id?: string | null
+          id?: string
+          industry?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          email: string | null
+          facebook_id: string | null
+          first_name: string | null
+          first_touch_source: string | null
+          first_touch_time: string | null
+          ghl_contact_id: string | null
+          google_id: string | null
+          hubspot_contact_id: string | null
+          id: string
+          last_name: string | null
+          last_touch_source: string | null
+          last_touch_time: string | null
+          lifecycle_stage: string | null
+          owner_id: string | null
+          phone: string | null
+          status: string | null
+          total_events: number | null
+          total_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          facebook_id?: string | null
+          first_name?: string | null
+          first_touch_source?: string | null
+          first_touch_time?: string | null
+          ghl_contact_id?: string | null
+          google_id?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          last_name?: string | null
+          last_touch_source?: string | null
+          last_touch_time?: string | null
+          lifecycle_stage?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          status?: string | null
+          total_events?: number | null
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          facebook_id?: string | null
+          first_name?: string | null
+          first_touch_source?: string | null
+          first_touch_time?: string | null
+          ghl_contact_id?: string | null
+          google_id?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          last_name?: string | null
+          last_touch_source?: string | null
+          last_touch_time?: string | null
+          lifecycle_stage?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          status?: string | null
+          total_events?: number | null
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      conversion_events: {
+        Row: {
+          action_source: string | null
+          created_at: string | null
+          custom_data: Json | null
+          event_name: string
+          event_source_url: string | null
+          event_time: string | null
+          id: string
+          user_data: Json | null
+        }
+        Insert: {
+          action_source?: string | null
+          created_at?: string | null
+          custom_data?: Json | null
+          event_name: string
+          event_source_url?: string | null
+          event_time?: string | null
+          id?: string
+          user_data?: Json | null
+        }
+        Update: {
+          action_source?: string | null
+          created_at?: string | null
+          custom_data?: Json | null
+          event_name?: string
+          event_source_url?: string | null
+          event_time?: string | null
+          id?: string
+          user_data?: Json | null
+        }
+        Relationships: []
+      }
+      conversion_tracking: {
+        Row: {
+          created_at: string | null
+          default_value: number | null
+          enabled: boolean | null
+          event_name: string
+          id: string
+          platform: string
+          platform_event_name: string
+          updated_at: string | null
+          value_mapping: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_value?: number | null
+          enabled?: boolean | null
+          event_name: string
+          id?: string
+          platform: string
+          platform_event_name: string
+          updated_at?: string | null
+          value_mapping?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          default_value?: number | null
+          enabled?: boolean | null
+          event_name?: string
+          id?: string
+          platform?: string
+          platform_event_name?: string
+          updated_at?: string | null
+          value_mapping?: Json | null
+        }
+        Relationships: []
+      }
+      customer_journeys: {
+        Row: {
+          attribution_model: string | null
+          conversion_event: string | null
+          conversion_value: number | null
+          created_at: string | null
+          customer_id: string
+          id: string
+          journey_end: string | null
+          journey_start: string
+          total_touchpoints: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          attribution_model?: string | null
+          conversion_event?: string | null
+          conversion_value?: number | null
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          journey_end?: string | null
+          journey_start: string
+          total_touchpoints?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          attribution_model?: string | null
+          conversion_event?: string | null
+          conversion_value?: number | null
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          journey_end?: string | null
+          journey_start?: string
+          total_touchpoints?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      customer_profiles: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string | null
+          email: string | null
+          event_count: number | null
+          first_name: string | null
+          first_seen: string | null
+          id: string
+          identity_print: string
+          last_event: string | null
+          last_name: string | null
+          last_seen: string | null
+          phone: string | null
+          predicted_ltv: number | null
+          segment: string | null
+          total_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          event_count?: number | null
+          first_name?: string | null
+          first_seen?: string | null
+          id?: string
+          identity_print: string
+          last_event?: string | null
+          last_name?: string | null
+          last_seen?: string | null
+          phone?: string | null
+          predicted_ltv?: number | null
+          segment?: string | null
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          event_count?: number | null
+          first_name?: string | null
+          first_seen?: string | null
+          id?: string
+          identity_print?: string
+          last_event?: string | null
+          last_name?: string | null
+          last_seen?: string | null
+          phone?: string | null
+          predicted_ltv?: number | null
+          segment?: string | null
+          total_value?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -875,69 +1301,502 @@ export type Database = {
         }
         Relationships: []
       }
-      event_mappings: {
+      deals: {
         Row: {
+          appointment_id: string | null
+          cash_collected: number | null
+          close_date: string | null
+          closer_id: string | null
+          collection_date: string | null
           created_at: string | null
-          event_parameters: Json | null
-          hubspot_event_name: string
+          deal_name: string | null
+          deal_type: string | null
+          deal_value: number
+          hubspot_deal_id: string | null
           id: string
-          is_active: boolean | null
-          meta_event_name: string
+          lead_id: string | null
+          notes: string | null
+          pipeline: string | null
+          stage: string | null
+          status: Database["public"]["Enums"]["deal_status"] | null
+          updated_at: string | null
+          value_aed: number | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          cash_collected?: number | null
+          close_date?: string | null
+          closer_id?: string | null
+          collection_date?: string | null
+          created_at?: string | null
+          deal_name?: string | null
+          deal_type?: string | null
+          deal_value: number
+          hubspot_deal_id?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          pipeline?: string | null
+          stage?: string | null
+          status?: Database["public"]["Enums"]["deal_status"] | null
+          updated_at?: string | null
+          value_aed?: number | null
+        }
+        Update: {
+          appointment_id?: string | null
+          cash_collected?: number | null
+          close_date?: string | null
+          closer_id?: string | null
+          collection_date?: string | null
+          created_at?: string | null
+          deal_name?: string | null
+          deal_type?: string | null
+          deal_value?: number
+          hubspot_deal_id?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          pipeline?: string | null
+          stage?: string | null
+          status?: Database["public"]["Enums"]["deal_status"] | null
+          updated_at?: string | null
+          value_aed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_closer_id_fkey"
+            columns: ["closer_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      "deals hub": {
+        Row: {
+          attrs: Json | null
+          id: string | null
           updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
-          event_parameters?: Json | null
-          hubspot_event_name: string
-          id?: string
-          is_active?: boolean | null
-          meta_event_name: string
+          attrs?: Json | null
+          id?: string | null
           updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
-          event_parameters?: Json | null
-          hubspot_event_name?: string
-          id?: string
-          is_active?: boolean | null
-          meta_event_name?: string
+          attrs?: Json | null
+          id?: string | null
           updated_at?: string | null
         }
         Relationships: []
       }
-      health_scores: {
+      diagnostics: {
         Row: {
-          as_of: string
-          client_id: string
-          details: Json | null
-          health_score: number
-          id: number
-          improving: boolean | null
-          inserted_at: string | null
-          risk_score: number | null
-          zone: string | null
+          coverage: number | null
+          created_at: string | null
+          date: string
+          id: string
+          match_quality: number | null
+          notes: Json | null
+          server_dedup_rate: number | null
+          web_dedup_rate: number | null
         }
         Insert: {
-          as_of: string
-          client_id: string
-          details?: Json | null
-          health_score: number
-          id?: number
-          improving?: boolean | null
-          inserted_at?: string | null
-          risk_score?: number | null
-          zone?: string | null
+          coverage?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          match_quality?: number | null
+          notes?: Json | null
+          server_dedup_rate?: number | null
+          web_dedup_rate?: number | null
         }
         Update: {
-          as_of?: string
-          client_id?: string
-          details?: Json | null
-          health_score?: number
-          id?: number
-          improving?: boolean | null
-          inserted_at?: string | null
-          risk_score?: number | null
-          zone?: string | null
+          coverage?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          match_quality?: number | null
+          notes?: Json | null
+          server_dedup_rate?: number | null
+          web_dedup_rate?: number | null
+        }
+        Relationships: []
+      }
+      enhanced_leads: {
+        Row: {
+          ad_id: string | null
+          ad_name: string | null
+          adset_id: string | null
+          adset_name: string | null
+          assigned_coach_id: string | null
+          availability: string | null
+          browser: string | null
+          budget_range: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          conversion_status: string | null
+          created_at: string | null
+          deal_value: number | null
+          device_type: string | null
+          dubai_area: string | null
+          email: string | null
+          experience_level: string | null
+          facebook_click_id: string | null
+          facebook_lead_id: string | null
+          first_contact_at: string | null
+          first_name: string | null
+          fitness_goal: string | null
+          follow_up_status: string | null
+          form_id: string | null
+          form_name: string | null
+          health_conditions: string | null
+          hubspot_contact_id: string | null
+          id: string
+          ip_address: unknown
+          landing_page_url: string | null
+          last_name: string | null
+          lead_quality: string | null
+          lead_score: number | null
+          lifecycle_stage: string | null
+          ltv_prediction: number | null
+          operating_system: string | null
+          phone: string | null
+          previous_trainer_experience: string | null
+          processed_at: string | null
+          processing_errors: Json | null
+          raw_facebook_data: Json | null
+          raw_form_responses: Json | null
+          referrer_url: string | null
+          response_time_minutes: number | null
+          routing_priority: string | null
+          time_on_page_seconds: number | null
+          trainer_preference: string | null
+          training_location: string | null
+          updated_at: string | null
+          urgency: string | null
+          user_agent: string | null
+          webhook_received_at: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          ad_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
+          assigned_coach_id?: string | null
+          availability?: string | null
+          browser?: string | null
+          budget_range?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          conversion_status?: string | null
+          created_at?: string | null
+          deal_value?: number | null
+          device_type?: string | null
+          dubai_area?: string | null
+          email?: string | null
+          experience_level?: string | null
+          facebook_click_id?: string | null
+          facebook_lead_id?: string | null
+          first_contact_at?: string | null
+          first_name?: string | null
+          fitness_goal?: string | null
+          follow_up_status?: string | null
+          form_id?: string | null
+          form_name?: string | null
+          health_conditions?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          ip_address?: unknown
+          landing_page_url?: string | null
+          last_name?: string | null
+          lead_quality?: string | null
+          lead_score?: number | null
+          lifecycle_stage?: string | null
+          ltv_prediction?: number | null
+          operating_system?: string | null
+          phone?: string | null
+          previous_trainer_experience?: string | null
+          processed_at?: string | null
+          processing_errors?: Json | null
+          raw_facebook_data?: Json | null
+          raw_form_responses?: Json | null
+          referrer_url?: string | null
+          response_time_minutes?: number | null
+          routing_priority?: string | null
+          time_on_page_seconds?: number | null
+          trainer_preference?: string | null
+          training_location?: string | null
+          updated_at?: string | null
+          urgency?: string | null
+          user_agent?: string | null
+          webhook_received_at?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          ad_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
+          assigned_coach_id?: string | null
+          availability?: string | null
+          browser?: string | null
+          budget_range?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          conversion_status?: string | null
+          created_at?: string | null
+          deal_value?: number | null
+          device_type?: string | null
+          dubai_area?: string | null
+          email?: string | null
+          experience_level?: string | null
+          facebook_click_id?: string | null
+          facebook_lead_id?: string | null
+          first_contact_at?: string | null
+          first_name?: string | null
+          fitness_goal?: string | null
+          follow_up_status?: string | null
+          form_id?: string | null
+          form_name?: string | null
+          health_conditions?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          ip_address?: unknown
+          landing_page_url?: string | null
+          last_name?: string | null
+          lead_quality?: string | null
+          lead_score?: number | null
+          lifecycle_stage?: string | null
+          ltv_prediction?: number | null
+          operating_system?: string | null
+          phone?: string | null
+          previous_trainer_experience?: string | null
+          processed_at?: string | null
+          processing_errors?: Json | null
+          raw_facebook_data?: Json | null
+          raw_form_responses?: Json | null
+          referrer_url?: string | null
+          response_time_minutes?: number | null
+          routing_priority?: string | null
+          time_on_page_seconds?: number | null
+          trainer_preference?: string | null
+          training_location?: string | null
+          updated_at?: string | null
+          urgency?: string | null
+          user_agent?: string | null
+          webhook_received_at?: string | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          attribution_credits: Json | null
+          created_at: string | null
+          custom: Json
+          event_id: string
+          event_name: string
+          event_time: string | null
+          facebook_success: boolean | null
+          id: string
+          identity_print: string | null
+          match_score: number | null
+          meta: Json | null
+          predicted_ltv: number | null
+          source: string
+          status: string
+          user_data: Json
+        }
+        Insert: {
+          attribution_credits?: Json | null
+          created_at?: string | null
+          custom?: Json
+          event_id: string
+          event_name: string
+          event_time?: string | null
+          facebook_success?: boolean | null
+          id?: string
+          identity_print?: string | null
+          match_score?: number | null
+          meta?: Json | null
+          predicted_ltv?: number | null
+          source: string
+          status?: string
+          user_data: Json
+        }
+        Update: {
+          attribution_credits?: Json | null
+          created_at?: string | null
+          custom?: Json
+          event_id?: string
+          event_name?: string
+          event_time?: string | null
+          facebook_success?: boolean | null
+          id?: string
+          identity_print?: string | null
+          match_score?: number | null
+          meta?: Json | null
+          predicted_ltv?: number | null
+          source?: string
+          status?: string
+          user_data?: Json
+        }
+        Relationships: []
+      }
+      facebook_campaigns: {
+        Row: {
+          account_id: string | null
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          cpc: number | null
+          created_at: string
+          ctr: number | null
+          daily_budget: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          lifetime_budget: number | null
+          objective: string | null
+          reach: number | null
+          spend: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          objective?: string | null
+          reach?: number | null
+          spend?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          objective?: string | null
+          reach?: number | null
+          spend?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      facebook_creatives: {
+        Row: {
+          ad_id: string
+          body: string | null
+          campaign_id: string | null
+          created_at: string
+          creative_name: string | null
+          id: string
+          image_url: string | null
+          status: string | null
+          title: string | null
+          updated_at: string
+          video_id: string | null
+        }
+        Insert: {
+          ad_id: string
+          body?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          creative_name?: string | null
+          id?: string
+          image_url?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id?: string | null
+        }
+        Update: {
+          ad_id?: string
+          body?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          creative_name?: string | null
+          id?: string
+          image_url?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id?: string | null
+        }
+        Relationships: []
+      }
+      facebook_leads: {
+        Row: {
+          ad_id: string | null
+          adset_id: string | null
+          campaign_id: string | null
+          created_time: string
+          field_data: Json
+          form_id: string
+          id: string
+          page_id: string
+          processed: boolean | null
+          received_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          adset_id?: string | null
+          campaign_id?: string | null
+          created_time: string
+          field_data?: Json
+          form_id: string
+          id: string
+          page_id: string
+          processed?: boolean | null
+          received_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          adset_id?: string | null
+          campaign_id?: string | null
+          created_time?: string
+          field_data?: Json
+          form_id?: string
+          id?: string
+          page_id?: string
+          processed?: boolean | null
+          received_at?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -946,12 +1805,10 @@ export type Database = {
           actioned_at: string | null
           ai_confidence: number | null
           ai_insight: string | null
-          ai_reasoning: string | null
           ai_recommendation: string | null
           assigned_to: string | null
           churn_risk_at_trigger: number | null
           client_email: string
-          client_persona: string | null
           communication_method: string | null
           communication_timing: string | null
           completed_at: string | null
@@ -972,13 +1829,11 @@ export type Database = {
           hubspot_contact_id: string | null
           id: number
           intervention_date: string | null
-          intervention_effectiveness_score: number | null
           intervention_type: string
           lastname: string | null
           message_tone: string | null
           notes: string | null
           outcome: string | null
-          outcome_measured_at: string | null
           owner_notes: string | null
           priority: string | null
           psychological_insight: string | null
@@ -996,12 +1851,10 @@ export type Database = {
           actioned_at?: string | null
           ai_confidence?: number | null
           ai_insight?: string | null
-          ai_reasoning?: string | null
           ai_recommendation?: string | null
           assigned_to?: string | null
           churn_risk_at_trigger?: number | null
           client_email: string
-          client_persona?: string | null
           communication_method?: string | null
           communication_timing?: string | null
           completed_at?: string | null
@@ -1022,13 +1875,11 @@ export type Database = {
           hubspot_contact_id?: string | null
           id?: number
           intervention_date?: string | null
-          intervention_effectiveness_score?: number | null
           intervention_type: string
           lastname?: string | null
           message_tone?: string | null
           notes?: string | null
           outcome?: string | null
-          outcome_measured_at?: string | null
           owner_notes?: string | null
           priority?: string | null
           psychological_insight?: string | null
@@ -1046,12 +1897,10 @@ export type Database = {
           actioned_at?: string | null
           ai_confidence?: number | null
           ai_insight?: string | null
-          ai_reasoning?: string | null
           ai_recommendation?: string | null
           assigned_to?: string | null
           churn_risk_at_trigger?: number | null
           client_email?: string
-          client_persona?: string | null
           communication_method?: string | null
           communication_timing?: string | null
           completed_at?: string | null
@@ -1072,13 +1921,11 @@ export type Database = {
           hubspot_contact_id?: string | null
           id?: number
           intervention_date?: string | null
-          intervention_effectiveness_score?: number | null
           intervention_type?: string
           lastname?: string | null
           message_tone?: string | null
           notes?: string | null
           outcome?: string | null
-          outcome_measured_at?: string | null
           owner_notes?: string | null
           priority?: string | null
           psychological_insight?: string | null
@@ -1094,179 +1941,872 @@ export type Database = {
         }
         Relationships: []
       }
-      intervention_outcomes: {
+      kpi_tracking: {
         Row: {
-          client_email: string
-          client_persona: string | null
-          created_at: string | null
-          executed_at: string | null
-          health_score_30d_after: number | null
-          health_score_7d_after: number | null
-          health_score_before: number | null
-          health_zone_at_intervention: string | null
-          id: number
-          intervention_id: number | null
-          intervention_type: string | null
-          outcome_success_score: number | null
-          risk_score_30d_after: number | null
-          risk_score_7d_after: number | null
-          risk_score_at_intervention: number | null
-          risk_score_before: number | null
-          sessions_booked_within_7d: number | null
-          trend_changed_to_positive: boolean | null
+          category: string
+          created_at: string
+          id: string
+          location: string | null
+          metadata: Json | null
+          metric_name: string
+          metric_value: number
+          period_end: string
+          period_start: string
+          target_value: number | null
         }
         Insert: {
-          client_email: string
-          client_persona?: string | null
-          created_at?: string | null
-          executed_at?: string | null
-          health_score_30d_after?: number | null
-          health_score_7d_after?: number | null
-          health_score_before?: number | null
-          health_zone_at_intervention?: string | null
-          id?: number
-          intervention_id?: number | null
-          intervention_type?: string | null
-          outcome_success_score?: number | null
-          risk_score_30d_after?: number | null
-          risk_score_7d_after?: number | null
-          risk_score_at_intervention?: number | null
-          risk_score_before?: number | null
-          sessions_booked_within_7d?: number | null
-          trend_changed_to_positive?: boolean | null
+          category?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          metadata?: Json | null
+          metric_name: string
+          metric_value: number
+          period_end: string
+          period_start: string
+          target_value?: number | null
         }
         Update: {
-          client_email?: string
-          client_persona?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          metadata?: Json | null
+          metric_name?: string
+          metric_value?: number
+          period_end?: string
+          period_start?: string
+          target_value?: number | null
+        }
+        Relationships: []
+      }
+      lead_events: {
+        Row: {
+          id: string
+          lead_id: string
+          raw: Json
+          received_at: string | null
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          raw: Json
+          received_at?: string | null
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          raw?: Json
+          received_at?: string | null
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          closer_id: string | null
+          created_at: string | null
+          email: string | null
+          facebook_lead_id: string | null
+          first_name: string | null
+          hubspot_id: string | null
+          id: string
+          last_name: string | null
+          name: string
+          phone: string | null
+          score: number | null
+          setter_id: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["lead_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          closer_id?: string | null
           created_at?: string | null
-          executed_at?: string | null
-          health_score_30d_after?: number | null
-          health_score_7d_after?: number | null
-          health_score_before?: number | null
-          health_zone_at_intervention?: string | null
-          id?: number
-          intervention_id?: number | null
-          intervention_type?: string | null
-          outcome_success_score?: number | null
-          risk_score_30d_after?: number | null
-          risk_score_7d_after?: number | null
-          risk_score_at_intervention?: number | null
-          risk_score_before?: number | null
-          sessions_booked_within_7d?: number | null
-          trend_changed_to_positive?: boolean | null
+          email?: string | null
+          facebook_lead_id?: string | null
+          first_name?: string | null
+          hubspot_id?: string | null
+          id?: string
+          last_name?: string | null
+          name: string
+          phone?: string | null
+          score?: number | null
+          setter_id?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["lead_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          closer_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          facebook_lead_id?: string | null
+          first_name?: string | null
+          hubspot_id?: string | null
+          id?: string
+          last_name?: string | null
+          name?: string
+          phone?: string | null
+          score?: number | null
+          setter_id?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["lead_status"] | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "intervention_outcomes_intervention_id_fkey"
-            columns: ["intervention_id"]
+            foreignKeyName: "leads_closer_id_fkey"
+            columns: ["closer_id"]
             isOneToOne: false
-            referencedRelation: "intervention_log"
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_setter_id_fkey"
+            columns: ["setter_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
       }
-      weekly_patterns: {
+      marketing_costs: {
         Row: {
-          avg_health_score: number | null
-          clients_declining: number | null
-          clients_improving: number | null
+          ad_spend: number
           created_at: string | null
-          green_clients: number | null
-          id: number
-          pattern_insights: string | null
-          purple_clients: number | null
-          red_clients: number | null
-          total_clients: number | null
-          updated_at: string | null
-          week_end_date: string
-          week_start_date: string
-          yellow_clients: number | null
+          date: string
+          id: string
+          other_costs: number | null
+          platform: string | null
         }
         Insert: {
-          avg_health_score?: number | null
-          clients_declining?: number | null
-          clients_improving?: number | null
+          ad_spend?: number
           created_at?: string | null
-          green_clients?: number | null
-          id?: number
-          pattern_insights?: string | null
-          purple_clients?: number | null
-          red_clients?: number | null
-          total_clients?: number | null
-          updated_at?: string | null
-          week_end_date: string
-          week_start_date: string
-          yellow_clients?: number | null
+          date: string
+          id?: string
+          other_costs?: number | null
+          platform?: string | null
         }
         Update: {
-          avg_health_score?: number | null
-          clients_declining?: number | null
-          clients_improving?: number | null
+          ad_spend?: number
           created_at?: string | null
-          green_clients?: number | null
-          id?: number
-          pattern_insights?: string | null
-          purple_clients?: number | null
-          red_clients?: number | null
-          total_clients?: number | null
+          date?: string
+          id?: string
+          other_costs?: number | null
+          platform?: string | null
+        }
+        Relationships: []
+      }
+      member_analytics: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          class_name: string | null
+          created_at: string
+          id: string
+          location: string
+          member_id: string
+          satisfaction_score: number | null
+          session_duration: number | null
+          session_type: string | null
+          trainer_id: string | null
+          visit_date: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          class_name?: string | null
+          created_at?: string
+          id?: string
+          location?: string
+          member_id: string
+          satisfaction_score?: number | null
+          session_duration?: number | null
+          session_type?: string | null
+          trainer_id?: string | null
+          visit_date: string
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          class_name?: string | null
+          created_at?: string
+          id?: string
+          location?: string
+          member_id?: string
+          satisfaction_score?: number | null
+          session_duration?: number | null
+          session_type?: string | null
+          trainer_id?: string | null
+          visit_date?: string
+        }
+        Relationships: []
+      }
+      owner_performance: {
+        Row: {
+          bookings: number | null
+          commission: number | null
+          created_at: string | null
+          date: string
+          id: string
+          leads: number | null
+          owner_id: string
+          owner_name: string | null
+          revenue: number | null
+          shows: number | null
+          wins: number | null
+        }
+        Insert: {
+          bookings?: number | null
+          commission?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          leads?: number | null
+          owner_id: string
+          owner_name?: string | null
+          revenue?: number | null
+          shows?: number | null
+          wins?: number | null
+        }
+        Update: {
+          bookings?: number | null
+          commission?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          leads?: number | null
+          owner_id?: string
+          owner_name?: string | null
+          revenue?: number | null
+          shows?: number | null
+          wins?: number | null
+        }
+        Relationships: []
+      }
+      platform_connections: {
+        Row: {
+          access_token: string
+          account_id: string
+          account_name: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          last_sync: string | null
+          platform: string
+          refresh_token: string | null
+          scopes: string[] | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token: string
+          account_id: string
+          account_name?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          last_sync?: string | null
+          platform: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          status?: string | null
           updated_at?: string | null
-          week_end_date?: string
-          week_start_date?: string
-          yellow_clients?: number | null
+        }
+        Update: {
+          access_token?: string
+          account_id?: string
+          account_name?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          last_sync?: string | null
+          platform?: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      platform_metrics: {
+        Row: {
+          ad_id: string | null
+          ad_set_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          date_recorded: string
+          hour_recorded: number | null
+          id: string
+          metadata: Json | null
+          metric_type: string
+          metric_value: number
+          platform: string
+        }
+        Insert: {
+          ad_id?: string | null
+          ad_set_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          date_recorded: string
+          hour_recorded?: number | null
+          id?: string
+          metadata?: Json | null
+          metric_type: string
+          metric_value: number
+          platform: string
+        }
+        Update: {
+          ad_id?: string | null
+          ad_set_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          date_recorded?: string
+          hour_recorded?: number | null
+          id?: string
+          metadata?: Json | null
+          metric_type?: string
+          metric_value?: number
+          platform?: string
+        }
+        Relationships: []
+      }
+      spark_leads: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          lead_source: string | null
+          name: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          lead_source?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          lead_source?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      staff: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          role: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          role: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          completed_at: string | null
+          duration_ms: number | null
+          error_details: Json | null
+          id: string
+          platform: string
+          records_failed: number | null
+          records_processed: number | null
+          started_at: string | null
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          error_details?: Json | null
+          id?: string
+          platform: string
+          records_failed?: number | null
+          records_processed?: number | null
+          started_at?: string | null
+          status: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          error_details?: Json | null
+          id?: string
+          platform?: string
+          records_failed?: number | null
+          records_processed?: number | null
+          started_at?: string | null
+          status?: string
+          sync_type?: string
+        }
+        Relationships: []
+      }
+      table_name: {
+        Row: {
+          data: Json | null
+          id: number
+          inserted_at: string
+          name: string | null
+          updated_at: string
+        }
+        Insert: {
+          data?: Json | null
+          id?: number
+          inserted_at?: string
+          name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          data?: Json | null
+          id?: number
+          inserted_at?: string
+          name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          kind: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          kind: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
+      touchpoints: {
+        Row: {
+          attribution_credit: number | null
+          attribution_event_id: string | null
+          created_at: string | null
+          id: string
+          journey_id: string | null
+          sequence_number: number
+          time_to_next_touch: unknown
+        }
+        Insert: {
+          attribution_credit?: number | null
+          attribution_event_id?: string | null
+          created_at?: string | null
+          id?: string
+          journey_id?: string | null
+          sequence_number: number
+          time_to_next_touch?: unknown
+        }
+        Update: {
+          attribution_credit?: number | null
+          attribution_event_id?: string | null
+          created_at?: string | null
+          id?: string
+          journey_id?: string | null
+          sequence_number?: number
+          time_to_next_touch?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoints_attribution_event_id_fkey"
+            columns: ["attribution_event_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoints_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journeys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trainer_performance: {
+        Row: {
+          avg_rating: number | null
+          certifications_updated: boolean | null
+          created_at: string
+          id: string
+          location: string
+          member_retention_rate: number | null
+          period_end: string
+          period_start: string
+          sessions_conducted: number
+          total_revenue: number
+          trainer_id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_rating?: number | null
+          certifications_updated?: boolean | null
+          created_at?: string
+          id?: string
+          location?: string
+          member_retention_rate?: number | null
+          period_end: string
+          period_start: string
+          sessions_conducted?: number
+          total_revenue?: number
+          trainer_id: string
+          updated_at?: string
+        }
+        Update: {
+          avg_rating?: number | null
+          certifications_updated?: boolean | null
+          created_at?: string
+          id?: string
+          location?: string
+          member_retention_rate?: number | null
+          period_end?: string
+          period_start?: string
+          sessions_conducted?: number
+          total_revenue?: number
+          trainer_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          analytics_enabled: boolean | null
+          created_at: string
+          id: string
+          notifications_enabled: boolean | null
+          onboarding_completed: boolean | null
+          onboarding_completed_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analytics_enabled?: boolean | null
+          created_at?: string
+          id?: string
+          notifications_enabled?: boolean | null
+          onboarding_completed?: boolean | null
+          onboarding_completed_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analytics_enabled?: boolean | null
+          created_at?: string
+          id?: string
+          notifications_enabled?: boolean | null
+          onboarding_completed?: boolean | null
+          onboarding_completed_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          facebook_id: string | null
+          full_name: string | null
+          hubspot_contact_id: string | null
+          id: string
+          last_sync_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          facebook_id?: string | null
+          full_name?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          last_sync_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          facebook_id?: string | null
+          full_name?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          last_sync_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_logs: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          event_type: string | null
+          id: string
+          object_id: string | null
+          payload: Json | null
+          processed: boolean | null
+          source: string
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          object_id?: string | null
+          payload?: Json | null
+          processed?: boolean | null
+          source: string
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          object_id?: string | null
+          payload?: Json | null
+          processed?: boolean | null
+          source?: string
+        }
+        Relationships: []
+      }
+      weekly_patterns: {
+        Row: {
+          ai_insights: string | null
+          client_id: string
+          created_at: string | null
+          id: string
+          pattern_summary: Json | null
+          week_start: string
+        }
+        Insert: {
+          ai_insights?: string | null
+          client_id: string
+          created_at?: string | null
+          id?: string
+          pattern_summary?: Json | null
+          week_start: string
+        }
+        Update: {
+          ai_insights?: string | null
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          pattern_summary?: Json | null
+          week_start?: string
         }
         Relationships: []
       }
     }
     Views: {
-      company_health_aggregates: {
+      daily_analytics: {
         Row: {
-          clients_declining: number | null
-          clients_improving: number | null
-          company_avg_score: number | null
-          green_count: number | null
-          health_score_stdev: number | null
-          median_health_score: number | null
-          purple_count: number | null
-          red_count: number | null
-          red_pct: number | null
-          yellow_count: number | null
+          avg_match_score: number | null
+          avg_predicted_ltv: number | null
+          date: string | null
+          fb_success_count: number | null
+          purchases: number | null
+          revenue: number | null
+          total_events: number | null
+          total_value: number | null
+          unique_users: number | null
         }
         Relationships: []
       }
     }
     Functions: {
-      calculate_daily_health_scores: { Args: never; Returns: undefined }
-      get_at_risk_clients: {
-        Args: { target_date: string }
+      calculate_attribution_weights: {
+        Args: { journey_id_param: string; model_type?: string }
         Returns: {
-          assigned_coach: string
-          churn_risk_score: number
-          client_name: string
-          days_since_last_session: number
-          email: string
-          health_score: number
-          health_zone: string
-          id: number
+          touchpoint_id: string
+          weight: number
         }[]
       }
-      get_overall_avg: {
-        Args: { target_date: string }
+      calculate_lead_score: {
+        Args: {
+          budget_range_param: string
+          dubai_area_param: string
+          experience_level_param: string
+          fitness_goal_param: string
+          urgency_param: string
+        }
+        Returns: number
+      }
+      get_dashboard_metrics: {
+        Args: never
         Returns: {
-          avg_score: number
+          follow_up: number
+          no_show: number
+          rescheduled: number
+          total_appointments: number
+          total_closes: number
+          total_leads: number
+          total_pitches: number
         }[]
       }
-      get_zone_distribution: {
-        Args: { target_date: string }
+      get_event_volume_by_source: {
+        Args: never
         Returns: {
-          count: number
-          health_zone: string
+          day: string
+          events: number
+          source: string
         }[]
       }
-      monthly_coach_review: { Args: { p_coach: string }; Returns: Json }
-      upsert_capi_event: { Args: { p_event: Json }; Returns: undefined }
+      get_events_metrics: {
+        Args: never
+        Returns: {
+          appointment_held_leads: number
+          appointment_set_leads: number
+          avg_deal_value: number
+          closed_deals: number
+          closed_leads: number
+          facebook_leads: number
+          follow_up_leads: number
+          google_leads: number
+          month_leads: number
+          new_leads: number
+          no_show_leads: number
+          pending_deals: number
+          pitch_given_leads: number
+          rescheduled_leads: number
+          today_leads: number
+          total_revenue: number
+          week_leads: number
+        }[]
+      }
+      get_events_metrics_secure: {
+        Args: never
+        Returns: {
+          appointment_held_leads: number
+          appointment_set_leads: number
+          avg_deal_value: number
+          closed_deals: number
+          closed_leads: number
+          facebook_leads: number
+          follow_up_leads: number
+          google_leads: number
+          month_leads: number
+          new_leads: number
+          no_show_leads: number
+          pending_deals: number
+          pitch_given_leads: number
+          rescheduled_leads: number
+          today_leads: number
+          total_revenue: number
+          week_leads: number
+        }[]
+      }
+      get_identifier_coverage: {
+        Args: never
+        Returns: {
+          em: number
+          event_name: string
+          external: number
+          fbc: number
+          fbp: number
+          ph: number
+        }[]
+      }
+      get_revenue_data: {
+        Args: never
+        Returns: {
+          day: string
+          events: number
+          leads: number
+          purchases: number
+          revenue_aed: number
+        }[]
+      }
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { role_name: string }; Returns: boolean }
+      is_admin: { Args: never; Returns: boolean }
+      process_hubspot_webhook: {
+        Args: { webhook_payload: Json }
+        Returns: Json
+      }
+      refresh_daily_analytics: { Args: never; Returns: undefined }
+      refresh_platform_metrics: { Args: never; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      deal_status: "pending" | "closed" | "cancelled"
+      lead_status:
+        | "new"
+        | "appointment_set"
+        | "appointment_held"
+        | "pitch_given"
+        | "closed"
+        | "no_show"
+        | "follow_up"
+        | "rescheduled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1393,6 +2933,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      deal_status: ["pending", "closed", "cancelled"],
+      lead_status: [
+        "new",
+        "appointment_set",
+        "appointment_held",
+        "pitch_given",
+        "closed",
+        "no_show",
+        "follow_up",
+        "rescheduled",
+      ],
+    },
   },
 } as const
