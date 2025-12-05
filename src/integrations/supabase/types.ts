@@ -421,6 +421,7 @@ export type Database = {
           integration_name: string
           integration_type: string
           last_sync_at: string | null
+          secret_ref: string | null
           status: string
           updated_at: string | null
           webhook_url: string | null
@@ -433,6 +434,7 @@ export type Database = {
           integration_name: string
           integration_type: string
           last_sync_at?: string | null
+          secret_ref?: string | null
           status?: string
           updated_at?: string | null
           webhook_url?: string | null
@@ -445,6 +447,7 @@ export type Database = {
           integration_name?: string
           integration_type?: string
           last_sync_at?: string | null
+          secret_ref?: string | null
           status?: string
           updated_at?: string | null
           webhook_url?: string | null
