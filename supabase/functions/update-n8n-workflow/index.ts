@@ -161,11 +161,18 @@ const records = items.map(item => ({
   calculation_version: 'MVP_v2_PREDICTIVE'
 }));
 
-const response = await fetch('https://boowptjtwadxpjkpctna.supabase.co/rest/v1/client_health_scores', {
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY');
+}
+
+const response = await fetch(\`\${supabaseUrl}/rest/v1/client_health_scores\`, {
   method: 'POST',
   headers: {
-    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvb3dwdGp0d2FkeHBqa3BjdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNzg4NTQsImV4cCI6MjA3Mjc1NDg1NH0.ka1coMBcGClLN9nrnuuLZq3S48tVuzb9qbe5aQLhDpU',
-    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvb3dwdGp0d2FkeHBqa3BjdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNzg4NTQsImV4cCI6MjA3Mjc1NDg1NH0.ka1coMBcGClLN9nrnuuLZq3S48tVuzb9qbe5aQLhDpU',
+    'apikey': supabaseKey,
+    'Authorization': \`Bearer \${supabaseKey}\`,
     'Content-Type': 'application/json',
     'Prefer': 'resolution=merge-duplicates,return=minimal'
   },

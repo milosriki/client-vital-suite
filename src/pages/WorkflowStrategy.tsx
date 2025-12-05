@@ -125,10 +125,10 @@ const WorkflowStrategy = () => {
             {
               type: "HTTP Request Nodes",
               checks: [
-                "URL: https://boowptjtwadxpjkpctna.supabase.co",
+                "URL: Use SUPABASE_URL from environment",
                 "Method: POST for RPC, POST for inserts",
                 "Headers include apikey and Authorization",
-                "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "Authorization: Bearer [SUPABASE_ANON_KEY]",
                 "Content-Type: application/json",
                 "Prefer: return=representation (for inserts)",
                 "Body structure matches API expectations",
@@ -256,9 +256,9 @@ const WorkflowStrategy = () => {
     {
       category: "Supabase Connection",
       items: [
-        "URL: https://boowptjtwadxpjkpctna.supabase.co",
-        "Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvb3dwdGp0d2FkeHBqa3BjdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNzg4NTQsImV4cCI6MjA3Mjc1NDg1NH0.ka1coMBcGClLN9nrnuuLZq3S48tVuzb9qbe5aQLhDpU",
-        "Service Role: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvb3dwdGp0d2FkeHBqa3BjdG5hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzE3ODg1NCwiZXhwIjoyMDcyNzU0ODU0fQ._VWDVIu5n5ji_ddIIU-dpx-_8CZmgVQ4Mi16rQS8IG8"
+        "URL: Use SUPABASE_URL environment variable",
+        "Anon Key: Use SUPABASE_ANON_KEY environment variable",
+        "Service Role: Use SUPABASE_SERVICE_ROLE_KEY environment variable"
       ]
     },
     {
@@ -510,7 +510,7 @@ const WorkflowStrategy = () => {
                     <strong>Open the node</strong> - Click on "GET: Overall Avg (Today)" node
                   </li>
                   <li className="text-sm">
-                    <strong>Check URL</strong> - Must be: https://boowptjtwadxpjkpctna.supabase.co/rest/v1/rpc/get_overall_avg
+                    <strong>Check URL</strong> - Must be: [SUPABASE_URL]/rest/v1/rpc/get_overall_avg
                   </li>
                   <li className="text-sm">
                     <strong>Set Method</strong> - Change to POST

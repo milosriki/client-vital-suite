@@ -1,4 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+
+// SHA-256 hash function for PII (Meta CAPI requirement)
+async function hashPII(value: string | null | undefined): Promise<string | null> {
+  if (!value || value.trim() === "") return null;
+
+  // Normalize: lowercase and trim
+  const normalized = value.toLowerCase().trim();
+
+  // Create SHA-256 hash
+  const encoder = new TextEncoder();
+  const data = encoder.encode(normalized);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  // Convert to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Normalize phone number before hashing
+async function hashPhone(phone: string | null | undefined): Promise<string | null> {
+  if (!phone) return null;
+  // Remove all non-digit characters
+  const normalized = phone.replace(/\D/g, "");
+  if (normalized.length === 0) return null;
+  return hashPII(normalized);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +54,12 @@ serve(async (req) => {
       email: eventData.user_data?.email
     });
 
+    // Hash PII for Meta CAPI compliance (SHA-256 required)
+    const hashedEmail = await hashPII(eventData.user_data?.email);
+    const hashedPhone = await hashPhone(eventData.user_data?.phone);
+    const hashedFirstName = await hashPII(eventData.user_data?.first_name);
+    const hashedLastName = await hashPII(eventData.user_data?.last_name);
+
     // Prepare the event payload for Stape CAPI
     const payload: any = {
       event_name: eventData.event_name || 'Purchase',
@@ -34,10 +67,10 @@ serve(async (req) => {
       action_source: 'website',
       event_source_url: 'https://ptdfitness.com',
       user_data: {
-        em: eventData.user_data?.email || null,
-        ph: eventData.user_data?.phone || null,
-        fn: eventData.user_data?.first_name || null,
-        ln: eventData.user_data?.last_name || null,
+        em: hashedEmail,  // SHA-256 hashed email
+        ph: hashedPhone,  // SHA-256 hashed phone
+        fn: hashedFirstName,  // SHA-256 hashed first name
+        ln: hashedLastName,  // SHA-256 hashed last name
         external_id: eventData.user_data?.external_id || null,
         fbp: eventData.user_data?.fbp || null,
         fbc: eventData.user_data?.fbc || null,

@@ -2,8 +2,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const N8N_API_URL = "https://personaltrainersdubai.app.n8n.cloud/api/v1";
 const N8N_API_KEY = Deno.env.get("N8N_API_KEY");
-const SUPABASE_URL = "https://boowptjtwadxpjkpctna.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvb3dwdGp0d2FkeHBqa3BjdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNzg4NTQsImV4cCI6MjA3Mjc1NDg1NH0.ka1coMBcGClLN9nrnuuLZq3S48tVuzb9qbe5aQLhDpU";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY");
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
