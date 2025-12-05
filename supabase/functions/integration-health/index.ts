@@ -76,16 +76,12 @@ async function checkHubSpot(): Promise<IntegrationStatus> {
 
     // Check recent sync logs with error handling for missing table
     try {
-      const { data: recentSyncs, error } = await withTimeout(
-        supabase
-          .from("sync_logs")
-          .select("*")
-          .eq("platform", "hubspot")
-          .order("started_at", { ascending: false })
-          .limit(10),
-        5000,
-        "Sync logs query timed out"
-      );
+      const { data: recentSyncs, error } = await supabase
+        .from("sync_logs")
+        .select("*")
+        .eq("platform", "hubspot")
+        .order("started_at", { ascending: false })
+        .limit(10);
 
       if (error) {
         if (error.code === "42P01") {
@@ -138,14 +134,10 @@ async function checkHubSpot(): Promise<IntegrationStatus> {
     // Check data freshness
     try {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      const { count: recentUpdates, error } = await withTimeout(
-        supabase
-          .from("client_health_scores")
-          .select("*", { count: "exact", head: true })
-          .gte("updated_at", hourAgo),
-        5000,
-        "Data freshness query timed out"
-      );
+      const { count: recentUpdates, error } = await supabase
+        .from("client_health_scores")
+        .select("*", { count: "exact", head: true })
+        .gte("updated_at", hourAgo);
 
       if (error) {
         throw error;
@@ -211,15 +203,11 @@ async function checkStapeCAPI(): Promise<IntegrationStatus> {
 
     // Check recent CAPI events
     try {
-      const { data: recentEvents, error } = await withTimeout(
-        supabase
-          .from("capi_events_enriched")
-          .select("send_status, sent_at, created_at")
-          .order("created_at", { ascending: false })
-          .limit(100),
-        5000,
-        "CAPI events query timed out"
-      );
+      const { data: recentEvents, error } = await supabase
+        .from("capi_events_enriched")
+        .select("send_status, sent_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (error) {
         throw error;
@@ -283,15 +271,11 @@ async function checkStapeCAPI(): Promise<IntegrationStatus> {
 
     // Check batch jobs
     try {
-      const { data: recentBatches, error } = await withTimeout(
-        supabase
-          .from("batch_jobs")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        5000,
-        "Batch jobs query timed out"
-      );
+      const { data: recentBatches, error } = await supabase
+        .from("batch_jobs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5);
 
       if (error) {
         throw error;
@@ -349,11 +333,7 @@ async function checkSupabaseHealth(): Promise<IntegrationStatus> {
   try {
     // Check database connectivity
     const startTime = Date.now();
-    const { error } = await withTimeout(
-      supabase.from("client_health_scores").select("id").limit(1),
-      5000,
-      "Database connectivity check timed out"
-    );
+    const { error } = await supabase.from("client_health_scores").select("id").limit(1);
     latency = Date.now() - startTime;
 
     checks.push({
@@ -367,13 +347,9 @@ async function checkSupabaseHealth(): Promise<IntegrationStatus> {
     const tables = ["client_health_scores", "intervention_log", "daily_summary", "capi_events_enriched"];
     for (const table of tables) {
       try {
-        const { count, error: countError } = await withTimeout(
-          supabase
-            .from(table)
-            .select("*", { count: "exact", head: true }),
-          5000,
-          `Table ${table} count query timed out`
-        );
+        const { count, error: countError } = await supabase
+          .from(table)
+          .select("*", { count: "exact", head: true });
 
         checks.push({
           check_name: `Table: ${table}`,
@@ -394,15 +370,11 @@ async function checkSupabaseHealth(): Promise<IntegrationStatus> {
 
     // Check edge function status by looking at sync logs
     try {
-      const { data: functionLogs, error } = await withTimeout(
-        supabase
-          .from("sync_logs")
-          .select("platform, status, started_at")
-          .order("started_at", { ascending: false })
-          .limit(20),
-        5000,
-        "Sync logs query timed out"
-      );
+      const { data: functionLogs, error } = await supabase
+        .from("sync_logs")
+        .select("platform, status, started_at")
+        .order("started_at", { ascending: false })
+        .limit(20);
 
       if (error) {
         if (error.code === "42P01") {

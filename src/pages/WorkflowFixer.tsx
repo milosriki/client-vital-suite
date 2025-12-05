@@ -143,18 +143,21 @@ export default function WorkflowFixer() {
       }
     }
 
-    // Test RPC functions
+    // Test RPC functions (these functions may not be in generated types yet)
     try {
+      // @ts-expect-error - RPC function exists in DB but not in generated types
       const { error: rpc1Error } = await supabase.rpc('get_zone_distribution', { 
         target_date: new Date().toISOString().split('T')[0] 
       });
       status['get_zone_distribution'] = !rpc1Error;
 
+      // @ts-expect-error - RPC function exists in DB but not in generated types
       const { error: rpc2Error } = await supabase.rpc('get_overall_avg', { 
         target_date: new Date().toISOString().split('T')[0] 
       });
       status['get_overall_avg'] = !rpc2Error;
 
+      // @ts-expect-error - RPC function exists in DB but not in generated types
       const { error: rpc3Error } = await supabase.rpc('get_at_risk_clients', { 
         target_date: new Date().toISOString().split('T')[0] 
       });

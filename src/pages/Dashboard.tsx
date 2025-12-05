@@ -72,22 +72,22 @@ export default function Dashboard() {
         .select('*')
         .eq('calculated_on', latestDate.calculated_on);
 
-      // Apply filters
+      // Apply filters - using explicit any cast to avoid TypeScript recursion depth issues
       if (filterMode === 'high-risk') {
-        query = query.in('risk_category', ['HIGH', 'CRITICAL']);
+        query = (query as any).in('risk_category', ['HIGH', 'CRITICAL']);
       } else if (filterMode === 'early-warning') {
-        query = query.eq('early_warning_flag', true);
+        query = (query as any).eq('early_warning_flag', true);
       }
 
       if (selectedCoach !== 'all') {
-        query = query.eq('assigned_coach', selectedCoach);
+        query = (query as any).eq('assigned_coach', selectedCoach);
       }
 
       if (selectedZone !== 'all') {
-        query = query.eq('health_zone', selectedZone);
+        query = (query as any).eq('health_zone', selectedZone);
       }
 
-      query = query.order('predictive_risk_score', { ascending: false });
+      query = (query as any).order('predictive_risk_score', { ascending: false });
 
       const { data, error } = await query;
       if (error) throw error;
