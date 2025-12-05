@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -10,7 +11,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
-import Analytics from "./pages/Analytics";
+import AnalyticsPage from "./pages/Analytics";
 import WorkflowFixer from "./pages/WorkflowFixer";
 import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
@@ -33,7 +34,7 @@ const router = createBrowserRouter([
       { path: "/clients/:email", element: <ClientDetail /> },
       { path: "/coaches", element: <Coaches /> },
       { path: "/interventions", element: <Interventions /> },
-      { path: "/analytics", element: <Analytics /> },
+      { path: "/analytics", element: <AnalyticsPage /> },
       { path: "/fix-workflows", element: <WorkflowFixer /> },
       { path: "/workflow-strategy", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
@@ -68,6 +69,7 @@ createRoot(root).render(
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <RouterProvider router={router} />
+        <VercelAnalytics />
       </TooltipProvider>
     </QueryClientProvider>
   </StrictMode>
