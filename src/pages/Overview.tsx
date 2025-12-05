@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Settings } from "lucide-react";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -126,122 +126,40 @@ const Overview = () => {
     setErrorDetails(null);
     
     try {
-      console.log("Starting setup workflow...");
-      setSetupStatus("Connecting to n8n...");
+      console.log("Starting data refresh...");
+      setSetupStatus("Checking database connection...");
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      setSetupStatus("Fixing workflow configurations...");
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setSetupStatus("Running Daily Calculator...");
-      const { data, error } = await supabase.functions.invoke("setup-workflows");
-      
-      console.log("Setup response:", { data, error });
-      
-      if (error) {
-        console.error("Supabase function error:", error);
-        setErrorDetails({
-          type: "Supabase Function Error",
-          message: error.message,
-          details: error,
-          timestamp: new Date().toISOString()
-        });
-        throw error;
-      }
-      
-      if (!data?.success) {
-        console.error("Setup failed:", data);
-        
-        const errorMsg = data?.error || "Setup failed";
-        const executionError = data?.execution?.message;
-        const workflowErrors = data?.workflowFixes?.filter((w: any) => w.status === "error");
-        
-        let detailedMessage = errorMsg;
-        if (executionError) {
-          detailedMessage += `\n\nExecution: ${executionError}`;
-        }
-        if (workflowErrors && workflowErrors.length > 0) {
-          detailedMessage += `\n\nWorkflow Errors:\n${workflowErrors.map((w: any) => 
-            `- ${w.workflow}: ${w.message}`
-          ).join('\n')}`;
-        }
-        
-        setErrorDetails({
-          type: "Setup Error",
-          message: errorMsg,
-          executionError: data?.execution,
-          workflowErrors,
-          fullResponse: data,
-          timestamp: new Date().toISOString()
-        });
-        
-        toast({
-          title: "Setup Failed",
-          description: (
-            <div className="space-y-2">
-              <p>{errorMsg}</p>
-              {executionError && (
-                <p className="text-xs text-muted-foreground">Execution: {executionError}</p>
-              )}
-              {data?.execution?.statusCode && (
-                <p className="text-xs text-muted-foreground">Status: {data.execution.statusCode}</p>
-              )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowErrorModal(true)}
-                className="mt-2"
-              >
-                View Full Error
-              </Button>
-            </div>
-          ),
-          variant: "destructive",
-        });
-        
-        setSetupStatus("");
-        return;
-      }
-      
-      setSetupStatus("Populating database...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Simply refresh the data from Supabase
+      setSetupStatus("Fetching latest data...");
+      await refetchSummary();
+      await refetchCritical();
+      await refetchCoaches();
+      await refetchInterventions();
+      await refetchWeekly();
       
       setSetupStatus("Success! Dashboard ready.");
       toast({
-        title: "Setup Complete",
-        description: `Fixed ${data.summary?.fixed || 0} workflows. Refreshing dashboard...`,
+        title: "Data Refreshed",
+        description: "Dashboard data has been refreshed from the database.",
       });
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      window.location.reload();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSetupStatus("");
       
     } catch (error) {
-      console.error("Setup error:", error);
+      console.error("Refresh error:", error);
       
-      if (!errorDetails) {
-        setErrorDetails({
-          type: "Unexpected Error",
-          message: error instanceof Error ? error.message : "Unknown error",
-          error,
-          timestamp: new Date().toISOString()
-        });
-      }
+      setErrorDetails({
+        type: "Data Refresh Error",
+        message: error instanceof Error ? error.message : "Unknown error",
+        error,
+        timestamp: new Date().toISOString()
+      });
       
       toast({
-        title: "Setup Failed",
-        description: (
-          <div className="space-y-2">
-            <p>{error instanceof Error ? error.message : "Failed to setup workflows"}</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowErrorModal(true)}
-              className="mt-2"
-            >
-              View Error Details
-            </Button>
-          </div>
-        ),
+        title: "Refresh Failed",
+        description: error instanceof Error ? error.message : "Failed to refresh data",
         variant: "destructive",
       });
       setSetupStatus("");
@@ -311,11 +229,11 @@ const Overview = () => {
           <Card className="max-w-md w-full">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <Settings className="h-6 w-6 text-blue-600" />
+                <RefreshCw className="h-6 w-6 text-blue-600" />
               </div>
-              <CardTitle>Setup Required</CardTitle>
+              <CardTitle>No Data Available</CardTitle>
               <CardDescription>
-                Fix workflows and populate database to get started
+                No daily summary found for today. Data may need to be synced from HubSpot.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -333,36 +251,23 @@ const Overview = () => {
                   {setupLoading ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Setting up...
+                      Refreshing...
                     </>
                   ) : (
                     <>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Fix & Run Now
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Refresh Data
                     </>
                   )}
                 </Button>
-                {errorDetails && !setupLoading && (
-                  <Button 
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleSetupWorkflows}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Retry Setup
-                  </Button>
-                )}
-              </div>
-              {errorDetails && (
                 <Button 
-                  variant="ghost"
-                  size="sm"
+                  variant="outline"
                   className="w-full"
-                  onClick={() => setShowErrorModal(true)}
+                  onClick={() => navigate('/hubspot-live')}
                 >
-                  View Error Logs
+                  Go to HubSpot Live
                 </Button>
-              )}
+              </div>
             </CardContent>
           </Card>
         </div>
