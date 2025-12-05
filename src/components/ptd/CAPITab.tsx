@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, Eye, Play, AlertTriangle, CheckCircle, Loader2, RefreshCw, ShoppingCart, UserPlus, FileText, Search, CreditCard, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 interface CAPITabProps {
   mode: "test" | "live";
