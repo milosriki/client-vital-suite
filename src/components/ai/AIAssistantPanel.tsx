@@ -39,6 +39,7 @@ interface ProactiveInsight {
   content: string;
   action_items: any[];
   affected_entities: any;
+  is_dismissed?: boolean;
   created_at: string;
 }
 
@@ -51,9 +52,10 @@ export function AIAssistantPanel() {
   // Fetch proactive insights (gracefully handles missing table)
   const { data: insights, refetch: refetchInsights } = useQuery({
     queryKey: ["proactive-insights"],
-    queryFn: async () => {
+    queryFn: async (): Promise<ProactiveInsight[]> => {
       try {
-        const { data, error } = await supabase
+        // Using raw query since table may not exist in schema yet
+        const { data, error } = await (supabase as any)
           .from("proactive_insights")
           .select("*")
           .eq("is_dismissed", false)
@@ -63,13 +65,13 @@ export function AIAssistantPanel() {
         if (error) {
           // Table might not exist yet - that's okay
           if (error.code === "42P01" || error.message?.includes("does not exist")) {
-            console.log("proactive_insights table not yet created");
+            console.info("proactive_insights table not yet created");
             return [];
           }
           console.error("Error fetching insights:", error);
           return [];
         }
-        return data as ProactiveInsight[];
+        return (data || []) as ProactiveInsight[];
       } catch (e) {
         console.error("Error in insights query:", e);
         return [];
@@ -82,9 +84,10 @@ export function AIAssistantPanel() {
   // Fetch conversation history (gracefully handles missing table)
   const { data: messages, refetch: refetchMessages } = useQuery({
     queryKey: ["agent-messages", sessionId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Message[]> => {
       try {
-        const { data, error } = await supabase
+        // Using raw query since table may not exist in schema yet
+        const { data, error } = await (supabase as any)
           .from("agent_conversations")
           .select("*")
           .eq("session_id", sessionId)
@@ -93,13 +96,13 @@ export function AIAssistantPanel() {
         if (error) {
           // Table might not exist yet - that's okay
           if (error.code === "42P01" || error.message?.includes("does not exist")) {
-            console.log("agent_conversations table not yet created");
+            console.info("agent_conversations table not yet created");
             return [];
           }
           console.error("Error fetching messages:", error);
           return [];
         }
-        return data as Message[];
+        return (data || []) as Message[];
       } catch (e) {
         console.error("Error in messages query:", e);
         return [];
@@ -140,7 +143,7 @@ export function AIAssistantPanel() {
   // Dismiss insight
   const dismissInsight = useMutation({
     mutationFn: async (insightId: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("proactive_insights")
         .update({ is_dismissed: true })
         .eq("id", insightId);
@@ -401,9 +404,9 @@ export function AIAssistantPanel() {
 export function AIAssistantButton({ onClick }: { onClick: () => void }) {
   const { data: insights } = useQuery({
     queryKey: ["proactive-insights-count"],
-    queryFn: async () => {
+    queryFn: async (): Promise<number> => {
       try {
-        const { count, error } = await supabase
+        const { count, error } = await (supabase as any)
           .from("proactive_insights")
           .select("*", { count: "exact", head: true })
           .eq("is_dismissed", false)
