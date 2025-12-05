@@ -314,82 +314,72 @@ async function getLiveDashboardData() {
   const today = new Date().toISOString().split("T")[0];
 
   try {
-    const [
-      zoneDistribution,
-      atRiskClients,
-      recentInterventions,
-      dailySummary,
-      coachPerformance
-    ] = await Promise.all([
-      // Zone distribution
-      supabase.rpc("get_zone_distribution", { target_date: today })
-        .catch((err) => {
-          console.error("[PTD Agent] Error fetching zone distribution:", err);
-          return { data: null, error: err };
-        }),
+    // Zone distribution
+    let zones = null;
+    try {
+      const { data } = await supabase.rpc("get_zone_distribution", { target_date: today });
+      zones = data;
+    } catch (err) {
+      console.error("[PTD Agent] Error fetching zone distribution:", err);
+    }
 
-      // At-risk clients (top 15)
-      supabase
+    // At-risk clients (top 15)
+    let atRiskClients = null;
+    try {
+      const { data } = await supabase
         .from("client_health_scores")
         .select("email, firstname, lastname, health_score, health_zone, predictive_risk_score, momentum_indicator, days_since_last_session, outstanding_sessions, sessions_last_7d, sessions_last_30d, assigned_coach")
         .in("health_zone", ["RED", "YELLOW"])
         .order("predictive_risk_score", { ascending: false })
-        .limit(15)
-        .catch((err) => {
-          console.error("[PTD Agent] Error fetching at-risk clients:", err);
-          return { data: null, error: err };
-        }),
+        .limit(15);
+      atRiskClients = data;
+    } catch (err) {
+      console.error("[PTD Agent] Error fetching at-risk clients:", err);
+    }
 
-      // Recent interventions
-      supabase
+    // Recent interventions
+    let recentInterventions = null;
+    try {
+      const { data } = await supabase
         .from("intervention_log")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(10)
-        .catch((err) => {
-          console.error("[PTD Agent] Error fetching recent interventions:", err);
-          return { data: null, error: err };
-        }),
+        .limit(10);
+      recentInterventions = data;
+    } catch (err) {
+      console.error("[PTD Agent] Error fetching recent interventions:", err);
+    }
 
-      // Today's summary
-      supabase
+    // Today's summary
+    let summary = null;
+    try {
+      const { data } = await supabase
         .from("daily_summary")
         .select("*")
-        .order("date", { ascending: false })
-        .limit(1)
-        .catch((err) => {
-          console.error("[PTD Agent] Error fetching daily summary:", err);
-          return { data: null, error: err };
-        }),
+        .order("summary_date", { ascending: false })
+        .limit(1);
+      summary = data?.[0] ?? null;
+    } catch (err) {
+      console.error("[PTD Agent] Error fetching daily summary:", err);
+    }
 
-      // Coach performance
-      supabase
+    // Coach performance
+    let coaches = null;
+    try {
+      const { data } = await supabase
         .from("coach_performance")
         .select("*")
         .order("avg_client_health", { ascending: true })
-        .limit(10)
-        .catch((err) => {
-          console.error("[PTD Agent] Error fetching coach performance:", err);
-          return { data: null, error: err };
-        })
-    ]);
+        .limit(10);
+      coaches = data;
+    } catch (err) {
+      console.error("[PTD Agent] Error fetching coach performance:", err);
+    }
 
-    return {
-      zones: zoneDistribution.data,
-      atRiskClients: atRiskClients.data,
-      recentInterventions: recentInterventions.data,
-      summary: dailySummary.data?.[0],
-      coaches: coachPerformance.data
-    };
+    return { zones, atRiskClients, recentInterventions, summary, coaches };
   } catch (error) {
     console.error("[PTD Agent] Exception in getLiveDashboardData:", error);
-    return {
-      zones: null,
-      atRiskClients: null,
-      recentInterventions: null,
-      summary: null,
-      coaches: null
-    };
+    return { zones: null, atRiskClients: null, recentInterventions: null, summary: null, coaches: null };
   }
 }
 
