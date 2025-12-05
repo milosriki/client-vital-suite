@@ -127,7 +127,7 @@ const Clients = () => {
                 : "No clients found matching your criteria"}
             </p>
             {clients?.length === 0 && (
-              <p className="text-sm text-muted-foreground">Run your n8n workflow to populate the database.</p>
+              <p className="text-sm text-muted-foreground">Sync data from HubSpot to populate the database.</p>
             )}
           </Card>
         ) : (

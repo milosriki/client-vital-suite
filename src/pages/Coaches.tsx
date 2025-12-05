@@ -99,7 +99,7 @@ const Coaches = () => {
         ) : coaches?.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground mb-2">No data yet</p>
-            <p className="text-sm text-muted-foreground">Run your n8n workflow to populate the database.</p>
+            <p className="text-sm text-muted-foreground">Sync data from HubSpot to populate the database.</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

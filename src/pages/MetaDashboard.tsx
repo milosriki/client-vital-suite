@@ -72,7 +72,7 @@ export default function MetaDashboard() {
 
   const handleTriggerBackfill = async () => {
     if (!backfillUrl) {
-      toast.error('Please enter n8n backfill webhook URL');
+      toast.error('Please enter backfill webhook URL');
       return;
     }
     
@@ -105,7 +105,7 @@ export default function MetaDashboard() {
 
   const handleHealthWebhook = async () => {
     if (!healthWebhookUrl) {
-      toast.error('Please enter n8n health webhook URL');
+      toast.error('Please enter health webhook URL');
       return;
     }
     
@@ -209,21 +209,21 @@ export default function MetaDashboard() {
         <ResultDisplay result={results.purchase} />
       </Card>
 
-      {/* n8n Backfill */}
+      {/* Backfill */}
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">Trigger n8n Backfill</h2>
+          <h2 className="text-xl font-semibold">Trigger Backfill</h2>
         </div>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="backfill-url">n8n Backfill Webhook URL</Label>
+            <Label htmlFor="backfill-url">Backfill Webhook URL</Label>
             <Input 
               id="backfill-url"
               type="url"
               value={backfillUrl}
               onChange={(e) => setBackfillUrl(e.target.value)}
-              placeholder="https://your-n8n.com/webhook/backfill"
+              placeholder="https://your-webhook.com/backfill"
             />
           </div>
           <Button 
@@ -236,21 +236,21 @@ export default function MetaDashboard() {
         <ResultDisplay result={results.backfill} />
       </Card>
 
-      {/* n8n Health Webhook */}
+      {/* Health Webhook */}
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <Heart className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">Run n8n Health Check</h2>
+          <h2 className="text-xl font-semibold">Run Health Check</h2>
         </div>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="health-webhook-url">n8n Health Webhook URL</Label>
+            <Label htmlFor="health-webhook-url">Health Webhook URL</Label>
             <Input 
               id="health-webhook-url"
               type="url"
               value={healthWebhookUrl}
               onChange={(e) => setHealthWebhookUrl(e.target.value)}
-              placeholder="https://your-n8n.com/webhook/health"
+              placeholder="https://your-webhook.com/health"
             />
           </div>
           <Button 
