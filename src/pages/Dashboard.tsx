@@ -227,10 +227,10 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 className="h-20 flex flex-col gap-2"
-                onClick={() => navigate('/fix-workflows')}
+                onClick={() => navigate('/hubspot-live')}
               >
                 <Zap className="h-5 w-5" />
-                <span className="text-xs">Automation</span>
+                <span className="text-xs">HubSpot Sync</span>
               </Button>
               <Button
                 variant="outline"

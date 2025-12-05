@@ -12,7 +12,6 @@ import ClientDetail from "./pages/ClientDetail";
 import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
 import AnalyticsPage from "./pages/Analytics";
-import WorkflowFixer from "./pages/WorkflowFixer";
 import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
 import PTDControl from "./pages/PTDControl";
@@ -35,7 +34,6 @@ const router = createBrowserRouter([
       { path: "/coaches", element: <Coaches /> },
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <AnalyticsPage /> },
-      { path: "/fix-workflows", element: <WorkflowFixer /> },
       { path: "/workflow-strategy", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "/ptd-control", element: <PTDControl /> },
