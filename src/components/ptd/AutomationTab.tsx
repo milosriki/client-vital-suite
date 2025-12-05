@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Eye, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 interface AutomationTabProps {
   mode: "test" | "live";
