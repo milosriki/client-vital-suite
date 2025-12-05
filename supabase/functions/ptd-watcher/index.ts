@@ -461,11 +461,14 @@ serve(async (req) => {
           dedup_key: insight.dedup_key,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h expiry
         }, {
-          onConflict: "dedup_key",
-          ignoreDuplicates: true
+          onConflict: 'dedup_key'
         });
 
-      if (!error) inserted++;
+      if (error) {
+        console.error("Error upserting insight:", error);
+      } else {
+        inserted++;
+      }
     }
 
     const duration = Date.now() - startTime;

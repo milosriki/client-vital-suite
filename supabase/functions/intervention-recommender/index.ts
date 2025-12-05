@@ -12,12 +12,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+// Environment variable validation
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing Supabase configuration");
+}
+
+// ANTHROPIC_API_KEY is optional
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+if (!ANTHROPIC_API_KEY) {
+  console.warn("ANTHROPIC_API_KEY not set - using template messages only");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface InterventionRecommendation {
   client_email: string;
@@ -127,27 +136,46 @@ Requirements:
 
 Write the message:`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 200,
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
+    // Add timeout to Claude API call (10 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 200,
+          messages: [{ role: "user", content: prompt }]
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.warn(`[Claude API] Request failed with status ${response.status}`);
+        return getTemplateMessage(client, interventionType);
+      }
+
+      const data = await response.json();
+      return data.content[0]?.text || getTemplateMessage(client, interventionType);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn("[Claude API] Request timeout - falling back to template");
+      } else {
+        console.warn("[Claude API] Request failed:", fetchError);
+      }
       return getTemplateMessage(client, interventionType);
     }
-
-    const data = await response.json();
-    return data.content[0]?.text || getTemplateMessage(client, interventionType);
-  } catch {
+  } catch (error) {
+    console.error("[Claude API] Unexpected error:", error);
     return getTemplateMessage(client, interventionType);
   }
 }
@@ -247,9 +275,23 @@ serve(async (req) => {
     const { data: clients, error } = await query;
     if (error) throw error;
 
+    // Handle empty query results
+    if (!clients || clients.length === 0) {
+      console.log("[Intervention Recommender] No clients found matching criteria");
+      return new Response(JSON.stringify({
+        success: true,
+        duration_ms: Date.now() - startTime,
+        count: 0,
+        recommendations: [],
+        message: "No clients found matching the specified criteria"
+      }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+
     const recommendations: InterventionRecommendation[] = [];
 
-    for (const client of clients || []) {
+    for (const client of clients) {
       const interventionKey = selectInterventionType(client);
       const intervention = INTERVENTION_TYPES[interventionKey];
 
@@ -277,31 +319,41 @@ serve(async (req) => {
 
       recommendations.push(rec);
 
-      // Save to intervention log
+      // Save to intervention log with error handling
       if (save_to_db) {
-        await supabase.from("intervention_log").upsert({
-          client_email: client.email,
-          email: client.email,
-          firstname: client.firstname,
-          lastname: client.lastname,
-          intervention_type: intervention.name,
-          priority: rec.priority,
-          health_score: client.health_score,
-          health_zone: client.health_zone,
-          churn_risk_at_trigger: client.predictive_risk_score,
-          ai_recommendation: messageDraft,
-          ai_insight: psychInsight,
-          ai_confidence: successProb / 100,
-          communication_method: intervention.channel,
-          communication_timing: intervention.timing,
-          psychological_insight: psychInsight,
-          success_probability: successProb,
-          status: "PENDING",
-          triggered_at: new Date().toISOString()
-        }, {
-          onConflict: "client_email",
-          ignoreDuplicates: false
-        });
+        try {
+          const { error: upsertError } = await supabase.from("intervention_log").upsert({
+            client_email: client.email,
+            email: client.email,
+            firstname: client.firstname,
+            lastname: client.lastname,
+            intervention_type: intervention.name,
+            priority: rec.priority,
+            health_score: client.health_score,
+            health_zone: client.health_zone,
+            churn_risk_at_trigger: client.predictive_risk_score,
+            ai_recommendation: messageDraft,
+            ai_insight: psychInsight,
+            ai_confidence: successProb / 100,
+            communication_method: intervention.channel,
+            communication_timing: intervention.timing,
+            psychological_insight: psychInsight,
+            success_probability: successProb,
+            status: "PENDING",
+            triggered_at: new Date().toISOString()
+          }, {
+            onConflict: "client_email",
+            ignoreDuplicates: false
+          });
+
+          if (upsertError) {
+            console.error(`[Intervention Recommender] Failed to save intervention for ${client.email}:`, upsertError);
+            // Continue processing other clients even if one fails
+          }
+        } catch (dbError) {
+          console.error(`[Intervention Recommender] Database error for ${client.email}:`, dbError);
+          // Continue processing other clients even if one fails
+        }
       }
     }
 

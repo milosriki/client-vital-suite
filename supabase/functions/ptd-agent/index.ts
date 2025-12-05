@@ -12,6 +12,11 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
+if (!ANTHROPIC_API_KEY) {
+  throw new Error("ANTHROPIC_API_KEY not configured in environment");
+}
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -280,125 +285,215 @@ RED (Critical):      health_score < 50
 // ============================================
 
 async function getConversationHistory(sessionId: string, limit = 10): Promise<string> {
-  const { data } = await supabase
-    .from("agent_conversations")
-    .select("role, content")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  try {
+    const { data, error } = await supabase
+      .from("agent_conversations")
+      .select("role, content")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-  if (!data?.length) return "";
+    if (error) {
+      console.error("[PTD Agent] Error fetching conversation history:", error);
+      return "";
+    }
 
-  return data
-    .reverse()
-    .map(m => `${m.role.toUpperCase()}: ${m.content}`)
-    .join("\n\n");
+    if (!data?.length) return "";
+
+    return data
+      .reverse()
+      .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+      .join("\n\n");
+  } catch (error) {
+    console.error("[PTD Agent] Exception in getConversationHistory:", error);
+    return "";
+  }
 }
 
 async function getLiveDashboardData() {
   const today = new Date().toISOString().split("T")[0];
 
-  const [
-    zoneDistribution,
-    atRiskClients,
-    recentInterventions,
-    dailySummary,
-    coachPerformance
-  ] = await Promise.all([
-    // Zone distribution
-    supabase.rpc("get_zone_distribution", { target_date: today }).catch(() => ({ data: null })),
+  try {
+    const [
+      zoneDistribution,
+      atRiskClients,
+      recentInterventions,
+      dailySummary,
+      coachPerformance
+    ] = await Promise.all([
+      // Zone distribution
+      supabase.rpc("get_zone_distribution", { target_date: today })
+        .catch((err) => {
+          console.error("[PTD Agent] Error fetching zone distribution:", err);
+          return { data: null, error: err };
+        }),
 
-    // At-risk clients (top 15)
-    supabase
-      .from("client_health_scores")
-      .select("email, firstname, lastname, health_score, health_zone, predictive_risk_score, momentum_indicator, days_since_last_session, outstanding_sessions, sessions_last_7d, sessions_last_30d, assigned_coach")
-      .in("health_zone", ["RED", "YELLOW"])
-      .order("predictive_risk_score", { ascending: false })
-      .limit(15),
+      // At-risk clients (top 15)
+      supabase
+        .from("client_health_scores")
+        .select("email, firstname, lastname, health_score, health_zone, predictive_risk_score, momentum_indicator, days_since_last_session, outstanding_sessions, sessions_last_7d, sessions_last_30d, assigned_coach")
+        .in("health_zone", ["RED", "YELLOW"])
+        .order("predictive_risk_score", { ascending: false })
+        .limit(15)
+        .catch((err) => {
+          console.error("[PTD Agent] Error fetching at-risk clients:", err);
+          return { data: null, error: err };
+        }),
 
-    // Recent interventions
-    supabase
-      .from("intervention_log")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10),
+      // Recent interventions
+      supabase
+        .from("intervention_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10)
+        .catch((err) => {
+          console.error("[PTD Agent] Error fetching recent interventions:", err);
+          return { data: null, error: err };
+        }),
 
-    // Today's summary
-    supabase
-      .from("daily_summary")
-      .select("*")
-      .order("date", { ascending: false })
-      .limit(1),
+      // Today's summary
+      supabase
+        .from("daily_summary")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(1)
+        .catch((err) => {
+          console.error("[PTD Agent] Error fetching daily summary:", err);
+          return { data: null, error: err };
+        }),
 
-    // Coach performance
-    supabase
-      .from("coach_performance")
-      .select("*")
-      .order("avg_client_health", { ascending: true })
-      .limit(10)
-  ]);
+      // Coach performance
+      supabase
+        .from("coach_performance")
+        .select("*")
+        .order("avg_client_health", { ascending: true })
+        .limit(10)
+        .catch((err) => {
+          console.error("[PTD Agent] Error fetching coach performance:", err);
+          return { data: null, error: err };
+        })
+    ]);
 
-  return {
-    zones: zoneDistribution.data,
-    atRiskClients: atRiskClients.data,
-    recentInterventions: recentInterventions.data,
-    summary: dailySummary.data?.[0],
-    coaches: coachPerformance.data
-  };
+    return {
+      zones: zoneDistribution.data,
+      atRiskClients: atRiskClients.data,
+      recentInterventions: recentInterventions.data,
+      summary: dailySummary.data?.[0],
+      coaches: coachPerformance.data
+    };
+  } catch (error) {
+    console.error("[PTD Agent] Exception in getLiveDashboardData:", error);
+    return {
+      zones: null,
+      atRiskClients: null,
+      recentInterventions: null,
+      summary: null,
+      coaches: null
+    };
+  }
 }
 
 async function getSuccessfulDecisions(type?: string, limit = 5) {
-  const query = supabase
-    .from("agent_decisions")
-    .select("decision_type, input_context, decision, reasoning, outcome_metrics")
-    .in("outcome", ["successful", "partially_successful"])
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  try {
+    const query = supabase
+      .from("agent_decisions")
+      .select("decision_type, input_context, decision, reasoning, outcome_metrics")
+      .in("outcome", ["successful", "partially_successful"])
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-  if (type) {
-    query.eq("decision_type", type);
+    if (type) {
+      query.eq("decision_type", type);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[PTD Agent] Error fetching successful decisions:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("[PTD Agent] Exception in getSuccessfulDecisions:", error);
+    return [];
   }
-
-  const { data } = await query;
-  return data || [];
 }
 
 async function saveConversation(sessionId: string, role: string, content: string, agentType = "analyst") {
-  await supabase.from("agent_conversations").insert({
-    session_id: sessionId,
-    role,
-    content,
-    agent_type: agentType
-  });
+  try {
+    const { error } = await supabase.from("agent_conversations").insert({
+      session_id: sessionId,
+      role,
+      content,
+      agent_type: agentType
+    });
+
+    if (error) {
+      console.error("[PTD Agent] Error saving conversation:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("[PTD Agent] Exception in saveConversation:", error);
+    throw error;
+  }
 }
 
 async function saveDecision(decision: any) {
-  await supabase.from("agent_decisions").insert(decision);
+  try {
+    const { error } = await supabase.from("agent_decisions").insert(decision);
+
+    if (error) {
+      console.error("[PTD Agent] Error saving decision:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("[PTD Agent] Exception in saveDecision:", error);
+    throw error;
+  }
 }
 
 async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01"
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2500,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }]
-    })
-  });
+  const TIMEOUT_MS = 30000; // 30 second timeout
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error: ${error}`);
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2500,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }]
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[PTD Agent] Claude API error:", error);
+      throw new Error(`Claude API error: ${error}`);
+    }
+
+    const data = await response.json();
+    return data.content[0]?.text || "";
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[PTD Agent] Claude API timeout after", TIMEOUT_MS, "ms");
+      throw new Error(`Claude API timeout after ${TIMEOUT_MS}ms`);
+    }
+    console.error("[PTD Agent] Exception in callClaude:", error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.content[0]?.text || "";
 }
 
 // ============================================

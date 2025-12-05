@@ -12,12 +12,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
-
+// Environment variable validation
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing Supabase configuration");
+}
+// ANTHROPIC_API_KEY is optional - AI insights will be skipped if missing
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface ChurnPrediction {
   email: string;
@@ -159,7 +164,10 @@ function getRecommendedActions(client: any, riskCategory: string, factors: strin
 }
 
 async function getAIInsight(client: any, factors: string[]): Promise<string | null> {
-  if (!ANTHROPIC_API_KEY) return null;
+  if (!ANTHROPIC_API_KEY) {
+    console.log("Skipping AI insight - ANTHROPIC_API_KEY not configured");
+    return null;
+  }
 
   try {
     const prompt = `Analyze this fitness client's churn risk and provide a 1-2 sentence actionable insight:
@@ -228,31 +236,37 @@ serve(async (req) => {
     const predictions: ChurnPrediction[] = [];
 
     for (const client of clients || []) {
-      const { factors, score } = calculateChurnFactors(client);
+      try {
+        const { factors, score } = calculateChurnFactors(client);
 
-      if (score < min_risk) continue;
+        if (score < min_risk) continue;
 
-      const riskCategory = getRiskCategory(score);
-      const daysToChurn = estimateDaysToChurn(client, score);
-      const actions = getRecommendedActions(client, riskCategory, factors);
+        const riskCategory = getRiskCategory(score);
+        const daysToChurn = estimateDaysToChurn(client, score);
+        const actions = getRecommendedActions(client, riskCategory, factors);
 
-      let aiInsight: string | null = null;
-      if (include_ai_insights && score >= 60) {
-        aiInsight = await getAIInsight(client, factors);
+        let aiInsight: string | null = null;
+        if (include_ai_insights && score >= 60) {
+          aiInsight = await getAIInsight(client, factors);
+        }
+
+        predictions.push({
+          email: client.email,
+          name: `${client.firstname || ""} ${client.lastname || ""}`.trim(),
+          churn_probability: score,
+          risk_category: riskCategory,
+          days_to_churn_estimate: daysToChurn,
+          risk_factors: factors,
+          recommended_actions: actions,
+          ai_insight: aiInsight
+        });
+
+        if (predictions.length >= limit) break;
+      } catch (clientError) {
+        console.error(`[Churn Predictor] Error processing client ${client.email}:`, clientError);
+        // Continue processing other clients
+        continue;
       }
-
-      predictions.push({
-        email: client.email,
-        name: `${client.firstname || ""} ${client.lastname || ""}`.trim(),
-        churn_probability: score,
-        risk_category: riskCategory,
-        days_to_churn_estimate: daysToChurn,
-        risk_factors: factors,
-        recommended_actions: actions,
-        ai_insight: aiInsight
-      });
-
-      if (predictions.length >= limit) break;
     }
 
     // Save high-risk predictions to intervention log
@@ -262,21 +276,26 @@ serve(async (req) => {
       );
 
       for (const pred of criticalPredictions) {
-        await supabase.from("intervention_log").upsert({
-          client_email: pred.email,
-          email: pred.email,
-          trigger_reason: `Churn Predictor: ${pred.risk_category} risk (${pred.churn_probability}%)`,
-          intervention_type: "CHURN_PREVENTION",
-          priority: pred.risk_category,
-          ai_recommendation: pred.recommended_actions.join("; "),
-          ai_insight: pred.ai_insight || pred.risk_factors.join("; "),
-          ai_confidence: pred.churn_probability / 100,
-          status: "PENDING",
-          triggered_at: new Date().toISOString()
-        }, {
-          onConflict: "client_email",
-          ignoreDuplicates: false
-        });
+        try {
+          await supabase.from("intervention_log").upsert({
+            client_email: pred.email,
+            email: pred.email,
+            trigger_reason: `Churn Predictor: ${pred.risk_category} risk (${pred.churn_probability}%)`,
+            intervention_type: "CHURN_PREVENTION",
+            priority: pred.risk_category,
+            ai_recommendation: pred.recommended_actions.join("; "),
+            ai_insight: pred.ai_insight || pred.risk_factors.join("; "),
+            ai_confidence: pred.churn_probability / 100,
+            status: "PENDING",
+            triggered_at: new Date().toISOString()
+          }, {
+            onConflict: "client_email",
+            ignoreDuplicates: false
+          });
+        } catch (dbError) {
+          console.error(`[Churn Predictor] Error saving intervention for ${pred.email}:`, dbError);
+          // Continue saving other predictions
+        }
       }
     }
 

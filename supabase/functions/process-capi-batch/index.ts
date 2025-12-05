@@ -148,7 +148,7 @@ serve(async (req) => {
 
         if (stapeResponse.ok) {
           // Update event as sent
-          await supabase
+          const { error: updateError } = await supabase
             .from('capi_events_enriched')
             .update({
               send_status: 'sent',
@@ -157,6 +157,10 @@ serve(async (req) => {
               meta_response: responseData,
             })
             .eq('id', event.id);
+
+          if (updateError) {
+            console.error(`Failed to update event ${event.id}:`, updateError);
+          }
 
           sentCount++;
           console.log('Sent event:', event.event_id);
@@ -172,13 +176,17 @@ serve(async (req) => {
         });
 
         // Update event as failed
-        await supabase
+        const { error: updateError } = await supabase
           .from('capi_events_enriched')
           .update({
             send_status: 'failed',
             send_attempts: (event.send_attempts || 0) + 1,
           })
           .eq('id', event.id);
+
+        if (updateError) {
+          console.error(`Failed to update event ${event.id}:`, updateError);
+        }
       }
 
       // Small delay to avoid rate limiting

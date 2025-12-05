@@ -84,12 +84,14 @@ function validateEventTime(time: string | null): { valid: boolean; error?: strin
   if (!time) return { valid: false, error: "Event time is required" };
 
   const eventDate = new Date(time);
+
+  // Check for invalid date FIRST
+  if (isNaN(eventDate.getTime())) {
+    return { valid: false, error: `Invalid date format: ${time}` };
+  }
+
   const now = new Date();
   const daysDiff = (now.getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24);
-
-  if (isNaN(eventDate.getTime())) {
-    return { valid: false, error: "Invalid date format" };
-  }
 
   if (daysDiff > 7) {
     return {

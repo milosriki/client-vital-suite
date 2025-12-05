@@ -12,10 +12,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+// Validate required environment variables
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+if (!SUPABASE_URL) {
+  throw new Error("SUPABASE_URL environment variable is required");
+}
+
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ============================================
 // SCORING ALGORITHMS
@@ -46,7 +55,7 @@ function calculateEngagementScore(client: any): number {
 
 function calculatePackageHealthScore(client: any): number {
   const outstanding = client.outstanding_sessions || 0;
-  const purchased = client.sessions_purchased || 1;
+  const purchased = client.sessions_purchased || 1; // Prevent division by zero
   const remainingPct = (outstanding / purchased) * 100;
 
   if (remainingPct >= 50) return 90;
@@ -59,6 +68,7 @@ function calculateMomentumScore(client: any): number {
   const avgWeekly7d = client.sessions_last_7d || 0;
   const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
 
+  // Handle division by zero - check before calculating rate of change
   if (avgWeekly30d === 0) {
     return client.sessions_last_7d > 0 ? 70 : 30;
   }
@@ -75,6 +85,7 @@ function getMomentumIndicator(client: any): string {
   const avgWeekly7d = client.sessions_last_7d || 0;
   const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
 
+  // Handle division by zero - check before calculating rate of change
   if (avgWeekly30d === 0) {
     return client.sessions_last_7d > 0 ? "STABLE" : "DECLINING";
   }
@@ -122,7 +133,7 @@ function calculatePredictiveRisk(client: any, healthZone: string, momentum: stri
 
   // Package depletion
   const outstanding = client.outstanding_sessions || 0;
-  const purchased = client.sessions_purchased || 1;
+  const purchased = client.sessions_purchased || 1; // Prevent division by zero
   const remainingPct = (outstanding / purchased) * 100;
   if (remainingPct < 10 && sessions7d < 2) risk += 20;
   else if (remainingPct > 50) risk -= 10;
@@ -248,9 +259,14 @@ serve(async (req) => {
           results.criticalInterventions++;
         }
 
-      } catch (err) {
-        console.error(`Error processing ${client.email}:`, err);
+        // Log successful processing
+        console.log(`Processed client ${client.email}: Health=${healthScore} Zone=${healthZone} Priority=${interventionPriority}`);
+
+      } catch (clientError) {
+        console.error(`Error processing client ${client.email}:`, clientError);
         results.errors++;
+        // Continue with next client instead of failing entire batch
+        continue;
       }
     }
 

@@ -12,10 +12,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+// Validate required environment variables
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("[Data Quality] Missing required environment variables");
+  throw new Error("Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface DataIssue {
   table: string;
@@ -318,24 +324,77 @@ serve(async (req) => {
     // Run checks based on requested tables
     const checkAll = tables.includes("all");
 
+    // Run checks with individual error handling
     if (checkAll || tables.includes("client_health_scores")) {
-      const healthIssues = await checkClientHealthScores();
-      allIssues.push(...healthIssues);
+      try {
+        const healthIssues = await checkClientHealthScores();
+        allIssues.push(...healthIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkClientHealthScores:", e);
+        allIssues.push({
+          table: "client_health_scores",
+          issue_type: "invalid",
+          severity: "high",
+          description: "Failed to check table: " + (e instanceof Error ? e.message : "Unknown error"),
+          affected_count: 0,
+          sample_records: [],
+          recommendation: "Check database connectivity and table existence"
+        });
+      }
     }
 
     if (checkAll || tables.includes("capi_events_enriched")) {
-      const capiIssues = await checkCAPIEvents();
-      allIssues.push(...capiIssues);
+      try {
+        const capiIssues = await checkCAPIEvents();
+        allIssues.push(...capiIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkCAPIEvents:", e);
+        allIssues.push({
+          table: "capi_events_enriched",
+          issue_type: "invalid",
+          severity: "high",
+          description: "Failed to check table: " + (e instanceof Error ? e.message : "Unknown error"),
+          affected_count: 0,
+          sample_records: [],
+          recommendation: "Check database connectivity and table existence"
+        });
+      }
     }
 
     if (checkAll || tables.includes("intervention_log")) {
-      const interventionIssues = await checkInterventionLog();
-      allIssues.push(...interventionIssues);
+      try {
+        const interventionIssues = await checkInterventionLog();
+        allIssues.push(...interventionIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkInterventionLog:", e);
+        allIssues.push({
+          table: "intervention_log",
+          issue_type: "invalid",
+          severity: "high",
+          description: "Failed to check table: " + (e instanceof Error ? e.message : "Unknown error"),
+          affected_count: 0,
+          sample_records: [],
+          recommendation: "Check database connectivity and table existence"
+        });
+      }
     }
 
     if (checkAll) {
-      const duplicateIssues = await checkDuplicates();
-      allIssues.push(...duplicateIssues);
+      try {
+        const duplicateIssues = await checkDuplicates();
+        allIssues.push(...duplicateIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkDuplicates:", e);
+        allIssues.push({
+          table: "client_health_scores",
+          issue_type: "invalid",
+          severity: "high",
+          description: "Failed to check duplicates: " + (e instanceof Error ? e.message : "Unknown error"),
+          affected_count: 0,
+          sample_records: [],
+          recommendation: "Check database connectivity and table existence"
+        });
+      }
     }
 
     // Calculate table health scores

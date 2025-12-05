@@ -12,10 +12,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing Supabase configuration");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface CoachMetrics {
   coach_name: string;
@@ -35,18 +39,26 @@ interface CoachMetrics {
 
 async function analyzeCoaches(): Promise<CoachMetrics[]> {
   // Get all clients with health scores
-  const { data: clients } = await supabase
+  const { data: clients, error } = await supabase
     .from("client_health_scores")
     .select("*")
     .not("assigned_coach", "is", null);
 
-  if (!clients?.length) return [];
+  if (error) {
+    console.error("Error fetching clients:", error);
+    throw error;
+  }
 
-  // Group by coach
+  if (!clients?.length) {
+    console.log("No clients with assigned coaches found");
+    return [];
+  }
+
+  // Group by coach with null check
   const coachMap = new Map<string, any[]>();
   for (const client of clients) {
     const coach = client.assigned_coach;
-    if (!coach || coach === "Unassigned") continue;
+    if (!coach || coach === "Unassigned" || coach.trim() === "") continue;
     if (!coachMap.has(coach)) coachMap.set(coach, []);
     coachMap.get(coach)!.push(client);
   }
@@ -54,7 +66,7 @@ async function analyzeCoaches(): Promise<CoachMetrics[]> {
   const coachMetrics: CoachMetrics[] = [];
 
   coachMap.forEach((clientList, coachName) => {
-    const total = clientList.length;
+    const total = clientList.length || 1; // Prevent division by zero
     const active = clientList.filter(c => (c.sessions_last_30d || 0) > 0).length;
 
     const zones = { RED: 0, YELLOW: 0, GREEN: 0, PURPLE: 0 };
@@ -202,7 +214,7 @@ serve(async (req) => {
     // Summary stats
     const summary = {
       total_coaches: coaches.length,
-      avg_performance: Math.round(coaches.reduce((sum, c) => sum + c.performance_score, 0) / coaches.length),
+      avg_performance: coaches.length > 0 ? Math.round(coaches.reduce((sum, c) => sum + c.performance_score, 0) / coaches.length) : 0,
       top_performer: coaches[0]?.coach_name || "N/A",
       needs_attention: coaches.filter(c => c.performance_score < 50).map(c => c.coach_name)
     };

@@ -12,10 +12,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+// Validate required environment variables
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+if (!SUPABASE_URL) {
+  throw new Error("SUPABASE_URL environment variable is required");
+}
+
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface DailyReport {
   date: string;
@@ -51,16 +60,26 @@ async function generateReport(): Promise<DailyReport> {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
   // Get today's health scores
-  const { data: todayScores } = await supabase
+  const { data: todayScores, error: todayError } = await supabase
     .from("client_health_scores")
     .select("*")
     .gte("calculated_on", today);
 
+  if (todayError) {
+    console.error("Error fetching today's scores:", todayError);
+    throw todayError;
+  }
+
   // Get yesterday's for comparison
-  const { data: yesterdayScores } = await supabase
+  const { data: yesterdayScores, error: yesterdayError } = await supabase
     .from("client_health_scores")
     .select("email, health_zone, health_score")
     .eq("calculated_on", yesterday);
+
+  if (yesterdayError) {
+    console.error("Error fetching yesterday's scores:", yesterdayError);
+    // Non-fatal - continue without comparison data
+  }
 
   const yesterdayMap = new Map(
     (yesterdayScores || []).map(c => [c.email, c])
@@ -267,11 +286,22 @@ serve(async (req) => {
         });
       }
 
-      await fetch(webhook_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(slackMessage)
-      });
+      try {
+        const webhookResponse = await fetch(webhook_url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(slackMessage)
+        });
+
+        if (!webhookResponse.ok) {
+          console.error("Slack webhook failed:", webhookResponse.status, await webhookResponse.text());
+        } else {
+          console.log("Slack notification sent successfully");
+        }
+      } catch (webhookError) {
+        console.error("Error sending Slack notification:", webhookError);
+        // Don't throw - report generation succeeded, just notification failed
+      }
     }
 
     const duration = Date.now() - startTime;

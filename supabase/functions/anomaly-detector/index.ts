@@ -12,9 +12,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Validate environment variables at startup
+function validateEnv(): { valid: boolean; missing: string[] } {
+  const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
+  const missing = required.filter(key => !Deno.env.get(key));
+  return { valid: missing.length === 0, missing };
+}
+
+const envCheck = validateEnv();
+if (!envCheck.valid) {
+  console.error("[Anomaly Detector] Missing required environment variables:", envCheck.missing);
+}
+
 const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  Deno.env.get("SUPABASE_URL") || "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
 );
 
 interface Anomaly {
@@ -43,20 +55,29 @@ async function detectZoneDistributionAnomalies(): Promise<Anomaly[]> {
   const anomalies: Anomaly[] = [];
 
   // Get current zone distribution
-  const { data: clients } = await supabase
+  const { data: clients, error } = await supabase
     .from("client_health_scores")
     .select("health_zone, email");
 
-  if (!clients?.length) return anomalies;
+  if (error) {
+    console.error("[detectZoneDistributionAnomalies] Database error:", error);
+    return anomalies;
+  }
+
+  if (!clients || !Array.isArray(clients) || clients.length === 0) {
+    return anomalies;
+  }
 
   const zones = { RED: 0, YELLOW: 0, GREEN: 0, PURPLE: 0 };
   clients.forEach(c => {
-    if (c.health_zone in zones) {
+    if (c && c.health_zone && c.health_zone in zones) {
       zones[c.health_zone as keyof typeof zones]++;
     }
   });
 
   const total = clients.length;
+
+  if (total === 0) return anomalies;
 
   // Expected distribution (based on healthy business)
   const expected = {
@@ -78,7 +99,11 @@ async function detectZoneDistributionAnomalies(): Promise<Anomaly[]> {
       expected_value: "≤10%",
       actual_value: `${Math.round(redPct * 100)}%`,
       deviation_percent: Math.round((redPct - 0.10) / 0.10 * 100),
-      affected_entities: clients.filter(c => c.health_zone === "RED").map(c => c.email).slice(0, 10),
+      affected_entities: clients
+        .filter(c => c && c.health_zone === "RED" && c.email)
+        .map(c => c.email)
+        .filter((e): e is string => !!e)
+        .slice(0, 10),
       detected_at: new Date().toISOString(),
       recommendation: "Investigate root cause - check for system issues or external factors"
     });
@@ -109,13 +134,20 @@ async function detectScoreAnomalies(): Promise<Anomaly[]> {
   const anomalies: Anomaly[] = [];
 
   // Get historical daily summaries for comparison
-  const { data: summaries } = await supabase
+  const { data: summaries, error } = await supabase
     .from("daily_summary")
     .select("summary_date, avg_health_score, total_clients, red_count")
     .order("summary_date", { ascending: false })
     .limit(14);
 
-  if (!summaries || summaries.length < 7) return anomalies;
+  if (error) {
+    console.error("[detectScoreAnomalies] Database error:", error);
+    return anomalies;
+  }
+
+  if (!summaries || !Array.isArray(summaries) || summaries.length < 7) {
+    return anomalies;
+  }
 
   const recent = summaries.slice(0, 3);
   const historical = summaries.slice(3, 10);
@@ -175,19 +207,27 @@ async function detectCoachAnomalies(): Promise<Anomaly[]> {
   const anomalies: Anomaly[] = [];
 
   // Get coach performance data
-  const { data: coachData } = await supabase
+  const { data: coachData, error } = await supabase
     .from("client_health_scores")
     .select("assigned_coach, health_zone, momentum_indicator, health_score")
     .not("assigned_coach", "is", null);
 
-  if (!coachData?.length) return anomalies;
+  if (error) {
+    console.error("[detectCoachAnomalies] Database error:", error);
+    return anomalies;
+  }
+
+  if (!coachData || !Array.isArray(coachData) || coachData.length === 0) {
+    return anomalies;
+  }
 
   // Group by coach
   const coachStats = new Map<string, { total: number; red: number; declining: number; avgScore: number }>();
 
   coachData.forEach(client => {
+    if (!client) return;
     const coach = client.assigned_coach;
-    if (!coach || coach === "Unassigned") return;
+    if (!coach || typeof coach !== "string" || coach === "Unassigned") return;
 
     if (!coachStats.has(coach)) {
       coachStats.set(coach, { total: 0, red: 0, declining: 0, avgScore: 0 });
@@ -251,12 +291,17 @@ async function detectCAPIAnomalies(): Promise<Anomaly[]> {
 
   // Check CAPI event patterns
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: events } = await supabase
+  const { data: events, error } = await supabase
     .from("capi_events_enriched")
     .select("send_status, event_name, created_at")
     .gte("created_at", dayAgo);
 
-  if (!events?.length) {
+  if (error) {
+    console.error("[detectCAPIAnomalies] Database error:", error);
+    return anomalies;
+  }
+
+  if (!events || !Array.isArray(events) || events.length === 0) {
     anomalies.push({
       type: "capi_activity",
       severity: "high",
@@ -300,15 +345,22 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
   const anomalies: Anomaly[] = [];
 
   // Check for unusual patterns in client data
-  const { data: clients } = await supabase
+  const { data: clients, error } = await supabase
     .from("client_health_scores")
     .select("email, sessions_last_7d, sessions_last_30d, days_since_last_session");
 
-  if (!clients?.length) return anomalies;
+  if (error) {
+    console.error("[detectDataPatternAnomalies] Database error:", error);
+    return anomalies;
+  }
+
+  if (!clients || !Array.isArray(clients) || clients.length === 0) {
+    return anomalies;
+  }
 
   // Check for data consistency - sessions_7d should never exceed sessions_30d
   const inconsistent = clients.filter(c =>
-    (c.sessions_last_7d || 0) > (c.sessions_last_30d || 0)
+    c && (c.sessions_last_7d || 0) > (c.sessions_last_30d || 0)
   );
 
   if (inconsistent.length > 0) {
@@ -321,7 +373,7 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
       expected_value: "sessions_7d ≤ sessions_30d",
       actual_value: `${inconsistent.length} violations`,
       deviation_percent: null,
-      affected_entities: inconsistent.slice(0, 5).map(c => c.email),
+      affected_entities: inconsistent.slice(0, 5).map(c => c?.email).filter((e): e is string => !!e),
       detected_at: new Date().toISOString(),
       recommendation: "Check HubSpot sync and session calculation logic"
     });
@@ -329,8 +381,10 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
 
   // Check for impossible values
   const impossible = clients.filter(c =>
-    (c.sessions_last_7d || 0) > 21 || // More than 3 sessions/day
-    (c.days_since_last_session || 0) < 0
+    c && (
+      (c.sessions_last_7d || 0) > 21 || // More than 3 sessions/day
+      (c.days_since_last_session || 0) < 0
+    )
   );
 
   if (impossible.length > 0) {
@@ -343,7 +397,7 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
       expected_value: "Valid ranges",
       actual_value: `${impossible.length} violations`,
       deviation_percent: null,
-      affected_entities: impossible.slice(0, 5).map(c => c.email),
+      affected_entities: impossible.slice(0, 5).map(c => c?.email).filter((e): e is string => !!e),
       detected_at: new Date().toISOString(),
       recommendation: "Review data source and validation rules"
     });
@@ -360,15 +414,45 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
+    // Check environment variables
+    if (!envCheck.valid) {
+      throw new Error(`Missing required environment variables: ${envCheck.missing.join(", ")}`);
+    }
+
     console.log("[Anomaly Detector] Scanning for anomalies...");
 
-    // Run all detection algorithms in parallel
+    // Helper to safely run detection with fallback
+    const safeDetect = async (
+      detectFn: () => Promise<Anomaly[]>,
+      name: string
+    ): Promise<Anomaly[]> => {
+      try {
+        return await detectFn();
+      } catch (e) {
+        console.error(`Error in ${name}:`, e);
+        return [{
+          type: "system_error",
+          severity: "high",
+          title: `${name} Check Failed`,
+          description: `Could not complete ${name}: ${e instanceof Error ? e.message : "Unknown"}`,
+          metric: name,
+          expected_value: "success",
+          actual_value: "error",
+          deviation_percent: null,
+          affected_entities: [],
+          detected_at: new Date().toISOString(),
+          recommendation: "Check database connectivity and logs"
+        }];
+      }
+    };
+
+    // Run all detection algorithms in parallel with error handling
     const [zoneAnomalies, scoreAnomalies, coachAnomalies, capiAnomalies, dataAnomalies] = await Promise.all([
-      detectZoneDistributionAnomalies(),
-      detectScoreAnomalies(),
-      detectCoachAnomalies(),
-      detectCAPIAnomalies(),
-      detectDataPatternAnomalies()
+      safeDetect(detectZoneDistributionAnomalies, "Zone Distribution"),
+      safeDetect(detectScoreAnomalies, "Score Trends"),
+      safeDetect(detectCoachAnomalies, "Coach Performance"),
+      safeDetect(detectCAPIAnomalies, "CAPI Events"),
+      safeDetect(detectDataPatternAnomalies, "Data Patterns")
     ]);
 
     const allAnomalies = [

@@ -1,5 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+
+// SHA-256 hash function for PII (Meta CAPI requirement)
+async function hashPII(value: string | null | undefined): Promise<string | null> {
+  if (!value || value.trim() === "") return null;
+
+  // Normalize: lowercase and trim
+  const normalized = value.toLowerCase().trim();
+
+  // Create SHA-256 hash
+  const encoder = new TextEncoder();
+  const data = encoder.encode(normalized);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  // Convert to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Normalize phone number before hashing
+async function hashPhone(phone: string | null | undefined): Promise<string | null> {
+  if (!phone) return null;
+  // Remove all non-digit characters
+  const normalized = phone.replace(/\D/g, "");
+  if (normalized.length === 0) return null;
+  return hashPII(normalized);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,18 +104,27 @@ serve(async (req) => {
       const eventTime = props.createdate || new Date().toISOString();
       const eventId = `hubspot_${contact.id}_${Date.now()}`;
 
+      // Hash PII for Meta CAPI compliance
+      const hashedEmail = await hashPII(props.email);
+      const hashedPhone = await hashPhone(props.phone);
+      const hashedFirstName = await hashPII(props.firstname);
+      const hashedLastName = await hashPII(props.lastname);
+      const hashedCity = await hashPII(props.city);
+      const hashedState = await hashPII(props.state);
+      const hashedZip = await hashPII(props.zip);
+
       events.push({
         event_id: eventId,
         event_name: eventName,
         event_time: eventTime,
-        email: props.email,
-        phone: props.phone,
-        first_name: props.firstname,
-        last_name: props.lastname,
-        city: props.city,
-        state: props.state,
+        email_hash: hashedEmail,
+        phone_hash: hashedPhone,
+        first_name_hash: hashedFirstName,
+        last_name_hash: hashedLastName,
+        city_hash: hashedCity,
+        state_hash: hashedState,
         country: props.country || 'ae',
-        zip_code: props.zip,
+        zip_code_hash: hashedZip,
         hubspot_contact_id: contact.id,
         lifecycle_stage: lifecycleStage,
         lead_source: props.hs_analytics_source,
@@ -99,7 +135,17 @@ serve(async (req) => {
         batch_scheduled_for: batch_scheduled_for || null,
         send_status: 'pending',
         mode: mode,
-        raw_payload: contact,
+        // Store raw payload without PII for debugging
+        raw_payload: {
+          ...contact,
+          properties: {
+            ...props,
+            email: '[REDACTED]',
+            phone: '[REDACTED]',
+            firstname: '[REDACTED]',
+            lastname: '[REDACTED]'
+          }
+        },
       });
     }
 
