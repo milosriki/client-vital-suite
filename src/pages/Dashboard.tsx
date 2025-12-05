@@ -243,7 +243,7 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 className="h-20 flex flex-col gap-2"
-                onClick={() => window.open('https://boowptjtwadxpjkpctna.supabase.co', '_blank')}
+                onClick={() => window.open('https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds', '_blank')}
               >
                 <Database className="h-5 w-5" />
                 <span className="text-xs">Supabase</span>
