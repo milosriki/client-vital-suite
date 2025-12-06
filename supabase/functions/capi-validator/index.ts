@@ -1,16 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders, validateApiKey, unauthorizedResponse } from "../_shared/auth.ts";
 
 // ============================================
 // CAPI VALIDATOR AGENT
 // Validates events before sending to Meta
 // Catches errors BEFORE they fail in production
 // ============================================
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -211,6 +207,11 @@ function validateEvent(event: any): ValidationResult {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate API key for service-to-service calls
+  if (!validateApiKey(req)) {
+    return unauthorizedResponse();
   }
 
   const startTime = Date.now();

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, validateApiKey, unauthorizedResponse } from "../_shared/auth.ts";
 
 // SHA-256 hashing for PII
 async function hashSHA256(input: string): Promise<string> {
@@ -29,6 +25,11 @@ function normalizePhoneUAE(phone: string | null): string | null {
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate API key for webhook/service-to-service calls
+  if (!validateApiKey(req)) {
+    return unauthorizedResponse();
   }
 
   try {
