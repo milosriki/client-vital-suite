@@ -6,7 +6,6 @@ A comprehensive client health monitoring and business intelligence platform for 
 
 - **[API Keys Configuration Guide](./API_KEYS_GUIDE.md)** - Complete guide for all API keys and environment variables
 - **[Product Specification](./PRODUCT_SPEC.md)** - Full product features and architecture
-- **[N8N Workflow Analysis](./N8N_WORKFLOW_ANALYSIS.md)** - Workflow automation documentation
 - **[Meta CAPI Best Practices](./META_CAPI_BEST_PRACTICES.md)** - Meta Conversions API implementation guide
 - **[PTD Setup Guide](./PTD_SETUP_GUIDE.md)** - Detailed setup instructions
 
@@ -81,7 +80,7 @@ For the dashboard to work fully, you need to configure:
 
 - **Frontend**: Vite, TypeScript, React, shadcn-ui, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL), Edge Functions (Deno)
-- **Integrations**: HubSpot CRM, Meta Conversions API, Stripe, n8n
+- **Integrations**: HubSpot CRM, Meta Conversions API, Stripe
 
 ## Project info
 

@@ -51,9 +51,6 @@ VITE_META_CAPI_URL=https://your-capi-server.com
 | `EVENT_SOURCE_URL` | Optional | Default event source URL | Default: `https://ptdfitness.com` |
 | `TZ` | Optional | Timezone | Default: `Asia/Dubai` |
 | `DEFAULT_CURRENCY` | Optional | Default currency | Default: `AED` |
-| `N8N_BACKFILL_WEBHOOK` | Optional | n8n backfill webhook URL | Your n8n instance |
-| `N8N_HEALTH_WEBHOOK` | Optional | n8n health check webhook URL | Your n8n instance |
-
 ### Example `backend/.env` File:
 ```env
 # Meta Conversions API Configuration
@@ -72,10 +69,6 @@ EVENT_SOURCE_URL=https://ptdfitness.com
 # Timezone & Currency
 TZ=Asia/Dubai
 DEFAULT_CURRENCY=AED
-
-# n8n Webhook URLs (for dashboard)
-N8N_BACKFILL_WEBHOOK=https://your-n8n-instance.com/webhook/backfill
-N8N_HEALTH_WEBHOOK=https://your-n8n-instance.com/webhook/health
 ```
 
 ---
@@ -155,17 +148,6 @@ These secrets are configured in the **Supabase Dashboard** → **Project** → *
 **Required for these functions:**
 - `ptd-watcher` - Proactive monitoring agent (optional)
 
-### n8n Integration
-
-| Secret | Required | Description | Where to Get It |
-|--------|----------|-------------|-----------------|
-| `N8N_API_KEY` | Optional | n8n API Key | n8n Cloud/Self-hosted → Settings → API |
-
-**Required for these functions:**
-- `setup-workflows` - Initialize n8n workflows
-- `fix-n8n-workflows` - Automated workflow repairs
-- `update-n8n-workflow` - Update workflow configurations
-
 ---
 
 ## 📊 Complete Secrets Summary
@@ -184,7 +166,6 @@ These secrets are configured in the **Supabase Dashboard** → **Project** → *
 |--------|---------|-------------------|
 | `ANTHROPIC_API_KEY` | Claude AI | `ptd-agent`, `churn-predictor`, `intervention-recommender` |
 | `GEMINI_API_KEY` | Google AI | `ptd-watcher` |
-| `N8N_API_KEY` | n8n Automation | `setup-workflows`, `fix-n8n-workflows` |
 
 ---
 
@@ -202,7 +183,6 @@ These secrets are configured in the **Supabase Dashboard** → **Project** → *
 - [ ] Set `FB_PIXEL_ID` from Meta Events Manager
 - [ ] Set `FB_ACCESS_TOKEN` from Meta Events Manager
 - [ ] (Optional) Set `FB_TEST_EVENT_CODE` for testing
-- [ ] (Optional) Configure n8n webhook URLs
 
 ### Supabase Edge Functions Setup
 - [ ] Go to Supabase Dashboard → Settings → Edge Functions → Secrets
@@ -211,7 +191,6 @@ These secrets are configured in the **Supabase Dashboard** → **Project** → *
 - [ ] Add `STRIPE_SECRET_KEY` - **Required for Stripe features**
 - [ ] (Optional) Add `ANTHROPIC_API_KEY` for AI features
 - [ ] (Optional) Add `GEMINI_API_KEY` for Gemini AI
-- [ ] (Optional) Add `N8N_API_KEY` for n8n automation
 
 ---
 
@@ -226,7 +205,6 @@ These secrets are configured in the **Supabase Dashboard** → **Project** → *
 | Stape.io | https://stape.io/dashboard |
 | Anthropic | https://console.anthropic.com/ |
 | Google AI Studio | https://aistudio.google.com/ |
-| n8n Cloud | https://n8n.cloud/ |
 
 ---
 
