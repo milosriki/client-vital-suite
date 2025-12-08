@@ -2,15 +2,34 @@
 
 This document provides a comprehensive guide for deploying the Client Vital Suite application to Vercel.
 
+> **⚠️ IMPORTANT:** This project uses Lovable for development. If Vercel is not updating with new changes, see [LOVABLE_VERCEL_SYNC_TROUBLESHOOTING.md](./LOVABLE_VERCEL_SYNC_TROUBLESHOOTING.md)
+
 ## Prerequisites
 
 - Vercel account (sign up at [vercel.com](https://vercel.com))
 - GitHub repository connected to Vercel
 - Supabase project with required credentials
+- Lovable project (https://lovable.dev/projects/2849fe86-5874-418c-a421-d4e916c8a052)
+
+## Lovable + Vercel Integration Flow
+
+This project uses **Lovable** as the primary development platform:
+
+```
+Lovable (Edit) → GitHub (main branch) → Vercel (Auto-deploy) → Production
+```
+
+**How it works:**
+1. You make changes in Lovable
+2. Lovable automatically commits and pushes to GitHub `main` branch
+3. GitHub webhook triggers Vercel deployment
+4. Vercel builds and deploys to production
+
+**Typical deployment time:** 3-7 minutes from Lovable save to live update
 
 ## Automatic Deployment
 
-This project is configured for automatic deployment to Vercel via GitHub integration.
+This project is configured for automatic deployment to Vercel via GitHub integration with Lovable.
 
 ### Configuration Files
 
@@ -134,6 +153,20 @@ After deployment:
 4. **Environment Variables**: Test features that depend on Supabase connection
 
 ## Troubleshooting
+
+> **📖 For Lovable-Vercel sync issues, see:** [LOVABLE_VERCEL_SYNC_TROUBLESHOOTING.md](./LOVABLE_VERCEL_SYNC_TROUBLESHOOTING.md)
+
+### Vercel Not Updating After Lovable Changes
+
+**Most Common Issue:** Changes made in Lovable aren't appearing on Vercel
+
+**Quick Fixes:**
+1. Verify Vercel is watching `main` branch (Settings → Git → Production Branch)
+2. Check latest GitHub commit matches your Lovable change
+3. Check Vercel Deployments tab for build status/errors
+4. Ensure environment variables are set in Vercel dashboard
+
+**Full Guide:** See [LOVABLE_VERCEL_SYNC_TROUBLESHOOTING.md](./LOVABLE_VERCEL_SYNC_TROUBLESHOOTING.md) for detailed steps
 
 ### Build Fails
 
