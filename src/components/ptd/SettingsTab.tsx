@@ -98,7 +98,7 @@ export default function SettingsTab() {
         <CardHeader>
           <CardTitle>Application Settings</CardTitle>
           <CardDescription>
-            Configure Supabase and Meta CAPI connections
+            Configure Supabase database and Meta CAPI integration settings
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
