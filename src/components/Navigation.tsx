@@ -8,19 +8,14 @@ export const Navigation = () => {
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/sales-pipeline", label: "Sales Pipeline", icon: TrendingUp },
     { path: "/hubspot-live", label: "HubSpot Live", icon: Zap },
     { path: "/setter-activity-today", label: "Today's Activity", icon: PhoneCall },
-    { path: "/overview", label: "Overview", icon: BarChart3 },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
-    { path: "/sales-coach-tracker", label: "Sales & Activity", icon: TrendingUp },
     { path: "/interventions", label: "Interventions", icon: AlertTriangle },
-    { path: "/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/hubspot-analyzer", label: "HubSpot Analysis", icon: Search },
     { path: "/meta-dashboard", label: "Meta CAPI", icon: Activity },
     { path: "/ptd-control", label: "PTD Control", icon: Command },
-    { path: "/fix-workflows", label: "Workflows", icon: Settings },
-    { path: "/workflow-strategy", label: "Strategy", icon: BookOpen },
   ];
 
   return (
