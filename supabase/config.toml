@@ -20,3 +20,12 @@ verify_jwt = false
 
 [functions.process-capi-batch]
 verify_jwt = false
+
+[functions.stripe-payouts-ai]
+verify_jwt = false
+
+[functions.stripe-forensics]
+verify_jwt = false
+
+[functions.stripe-dashboard-data]
+verify_jwt = false
