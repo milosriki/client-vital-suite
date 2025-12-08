@@ -1,44 +1,87 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Calendar, User, DollarSign, MapPin, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, User, DollarSign, MapPin, Clock, CheckCircle2, Brain, TrendingUp } from "lucide-react";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
+import { AskAI } from "@/components/ai/AskAI";
 
 const YesterdayBookings = () => {
-  const yesterday = subDays(new Date(), 1);
-  const yesterdayStart = startOfDay(yesterday);
-  const yesterdayEnd = endOfDay(yesterday);
+  const [selectedOwner, setSelectedOwner] = useState<string>('all');
+  const [dateOffset, setDateOffset] = useState<number>(1); // 1 = yesterday, 0 = today, 2 = 2 days ago
 
-  // Query for bookings from yesterday
-  const { data: bookings, isLoading } = useQuery({
-    queryKey: ["yesterday-bookings"],
+  const targetDate = subDays(new Date(), dateOffset);
+  const dateStart = startOfDay(targetDate);
+  const dateEnd = endOfDay(targetDate);
+
+  // Query for available owners
+  const { data: owners } = useQuery({
+    queryKey: ["owners-list"],
     queryFn: async () => {
-      // Try multiple approaches to find bookings from yesterday
-      
+      const { data: coaches } = await supabase
+        .from("client_health_scores")
+        .select("assigned_coach")
+        .not("assigned_coach", "is", null);
+
+      const { data: executors } = await supabase
+        .from("intervention_log")
+        .select("executed_by, assigned_to");
+
+      const uniqueOwners = new Set<string>();
+      coaches?.forEach((c: any) => {
+        if (c.assigned_coach) uniqueOwners.add(c.assigned_coach);
+      });
+      executors?.forEach((e: any) => {
+        if (e.executed_by) uniqueOwners.add(e.executed_by);
+        if (e.assigned_to) uniqueOwners.add(e.assigned_to);
+      });
+
+      return Array.from(uniqueOwners).sort();
+    },
+  });
+
+  // Query for bookings with filters
+  const { data: bookings, isLoading } = useQuery({
+    queryKey: ["bookings", selectedOwner, dateOffset],
+    queryFn: async () => {
       // Approach 1: Check intervention_log for booked assessments
-      const { data: interventions, error: interventionError } = await supabase
+      let interventionQuery = supabase
         .from("intervention_log")
         .select("*")
         .or('intervention_type.ilike.%booking%,intervention_type.ilike.%assessment%,intervention_type.ilike.%scheduled%')
-        .gte("created_at", yesterdayStart.toISOString())
-        .lte("created_at", yesterdayEnd.toISOString())
+        .gte("created_at", dateStart.toISOString())
+        .lte("created_at", dateEnd.toISOString());
+
+      if (selectedOwner !== 'all') {
+        interventionQuery = interventionQuery.or(`executed_by.ilike.%${selectedOwner}%,assigned_to.ilike.%${selectedOwner}%`);
+      }
+
+      const { data: interventions, error: interventionError } = await interventionQuery
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (interventionError) console.error("Intervention query error:", interventionError);
 
-      // Approach 2: Check client_health_scores for GREEN/PURPLE clients from yesterday
-      const { data: greenClients, error: clientError } = await supabase
+      // Approach 2: Check client_health_scores for GREEN/PURPLE clients
+      let clientQuery = supabase
         .from("client_health_scores")
         .select("*")
         .in("health_zone", ["GREEN", "PURPLE"])
-        .gte("calculated_at", yesterdayStart.toISOString())
-        .lte("calculated_at", yesterdayEnd.toISOString())
+        .gte("calculated_at", dateStart.toISOString())
+        .lte("calculated_at", dateEnd.toISOString());
+
+      if (selectedOwner !== 'all') {
+        clientQuery = clientQuery.ilike("assigned_coach", `%${selectedOwner}%`);
+      }
+
+      const { data: greenClients, error: clientError } = await clientQuery
         .order("health_score", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (clientError) console.error("Client query error:", clientError);
 
@@ -79,21 +122,93 @@ const YesterdayBookings = () => {
         new Map(allBookings.map(b => [b.email, b])).values()
       );
 
-      return uniqueBookings.slice(0, 5);
+      return uniqueBookings.slice(0, 10);
     },
   });
 
   const totalValue = bookings?.reduce((sum, booking) => sum + (booking.value || 0), 0) || 0;
 
+  // Calculate show-up prediction for each booking (simple heuristic)
+  const bookingsWithPredictions = bookings?.map(booking => ({
+    ...booking,
+    showUpProbability: booking.health_zone === 'GREEN' ? 85 :
+                       booking.health_zone === 'PURPLE' ? 75 :
+                       booking.health_zone === 'YELLOW' ? 60 : 45
+  }));
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Yesterday's Bookings</h1>
-        <p className="text-muted-foreground">
-          {format(yesterday, "EEEE, MMMM dd, yyyy")} - Assessment bookings and conversions
-        </p>
+      {/* Header with Filters */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Bookings Dashboard</h1>
+          <p className="text-muted-foreground">
+            {format(targetDate, "EEEE, MMMM dd, yyyy")} - Assessment bookings and conversions
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Date:</label>
+            <Select value={dateOffset.toString()} onValueChange={(v) => setDateOffset(parseInt(v))}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Today</SelectItem>
+                <SelectItem value="1">Yesterday</SelectItem>
+                <SelectItem value="2">2 Days Ago</SelectItem>
+                <SelectItem value="3">3 Days Ago</SelectItem>
+                <SelectItem value="7">7 Days Ago</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Owner:</label>
+            <Select value={selectedOwner} onValueChange={setSelectedOwner}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select owner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Owners</SelectItem>
+                {owners?.map((owner) => (
+                  <SelectItem key={owner} value={owner}>
+                    {owner}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
+
+      {/* AI Booking Quality Prediction */}
+      <Card className="border-primary bg-gradient-to-r from-primary/5 to-background">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            AI Booking Quality Analysis
+          </CardTitle>
+          <CardDescription>
+            Predicted show-up rates based on health scores and patterns
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Average Show-Up Probability:</span>
+              <Badge variant="default" className="gap-2">
+                <TrendingUp className="h-3 w-3" />
+                {bookingsWithPredictions?.length
+                  ? Math.round(bookingsWithPredictions.reduce((sum, b) => sum + (b.showUpProbability || 0), 0) / bookingsWithPredictions.length)
+                  : 0}%
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Based on client health zones: GREEN (85%), PURPLE (75%), YELLOW (60%), RED (45%)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -300,5 +415,7 @@ const YesterdayBookings = () => {
     </div>
   );
 };
+      {/* Ask AI - Always Available */}
+      <AskAI page="bookings" context={{ selectedOwner, dateOffset, totalBookings: bookings?.length || 0, totalValue }} />
 
 export default YesterdayBookings;

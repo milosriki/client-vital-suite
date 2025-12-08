@@ -549,6 +549,42 @@ export type Database = {
           },
         ]
       }
+      call_pattern_analysis: {
+        Row: {
+          id: string
+          client_email: string
+          analysis_date: string
+          calls_this_week: number
+          avg_calls_per_week: number
+          pattern_status: string
+          deviation_pct: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          client_email: string
+          analysis_date: string
+          calls_this_week?: number
+          avg_calls_per_week?: number
+          pattern_status?: string
+          deviation_pct?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          client_email?: string
+          analysis_date?: string
+          calls_this_week?: number
+          avg_calls_per_week?: number
+          pattern_status?: string
+          deviation_pct?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       call_tracking_numbers: {
         Row: {
           assigned_at: string | null
@@ -716,9 +752,11 @@ export type Database = {
       client_health_scores: {
         Row: {
           assigned_coach: string | null
+          avg_calls_per_week: number | null
           calculated_at: string | null
           calculated_on: string | null
           calculation_version: string | null
+          calls_this_week: number | null
           churn_risk_score: number | null
           client_segment: string | null
           created_at: string | null
@@ -734,12 +772,14 @@ export type Database = {
           hubspot_contact_id: string | null
           id: number
           intervention_priority: string | null
+          last_pattern_check: string | null
           lastname: string | null
           momentum_score: number | null
           outstanding_sessions: number | null
           package_health_score: number | null
           package_type: string | null
           package_value_aed: number | null
+          pattern_status: string | null
           relationship_score: number | null
           sessions_last_30d: number | null
           sessions_last_7d: number | null
@@ -749,9 +789,11 @@ export type Database = {
         }
         Insert: {
           assigned_coach?: string | null
+          avg_calls_per_week?: number | null
           calculated_at?: string | null
           calculated_on?: string | null
           calculation_version?: string | null
+          calls_this_week?: number | null
           churn_risk_score?: number | null
           client_segment?: string | null
           created_at?: string | null
@@ -767,12 +809,14 @@ export type Database = {
           hubspot_contact_id?: string | null
           id?: number
           intervention_priority?: string | null
+          last_pattern_check?: string | null
           lastname?: string | null
           momentum_score?: number | null
           outstanding_sessions?: number | null
           package_health_score?: number | null
           package_type?: string | null
           package_value_aed?: number | null
+          pattern_status?: string | null
           relationship_score?: number | null
           sessions_last_30d?: number | null
           sessions_last_7d?: number | null
@@ -782,9 +826,11 @@ export type Database = {
         }
         Update: {
           assigned_coach?: string | null
+          avg_calls_per_week?: number | null
           calculated_at?: string | null
           calculated_on?: string | null
           calculation_version?: string | null
+          calls_this_week?: number | null
           churn_risk_score?: number | null
           client_segment?: string | null
           created_at?: string | null
@@ -800,12 +846,14 @@ export type Database = {
           hubspot_contact_id?: string | null
           id?: number
           intervention_priority?: string | null
+          last_pattern_check?: string | null
           lastname?: string | null
           momentum_score?: number | null
           outstanding_sessions?: number | null
           package_health_score?: number | null
           package_type?: string | null
           package_value_aed?: number | null
+          pattern_status?: string | null
           relationship_score?: number | null
           sessions_last_30d?: number | null
           sessions_last_7d?: number | null

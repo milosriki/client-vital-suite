@@ -13,6 +13,7 @@ import { RefreshCw, Users, DollarSign, Calendar, TrendingUp, Target, CheckCircle
 import { toast } from '@/hooks/use-toast';
 import { format, parseISO, startOfWeek, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import type { Tables } from '@/integrations/supabase/types';
+import { SyncStatus } from '@/components/dashboard/SyncStatus';
 
 type Lead = Tables<'leads'>;
 type Deal = Tables<'deals'>;
@@ -158,13 +159,16 @@ export default function SalesPipeline() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Sales Pipeline</h1>
-          <p className="text-muted-foreground">Track leads, deals, and appointments</p>
+          <p className="text-muted-foreground">Track leads, deals, and appointments - Auto-synced from HubSpot</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" className="gap-2">
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
       </div>
+
+      {/* HubSpot Sync Status */}
+      <SyncStatus />
 
       <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setCurrentPage(1); setSearchQuery(''); }}>
         <TabsList className="grid w-full grid-cols-3">
@@ -416,7 +420,7 @@ export default function SalesPipeline() {
           <Card>
             <CardHeader>
               <CardTitle>Deals ({filteredDeals.length})</CardTitle>
-              <CardDescription>All deals in the pipeline</CardDescription>
+              <CardDescription>All deals in the pipeline - Auto-synced from HubSpot every 15 minutes</CardDescription>
             </CardHeader>
             <CardContent>
               {dealsLoading ? (

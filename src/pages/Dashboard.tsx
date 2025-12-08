@@ -9,8 +9,13 @@ import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
 import { CoachPerformanceTable } from '@/components/dashboard/CoachPerformanceTable';
 import { InterventionTracker } from '@/components/dashboard/InterventionTracker';
 import { PatternInsights } from '@/components/dashboard/PatternInsights';
+import { PatternBreakAlert } from '@/components/dashboard/PatternBreakAlert';
+import { OwnerChangeAlert } from '@/components/dashboard/OwnerChangeAlert';
 import { FilterControls } from '@/components/dashboard/FilterControls';
+import { AIRecommendationsWidget } from '@/components/dashboard/AIRecommendationsWidget';
+import { SmartCallQueueWidget } from '@/components/dashboard/SmartCallQueueWidget';
 import { AIAssistantPanel, AIAssistantButton } from '@/components/ai/AIAssistantPanel';
+import { AskAI } from '@/components/ai/AskAI';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot } from 'lucide-react';
@@ -267,6 +272,16 @@ export default function Dashboard() {
 
         <PredictiveAlerts clients={clients || []} summary={summary} />
 
+        <PatternBreakAlert />
+
+        <OwnerChangeAlert />
+
+        {/* AI Intelligence Widgets */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <AIRecommendationsWidget clients={clients || []} />
+          <SmartCallQueueWidget clients={clients || []} />
+        </div>
+
         <FilterControls
           filterMode={filterMode}
           onFilterModeChange={setFilterMode}
@@ -297,6 +312,9 @@ export default function Dashboard() {
       {!showAIPanel && (
         <AIAssistantButton onClick={() => setShowAIPanel(true)} />
       )}
+
+      {/* Ask AI - Always Available */}
+      <AskAI page="dashboard" context={{ filterMode, selectedCoach, selectedZone }} />
     </div>
   );
 }

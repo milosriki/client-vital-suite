@@ -8,8 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { TrendingUp, TrendingDown, Minus, ArrowUpDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpDown, Brain, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 
 interface CoachPerformanceTableProps {
   coaches: any[];
@@ -19,6 +22,9 @@ interface CoachPerformanceTableProps {
 export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTableProps) {
   const [sortField, setSortField] = useState<string>('avg_client_health');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -42,6 +48,48 @@ export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTa
     return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
+  const handleAIPerformanceAnalysis = async () => {
+    setIsAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ptd-agent', {
+        body: {
+          query: 'Analyze coach performance. Who needs support? Who\'s excelling? Provide specific recommendations for improvement.',
+          action: 'coach_analysis',
+          context: {
+            coaches: coaches.map(c => ({
+              name: c.coach_name,
+              total_clients: c.total_clients,
+              avg_health: c.avg_client_health,
+              red: c.clients_red,
+              yellow: c.clients_yellow,
+              green: c.clients_green,
+              purple: c.clients_purple,
+              trend: c.health_trend
+            }))
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      setAiAnalysis(data?.response || 'No analysis generated.');
+      setShowAnalysis(true);
+
+      toast({
+        title: 'AI Analysis Complete',
+        description: 'Review coach performance insights and recommendations.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to generate AI analysis. Make sure ptd-agent is deployed.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -56,11 +104,32 @@ export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTa
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Coach Performance</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Coach Performance</CardTitle>
+            <Button
+              onClick={handleAIPerformanceAnalysis}
+              disabled={isAnalyzing || coaches.length === 0}
+              variant="outline"
+              className="gap-2"
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4" />
+                  AI Performance Analysis
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
@@ -138,5 +207,26 @@ export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTa
         </Table>
       </CardContent>
     </Card>
+
+    <Dialog open={showAnalysis} onOpenChange={setShowAnalysis}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            AI Coach Performance Analysis
+          </DialogTitle>
+        </DialogHeader>
+        <div className="mt-4 space-y-4">
+          <div className="prose prose-sm max-w-none">
+            {aiAnalysis && (
+              <div className="whitespace-pre-wrap text-sm">
+                {aiAnalysis}
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

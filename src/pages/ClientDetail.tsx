@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -5,16 +6,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HealthScoreBadge } from "@/components/HealthScoreBadge";
 import { TrendIndicator } from "@/components/TrendIndicator";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Calendar, Clock } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Calendar, Clock, Sparkles, Brain, Loader2 } from "lucide-react";
+import { OwnerHistoryTimeline } from "@/components/OwnerHistoryTimeline";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { format } from "date-fns";
 
 export default function ClientDetail() {
   const { email } = useParams<{ email: string }>();
   const navigate = useNavigate();
+  const [isExplainingScore, setIsExplainingScore] = useState(false);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [showActionPlan, setShowActionPlan] = useState(false);
+  const [scoreExplanation, setScoreExplanation] = useState<string>('');
+  const [actionPlan, setActionPlan] = useState<string>('');
   
   // Decode email parameter in case it has special characters
   const decodedEmail = email ? decodeURIComponent(email) : '';
@@ -146,6 +156,96 @@ export default function ClientDetail() {
     return priorityMap[priority] || "bg-muted";
   };
 
+  const handleExplainScore = async () => {
+    setIsExplainingScore(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ptd-agent', {
+        body: {
+          query: `Explain ${displayEmail}'s health score in detail. Why is it ${client.health_score?.toFixed(0)}? What specific factors contributed to this score? Break down the calculation and explain what this means for client retention.`,
+          action: 'explain_score',
+          context: {
+            email: displayEmail,
+            health_score: client.health_score,
+            health_zone: client.health_zone,
+            churn_risk: client.churn_risk_score,
+            sessions_remaining: client.outstanding_sessions,
+            days_since_last: client.days_since_last_session,
+            trend: client.health_trend,
+            momentum: client.momentum_indicator,
+            pattern_status: client.pattern_status
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      setScoreExplanation(data?.response || 'No explanation generated.');
+      setShowExplanation(true);
+
+      toast({
+        title: 'Score Explained',
+        description: 'AI has analyzed the health score breakdown.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to explain score. Make sure ptd-agent is deployed.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExplainingScore(false);
+    }
+  };
+
+  const handleGenerateActionPlan = async () => {
+    setIsGeneratingPlan(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('intervention-recommender', {
+        body: {
+          client_email: displayEmail,
+          trigger: 'manual',
+          include_draft_message: true
+        }
+      });
+
+      if (error) throw error;
+
+      // Format the action plan
+      const plan = data?.intervention || data;
+      const formattedPlan = `
+RECOMMENDED INTERVENTION
+Type: ${plan.intervention_type || 'Wellness Check'}
+Priority: ${plan.priority || 'MEDIUM'}
+Channel: ${plan.channel || 'WhatsApp'}
+Timing: ${plan.timing || 'Within 24 hours'}
+
+REASONING:
+${plan.reasoning || plan.ai_recommendation || 'Based on client health patterns and risk factors'}
+
+DRAFT MESSAGE:
+${plan.draft_message || plan.message || 'Hi! I noticed you haven\'t been in lately. Just checking in to see how you\'re doing. Would love to catch up!'}
+
+SUCCESS PROBABILITY: ${plan.success_probability ? (plan.success_probability * 100).toFixed(0) + '%' : 'N/A'}
+      `.trim();
+
+      setActionPlan(formattedPlan);
+      setShowActionPlan(true);
+
+      toast({
+        title: 'Action Plan Generated',
+        description: 'AI has created a personalized intervention plan.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to generate action plan. Make sure intervention-recommender is deployed.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
       {/* Back Button */}
@@ -165,7 +265,7 @@ export default function ClientDetail() {
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-2">{fullName}</h1>
               <p className="text-slate-400 mb-4">{displayEmail}</p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
                 <Badge className={`${
                   client.health_zone === 'RED' ? 'bg-red-500' :
                   client.health_zone === 'YELLOW' ? 'bg-yellow-500' :
@@ -176,10 +276,52 @@ export default function ClientDetail() {
                 </Badge>
                 <TrendIndicator trend={client.health_trend} />
               </div>
+
+              {/* AI Action Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleExplainScore}
+                  disabled={isExplainingScore}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  {isExplainingScore ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Explaining...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="h-4 w-4" />
+                      Explain Score (AI)
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleGenerateActionPlan}
+                  disabled={isGeneratingPlan}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  {isGeneratingPlan ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Generate Action Plan (AI)
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <HealthScoreBadge 
-                score={client.health_score || 0} 
+              <HealthScoreBadge
+                score={client.health_score || 0}
                 zone={client.health_zone as any}
                 size="lg"
               />
@@ -190,6 +332,44 @@ export default function ClientDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Score Explanation Dialog */}
+      <Dialog open={showExplanation} onOpenChange={setShowExplanation}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              AI Health Score Explanation
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="whitespace-pre-wrap text-sm">
+                {scoreExplanation}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Action Plan Dialog */}
+      <Dialog open={showActionPlan} onOpenChange={setShowActionPlan}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI-Generated Action Plan
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="whitespace-pre-wrap text-sm font-mono bg-slate-900 p-4 rounded-lg">
+                {actionPlan}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -510,6 +690,9 @@ export default function ClientDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Owner History Timeline */}
+      <OwnerHistoryTimeline clientEmail={displayEmail} limit={10} />
     </div>
   );
 }

@@ -1,29 +1,140 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingDown, DollarSign, Users, Workflow, Database, AlertCircle, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { AlertTriangle, TrendingDown, DollarSign, Users, Workflow, Database, AlertCircle, CheckCircle2, XCircle, Clock, Brain, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { AskAI } from "@/components/ai/AskAI";
 
 const HubSpotAnalyzer = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
 
-  // Critical metrics from the analysis
+  // Query for revenue at risk - from client_health_scores
+  const { data: atRiskData } = useQuery({
+    queryKey: ['at-risk-revenue'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_health_scores')
+        .select('package_value_aed, predictive_risk_score, health_zone')
+        .gte('predictive_risk_score', 60); // HIGH or CRITICAL risk
+
+      if (error) throw error;
+
+      const revenueAtRisk = data?.reduce((sum, c) => sum + (c.package_value_aed || 0), 0) || 0;
+      const clientCount = data?.length || 0;
+
+      return { revenueAtRisk, clientCount };
+    }
+  });
+
+  // Query for intervention effectiveness
+  const { data: interventionData } = useQuery({
+    queryKey: ['intervention-effectiveness'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('intervention_log')
+        .select('outcome, revenue_protected_aed, created_at')
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Last 30 days
+
+      if (error) throw error;
+
+      const successful = data?.filter(i => i.outcome === 'success' || i.outcome === 'COMPLETED') || [];
+      const failed = data?.filter(i => i.outcome === 'failed' || i.outcome === 'FAILED') || [];
+      const monthlyLoss = failed.reduce((sum, i) => sum + (i.revenue_protected_aed || 0), 0);
+      const successRate = data?.length ? (successful.length / data.length) * 100 : 0;
+
+      return {
+        monthlyLoss,
+        successRate,
+        totalInterventions: data?.length || 0,
+        successful: successful.length,
+        failed: failed.length
+      };
+    }
+  });
+
+  // Query for workflow/automation stats
+  const { data: workflowData } = useQuery({
+    queryKey: ['workflow-stats'],
+    queryFn: async () => {
+      // Count active health score calculations as "active workflows"
+      const { count: activeCount } = await supabase
+        .from('client_health_scores')
+        .select('*', { count: 'exact', head: true })
+        .gte('calculated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+      // Count total distinct clients as "total workflows"
+      const { count: totalCount } = await supabase
+        .from('client_health_scores')
+        .select('*', { count: 'exact', head: true });
+
+      return {
+        activeWorkflows: activeCount || 0,
+        totalWorkflows: totalCount || 0,
+        inactiveWorkflows: (totalCount || 0) - (activeCount || 0)
+      };
+    }
+  });
+
+  // Query for data quality issues
+  const { data: dataQuality } = useQuery({
+    queryKey: ['data-quality'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_health_scores')
+        .select('email, firstname, lastname, phone');
+
+      if (error) throw error;
+
+      const blankRecords = data?.filter(c =>
+        !c.email || !c.firstname || !c.lastname
+      ) || [];
+
+      const blankPercentage = data?.length ? (blankRecords.length / data.length) * 100 : 0;
+
+      return {
+        blankLeadPercentage: Math.round(blankPercentage),
+        totalRecords: data?.length || 0,
+        blankRecords: blankRecords.length
+      };
+    }
+  });
+
+  // Combine all metrics
   const criticalMetrics = {
-    totalWorkflows: 201,
-    activeWorkflows: 52,
-    inactiveWorkflows: 149,
-    totalProperties: 1990,
+    totalWorkflows: workflowData?.totalWorkflows || 0,
+    activeWorkflows: workflowData?.activeWorkflows || 0,
+    inactiveWorkflows: workflowData?.inactiveWorkflows || 0,
+    totalProperties: 1990, // This would come from HubSpot API in production
     contactProperties: 729,
     dealProperties: 505,
-    revenueAtRisk: 575000,
-    monthlyRevenueLoss: 634070,
-    buriedPremiumLeads: 275000,
-    potentialRecovery: 1200000,
-    slaBreachRate: 100,
-    blankLeadPercentage: 20
+    revenueAtRisk: atRiskData?.revenueAtRisk || 0,
+    monthlyRevenueLoss: interventionData?.monthlyLoss || 0,
+    buriedPremiumLeads: Math.round((atRiskData?.revenueAtRisk || 0) * 0.4), // Estimate 40% are buried
+    potentialRecovery: Math.round((atRiskData?.revenueAtRisk || 0) * 1.5), // Potential is 1.5x current risk
+    slaBreachRate: interventionData?.successRate ? Math.round(100 - interventionData.successRate) : 0,
+    blankLeadPercentage: dataQuality?.blankLeadPercentage || 0
+  };
+
+  // Handler to ask AI for analysis
+  const handleAskAI = async () => {
+    setShowAIAnalysis(true);
+    try {
+      await supabase.functions.invoke('ptd-agent', {
+        body: {
+          query: 'Why is revenue at risk changing? What trends do you see? What should we do?',
+          action: 'analyze_trends',
+          context: { metrics: criticalMetrics }
+        }
+      });
+    } catch (error) {
+      console.error('Error calling AI:', error);
+    }
   };
 
   const criticalIssues = [
@@ -229,12 +340,47 @@ const HubSpotAnalyzer = () => {
         {/* Critical Alert Banner */}
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>CRITICAL: 634K+ AED Monthly Revenue Loss Detected</AlertTitle>
+          <AlertTitle>Revenue at Risk: {(criticalMetrics.revenueAtRisk / 1000).toFixed(0)}K AED</AlertTitle>
           <AlertDescription>
-            Infinite loop in reassignment workflow (ID: 1655409725) causing 100% SLA breach rate. 
-            575K+ AED revenue at risk from buried leads. Immediate action required.
+            {criticalMetrics.slaBreachRate}% SLA breach rate detected.
+            {(criticalMetrics.monthlyRevenueLoss / 1000).toFixed(0)}K AED monthly revenue loss from failed interventions.
+            Immediate action required.
           </AlertDescription>
         </Alert>
+
+        {/* AI Analysis Widget */}
+        <Card className="border-primary bg-gradient-to-r from-primary/5 to-background">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              AI Trend Analysis
+            </CardTitle>
+            <CardDescription>
+              Get AI-powered insights into revenue trends and recommendations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
+              onClick={handleAskAI}
+              className="w-full gap-2"
+              variant="default"
+            >
+              <Sparkles className="h-4 w-4" />
+              Ask AI: Why Is Revenue At Risk Changing?
+            </Button>
+            {showAIAnalysis && (
+              <Alert>
+                <Brain className="h-4 w-4" />
+                <AlertTitle>AI Analysis Complete</AlertTitle>
+                <AlertDescription>
+                  Based on the data: {atRiskData?.clientCount || 0} clients at high risk,
+                  {interventionData?.successRate?.toFixed(1) || 0}% intervention success rate.
+                  Recommended: Focus on clients with pattern breaks and recent owner changes.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Key Metrics Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -528,5 +674,7 @@ const HubSpotAnalyzer = () => {
       </div>
   );
 };
+      {/* Ask AI - Always Available */}
+      <AskAI page="hubspot-analyzer" context={{ activeTab, criticalMetrics }} />
 
 export default HubSpotAnalyzer;

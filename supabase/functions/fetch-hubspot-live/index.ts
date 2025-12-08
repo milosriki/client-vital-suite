@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,12 @@ serve(async (req) => {
       throw new Error('HUBSPOT_API_KEY not configured');
     }
 
-    const { type, timeframe, setter } = await req.json();
+    // Initialize Supabase client for syncing
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { type, timeframe, setter, sync } = await req.json();
     
     const now = new Date();
     let filterDate = new Date();
@@ -161,11 +167,70 @@ serve(async (req) => {
         );
       }
 
+      // If sync flag is true, save contacts to database
+      if (sync) {
+        const syncStartTime = Date.now();
+        let recordsSynced = 0;
+        let recordsFailed = 0;
+
+        try {
+          // Sync contacts to database
+          for (const contact of contacts) {
+            try {
+              await supabase.from('contacts').upsert({
+                hubspot_contact_id: contact.id,
+                email: contact.properties.email,
+                first_name: contact.properties.firstname,
+                last_name: contact.properties.lastname,
+                phone: contact.properties.phone,
+                owner_id: contact.properties.hubspot_owner_id,
+                lifecycle_stage: contact.properties.lifecyclestage,
+                status: contact.properties.hs_lead_status,
+                created_at: contact.properties.createdate,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'hubspot_contact_id' });
+              recordsSynced++;
+            } catch (err) {
+              console.error('Failed to sync contact:', contact.id, err);
+              recordsFailed++;
+            }
+          }
+
+          // Log sync completion
+          await supabase.from('sync_logs').insert({
+            platform: 'hubspot',
+            sync_type: 'contacts',
+            status: recordsFailed > 0 ? 'partial' : 'success',
+            started_at: new Date(syncStartTime).toISOString(),
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - syncStartTime,
+            records_processed: recordsSynced,
+            records_failed: recordsFailed
+          });
+
+          console.log(`Synced ${recordsSynced} contacts, ${recordsFailed} failed`);
+        } catch (syncError) {
+          console.error('Sync error:', syncError);
+          await supabase.from('sync_logs').insert({
+            platform: 'hubspot',
+            sync_type: 'contacts',
+            status: 'failed',
+            started_at: new Date(syncStartTime).toISOString(),
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - syncStartTime,
+            records_processed: recordsSynced,
+            records_failed: recordsFailed,
+            error_details: { message: syncError.message }
+          });
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           timeframe,
           filterDate: filterDate.toISOString(),
+          synced: sync ? true : false,
           contacts: contacts.slice(0, 100).map((c: any) => ({
             id: c.id,
             firstName: c.properties.firstname,
@@ -197,10 +262,191 @@ serve(async (req) => {
           totalContacts: contacts.length,
           totalDeals: deals.length
         }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
+    }
+
+    // Handle deals sync
+    if (type === 'deals' && sync) {
+      const syncStartTime = Date.now();
+      let recordsSynced = 0;
+      let recordsFailed = 0;
+
+      try {
+        // Fetch all deals from HubSpot
+        const dealsResponse = await fetch(
+          'https://api.hubapi.com/crm/v3/objects/deals/search',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              properties: [
+                'dealname',
+                'amount',
+                'dealstage',
+                'closedate',
+                'hubspot_owner_id',
+                'pipeline',
+                'createdate',
+                'hs_is_closed'
+              ],
+              limit: 100
+            })
+          }
+        );
+
+        if (!dealsResponse.ok) {
+          throw new Error(`HubSpot API error: ${dealsResponse.status}`);
+        }
+
+        const dealsData = await dealsResponse.json();
+
+        // Sync deals to database
+        for (const deal of dealsData.results) {
+          try {
+            await supabase.from('deals').upsert({
+              hubspot_deal_id: deal.id,
+              deal_name: deal.properties.dealname,
+              deal_value: parseFloat(deal.properties.amount || 0),
+              stage: deal.properties.dealstage,
+              status: deal.properties.hs_is_closed ? 'CLOSED' : 'OPEN',
+              close_date: deal.properties.closedate,
+              closer_id: deal.properties.hubspot_owner_id,
+              pipeline: deal.properties.pipeline,
+              created_at: deal.properties.createdate,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'hubspot_deal_id' });
+            recordsSynced++;
+          } catch (err) {
+            console.error('Failed to sync deal:', deal.id, err);
+            recordsFailed++;
+          }
+        }
+
+        // Log sync completion
+        await supabase.from('sync_logs').insert({
+          platform: 'hubspot',
+          sync_type: 'deals',
+          status: recordsFailed > 0 ? 'partial' : 'success',
+          started_at: new Date(syncStartTime).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_ms: Date.now() - syncStartTime,
+          records_processed: recordsSynced,
+          records_failed: recordsFailed
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            synced: true,
+            type: 'deals',
+            recordsSynced,
+            recordsFailed
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      } catch (syncError) {
+        console.error('Deals sync error:', syncError);
+        await supabase.from('sync_logs').insert({
+          platform: 'hubspot',
+          sync_type: 'deals',
+          status: 'failed',
+          started_at: new Date(syncStartTime).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_ms: Date.now() - syncStartTime,
+          records_processed: recordsSynced,
+          records_failed: recordsFailed,
+          error_details: { message: syncError.message }
+        });
+        throw syncError;
+      }
+    }
+
+    // Handle owners/staff sync
+    if (type === 'owners' && sync) {
+      const syncStartTime = Date.now();
+      let recordsSynced = 0;
+      let recordsFailed = 0;
+
+      try {
+        // Fetch all owners from HubSpot
+        const ownersResponse = await fetch(
+          'https://api.hubapi.com/crm/v3/owners',
+          {
+            headers: {
+              'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
+            }
+          }
+        );
+
+        if (!ownersResponse.ok) {
+          throw new Error(`HubSpot API error: ${ownersResponse.status}`);
+        }
+
+        const ownersData = await ownersResponse.json();
+
+        // Sync owners to staff table
+        for (const owner of ownersData.results) {
+          try {
+            await supabase.from('staff').upsert({
+              id: owner.id,
+              name: `${owner.firstName} ${owner.lastName}`,
+              email: owner.email,
+              role: 'coach'
+            }, { onConflict: 'id' });
+            recordsSynced++;
+          } catch (err) {
+            console.error('Failed to sync owner:', owner.id, err);
+            recordsFailed++;
+          }
+        }
+
+        // Log sync completion
+        await supabase.from('sync_logs').insert({
+          platform: 'hubspot',
+          sync_type: 'owners',
+          status: recordsFailed > 0 ? 'partial' : 'success',
+          started_at: new Date(syncStartTime).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_ms: Date.now() - syncStartTime,
+          records_processed: recordsSynced,
+          records_failed: recordsFailed
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            synced: true,
+            type: 'owners',
+            recordsSynced,
+            recordsFailed
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      } catch (syncError) {
+        console.error('Owners sync error:', syncError);
+        await supabase.from('sync_logs').insert({
+          platform: 'hubspot',
+          sync_type: 'owners',
+          status: 'failed',
+          started_at: new Date(syncStartTime).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_ms: Date.now() - syncStartTime,
+          records_processed: recordsSynced,
+          records_failed: recordsFailed,
+          error_details: { message: syncError.message }
+        });
+        throw syncError;
+      }
     }
 
     // If type is 'activity' - fetch recent activity

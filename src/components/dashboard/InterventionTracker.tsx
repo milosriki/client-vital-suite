@@ -109,10 +109,61 @@ export function InterventionTracker({ interventions, isLoading }: InterventionTr
     );
   }
 
+  const [isGeneratingInterventions, setIsGeneratingInterventions] = useState(false);
+
+  const handleGenerateSmartActions = async () => {
+    setIsGeneratingInterventions(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('intervention-recommender', {
+        body: {
+          zones: ['RED', 'YELLOW'],
+          limit: 10
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Smart Interventions Generated',
+        description: `Created ${data?.interventions_created || 0} new interventions with AI-generated recommendations.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['interventions'] });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to generate interventions. Make sure intervention-recommender is deployed.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingInterventions(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Intervention Tracker ({interventions.length} interventions)</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Intervention Tracker ({interventions.length} interventions)</CardTitle>
+          <Button
+            onClick={handleGenerateSmartActions}
+            disabled={isGeneratingInterventions}
+            variant="outline"
+            className="gap-2"
+          >
+            {isGeneratingInterventions ? (
+              <>
+                <Clock className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-4 w-4" />
+                Generate Smart Actions
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
