@@ -99,7 +99,7 @@ export function useDashboardData(filters?: {
           .limit(1);
 
         if (error) {
-          console.log('daily_summary query issue:', error.message);
+          console.error('daily_summary query issue:', error.message);
           return null;
         }
         return data?.[0] || null;
@@ -122,7 +122,7 @@ export function useDashboardData(filters?: {
           .limit(1);
 
         if (error) {
-          console.log('weekly_patterns not available:', error.message);
+          console.error('weekly_patterns not available:', error.message);
           return null;
         }
         return data?.[0] || null;
