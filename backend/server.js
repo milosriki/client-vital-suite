@@ -150,25 +150,6 @@ app.post('/api/events/batch', async (req, res) => {
   }
 });
 
-// Webhook endpoint for n8n backfill
-app.post('/api/webhook/backfill', async (req, res) => {
-  try {
-    logger.info({ body: req.body }, 'Received backfill webhook');
-    
-    const events = req.body.events || req.body;
-    const eventsArray = Array.isArray(events) ? events : [events];
-    
-    const preparedEvents = eventsArray.map(prepareEvent);
-    const result = await sendToMeta(preparedEvents);
-    
-    logger.info({ count: eventsArray.length, result }, 'Backfill events processed');
-    res.json({ success: true, result, count: eventsArray.length });
-  } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, 'Error processing backfill');
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info(`Meta CAPI Proxy server running on port ${PORT}`);

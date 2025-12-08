@@ -1,9 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, TrendingUp, Settings, AlertTriangle, TrendingDown, Users } from "lucide-react";
+import { Activity, TrendingUp, Settings, AlertTriangle, TrendingDown, Users, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface DashboardTabProps {
   mode: "test" | "live";
@@ -11,6 +13,66 @@ interface DashboardTabProps {
 
 export default function DashboardTab({ mode }: DashboardTabProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [pauseLoading, setPauseLoading] = useState(false);
+  const [flushLoading, setFlushLoading] = useState(false);
+
+  // Handle pause all sends
+  const handlePauseAllSends = async () => {
+    setPauseLoading(true);
+    try {
+      // Create or update pause_automation record
+      const { error } = await supabase
+        .from("pause_automation")
+        .upsert({
+          id: "00000000-0000-0000-0000-000000000000", // singleton record
+          is_paused: true,
+          paused_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "All automated sends have been paused",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to pause sends",
+        variant: "destructive",
+      });
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
+  // Handle flush dev data
+  const handleFlushDevData = async () => {
+    setFlushLoading(true);
+    try {
+      // Delete test data from capi_events where test_event_code IS NOT NULL
+      const { error } = await supabase
+        .from("capi_events")
+        .delete()
+        .not("test_event_code", "is", null);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Test events have been flushed",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to flush test data",
+        variant: "destructive",
+      });
+    } finally {
+      setFlushLoading(false);
+    }
+  };
 
   // Fetch company-wide KPIs from aggregates view
   const { data: kpis } = useQuery({
@@ -127,7 +189,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
           </CardHeader>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/ptd-control')}>
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-blue-500/10">
@@ -160,8 +222,20 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
                   Stop all automated workflows
                 </p>
               </div>
-              <Button variant="destructive" size="sm">
-                Pause
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handlePauseAllSends}
+                disabled={pauseLoading}
+              >
+                {pauseLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Pausing...
+                  </>
+                ) : (
+                  "Pause"
+                )}
               </Button>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
@@ -171,8 +245,20 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
                   Clear all test events and logs
                 </p>
               </div>
-              <Button variant="destructive" size="sm">
-                Flush
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleFlushDevData}
+                disabled={flushLoading}
+              >
+                {flushLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Flushing...
+                  </>
+                ) : (
+                  "Flush"
+                )}
               </Button>
             </div>
           </CardContent>

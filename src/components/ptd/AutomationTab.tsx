@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Play, Eye, Upload } from "lucide-react";
+import { Play, Eye, Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -17,6 +17,13 @@ interface AutomationTabProps {
 export default function AutomationTab({ mode }: AutomationTabProps) {
   const { toast } = useToast();
   const [csvUrl, setCsvUrl] = useState("");
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [simulateLoading, setSimulateLoading] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<string[][]>([]);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+
+  // Required columns for CSV validation
+  const REQUIRED_COLUMNS = ["email", "event", "value"];
 
   // Fetch automation logs
   const { data: logs } = useQuery({
@@ -85,19 +92,105 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
     }
   };
 
-  const handleBackfillPreflight = () => {
-    toast({
-      title: "Preflight Check",
-      description: `CSV URL: ${csvUrl}\nReady to process`,
-    });
+  const validateAndPreviewCSV = async (url: string) => {
+    try {
+      // Fetch CSV file
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const text = await response.text();
+      const lines = text.trim().split("\n");
+
+      if (lines.length === 0) {
+        throw new Error("CSV file is empty");
+      }
+
+      // Parse headers
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+      setCsvHeaders(headers);
+
+      // Validate required columns
+      const missingColumns = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+      if (missingColumns.length > 0) {
+        throw new Error(`Missing required columns: ${missingColumns.join(", ")}`);
+      }
+
+      // Parse first 5 rows as preview
+      const preview = [];
+      for (let i = 1; i < Math.min(6, lines.length); i++) {
+        const values = lines[i].split(",").map(v => v.trim());
+        preview.push(values);
+      }
+      setCsvPreview(preview);
+
+      return {
+        success: true,
+        rowCount: lines.length - 1,
+        headers: headers,
+      };
+    } catch (error) {
+      throw error;
+    }
   };
 
-  const handleBackfillSimulate = () => {
-    console.log("Simulating backfill from:", csvUrl);
-    toast({
-      title: "Simulation",
-      description: "Backfill simulated (no actual processing)",
-    });
+  const handleBackfillPreflight = async () => {
+    if (!csvUrl) {
+      toast({
+        title: "Error",
+        description: "Please enter a CSV URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPreflightLoading(true);
+    try {
+      const result = await validateAndPreviewCSV(csvUrl);
+
+      toast({
+        title: "Preflight Check Passed",
+        description: `CSV valid: ${result.rowCount} rows found, ${result.headers.length} columns`,
+      });
+    } catch (error) {
+      toast({
+        title: "Preflight Check Failed",
+        description: error instanceof Error ? error.message : "CSV validation failed",
+        variant: "destructive",
+      });
+    } finally {
+      setPreflightLoading(false);
+    }
+  };
+
+  const handleBackfillSimulate = async () => {
+    if (!csvUrl) {
+      toast({
+        title: "Error",
+        description: "Please enter a CSV URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSimulateLoading(true);
+    try {
+      const result = await validateAndPreviewCSV(csvUrl);
+
+      toast({
+        title: "Simulation Successful",
+        description: `CSV preview: ${result.rowCount} rows would be processed`,
+      });
+    } catch (error) {
+      toast({
+        title: "Simulation Failed",
+        description: error instanceof Error ? error.message : "Simulation failed",
+        variant: "destructive",
+      });
+    } finally {
+      setSimulateLoading(false);
+    }
   };
 
   const handleBackfillRun = async () => {
@@ -187,13 +280,39 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleBackfillPreflight}>
-              <Eye className="h-4 w-4 mr-2" />
-              Preflight
+            <Button
+              variant="outline"
+              onClick={handleBackfillPreflight}
+              disabled={preflightLoading}
+            >
+              {preflightLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preflight
+                </>
+              )}
             </Button>
-            <Button variant="outline" onClick={handleBackfillSimulate}>
-              <Play className="h-4 w-4 mr-2" />
-              Simulate
+            <Button
+              variant="outline"
+              onClick={handleBackfillSimulate}
+              disabled={simulateLoading}
+            >
+              {simulateLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Simulating...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Simulate
+                </>
+              )}
             </Button>
             <Button onClick={handleBackfillRun}>
               <Upload className="h-4 w-4 mr-2" />

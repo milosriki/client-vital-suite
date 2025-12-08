@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { QUERY_INTERVALS } from "@/config/queryConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,9 +25,9 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
         .from("capi_events_enriched")
         .select("send_status, count")
         .eq("mode", mode);
-      
+
       if (error) throw error;
-      
+
       const stats = {
         pending: 0,
         enriched: 0,
@@ -37,7 +38,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
       // TODO: Aggregate counts properly
       return stats;
     },
-    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchInterval: QUERY_INTERVALS.CRITICAL, // Refresh every 30 seconds (critical data)
   });
 
   // Fetch batch jobs
@@ -50,11 +51,11 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
         .eq("mode", mode)
         .order("created_at", { ascending: false })
         .limit(10);
-      
+
       if (error) throw error;
       return data;
     },
-    refetchInterval: 10000,
+    refetchInterval: QUERY_INTERVALS.CRITICAL, // Refresh every 30 seconds (critical job status)
   });
 
   // Fetch batch config

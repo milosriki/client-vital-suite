@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Download, Loader2 } from "lucide-react";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +22,7 @@ const Overview = () => {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [zoneFilter, setZoneFilter] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -195,6 +196,86 @@ const Overview = () => {
     }
   };
 
+  const handleExportReport = () => {
+    setExportLoading(true);
+    try {
+      // Prepare CSV data
+      const csvData: string[] = [];
+
+      // Header
+      csvData.push("PTD Client Health Score Dashboard Export");
+      csvData.push(`Generated: ${format(new Date(), 'PPpp')}`);
+      csvData.push("");
+
+      // Summary metrics
+      csvData.push("SUMMARY METRICS");
+      csvData.push(`Total Active Clients,${summary?.total_active_clients ?? 0}`);
+      csvData.push(`Average Health Score,${(summary?.avg_health_score ?? 0).toFixed(1)}`);
+      csvData.push(`Critical Interventions,${summary?.critical_interventions ?? 0}`);
+      csvData.push(`At-Risk Revenue,AED ${(summary?.at_risk_revenue ?? 0).toLocaleString()}`);
+      csvData.push("");
+
+      // Zone distribution
+      csvData.push("ZONE DISTRIBUTION");
+      csvData.push(`GREEN,${summary?.green_clients ?? 0}`);
+      csvData.push(`YELLOW,${summary?.yellow_clients ?? 0}`);
+      csvData.push(`RED,${summary?.red_clients ?? 0}`);
+      csvData.push(`PURPLE,${summary?.purple_clients ?? 0}`);
+      csvData.push("");
+
+      // Critical clients
+      if (criticalClients && criticalClients.length > 0) {
+        csvData.push("CRITICAL INTERVENTIONS REQUIRED");
+        csvData.push("Name,Email,Health Score,Zone,Days Since Last Session");
+        criticalClients.forEach(client => {
+          csvData.push(
+            `"${client.firstname} ${client.lastname}",${client.client_email},${client.health_score.toFixed(0)},${client.health_zone},${client.days_since_last_session || 'N/A'}`
+          );
+        });
+        csvData.push("");
+      }
+
+      // Coach performance
+      if (coaches && coaches.length > 0) {
+        csvData.push("COACH PERFORMANCE");
+        csvData.push("Coach Name,Total Clients,Avg Health,RED,YELLOW,GREEN,PURPLE,Trend");
+        coaches.forEach(coach => {
+          csvData.push(
+            `${coach.coach_name},${coach.total_clients},${coach.avg_client_health?.toFixed(1)},${coach.red_clients},${coach.yellow_clients},${coach.green_clients},${coach.purple_clients},${coach.trend || 'stable'}`
+          );
+        });
+      }
+
+      // Create CSV blob
+      const csvContent = csvData.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+
+      // Download
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+      link.setAttribute("href", url);
+      link.setAttribute("download", `ptd_dashboard_${timestamp}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Success",
+        description: "Dashboard report exported successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export report",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   if (summaryLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -359,8 +440,18 @@ const Overview = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm">
-              Export Report
+            <Button variant="outline" size="sm" onClick={handleExportReport} disabled={exportLoading}>
+              {exportLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Report
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -440,7 +531,12 @@ const Overview = () => {
                       <p className="text-sm text-muted-foreground mb-2">
                         {client.days_since_last_session ? `${client.days_since_last_session} days since last session` : 'No recent sessions'}
                       </p>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => navigate(`/clients/${client.client_email}`)}
+                      >
                         View Details
                       </Button>
                     </div>

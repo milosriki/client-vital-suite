@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lightbulb, TrendingUp, AlertTriangle, Users } from 'lucide-react';
 
@@ -7,10 +8,11 @@ interface PatternInsightsProps {
 }
 
 export function PatternInsights({ patterns, clients }: PatternInsightsProps) {
-  const generateInsights = () => {
+  // Memoized insights generation to avoid expensive reduce/filter operations on every render
+  const insights = useMemo(() => {
     const insights = [];
 
-    // Coach-based patterns
+    // Coach-based patterns (reduce operation)
     const coachGroups = clients.reduce((acc, client) => {
       const coach = client.assigned_coach || 'Unassigned';
       if (!acc[coach]) acc[coach] = [];
@@ -29,7 +31,7 @@ export function PatternInsights({ patterns, clients }: PatternInsightsProps) {
       }
     });
 
-    // Session-based patterns
+    // Session-based patterns (filter and reduce operations)
     const recentSessionClients = clients.filter((c) => (c.days_since_last_session || 0) <= 7);
     const oldSessionClients = clients.filter((c) => (c.days_since_last_session || 0) > 30);
 
@@ -52,7 +54,7 @@ export function PatternInsights({ patterns, clients }: PatternInsightsProps) {
       }
     }
 
-    // Trend patterns
+    // Trend patterns (filter operation)
     const improvingCount = clients.filter((c) => c.health_trend === 'IMPROVING').length;
     const decliningCount = clients.filter((c) => c.health_trend === 'DECLINING').length;
 
@@ -74,9 +76,7 @@ export function PatternInsights({ patterns, clients }: PatternInsightsProps) {
     }
 
     return insights;
-  };
-
-  const insights = generateInsights();
+  }, [clients, patterns]);
 
   return (
     <Card>

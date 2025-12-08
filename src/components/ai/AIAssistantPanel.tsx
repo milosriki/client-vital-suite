@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,10 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Brain,
+  BookOpen,
+  Zap
 } from "lucide-react";
 
 interface Message {
@@ -44,6 +48,7 @@ interface ProactiveInsight {
 }
 
 export function AIAssistantPanel() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -209,6 +214,38 @@ export function AIAssistantPanel() {
   const unreadInsights = insights?.filter(i => !i.is_dismissed) || [];
   const criticalCount = unreadInsights.filter(i => i.priority === "critical" || i.priority === "high").length;
 
+  // Fetch today's AI metrics for mini summary
+  const { data: todayMetrics } = useQuery({
+    queryKey: ["agent-metrics-mini"],
+    queryFn: async () => {
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const { data, error } = await (supabase as any)
+          .from("agent_metrics")
+          .select("queries_count, successful_decisions, decisions_made")
+          .eq("date", today);
+
+        if (error || !data) return null;
+
+        const total = data.reduce((acc: any, m: any) => ({
+          queries: acc.queries + m.queries_count,
+          successful: acc.successful + m.successful_decisions,
+          decisions: acc.decisions + m.decisions_made
+        }), { queries: 0, successful: 0, decisions: 0 });
+
+        return total;
+      } catch {
+        return null;
+      }
+    },
+    refetchInterval: 60000,
+    retry: false
+  });
+
+  const successRate = todayMetrics?.decisions > 0
+    ? ((todayMetrics.successful / todayMetrics.decisions) * 100).toFixed(0)
+    : "0";
+
   return (
     <Card className="h-full flex flex-col shadow-lg border-2 border-primary/20">
       {/* Header */}
@@ -242,6 +279,48 @@ export function AIAssistantPanel() {
 
       {isExpanded && (
         <>
+          {/* Mini Metrics Summary */}
+          {todayMetrics && (
+            <div className="p-3 bg-gradient-to-r from-primary/10 to-purple-500/10 border-b">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-yellow-600" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Queries Today</p>
+                    <p className="font-bold">{todayMetrics.queries}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-3 w-3 text-green-600" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Success Rate</p>
+                    <p className="font-bold text-green-600">{successRate}%</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => navigate("/ai-knowledge")}
+                >
+                  <BookOpen className="h-3 w-3 mr-1" />
+                  Knowledge
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => navigate("/ai-learning")}
+                >
+                  <Brain className="h-3 w-3 mr-1" />
+                  Learning
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Proactive Insights */}
           {unreadInsights.length > 0 && (
             <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border-b">

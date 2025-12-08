@@ -2,10 +2,10 @@
 
 ## Architecture Overview
 
-This project integrates three core systems:
+This project integrates two core systems:
 1. **Lovable Frontend** (this repo) - React dashboard for monitoring and control
 2. **Stape CAPI Gateway** - Meta Conversions API proxy (https://ap.stape.info)
-3. **n8n Workflows** - Automation engine for data processing
+3. **Supabase pg_cron** - Scheduled automation engine for data processing
 
 ## System Components
 
@@ -62,22 +62,20 @@ Maps HubSpot lifecycle stages to Meta standard events:
 - Delete unused mappings
 - All changes stored in Supabase
 
-### 4. n8n Workflow Integration
+### 4. Automation with Supabase pg_cron
 
-**Webhook Endpoints:**
-Configure these in Settings tab with your n8n base URL:
+Scheduled tasks are now managed through Supabase pg_cron instead of n8n:
 
-```
-{n8n_base_url}/webhook/capi_ingest        # CSV backfill to CAPI
-{n8n_base_url}/webhook/ptd_daily_health   # Daily health score calculation
-{n8n_base_url}/webhook/ptd_monthly_review # Monthly coach performance review
-{n8n_base_url}/webhook/ptd_ai_analysis    # AI-powered client analysis
-```
+**Available Scheduled Jobs:**
+- Daily health score calculation
+- Monthly coach performance review
+- Weekly pattern analysis
+- Intervention logging
 
-**Example n8n Base URL:**
-```
-https://personaltrainersdubai.app.n8n.cloud
-```
+**Managing Schedules:**
+- Configure via Supabase SQL Editor
+- Use pg_cron syntax for scheduling
+- Monitor execution via Supabase logs
 
 ## Database Schema
 
@@ -118,7 +116,6 @@ https://personaltrainersdubai.app.n8n.cloud
 **app_settings** - System configuration (singleton)
 ```sql
 - supabase_url, supabase_anon_key
-- n8n_base_url
 - meta_pixel_id
 - test_event_code
 - telegram_bot_token, telegram_chat_id
@@ -184,12 +181,11 @@ https://personaltrainersdubai.app.n8n.cloud
 
 ### 3. Running Automation
 
-1. Configure n8n base URL in Settings
-2. Navigate to Automation tab
-3. Click workflow triggers:
-   - Daily Health Calculation
-   - Monthly Coach Review
-   - CSV Backfill
+Automation is now handled by Supabase pg_cron scheduled jobs:
+1. Daily Health Calculation - Runs every morning
+2. Monthly Coach Review - Runs on the 1st of each month
+3. Weekly Pattern Analysis - Runs every Monday
+4. Intervention Logging - Runs continuously as events occur
 
 ## Environment Variables
 
@@ -228,11 +224,8 @@ CONVERSION-API/
 ├── README.md
 ├── scripts/
 │   └── test-events.js    # Test scripts
-├── supabase/
-│   └── schema.sql        # Database schema
-└── n8n/
-    ├── flows/            # Workflow JSONs
-    └── functions/        # Aggregator functions
+└── supabase/
+    └── schema.sql        # Database schema
 ```
 
 ### client-vital-suite Repo (Frontend)
@@ -346,25 +339,25 @@ Trigger interventions if needed
 2. Check event_mappings table for correct HubSpot event name
 3. Verify n8n workflow is using the mapping table
 
-### n8n Webhooks Failing
-1. Verify n8n base URL in Settings (no trailing slash)
-2. Check n8n workflow webhook paths
-3. Test webhook URL directly with curl/Postman
-4. Review n8n execution logs
+### Scheduled Tasks Not Running
+1. Verify pg_cron extension is enabled in Supabase
+2. Check Supabase logs for execution history
+3. Verify cron job syntax is correct
+4. Check database permissions for the cron job user
 
 ## Support
 
 For issues or questions:
 1. Check Supabase logs (Database, Edge Functions)
 2. Review Meta Events Manager diagnostics
-3. Check n8n workflow execution history
+3. Check Supabase pg_cron execution logs
 4. Review this guide and verify all steps completed
 
 ## Next Steps
 
-1. Import n8n workflows from `/n8n/flows/`
-2. Configure n8n credentials (Supabase, HubSpot)
-3. Set up Meta Pixel on ptdfitness.com
-4. Test end-to-end: HubSpot → n8n → CAPI → Meta
-5. Monitor health scores and adjust thresholds
-6. Configure Telegram alerts for critical events
+1. Configure Supabase pg_cron jobs for automation
+2. Set up Meta Pixel on ptdfitness.com
+3. Test end-to-end: HubSpot → Supabase → CAPI → Meta
+4. Monitor health scores and adjust thresholds
+5. Configure Telegram alerts for critical events
+6. Review pg_cron execution logs for any issues

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, RefreshCw } from "lucide-react";
+import { Save, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
@@ -12,7 +12,6 @@ export default function SettingsTab() {
   const [settings, setSettings] = useState({
     supabase_url: "",
     supabase_anon_key: "",
-    n8n_base_url: "",
     capi_base_url: "",
     meta_pixel_id: "",
     meta_access_token: "",
@@ -20,6 +19,7 @@ export default function SettingsTab() {
     telegram_bot_token: "",
     telegram_chat_id: "",
   });
+  const [recheckLoading, setRecheckLoading] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -37,7 +37,6 @@ export default function SettingsTab() {
         setSettings({
           supabase_url: data.supabase_url || "",
           supabase_anon_key: data.supabase_anon_key || "",
-          n8n_base_url: data.n8n_base_url || "",
           capi_base_url: data.capi_base_url || "",
           meta_pixel_id: data.meta_pixel_id || "",
           meta_access_token: data.meta_access_token || "",
@@ -79,19 +78,59 @@ export default function SettingsTab() {
   };
 
   const recheckServices = async () => {
-    // Ping all services to check connectivity
-    toast({
-      title: "Rechecking",
-      description: "Validating all service connections...",
-    });
+    setRecheckLoading(true);
+    const results = {
+      supabase: false,
+      capi: false,
+    };
 
-    // This would trigger actual health checks
-    setTimeout(() => {
+    try {
+      // Check Supabase connectivity
+      try {
+        const { error } = await supabase
+          .from("client_health_scores")
+          .select("count")
+          .limit(1);
+
+        if (!error) {
+          results.supabase = true;
+        }
+      } catch (err) {
+        console.error("Supabase health check failed:", err);
+      }
+
+      // Check Meta CAPI connectivity
+      try {
+        const capiUrl = settings.capi_base_url || "https://ap.stape.info";
+        const response = await fetch(`${capiUrl}/health`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (response.ok) {
+          results.capi = true;
+        }
+      } catch (err) {
+        console.error("CAPI health check failed:", err);
+      }
+
+      // Show results
+      const statusMessage = `Supabase: ${results.supabase ? "Connected" : "Disconnected"} | CAPI: ${results.capi ? "Connected" : "Disconnected"}`;
+
       toast({
         title: "Recheck Complete",
-        description: "Service status updated",
+        description: statusMessage,
+        variant: results.supabase && results.capi ? "default" : "destructive",
       });
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "Recheck Failed",
+        description: error instanceof Error ? error.message : "Failed to check services",
+        variant: "destructive",
+      });
+    } finally {
+      setRecheckLoading(false);
+    }
   };
 
   return (
@@ -100,7 +139,7 @@ export default function SettingsTab() {
         <CardHeader>
           <CardTitle>Application Settings</CardTitle>
           <CardDescription>
-            Configure Supabase, n8n, and Meta CAPI connections
+            Configure Supabase and Meta CAPI connections
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -173,29 +212,6 @@ export default function SettingsTab() {
             </div>
           </div>
 
-          {/* n8n Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">n8n Automation Webhooks</h3>
-            <div className="space-y-2">
-              <Label htmlFor="n8n-url">n8n Base URL</Label>
-              <Input
-                id="n8n-url"
-                value={settings.n8n_base_url}
-                onChange={(e) =>
-                  setSettings({ ...settings, n8n_base_url: e.target.value })
-                }
-                placeholder="https://personaltrainersdubai.app.n8n.cloud"
-              />
-            </div>
-            <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
-              <div className="font-medium mb-2">Webhook Endpoints:</div>
-              <div>• CAPI Ingest: <code className="text-xs">/webhook/capi_ingest</code></div>
-              <div>• Daily Health: <code className="text-xs">/webhook/ptd_daily_health</code></div>
-              <div>• Monthly Review: <code className="text-xs">/webhook/ptd_monthly_review</code></div>
-              <div>• AI Analysis: <code className="text-xs">/webhook/ptd_ai_analysis</code></div>
-            </div>
-          </div>
-
           {/* Telegram Settings */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Telegram Notifications</h3>
@@ -229,9 +245,22 @@ export default function SettingsTab() {
               <Save className="h-4 w-4 mr-2" />
               Save Settings
             </Button>
-            <Button variant="outline" onClick={recheckServices}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Save & Recheck
+            <Button
+              variant="outline"
+              onClick={recheckServices}
+              disabled={recheckLoading}
+            >
+              {recheckLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Recheck
+                </>
+              )}
             </Button>
           </div>
         </CardContent>

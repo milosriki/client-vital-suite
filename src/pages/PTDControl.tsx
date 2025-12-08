@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -12,13 +12,51 @@ import SettingsTab from "@/components/ptd/SettingsTab";
 import AdEventsTab from "@/components/ptd/AdEventsTab";
 import CoachReviewsTab from "@/components/ptd/CoachReviewsTab";
 import DataEnrichmentTab from "@/components/ptd/DataEnrichmentTab";
+import { supabase } from "@/lib/supabase";
+
 export default function PTDControl() {
   const [mode, setMode] = useState<"test" | "live">("test");
-  
+
   // Connection status states
-  const [supabaseStatus, setSupabaseStatus] = useState("connected");
-  const [n8nStatus, setN8nStatus] = useState("warning");
-  const [capiStatus, setCapiStatus] = useState("connected");
+  const [supabaseStatus, setSupabaseStatus] = useState<"connected" | "warning" | "disconnected">("connected");
+  const [capiStatus, setCapiStatus] = useState<"connected" | "warning" | "disconnected">("connected");
+
+  // Health check function
+  useEffect(() => {
+    const checkConnections = async () => {
+      // Check Supabase
+      try {
+        const { error } = await supabase
+          .from("client_health_scores")
+          .select("count")
+          .limit(1);
+
+        setSupabaseStatus(error ? "disconnected" : "connected");
+      } catch (err) {
+        setSupabaseStatus("disconnected");
+      }
+
+      // Check Meta CAPI
+      try {
+        const response = await fetch("https://ap.stape.info/health", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        setCapiStatus(response.ok ? "connected" : "warning");
+      } catch (err) {
+        setCapiStatus("warning");
+      }
+    };
+
+    // Check immediately
+    checkConnections();
+
+    // Check every 30 seconds
+    const interval = setInterval(checkConnections, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -95,10 +133,6 @@ export default function PTDControl() {
             <Badge variant="outline" className={getStatusColor(supabaseStatus)}>
               {getStatusIcon(supabaseStatus)}
               <span className="ml-1">Supabase</span>
-            </Badge>
-            <Badge variant="outline" className={getStatusColor(n8nStatus)}>
-              {getStatusIcon(n8nStatus)}
-              <span className="ml-1">n8n</span>
             </Badge>
             <Badge variant="outline" className={getStatusColor(capiStatus)}>
               {getStatusIcon(capiStatus)}

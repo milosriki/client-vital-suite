@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
+import { QUERY_INTERVALS } from '@/config/queryConfig';
 import { ClientRiskMatrix } from '@/components/dashboard/ClientRiskMatrix';
 import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
 import { CoachPerformanceTable } from '@/components/dashboard/CoachPerformanceTable';
@@ -93,7 +94,7 @@ export default function Dashboard() {
       if (error) throw error;
       return data as any[] || [];
     },
-    refetchInterval: 60000,
+    refetchInterval: QUERY_INTERVALS.STANDARD,
   });
 
   const { data: coaches, isLoading: coachesLoading } = useQuery({
@@ -108,7 +109,7 @@ export default function Dashboard() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    refetchInterval: QUERY_INTERVALS.STANDARD,
   });
 
   const { data: interventions, isLoading: interventionsLoading } = useQuery({
@@ -123,7 +124,7 @@ export default function Dashboard() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    refetchInterval: QUERY_INTERVALS.STANDARD,
   });
 
   const { data: summary } = useQuery({
@@ -145,7 +146,7 @@ export default function Dashboard() {
         return null;
       }
     },
-    refetchInterval: 60000,
+    refetchInterval: QUERY_INTERVALS.STANDARD,
   });
 
   const { data: patterns } = useQuery({
@@ -167,7 +168,7 @@ export default function Dashboard() {
         return null;
       }
     },
-    refetchInterval: 60000,
+    refetchInterval: QUERY_INTERVALS.STANDARD,
   });
 
   const isLoading = clientsLoading || coachesLoading || interventionsLoading;

@@ -138,27 +138,6 @@
       <div id="purchase-result" class="result" style="display:none;"></div>
     </div>
 
-    <!-- n8n Backfill -->
-    <div class="section">
-      <h2>🔄 Trigger n8n Backfill</h2>
-      <div class="input-group">
-        <label>n8n Backfill Webhook URL:</label>
-        <input type="url" id="backfill-url" placeholder="https://your-n8n.com/webhook/backfill" />
-      </div>
-      <button onclick="triggerBackfill()">Trigger Backfill</button>
-      <div id="backfill-result" class="result" style="display:none;"></div>
-    </div>
-
-    <!-- n8n Health -->
-    <div class="section">
-      <h2>📊 Run n8n Health Check</h2>
-      <div class="input-group">
-        <label>n8n Health Webhook URL:</label>
-        <input type="url" id="health-webhook-url" placeholder="https://your-n8n.com/webhook/health" />
-      </div>
-      <button onclick="runHealthWebhook()">Run Health Webhook</button>
-      <div id="health-webhook-result" class="result" style="display:none;"></div>
-    </div>
   </div>
 
   <script>
@@ -224,61 +203,6 @@
       }
     }
 
-    async function triggerBackfill() {
-      const resultDiv = document.getElementById('backfill-result');
-      const url = document.getElementById('backfill-url').value;
-      
-      if (!url) {
-        alert('Please enter n8n backfill webhook URL');
-        return;
-      }
-      
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = '<pre>Triggering...</pre>';
-      
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trigger: 'backfill', timestamp: Date.now() })
-        });
-        
-        const data = await response.json();
-        resultDiv.className = response.ok ? 'result success' : 'result error';
-        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-      } catch (error) {
-        resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
-      }
-    }
-
-    async function runHealthWebhook() {
-      const resultDiv = document.getElementById('health-webhook-result');
-      const url = document.getElementById('health-webhook-url').value;
-      
-      if (!url) {
-        alert('Please enter n8n health webhook URL');
-        return;
-      }
-      
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = '<pre>Running...</pre>';
-      
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trigger: 'health_check', timestamp: Date.now() })
-        });
-        
-        const data = await response.json();
-        resultDiv.className = response.ok ? 'result success' : 'result error';
-        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-      } catch (error) {
-        resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
-      }
-    }
   </script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,36 +39,42 @@ const Analytics = () => {
     },
   });
 
-  // Prepare data for charts
-  const trendData = weeklyData?.map(week => ({
-    week: new Date(week.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    avgScore: week.avg_health_score,
-    red: week.red_clients,
-    yellow: week.yellow_clients,
-    green: week.green_clients,
-    purple: week.purple_clients,
-  })) || [];
+  // Prepare data for charts (memoized to avoid expensive recalculations)
+  const trendData = useMemo(() => {
+    return weeklyData?.map(week => ({
+      week: new Date(week.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      avgScore: week.avg_health_score,
+      red: week.red_clients,
+      yellow: week.yellow_clients,
+      green: week.green_clients,
+      purple: week.purple_clients,
+    })) || [];
+  }, [weeklyData]);
 
-  // Zone distribution for pie chart
-  const zoneData = [
-    { name: 'RED', value: clients?.filter(c => c.health_zone === 'RED').length || 0, color: '#ef4444' },
-    { name: 'YELLOW', value: clients?.filter(c => c.health_zone === 'YELLOW').length || 0, color: '#eab308' },
-    { name: 'GREEN', value: clients?.filter(c => c.health_zone === 'GREEN').length || 0, color: '#22c55e' },
-    { name: 'PURPLE', value: clients?.filter(c => c.health_zone === 'PURPLE').length || 0, color: '#a855f7' },
-  ];
+  // Zone distribution for pie chart (memoized to avoid repeated filtering)
+  const zoneData = useMemo(() => {
+    return [
+      { name: 'RED', value: clients?.filter(c => c.health_zone === 'RED').length || 0, color: '#ef4444' },
+      { name: 'YELLOW', value: clients?.filter(c => c.health_zone === 'YELLOW').length || 0, color: '#eab308' },
+      { name: 'GREEN', value: clients?.filter(c => c.health_zone === 'GREEN').length || 0, color: '#22c55e' },
+      { name: 'PURPLE', value: clients?.filter(c => c.health_zone === 'PURPLE').length || 0, color: '#a855f7' },
+    ];
+  }, [clients]);
 
-  // Segment distribution
-  const segmentData = clients?.reduce((acc: any[], client) => {
-    const segment = client.client_segment || 'Unknown';
-    const existing = acc.find(s => s.segment === segment);
-    if (existing) {
-      existing.count++;
-      existing.avgScore += client.health_score || 0;
-    } else {
-      acc.push({ segment, count: 1, avgScore: client.health_score || 0 });
-    }
-    return acc;
-  }, []).map(s => ({ ...s, avgScore: s.avgScore / s.count })) || [];
+  // Segment distribution (memoized to avoid expensive reduce operations)
+  const segmentData = useMemo(() => {
+    return clients?.reduce((acc: any[], client) => {
+      const segment = client.client_segment || 'Unknown';
+      const existing = acc.find(s => s.segment === segment);
+      if (existing) {
+        existing.count++;
+        existing.avgScore += client.health_score || 0;
+      } else {
+        acc.push({ segment, count: 1, avgScore: client.health_score || 0 });
+      }
+      return acc;
+    }, []).map(s => ({ ...s, avgScore: s.avgScore / s.count })) || [];
+  }, [clients]);
 
   const isLoading = weeklyLoading || clientsLoading;
 

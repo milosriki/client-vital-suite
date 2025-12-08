@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command, Search, TrendingUp, PhoneCall, Zap } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command, Search, TrendingUp, PhoneCall, Zap, GitBranch, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionStatus } from "./ConnectionStatus";
 
@@ -11,11 +11,14 @@ export const Navigation = () => {
     { path: "/hubspot-live", label: "HubSpot Live", icon: Zap },
     { path: "/setter-activity-today", label: "Today's Activity", icon: PhoneCall },
     { path: "/overview", label: "Overview", icon: BarChart3 },
+    { path: "/sales-pipeline", label: "Sales Pipeline", icon: GitBranch },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
     { path: "/sales-coach-tracker", label: "Sales & Activity", icon: TrendingUp },
     { path: "/interventions", label: "Interventions", icon: AlertTriangle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
+    { path: "/ai-knowledge", label: "AI Knowledge", icon: Brain },
+    { path: "/ai-learning", label: "AI Learning", icon: Brain },
     { path: "/hubspot-analyzer", label: "HubSpot Analysis", icon: Search },
     { path: "/meta-dashboard", label: "Meta CAPI", icon: Activity },
     { path: "/ptd-control", label: "PTD Control", icon: Command },

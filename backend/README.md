@@ -102,23 +102,11 @@ Content-Type: application/json
 }
 ```
 
-### Webhook (for n8n)
-```bash
-POST /api/webhook/backfill
-Content-Type: application/json
-
-{
-  "events": [...]
-}
-```
-
 ## Dashboard
 
 Open `http://localhost:3000/` in your browser to access the HTML dashboard with buttons for:
 - Health Check
 - Send Test Purchase
-- Trigger n8n Backfill
-- Run n8n Health Webhook
 
 ## Testing
 
@@ -174,10 +162,6 @@ npm run pm2:logs
 - Rate limiting prevents abuse (100 req/min per IP)
 - Structured logging for audit trails
 - Never log sensitive data
-
-## n8n Integration
-
-The `/api/webhook/backfill` endpoint accepts events from n8n workflows. See `backend/n8n/AGGREGATOR_FUNCTION.js` for the aggregator function code to use in n8n.
 
 ## License
 

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { QUERY_INTERVALS } from "@/config/queryConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +22,11 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
         .eq("mode", mode)
         .order("created_at", { ascending: false })
         .limit(500);
-      
+
       if (error) throw error;
       return data;
     },
-    refetchInterval: 10000, // Auto-refresh every 10s
+    refetchInterval: QUERY_INTERVALS.CRITICAL, // Auto-refresh every 30s (critical event tracking)
   });
 
   const getStatusColor = (status?: string) => {
