@@ -12,6 +12,7 @@ import SettingsTab from "@/components/ptd/SettingsTab";
 import AdEventsTab from "@/components/ptd/AdEventsTab";
 import CoachReviewsTab from "@/components/ptd/CoachReviewsTab";
 import DataEnrichmentTab from "@/components/ptd/DataEnrichmentTab";
+import StripeDashboardTab from "@/components/ptd/StripeDashboardTab";
 export default function PTDControl() {
   const [mode, setMode] = useState<"test" | "live">("test");
   
@@ -111,8 +112,9 @@ export default function PTDControl() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-6">
+          <TabsList className="grid w-full grid-cols-9 mb-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="stripe">Stripe</TabsTrigger>
             <TabsTrigger value="health">Health</TabsTrigger>
             <TabsTrigger value="capi">CAPI</TabsTrigger>
             <TabsTrigger value="events">Ad Events</TabsTrigger>
@@ -124,6 +126,10 @@ export default function PTDControl() {
 
           <TabsContent value="dashboard">
             <DashboardTab mode={mode} />
+          </TabsContent>
+
+          <TabsContent value="stripe">
+            <StripeDashboardTab mode={mode} />
           </TabsContent>
 
           <TabsContent value="health">
