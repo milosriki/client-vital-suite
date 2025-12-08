@@ -28,6 +28,7 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { path: "/", element: <Dashboard /> },
+      { path: "/dashboard", element: <Dashboard /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <AnalyticsPage /> },
       { path: "/workflow-strategy", element: <WorkflowStrategy /> },
+      { path: "/fix-workflows", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "/ptd-control", element: <PTDControl /> },
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },

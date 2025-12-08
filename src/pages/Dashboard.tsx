@@ -129,15 +129,21 @@ export default function Dashboard() {
   const { data: summary } = useQuery({
     queryKey: ['daily-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('daily_summary')
-        .select('*')
-        .order('summary_date', { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('daily_summary')
+          .select('*')
+          .order('summary_date', { ascending: false })
+          .limit(1);
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          console.log('daily_summary query issue:', error.message);
+          return null;
+        }
+        return data?.[0] || null;
+      } catch {
+        return null;
+      }
     },
     refetchInterval: 60000,
   });
@@ -145,15 +151,21 @@ export default function Dashboard() {
   const { data: patterns } = useQuery({
     queryKey: ['weekly-patterns'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('weekly_patterns')
-        .select('*')
-        .order('week_start_date', { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('weekly_patterns')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          console.log('weekly_patterns not available:', error.message);
+          return null;
+        }
+        return data?.[0] || null;
+      } catch {
+        return null;
+      }
     },
     refetchInterval: 60000,
   });
