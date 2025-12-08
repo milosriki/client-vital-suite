@@ -21,6 +21,7 @@ import SetterActivityToday from "./pages/SetterActivityToday";
 import YesterdayBookings from "./pages/YesterdayBookings";
 import HubSpotLiveData from "./pages/HubSpotLiveData";
 import SalesPipeline from "./pages/SalesPipeline";
+import CallTracking from "./pages/CallTracking";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: "/", element: <Dashboard /> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/sales-pipeline", element: <SalesPipeline /> },
+      { path: "/call-tracking", element: <CallTracking /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },
