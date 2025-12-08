@@ -14,6 +14,8 @@ interface AutomationTabProps {
   mode: "test" | "live";
 }
 
+// This component uses Supabase Edge Functions and RPC calls for automation
+// Previously used n8n workflows, now fully migrated to Supabase
 export default function AutomationTab({ mode }: AutomationTabProps) {
   const { toast } = useToast();
   const [csvUrl, setCsvUrl] = useState("");

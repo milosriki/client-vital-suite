@@ -1,8 +1,12 @@
-# N8N Workflow Analysis & Claude Agent Replacement Strategy
+# [DEPRECATED] N8N Workflow Analysis & Claude Agent Replacement Strategy
+
+> **⚠️ DEPRECATED NOTICE**: This document is kept for historical reference only. n8n is no longer used in this system. All automation has been migrated to Supabase Edge Functions and RPC calls as described in this document.
 
 ## Executive Summary
 
 The current system uses **5 n8n workflows** running on n8n Cloud to handle client health scoring, risk analysis, and automation. This analysis breaks down each workflow's logic and proposes a **simpler, more maintainable** architecture using **Claude Agents + Supabase Edge Functions**.
+
+**STATUS**: Migration complete. n8n has been replaced with Supabase-based automation.
 
 ---
 

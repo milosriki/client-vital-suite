@@ -12,7 +12,6 @@ export default function SettingsTab() {
   const [settings, setSettings] = useState({
     supabase_url: "",
     supabase_anon_key: "",
-    n8n_base_url: "",
     capi_base_url: "",
     meta_pixel_id: "",
     meta_access_token: "",
@@ -37,7 +36,6 @@ export default function SettingsTab() {
         setSettings({
           supabase_url: data.supabase_url || "",
           supabase_anon_key: data.supabase_anon_key || "",
-          n8n_base_url: data.n8n_base_url || "",
           capi_base_url: data.capi_base_url || "",
           meta_pixel_id: data.meta_pixel_id || "",
           meta_access_token: data.meta_access_token || "",
@@ -100,7 +98,7 @@ export default function SettingsTab() {
         <CardHeader>
           <CardTitle>Application Settings</CardTitle>
           <CardDescription>
-            Configure Supabase, n8n, and Meta CAPI connections
+            Configure Supabase and Meta CAPI connections
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -170,29 +168,6 @@ export default function SettingsTab() {
                 }
                 placeholder="TEST12345"
               />
-            </div>
-          </div>
-
-          {/* n8n Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">n8n Automation Webhooks</h3>
-            <div className="space-y-2">
-              <Label htmlFor="n8n-url">n8n Base URL</Label>
-              <Input
-                id="n8n-url"
-                value={settings.n8n_base_url}
-                onChange={(e) =>
-                  setSettings({ ...settings, n8n_base_url: e.target.value })
-                }
-                placeholder="https://personaltrainersdubai.app.n8n.cloud"
-              />
-            </div>
-            <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
-              <div className="font-medium mb-2">Webhook Endpoints:</div>
-              <div>• CAPI Ingest: <code className="text-xs">/webhook/capi_ingest</code></div>
-              <div>• Daily Health: <code className="text-xs">/webhook/ptd_daily_health</code></div>
-              <div>• Monthly Review: <code className="text-xs">/webhook/ptd_monthly_review</code></div>
-              <div>• AI Analysis: <code className="text-xs">/webhook/ptd_ai_analysis</code></div>
             </div>
           </div>
 

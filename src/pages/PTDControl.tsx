@@ -17,7 +17,6 @@ export default function PTDControl() {
   
   // Connection status states
   const [supabaseStatus, setSupabaseStatus] = useState("connected");
-  const [n8nStatus, setN8nStatus] = useState("warning");
   const [capiStatus, setCapiStatus] = useState("connected");
 
   const getStatusIcon = (status: string) => {
@@ -95,10 +94,6 @@ export default function PTDControl() {
             <Badge variant="outline" className={getStatusColor(supabaseStatus)}>
               {getStatusIcon(supabaseStatus)}
               <span className="ml-1">Supabase</span>
-            </Badge>
-            <Badge variant="outline" className={getStatusColor(n8nStatus)}>
-              {getStatusIcon(n8nStatus)}
-              <span className="ml-1">n8n</span>
             </Badge>
             <Badge variant="outline" className={getStatusColor(capiStatus)}>
               {getStatusIcon(capiStatus)}
