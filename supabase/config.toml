@@ -1,22 +1,22 @@
 project_id = "boowptjtwadxpjkpctna"
 
 [functions.fix-n8n-workflows]
-verify_jwt = false
+verify_jwt = true
 
 [functions.setup-workflows]
-verify_jwt = false
+verify_jwt = true
 
 [functions.update-n8n-workflow]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-to-stape-capi]
-verify_jwt = false
+verify_jwt = true
 
 [functions.sync-hubspot-to-capi]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enrich-with-stripe]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-capi-batch]
-verify_jwt = false
+verify_jwt = true
