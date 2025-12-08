@@ -66,23 +66,30 @@ interface ForensicsData {
 export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
   const [isAuditing, setIsAuditing] = useState(false);
 
-  const { data: forensicsData, isLoading, refetch, isError } = useQuery({
+  const { data: forensicsData, isLoading, refetch, isError, isFetching } = useQuery({
     queryKey: ['stripe-forensics', mode],
     queryFn: async (): Promise<ForensicsData> => {
+      console.log('[Forensics] Fetching fresh data...');
       const { data, error } = await supabase.functions.invoke('stripe-forensics', {
         body: { action: 'full-audit', mode }
       });
       if (error) throw error;
+      console.log('[Forensics] Data received:', data?.auditTimestamp);
       return data;
     },
-    enabled: false,
+    staleTime: 0, // Always consider data stale - fetch fresh every time
+    gcTime: 0, // Don't cache
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const handleRunAudit = async () => {
     setIsAuditing(true);
     try {
-      await refetch();
-      toast.success("Security audit completed!");
+      const result = await refetch();
+      if (result.data) {
+        toast.success(`Audit completed! Data as of ${new Date(result.data.auditTimestamp).toLocaleTimeString()}`);
+      }
     } catch (error: any) {
       toast.error("Audit failed: " + error.message);
     } finally {
@@ -185,9 +192,9 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleRunAudit} disabled={isAuditing || isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isAuditing ? 'animate-spin' : ''}`} />
-          Re-run Audit
+        <Button variant="outline" size="sm" onClick={handleRunAudit} disabled={isAuditing || isFetching}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isAuditing || isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Fetching...' : 'Refresh Now'}
         </Button>
       </div>
 
