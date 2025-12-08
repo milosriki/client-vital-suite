@@ -20,6 +20,7 @@ import SalesCoachTracker from "./pages/SalesCoachTracker";
 import SetterActivityToday from "./pages/SetterActivityToday";
 import YesterdayBookings from "./pages/YesterdayBookings";
 import HubSpotLiveData from "./pages/HubSpotLiveData";
+import SalesPipeline from "./pages/SalesPipeline";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <Dashboard /> },
       { path: "/dashboard", element: <Dashboard /> },
+      { path: "/sales-pipeline", element: <SalesPipeline /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },
