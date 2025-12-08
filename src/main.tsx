@@ -22,6 +22,8 @@ import YesterdayBookings from "./pages/YesterdayBookings";
 import HubSpotLiveData from "./pages/HubSpotLiveData";
 import SalesPipeline from "./pages/SalesPipeline";
 import CallTracking from "./pages/CallTracking";
+import AIKnowledge from "./pages/AIKnowledge";
+import AILearning from "./pages/AILearning";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -33,6 +35,8 @@ const router = createBrowserRouter([
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/sales-pipeline", element: <SalesPipeline /> },
       { path: "/call-tracking", element: <CallTracking /> },
+      { path: "/ai-knowledge", element: <AIKnowledge /> },
+      { path: "/ai-learning", element: <AILearning /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },
