@@ -12,7 +12,6 @@ import ClientDetail from "./pages/ClientDetail";
 import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
 import AnalyticsPage from "./pages/Analytics";
-import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
 import PTDControl from "./pages/PTDControl";
 import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
@@ -43,8 +42,6 @@ const router = createBrowserRouter([
       { path: "/coaches", element: <Coaches /> },
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <AnalyticsPage /> },
-      { path: "/workflow-strategy", element: <WorkflowStrategy /> },
-      { path: "/fix-workflows", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "/ptd-control", element: <PTDControl /> },
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
