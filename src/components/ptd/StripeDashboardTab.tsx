@@ -17,11 +17,13 @@ import {
   XCircle,
   Wallet,
   ArrowUpRight,
-  ArrowDownRight,
   Clock,
-  Shield
+  Shield,
+  Bot,
+  Maximize2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import StripeAIDashboard from "./StripeAIDashboard";
 
 interface StripeDashboardTabProps {
   mode: "test" | "live";
@@ -43,6 +45,7 @@ interface StripeData {
 export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [showAIDashboard, setShowAIDashboard] = useState(false);
 
   const { data: stripeData, isLoading, refetch, isError } = useQuery({
     queryKey: ['stripe-dashboard-data', mode],
@@ -155,6 +158,13 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* AI Dashboard Modal */}
+      <StripeAIDashboard 
+        open={showAIDashboard} 
+        onOpenChange={setShowAIDashboard} 
+        mode={mode} 
+      />
+
       {/* Header with refresh */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -172,10 +182,20 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
             </Badge>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => setShowAIDashboard(true)}
+            className="gap-2"
+          >
+            <Bot className="h-4 w-4" />
+            <Maximize2 className="h-4 w-4" />
+            Payouts AI Dashboard
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Balance Cards */}
