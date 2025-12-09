@@ -14,6 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_feedback_learning: {
+        Row: {
+          applied_at: string | null
+          applied_to_model: boolean | null
+          context_data: Json | null
+          corrected_recommendation: string | null
+          created_at: string | null
+          created_by: string | null
+          feedback_notes: string | null
+          feedback_score: number | null
+          feedback_type: string
+          id: string
+          insight_id: string | null
+          insight_type: string | null
+          intervention_id: number | null
+          original_recommendation: string | null
+          user_correction: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_to_model?: boolean | null
+          context_data?: Json | null
+          corrected_recommendation?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          feedback_notes?: string | null
+          feedback_score?: number | null
+          feedback_type: string
+          id?: string
+          insight_id?: string | null
+          insight_type?: string | null
+          intervention_id?: number | null
+          original_recommendation?: string | null
+          user_correction?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_to_model?: boolean | null
+          context_data?: Json | null
+          corrected_recommendation?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          feedback_notes?: string | null
+          feedback_score?: number | null
+          feedback_type?: string
+          id?: string
+          insight_id?: string | null
+          insight_type?: string | null
+          intervention_id?: number | null
+          original_recommendation?: string | null
+          user_correction?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_learning_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "proactive_insights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_learning_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_learning_rules: {
+        Row: {
+          action_pattern: Json
+          condition_pattern: Json
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          rule_type: string
+          source: string | null
+          success_count: number | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          action_pattern: Json
+          condition_pattern: Json
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          rule_type: string
+          source?: string | null
+          success_count?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          action_pattern?: Json
+          condition_pattern?: Json
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          rule_type?: string
+          source?: string | null
+          success_count?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -358,6 +472,39 @@ export type Database = {
           report_type?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      business_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          rule_category: string
+          rule_config: Json
+          rule_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category: string
+          rule_config: Json
+          rule_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category?: string
+          rule_config?: Json
+          rule_name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
