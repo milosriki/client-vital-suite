@@ -1,12 +1,50 @@
-project_id = "boowptjtwadxpjkpctna"
+project_id = "ztjndilxurtsfqdsvfds"
 
-[functions.fix-n8n-workflows]
+# ============================================
+# SUPABASE-NATIVE EDGE FUNCTIONS (AI Agents)
+# No n8n dependency - all run directly
+# ============================================
+
+# Health & Intelligence Agents
+[functions.health-calculator]
 verify_jwt = false
 
-[functions.setup-workflows]
+[functions.churn-predictor]
 verify_jwt = false
 
-[functions.update-n8n-workflow]
+[functions.anomaly-detector]
+verify_jwt = false
+
+[functions.intervention-recommender]
+verify_jwt = false
+
+[functions.coach-analyzer]
+verify_jwt = false
+
+# Operations Agents
+[functions.daily-report]
+verify_jwt = false
+
+[functions.data-quality]
+verify_jwt = false
+
+[functions.integration-health]
+verify_jwt = false
+
+[functions.pipeline-monitor]
+verify_jwt = false
+
+[functions.ptd-watcher]
+verify_jwt = false
+
+[functions.ptd-agent]
+verify_jwt = false
+
+# External API Integrations
+[functions.fetch-hubspot-live]
+verify_jwt = false
+
+[functions.hubspot-command-center]
 verify_jwt = false
 
 [functions.send-to-stape-capi]
@@ -15,20 +53,21 @@ verify_jwt = false
 [functions.sync-hubspot-to-capi]
 verify_jwt = false
 
-[functions.enrich-with-stripe]
+[functions.capi-validator]
 verify_jwt = false
 
 [functions.process-capi-batch]
 verify_jwt = false
 
-[functions.stripe-payouts-ai]
+# Stripe Integrations
+[functions.stripe-dashboard-data]
 verify_jwt = false
 
 [functions.stripe-forensics]
 verify_jwt = false
 
-[functions.stripe-dashboard-data]
+[functions.stripe-payouts-ai]
 verify_jwt = false
 
-[functions.hubspot-command-center]
+[functions.enrich-with-stripe]
 verify_jwt = false
