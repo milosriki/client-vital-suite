@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Play, Eye, Upload, RefreshCw, FileText, Activity, Wrench, CheckCircle } from "lucide-react";
+import { Play, Eye, Upload, RefreshCw, FileText, Activity, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -143,44 +143,9 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
     }
   });
 
-  // Fix n8n Workflows
-  const fixN8nWorkflows = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('fix-n8n-workflows', {
-        body: { mode, action: 'fix-all' }
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast({ title: "n8n Workflows Fixed", description: data?.message || "Workflows updated" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to fix n8n workflows", variant: "destructive" });
-    }
-  });
-
-  // Setup Workflows
-  const setupWorkflows = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('setup-workflows', {
-        body: { mode, action: 'setup' }
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast({ title: "Workflows Setup", description: data?.message || "Setup complete" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to setup workflows", variant: "destructive" });
-    }
-  });
-
   const isAnyLoading = runDailyReport.isPending || runDataQuality.isPending || 
     checkIntegrationHealth.isPending || runPipelineMonitor.isPending || 
-    runCoachAnalyzer.isPending || runCAPIValidator.isPending ||
-    fixN8nWorkflows.isPending || setupWorkflows.isPending;
+    runCoachAnalyzer.isPending || runCAPIValidator.isPending;
 
   return (
     <div className="space-y-6">
@@ -276,35 +241,6 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => fixN8nWorkflows.mutate()}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10">
-                <Wrench className="h-5 w-5 text-yellow-500" />
-              </div>
-              <div>
-                <p className="font-semibold">Fix n8n</p>
-                <p className="text-xs text-muted-foreground">fix-n8n-workflows</p>
-              </div>
-            </div>
-            {fixN8nWorkflows.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setupWorkflows.mutate()}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-indigo-500/10">
-                <Play className="h-5 w-5 text-indigo-500" />
-              </div>
-              <div>
-                <p className="font-semibold">Setup Workflows</p>
-                <p className="text-xs text-muted-foreground">setup-workflows</p>
-              </div>
-            </div>
-            {setupWorkflows.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Backfill CSV to CAPI */}
