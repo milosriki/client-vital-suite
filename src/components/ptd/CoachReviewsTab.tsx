@@ -1,16 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, Brain, Play } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface CoachReviewsTabProps {
   mode: "test" | "live";
 }
 
 export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
+  const { toast } = useToast();
+  
   const { data: reviews, isLoading, refetch } = useQuery({
     queryKey: ["coach-reviews"],
     queryFn: async () => {
@@ -25,7 +28,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
     },
   });
 
-  const { data: performance } = useQuery({
+  const { data: performance, refetch: refetchPerformance } = useQuery({
     queryKey: ["coach-performance"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -39,8 +42,92 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
     },
   });
 
+  // Run Coach Analyzer
+  const runCoachAnalyzer = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('coach-analyzer', {
+        body: { mode, action: 'analyze-all' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Coach Analysis Complete", 
+        description: `${data?.coachesAnalyzed || 0} coaches analyzed successfully` 
+      });
+      refetchPerformance();
+      refetch();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to analyze coaches", variant: "destructive" });
+    }
+  });
+
+  // Generate Monthly Review
+  const generateMonthlyReview = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('coach-analyzer', {
+        body: { mode, action: 'monthly-review' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Monthly Review Generated", 
+        description: data?.message || "Review saved successfully" 
+      });
+      refetch();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to generate monthly review", variant: "destructive" });
+    }
+  });
+
   return (
     <div className="space-y-6">
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => runCoachAnalyzer.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Brain className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">Run Coach Analysis</p>
+                <p className="text-xs text-muted-foreground">Analyze all coach performance metrics</p>
+              </div>
+              {runCoachAnalyzer.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => generateMonthlyReview.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <TrendingUp className="h-5 w-5 text-green-500" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">Generate Monthly Review</p>
+                <p className="text-xs text-muted-foreground">Create comprehensive monthly summary</p>
+              </div>
+              {generateMonthlyReview.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Coach Performance Summary */}
       <Card>
         <CardHeader>
@@ -49,7 +136,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
               <CardTitle>Coach Performance</CardTitle>
               <CardDescription>Latest performance metrics by coach</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <Button variant="outline" size="sm" onClick={() => refetchPerformance()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
@@ -146,7 +233,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              No performance data available
+              No performance data available. Click "Run Coach Analysis" to generate.
             </div>
           )}
         </CardContent>
@@ -168,10 +255,8 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-base">{review.coach}</CardTitle>
-                        <CardDescription>
-                          {review.period_month}/{review.period_year}
-                        </CardDescription>
+                        <CardTitle className="text-base">{review.coach_id}</CardTitle>
+                        <CardDescription>{review.review_month}</CardDescription>
                       </div>
                       <Badge variant="outline">
                         {new Date(review.created_at).toLocaleDateString()}
@@ -179,39 +264,19 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <div className="text-2xl font-bold">
-                          {review.summary?.total_clients || 0}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Total Clients</p>
+                    {review.ai_recommendations && (
+                      <div className="bg-primary/5 p-3 rounded-lg">
+                        <p className="text-sm font-medium mb-1">AI Recommendations:</p>
+                        <p className="text-sm text-muted-foreground">{review.ai_recommendations}</p>
                       </div>
-                      <div>
-                        <div className="text-2xl font-bold text-green-500">
-                          {review.summary?.greens || 0}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Green Zone</p>
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-yellow-500">
-                          {review.summary?.yellows || 0}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Yellow Zone</p>
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-red-500">
-                          {review.summary?.reds || 0}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Red Zone</p>
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              No reviews found. Run monthly review in Automation tab to generate.
+              No reviews found. Click "Generate Monthly Review" to create one.
             </div>
           )}
         </CardContent>

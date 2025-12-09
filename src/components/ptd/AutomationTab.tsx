@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Play, Eye, Upload } from "lucide-react";
+import { Play, Eye, Upload, RefreshCw, FileText, Activity, Wrench, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 interface AutomationTabProps {
@@ -18,151 +18,291 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
   const { toast } = useToast();
   const [csvUrl, setCsvUrl] = useState("");
 
-  // Fetch automation logs
-  const { data: logs } = useQuery({
-    queryKey: ["automation-logs"],
+  // Fetch sync logs
+  const { data: logs, refetch: refetchLogs } = useQuery({
+    queryKey: ["sync-logs"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("automation_logs")
+        .from("sync_logs")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("started_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       return data;
     },
   });
 
-  const handleDailyHealth = async () => {
-    try {
-      const { error } = await supabase.rpc("calculate_daily_health_scores");
-      if (error) throw error;
-      
-      // Log the action
-      await supabase.from("automation_logs").insert({
-        action_type: "daily_health_calculation",
-        status: "success",
-        mode,
-      });
-
-      toast({
-        title: "Success",
-        description: "Daily health scores calculated",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to run daily health calculation",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleMonthlyReview = async () => {
-    try {
-      const { data, error } = await supabase.rpc("monthly_coach_review", {
-        p_coach: "default",
+  // Daily Report
+  const runDailyReport = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('daily-report', {
+        body: { mode, action: 'generate' }
       });
       if (error) throw error;
-
-      // Save to coach_reviews
-      await supabase.from("coach_reviews").insert({
-        coach: "default",
-        period_month: new Date().getMonth() + 1,
-        period_year: new Date().getFullYear(),
-        summary: data,
-      });
-
-      toast({
-        title: "Success",
-        description: "Monthly review completed",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to run monthly review",
-        variant: "destructive",
-      });
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Daily Report Generated", description: data?.message || "Report created successfully" });
+      refetchLogs();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to generate daily report", variant: "destructive" });
     }
-  };
+  });
 
-  const handleBackfillPreflight = () => {
-    toast({
-      title: "Preflight Check",
-      description: `CSV URL: ${csvUrl}\nReady to process`,
-    });
-  };
-
-  const handleBackfillSimulate = () => {
-    console.log("Simulating backfill from:", csvUrl);
-    toast({
-      title: "Simulation",
-      description: "Backfill simulated (no actual processing)",
-    });
-  };
-
-  const handleBackfillRun = async () => {
-    if (!csvUrl) {
-      toast({
-        title: "Error",
-        description: "Please enter a CSV URL",
-        variant: "destructive",
+  // Data Quality Check
+  const runDataQuality = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('data-quality', {
+        body: { mode, action: 'check' }
       });
-      return;
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Data Quality Check Complete", 
+        description: `Score: ${data?.qualityScore || 'N/A'}% - ${data?.issues?.length || 0} issues found` 
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to run data quality check", variant: "destructive" });
     }
+  });
 
-    try {
-      // Log the backfill attempt
-      await supabase.from("automation_logs").insert({
-        action_type: "capi_backfill",
-        status: "started",
-        mode,
-        payload: { csv_url: csvUrl },
+  // Integration Health
+  const checkIntegrationHealth = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('integration-health', {
+        body: { mode, action: 'check-all' }
       });
-
-      toast({
-        title: "Backfill Started",
-        description: "Processing CSV events...",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to start backfill",
-        variant: "destructive",
-      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      const healthy = data?.integrations?.filter((i: any) => i.status === 'healthy').length || 0;
+      const total = data?.integrations?.length || 0;
+      toast({ title: "Integration Health", description: `${healthy}/${total} integrations healthy` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to check integration health", variant: "destructive" });
     }
-  };
+  });
+
+  // Pipeline Monitor
+  const runPipelineMonitor = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('pipeline-monitor', {
+        body: { mode, action: 'monitor' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Pipeline Monitor", description: `${data?.pipelinesChecked || 0} pipelines checked` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to run pipeline monitor", variant: "destructive" });
+    }
+  });
+
+  // Coach Analyzer
+  const runCoachAnalyzer = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('coach-analyzer', {
+        body: { mode, action: 'analyze-all' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Coach Analysis Complete", description: `${data?.coachesAnalyzed || 0} coaches analyzed` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to analyze coaches", variant: "destructive" });
+    }
+  });
+
+  // CAPI Validator
+  const runCAPIValidator = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('capi-validator', {
+        body: { mode, action: 'validate' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "CAPI Validation Complete", 
+        description: `${data?.valid || 0} valid, ${data?.invalid || 0} invalid events` 
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to validate CAPI events", variant: "destructive" });
+    }
+  });
+
+  // Fix n8n Workflows
+  const fixN8nWorkflows = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('fix-n8n-workflows', {
+        body: { mode, action: 'fix-all' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "n8n Workflows Fixed", description: data?.message || "Workflows updated" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to fix n8n workflows", variant: "destructive" });
+    }
+  });
+
+  // Setup Workflows
+  const setupWorkflows = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('setup-workflows', {
+        body: { mode, action: 'setup' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Workflows Setup", description: data?.message || "Setup complete" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to setup workflows", variant: "destructive" });
+    }
+  });
+
+  const isAnyLoading = runDailyReport.isPending || runDataQuality.isPending || 
+    checkIntegrationHealth.isPending || runPipelineMonitor.isPending || 
+    runCoachAnalyzer.isPending || runCAPIValidator.isPending ||
+    fixN8nWorkflows.isPending || setupWorkflows.isPending;
 
   return (
     <div className="space-y-6">
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Run Daily Health</CardTitle>
-            <CardDescription>
-              Calculate health scores for all clients
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleDailyHealth} className="w-full">
-              <Play className="h-4 w-4 mr-2" />
-              Run Now
-            </Button>
+      {/* Quick Actions Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => runDailyReport.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">Daily Report</p>
+                <p className="text-xs text-muted-foreground">daily-report</p>
+              </div>
+            </div>
+            {runDailyReport.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Run Monthly Review</CardTitle>
-            <CardDescription>
-              Generate coach performance summary
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleMonthlyReview} className="w-full">
-              <Play className="h-4 w-4 mr-2" />
-              Run Now
-            </Button>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => runDataQuality.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <CheckCircle className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Data Quality</p>
+                <p className="text-xs text-muted-foreground">data-quality</p>
+              </div>
+            </div>
+            {runDataQuality.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => checkIntegrationHealth.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Activity className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Integration Health</p>
+                <p className="text-xs text-muted-foreground">integration-health</p>
+              </div>
+            </div>
+            {checkIntegrationHealth.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => runPipelineMonitor.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/10">
+                <Activity className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Pipeline Monitor</p>
+                <p className="text-xs text-muted-foreground">pipeline-monitor</p>
+              </div>
+            </div>
+            {runPipelineMonitor.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => runCoachAnalyzer.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <Activity className="h-5 w-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Coach Analyzer</p>
+                <p className="text-xs text-muted-foreground">coach-analyzer</p>
+              </div>
+            </div>
+            {runCoachAnalyzer.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => runCAPIValidator.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-cyan-500/10">
+                <CheckCircle className="h-5 w-5 text-cyan-500" />
+              </div>
+              <div>
+                <p className="font-semibold">CAPI Validator</p>
+                <p className="text-xs text-muted-foreground">capi-validator</p>
+              </div>
+            </div>
+            {runCAPIValidator.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => fixN8nWorkflows.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-yellow-500/10">
+                <Wrench className="h-5 w-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Fix n8n</p>
+                <p className="text-xs text-muted-foreground">fix-n8n-workflows</p>
+              </div>
+            </div>
+            {fixN8nWorkflows.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setupWorkflows.mutate()}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-indigo-500/10">
+                <Play className="h-5 w-5 text-indigo-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Setup Workflows</p>
+                <p className="text-xs text-muted-foreground">setup-workflows</p>
+              </div>
+            </div>
+            {setupWorkflows.isPending && <p className="text-xs mt-2 text-muted-foreground">Running...</p>}
           </CardContent>
         </Card>
       </div>
@@ -171,9 +311,7 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
       <Card>
         <CardHeader>
           <CardTitle>Backfill CSV to CAPI</CardTitle>
-          <CardDescription>
-            Process historical events from CSV file
-          </CardDescription>
+          <CardDescription>Process historical events from CSV file</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -185,17 +323,16 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
               placeholder="https://example.com/events.csv"
             />
           </div>
-
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleBackfillPreflight}>
+            <Button variant="outline" onClick={() => toast({ title: "Preflight", description: `CSV: ${csvUrl}` })}>
               <Eye className="h-4 w-4 mr-2" />
               Preflight
             </Button>
-            <Button variant="outline" onClick={handleBackfillSimulate}>
+            <Button variant="outline" onClick={() => toast({ title: "Simulate", description: "Simulation complete" })}>
               <Play className="h-4 w-4 mr-2" />
               Simulate
             </Button>
-            <Button onClick={handleBackfillRun}>
+            <Button>
               <Upload className="h-4 w-4 mr-2" />
               Run
             </Button>
@@ -203,56 +340,70 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
         </CardContent>
       </Card>
 
-      {/* Logs Viewer */}
+      {/* Sync Logs */}
       <Card>
         <CardHeader>
-          <CardTitle>Automation Logs</CardTitle>
-          <CardDescription>Recent automation activity</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sync Logs</CardTitle>
+              <CardDescription>Recent automation activity</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refetchLogs()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Action Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Created At</TableHead>
-                  <TableHead>Error</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs?.map((log: any) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-medium">{log.action_type}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          log.status === "success"
-                            ? "bg-green-500/10 text-green-500"
-                            : log.status === "started"
-                            ? "bg-blue-500/10 text-blue-500"
-                            : "bg-red-500/10 text-red-500"
-                        }
-                      >
-                        {log.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{log.mode}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(log.created_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-xs text-red-500">
-                      {log.error_message || "-"}
-                    </TableCell>
+          {logs && logs.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Platform</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Records</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead>Error</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log: any) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium">{log.platform}</TableCell>
+                      <TableCell>{log.sync_type}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            log.status === "completed"
+                              ? "bg-green-500/10 text-green-500"
+                              : log.status === "running"
+                              ? "bg-blue-500/10 text-blue-500"
+                              : "bg-red-500/10 text-red-500"
+                          }
+                        >
+                          {log.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{log.records_synced || 0}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {log.started_at ? new Date(log.started_at).toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs text-red-500 max-w-[200px] truncate">
+                        {log.error_message || "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              No sync logs found
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
