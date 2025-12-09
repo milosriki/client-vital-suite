@@ -48,6 +48,22 @@ serve(async (req) => {
         .select('amount, dealstage')
         .gte('createdate', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
+    // E. Sync Health: Check HubSpot sync status
+    const { data: syncLogs } = await supabase
+        .from('sync_logs')
+        .select('platform, operation_type, status, synced_at, record_count, error_message')
+        .eq('platform', 'hubspot')
+        .order('synced_at', { ascending: false })
+        .limit(10);
+
+    // Analyze sync health
+    const lastSync = syncLogs?.[0];
+    const failedSyncs = syncLogs?.filter(log => log.status === 'error').length || 0;
+    const lastSyncAge = lastSync
+        ? Math.round((Date.now() - new Date(lastSync.synced_at).getTime()) / (1000 * 60 * 60))
+        : null;
+    const syncHealthy = lastSync?.status === 'success' && (lastSyncAge || 999) < 2;
+
     // 2. CALCULATE METRICS
     // Proxy calculation for utilization based on client load
     const totalClients = opsData?.reduce((sum, t) => sum + (t.total_clients || 0), 0) || 0;
@@ -62,15 +78,19 @@ serve(async (req) => {
     // We send this context to the AI (Claude)
     const prompt = `
     You are the COO of PTD Fitness. Analyze yesterday's business performance.
-    
+
     DATA CONTEXT:
     - Utilization: ${utilizationRate}% (${totalClients} active clients managed).
     - Growth: ${newLeads} new leads. ${missedFollowUps} are potentially waiting for follow-up.
     - Revenue: ${revenueData?.length || 0} deals processed recently.
     - System Health: ${errorLogs?.length || 0} failed interventions found.
-    
+    - HubSpot Sync: ${lastSync ? `Last sync ${lastSyncAge}h ago (${lastSync.status}), ${failedSyncs} recent failures` : 'No recent sync data'}.
+
     SYSTEM ERRORS DETAILS:
     ${JSON.stringify(errorLogs?.slice(0, 3))}
+
+    SYNC STATUS:
+    ${!syncHealthy ? `WARNING: Sync issues detected - ${failedSyncs} failures or stale data (${lastSyncAge}h old)` : 'Sync healthy'}
 
     OUTPUT FORMAT (JSON):
     {
@@ -121,13 +141,17 @@ serve(async (req) => {
 
     // Fallback if AI fails or no key
     if (!aiResponse) {
+        const statusWarnings = [];
+        if (errorLogs?.length) statusWarnings.push(`${errorLogs.length} failed interventions`);
+        if (!syncHealthy) statusWarnings.push('HubSpot sync issues');
+
         aiResponse = {
             executive_summary: `Utilization is at ${utilizationRate}%. You have ${missedFollowUps} new leads to review.`,
-            system_status: errorLogs?.length ? `WARNING: ${errorLogs.length} failed interventions.` : "All systems operational.",
+            system_status: statusWarnings.length ? `WARNING: ${statusWarnings.join(', ')}.` : "All systems operational.",
             action_plan: [
                 missedFollowUps > 0 ? `Review ${missedFollowUps} new leads` : "Monitor lead flow",
                 utilizationRate < 70 ? "Focus on client acquisition" : "Maintain service quality",
-                errorLogs?.length ? "Check intervention logs" : "Review weekly goals"
+                !syncHealthy ? "Check HubSpot sync status" : errorLogs?.length ? "Check intervention logs" : "Review weekly goals"
             ]
         };
     }
@@ -185,5 +209,23 @@ serve(async (req) => {
         }
     }
 
-    return new Response(JSON.stringify({ success: true, analysis: aiResponse }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // 6. LOG THIS BI RUN TO SYNC_LOGS
+    await supabase.from('sync_logs').insert({
+        platform: 'system',
+        operation_type: 'business-intelligence',
+        status: 'success',
+        record_count: 1,
+        synced_at: new Date().toISOString()
+    });
+
+    return new Response(JSON.stringify({
+        success: true,
+        analysis: aiResponse,
+        sync_status: {
+            last_sync: lastSync?.synced_at || null,
+            last_sync_age_hours: lastSyncAge,
+            sync_healthy: syncHealthy,
+            recent_failures: failedSyncs
+        }
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });

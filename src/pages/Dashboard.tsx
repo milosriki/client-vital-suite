@@ -10,6 +10,8 @@ import { InterventionTracker } from '@/components/dashboard/InterventionTracker'
 import { PatternInsights } from '@/components/dashboard/PatternInsights';
 import { FilterControls } from '@/components/dashboard/FilterControls';
 import { AIAssistantPanel, AIAssistantButton } from '@/components/ai/AIAssistantPanel';
+import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
+import { SyncStatusBadge } from '@/components/dashboard/SyncStatusBadge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit } from 'lucide-react';
@@ -181,6 +183,9 @@ export default function Dashboard() {
     <div className="flex gap-6 p-6">
       {/* Main Dashboard Content */}
       <div className={`space-y-6 ${showAIPanel ? 'flex-1' : 'w-full'}`}>
+        {/* Error Monitor - Shows errors immediately */}
+        <ErrorMonitor />
+
         {/* NEW EXECUTIVE BRIEFING CARD */}
         <Card className="bg-slate-900 text-white border-slate-800">
           <CardHeader>
@@ -229,7 +234,10 @@ export default function Dashboard() {
         </Card>
 
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
+            <SyncStatusBadge />
+          </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-muted-foreground">
               Predictive Analytics • Real-time Updates
