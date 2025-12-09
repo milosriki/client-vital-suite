@@ -31,7 +31,7 @@ const calculateRevenuePerLead = (revenue: number, leads: number) =>
   leads > 0 ? (revenue / leads).toFixed(0) : "0";
 
 const HubSpotLiveData = () => {
-  const [timeframe, setTimeframe] = useState("today");
+  const [timeframe, setTimeframe] = useState("all_time");
   const [selectedSetter, setSelectedSetter] = useState("all");
 
   // Calculate date range
@@ -56,8 +56,11 @@ const HubSpotLiveData = () => {
         end = endOfDay(subDays(startOfMonth(now), 1));
         break;
       case "last_7_days":
-      default:
         start = startOfDay(subDays(now, 7));
+        break;
+      case "all_time":
+      default:
+        start = new Date(2020, 0, 1); // Far back in time to get all data
     }
     return { start, end };
   }, [timeframe]);
@@ -285,6 +288,7 @@ const HubSpotLiveData = () => {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="all_time">All Time</SelectItem>
             <SelectItem value="today">Today</SelectItem>
             <SelectItem value="yesterday">Yesterday</SelectItem>
             <SelectItem value="last_7_days">Last 7 Days</SelectItem>
