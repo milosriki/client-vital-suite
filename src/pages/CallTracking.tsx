@@ -6,7 +6,7 @@ import { Phone, PhoneIncoming, PhoneOutgoing, Clock, Calendar, Star } from "luci
 import { format } from "date-fns";
 
 export default function CallTracking() {
-  const { data: callRecords, isLoading } = useQuery({
+  const { data: callRecordsData, isLoading } = useQuery({
     queryKey: ["call-records"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -15,9 +15,12 @@ export default function CallTracking() {
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
+
+  // Ensure callRecords is always an array
+  const callRecords = Array.isArray(callRecordsData) ? callRecordsData : [];
 
   const stats = {
     totalCalls: callRecords?.length || 0,
