@@ -1,9 +1,10 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { 
   Table,
   TableBody,
@@ -29,9 +30,12 @@ import {
   PhoneMissed,
   UserCheck,
   AlertTriangle,
-  Lightbulb
+  Lightbulb,
+  RefreshCw,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const STATUS_CONFIG = {
   new: { label: "New Leads", color: "bg-blue-500", icon: Users },
@@ -55,6 +59,29 @@ const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; icon: R
 
 export default function SalesPipeline() {
   const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sync from HubSpot mutation
+  const syncFromHubspot = useMutation({
+    mutationFn: async (clearFakeData: boolean) => {
+      const { data, error } = await supabase.functions.invoke('sync-hubspot-to-supabase', {
+        body: { clear_fake_data: clearFakeData, sync_type: 'all' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Synced ${data.contacts_synced} contacts, ${data.leads_synced} leads, ${data.deals_synced} deals, ${data.calls_synced} calls`);
+      // Refresh all queries
+      queryClient.invalidateQueries({ queryKey: ['lead-funnel'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['deals-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['call-records'] });
+    },
+    onError: (error: any) => {
+      toast.error('Sync failed: ' + error.message);
+    }
+  });
 
   // Real-time subscriptions for live updates
   useEffect(() => {
@@ -257,9 +284,35 @@ export default function SalesPipeline() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
-        <p className="text-muted-foreground">Full visibility: leads, contacts, deals, calls & proactive outreach</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
+          <p className="text-muted-foreground">Full visibility: leads, contacts, deals, calls & proactive outreach</p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => syncFromHubspot.mutate(false)}
+            disabled={syncFromHubspot.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncFromHubspot.isPending ? 'animate-spin' : ''}`} />
+            Sync from HubSpot
+          </Button>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={() => {
+              if (confirm('This will delete fake/test data and sync real data from HubSpot. Continue?')) {
+                syncFromHubspot.mutate(true);
+              }
+            }}
+            disabled={syncFromHubspot.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Clear Fake & Sync
+          </Button>
+        </div>
       </div>
 
       {/* Top KPIs */}
