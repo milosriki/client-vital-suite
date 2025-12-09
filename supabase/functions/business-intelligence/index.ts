@@ -142,5 +142,48 @@ serve(async (req) => {
         // Ensure we don't overwrite other fields if they exist, but upsert requires all non-nulls or conflict handling
     }, { onConflict: 'summary_date' });
 
+    // 5. PHASE 3: SMART LEAD FOLLOW-UP
+    // Fetch recent leads that don't have an AI reply yet
+    const { data: leadsToProcess } = await supabase
+        .from('leads')
+        .select('id, firstname, fitness_goal, budget_range')
+        .is('ai_suggested_reply', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+    if (leadsToProcess && leadsToProcess.length > 0) {
+        console.log(`[Smart Lead Follow-up] Processing ${leadsToProcess.length} leads...`);
+
+        for (const lead of leadsToProcess) {
+            let suggestedReply = "";
+            const name = lead.firstname || "there";
+            const goal = (lead.fitness_goal || "").toLowerCase();
+            const budget = parseInt((lead.budget_range || "0").replace(/[^0-9]/g, "")) || 0;
+
+            // Rule 1: High Budget (>15k)
+            if (budget > 15000) {
+                suggestedReply = `Hi ${name}, I saw you're interested in our premium coaching options. Given your budget, I have a senior coach opening that would be perfect for you. Would you be open to a quick call to discuss?`;
+            }
+            // Rule 2: Weight Loss Goal
+            else if (goal.includes('weight') || goal.includes('fat') || goal.includes('loss')) {
+                suggestedReply = `Hi ${name}, thanks for reaching out! We helped a client with similar weight loss goals lose 10kg just last month. I'd love to share how they did it. Are you free for a chat this week?`;
+            }
+            // Rule 3: Muscle/Strength Goal
+            else if (goal.includes('muscle') || goal.includes('strength') || goal.includes('build')) {
+                suggestedReply = `Hey ${name}! Awesome that you're looking to build strength. Our hypertrophy program is getting great results right now. When are you looking to get started?`;
+            }
+            // Default Fallback
+            else {
+                suggestedReply = `Hi ${name}, thanks for your interest in PTD Fitness! I'd love to learn more about your goals and see if we're a good fit. What's the best time to connect?`;
+            }
+
+            // Update the lead with the suggestion
+            await supabase
+                .from('leads')
+                .update({ ai_suggested_reply: suggestedReply })
+                .eq('id', lead.id);
+        }
+    }
+
     return new Response(JSON.stringify({ success: true, analysis: aiResponse }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
