@@ -97,7 +97,7 @@ const HubSpotLiveData = () => {
     },
   });
 
-  // Fetch deals from Supabase
+  // Fetch deals from Supabase (for selected timeframe)
   const { data: dealsData, isLoading: loadingDeals, refetch: refetchDeals } = useQuery({
     queryKey: ["db-deals", timeframe],
     queryFn: async () => {
@@ -106,6 +106,22 @@ const HubSpotLiveData = () => {
         .select("*")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch deals for current month (for revenue calculation - always from 1st of month)
+  const monthStart = useMemo(() => startOfMonth(new Date()), []);
+  const { data: monthlyDealsData, refetch: refetchMonthlyDeals } = useQuery({
+    queryKey: ["db-deals-monthly"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deals")
+        .select("*")
+        .gte("created_at", monthStart.toISOString())
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -162,6 +178,7 @@ const HubSpotLiveData = () => {
     const leads = allLeads;
     const deals = dealsData || [];
     const calls = callsData || [];
+    const monthlyDeals = monthlyDealsData || [];
 
     // Lead stats
     const totalLeads = leads.length;
@@ -170,13 +187,15 @@ const HubSpotLiveData = () => {
     const closedLeads = leads.filter(l => l.status === 'closed').length;
     const highQualityLeads = leads.filter(l => l.lead_quality === 'high' || l.lead_quality === 'premium').length;
 
-    // Deal stats
+    // Deal stats (for selected timeframe)
     const totalDeals = deals.length;
     const closedDeals = deals.filter(d => d.status === 'closed').length;
     const totalDealValue = deals.reduce((sum, d) => sum + (Number(d.deal_value) || 0), 0);
-    const closedDealValue = deals.filter(d => d.status === 'closed')
+    
+    // Revenue always from first of the month (using monthlyDeals)
+    const monthlyClosedDealValue = monthlyDeals.filter(d => d.status === 'closed')
       .reduce((sum, d) => sum + (Number(d.deal_value) || 0), 0);
-    const cashCollected = deals.reduce((sum, d) => sum + (Number(d.cash_collected) || 0), 0);
+    const monthlyCashCollected = monthlyDeals.reduce((sum, d) => sum + (Number(d.cash_collected) || 0), 0);
 
     // Call stats
     const totalCalls = calls.length;
@@ -185,11 +204,11 @@ const HubSpotLiveData = () => {
     const avgDuration = totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
     const appointmentsFromCalls = calls.filter(c => c.appointment_set).length;
 
-    // Formulas
+    // Formulas (revenue uses monthly data)
     const conversionRate = calculateConversionRate(closedLeads, totalLeads);
     const connectRate = calculateConnectRate(completedCalls, totalCalls);
-    const avgDealValue = calculateAvgDealValue(closedDealValue, closedDeals);
-    const revenuePerLead = calculateRevenuePerLead(closedDealValue, totalLeads);
+    const avgDealValue = calculateAvgDealValue(monthlyClosedDealValue, monthlyDeals.filter(d => d.status === 'closed').length);
+    const revenuePerLead = calculateRevenuePerLead(monthlyClosedDealValue, totalLeads);
     const appointmentRate = calculateConversionRate(appointmentSet, totalLeads);
     const closeRate = calculateConversionRate(closedDeals, totalDeals);
 
@@ -202,8 +221,8 @@ const HubSpotLiveData = () => {
       totalDeals,
       closedDeals,
       totalDealValue,
-      closedDealValue,
-      cashCollected,
+      closedDealValue: monthlyClosedDealValue, // Now always from 1st of month
+      cashCollected: monthlyCashCollected, // Now always from 1st of month
       totalCalls,
       completedCalls,
       totalDuration,
@@ -216,7 +235,7 @@ const HubSpotLiveData = () => {
       appointmentRate,
       closeRate,
     };
-  }, [allLeads, dealsData, callsData]);
+  }, [allLeads, dealsData, callsData, monthlyDealsData]);
 
   // Staff lookup
   const getStaffName = (id: string | null) => {
@@ -227,7 +246,7 @@ const HubSpotLiveData = () => {
 
   const handleRefresh = async () => {
     toast.info("Refreshing data from database...");
-    await Promise.all([refetchLeads(), refetchEnhanced(), refetchDeals(), refetchCalls()]);
+    await Promise.all([refetchLeads(), refetchEnhanced(), refetchDeals(), refetchCalls(), refetchMonthlyDeals()]);
     toast.success("Data refreshed!");
   };
 
