@@ -310,9 +310,9 @@ serve(async (req) => {
 
       // Sync logins
       try {
-        const data = await hubspotGet('/account-info/v3/activity/login');
+        const data = await hubspotFetchAll('/account-info/v3/activity/login');
         let synced = 0;
-        for (const event of (data.results || [])) {
+        for (const event of (data || [])) {
           const { error } = await supabase.from('hubspot_login_activity').upsert({
             hubspot_id: event.id || `login_${event.occurredAt}_${event.userId}`,
             user_id: event.userId,
@@ -333,9 +333,9 @@ serve(async (req) => {
 
       // Sync security
       try {
-        const data = await hubspotGet('/account-info/v3/activity/security');
+        const data = await hubspotFetchAll('/account-info/v3/activity/security');
         let synced = 0;
-        for (const event of (data.results || [])) {
+        for (const event of (data || [])) {
           const { error } = await supabase.from('hubspot_security_activity').upsert({
             hubspot_id: event.id || `sec_${event.occurredAt}_${event.userId}`,
             user_id: event.userId,

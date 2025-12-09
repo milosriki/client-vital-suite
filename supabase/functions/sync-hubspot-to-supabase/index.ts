@@ -71,7 +71,7 @@ serve(async (req) => {
       console.log(`Starting sync for ${objectType}...`);
 
       do {
-        const response = await fetch(
+        const fetchResponse: Response = await fetch(
           `https://api.hubapi.com/crm/v3/objects/${objectType}/search`,
           {
             method: 'POST',
@@ -89,13 +89,13 @@ serve(async (req) => {
           }
         );
 
-        if (!response.ok) {
-          throw new Error(`HubSpot API error for ${objectType}: ${await response.text()}`);
+        if (!fetchResponse.ok) {
+          throw new Error(`HubSpot API error for ${objectType}: ${await fetchResponse.text()}`);
         }
 
-        const data = await response.json();
-        allResults = allResults.concat(data.results);
-        after = data.paging?.next?.after;
+        const jsonData: { results: any[]; paging?: { next?: { after?: string } } } = await fetchResponse.json();
+        allResults = allResults.concat(jsonData.results);
+        after = jsonData.paging?.next?.after;
 
         if (after) console.log(`Fetching next page for ${objectType}...`);
 

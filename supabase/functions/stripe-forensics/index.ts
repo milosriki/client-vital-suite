@@ -45,17 +45,17 @@ serve(async (req) => {
         let startingAfter: string | undefined = undefined;
 
         while (hasMore) {
-          const response = await resource.list({
+          const listResponse: { data: any[]; has_more: boolean } = await resource.list({
             limit: 100,
             ...params,
             starting_after: startingAfter
           });
 
-          allItems = allItems.concat(response.data);
-          hasMore = response.has_more;
+          allItems = allItems.concat(listResponse.data);
+          hasMore = listResponse.has_more;
 
-          if (hasMore && response.data.length > 0) {
-            startingAfter = response.data[response.data.length - 1].id;
+          if (hasMore && listResponse.data.length > 0) {
+            startingAfter = listResponse.data[listResponse.data.length - 1].id;
           } else {
             hasMore = false;
           }
