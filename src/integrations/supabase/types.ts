@@ -2463,6 +2463,78 @@ export type Database = {
         }
         Relationships: []
       }
+      proactive_insights: {
+        Row: {
+          best_call_time: string | null
+          call_script: string | null
+          completed_at: string | null
+          completed_by: string | null
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          insight_type: string
+          lead_id: string | null
+          notes: string | null
+          outcome: string | null
+          priority: string | null
+          reason: string | null
+          recommended_action: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          best_call_time?: string | null
+          call_script?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          insight_type: string
+          lead_id?: string | null
+          notes?: string | null
+          outcome?: string | null
+          priority?: string | null
+          reason?: string | null
+          recommended_action?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          best_call_time?: string | null
+          call_script?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          insight_type?: string
+          lead_id?: string | null
+          notes?: string | null
+          outcome?: string | null
+          priority?: string | null
+          reason?: string | null
+          recommended_action?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spark_leads: {
         Row: {
           created_at: string | null
