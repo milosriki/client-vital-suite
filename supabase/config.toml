@@ -71,3 +71,7 @@ verify_jwt = false
 
 [functions.enrich-with-stripe]
 verify_jwt = false
+
+# Proactive AI Insights
+[functions.proactive-insights-generator]
+verify_jwt = false
