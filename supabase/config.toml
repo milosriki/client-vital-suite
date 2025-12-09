@@ -75,3 +75,7 @@ verify_jwt = false
 # Proactive AI Insights
 [functions.proactive-insights-generator]
 verify_jwt = false
+
+# HubSpot to Supabase sync
+[functions.sync-hubspot-to-supabase]
+verify_jwt = false
