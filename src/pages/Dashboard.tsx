@@ -12,7 +12,7 @@ import { FilterControls } from '@/components/dashboard/FilterControls';
 import { AIAssistantPanel, AIAssistantButton } from '@/components/ai/AIAssistantPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot } from 'lucide-react';
+import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
@@ -36,10 +36,10 @@ export default function Dashboard() {
         },
         (payload) => {
           const newClients = Array.isArray(payload.new) ? payload.new : [payload.new];
-          const highRiskCount = newClients.filter((c: any) => 
+          const highRiskCount = newClients.filter((c: any) =>
             c.risk_category === 'HIGH' || c.risk_category === 'CRITICAL'
           ).length;
-          
+
           if (highRiskCount > 0) {
             toast({
               title: 'Health Scores Updated',
@@ -181,6 +181,53 @@ export default function Dashboard() {
     <div className="flex gap-6 p-6">
       {/* Main Dashboard Content */}
       <div className={`space-y-6 ${showAIPanel ? 'flex-1' : 'w-full'}`}>
+        {/* NEW EXECUTIVE BRIEFING CARD */}
+        <Card className="bg-slate-900 text-white border-slate-800">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl flex gap-2 items-center">
+                <BrainCircuit className="text-purple-400" />
+                Daily Executive Briefing
+              </CardTitle>
+              <span className="text-sm text-slate-400">{new Date().toLocaleDateString()}</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* The Narrative */}
+            <p className="text-lg leading-relaxed font-light">
+              {dailyBrief?.executive_briefing || "Gathering intelligence..."}
+            </p>
+
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              {/* Utilization Metric */}
+              <div className="bg-slate-800 p-3 rounded-lg">
+                <div className="text-xs text-slate-400">Utilization Rate</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {dailyBrief?.max_utilization_rate || 0}%
+                </div>
+              </div>
+
+              {/* System Health Metric */}
+              <div className="bg-slate-800 p-3 rounded-lg">
+                <div className="text-xs text-slate-400">System Health</div>
+                <div className={`text-sm font-bold ${dailyBrief?.system_health_status?.includes('Error') || dailyBrief?.system_health_status?.includes('WARNING') ? 'text-red-400' : 'text-green-400'}`}>
+                  {dailyBrief?.system_health_status || "Checking..."}
+                </div>
+              </div>
+
+              {/* Action Items */}
+              <div className="bg-slate-800 p-3 rounded-lg">
+                <div className="text-xs text-slate-400">Priority Actions</div>
+                <ul className="list-disc list-inside text-sm text-yellow-400 mt-1">
+                  {dailyBrief?.action_plan?.map((action: string, i: number) => (
+                    <li key={i}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
           <div className="flex items-center gap-4">
