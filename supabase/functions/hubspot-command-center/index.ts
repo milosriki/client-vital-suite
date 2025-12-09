@@ -116,37 +116,60 @@ serve(async (req) => {
 
     console.log(`[HubSpot Command Center] Action: ${action}, Mode: ${mode || 'live'}`);
 
-    // Helper to call HubSpot API
-    async function hubspotGet(path: string, params?: Record<string, string>) {
-      const url = new URL(path, HUBSPOT_BASE_URL);
-      if (params) {
-        Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-      }
+    // Helper to call HubSpot API with pagination support
+    async function hubspotFetchAll(path: string, method: 'GET' | 'POST' = 'GET', body?: any) {
+      let allResults: any[] = [];
+      let after: string | undefined = undefined;
+      const isSearch = path.includes('/search');
 
-      const res = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      console.log(`Starting fetch for ${path}...`);
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error(`HubSpot API error: ${res.status}`, text);
-        throw new Error(`HubSpot API failed: ${res.status}`);
-      }
+      do {
+        const url = new URL(path, HUBSPOT_BASE_URL);
+        if (!isSearch && after) {
+          url.searchParams.set('after', after);
+        }
 
-      return res.json();
+        const options: RequestInit = {
+          method,
+          headers: {
+            'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        };
+
+        if (method === 'POST' && body) {
+          const pagedBody = { ...body };
+          if (after) pagedBody.after = after;
+          options.body = JSON.stringify(pagedBody);
+        }
+
+        const res = await fetch(url.toString(), options);
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error(`HubSpot API error: ${res.status}`, text);
+          throw new Error(`HubSpot API failed: ${res.status}`);
+        }
+
+        const data = await res.json();
+        allResults = allResults.concat(data.results || []);
+
+        after = data.paging?.next?.after;
+        if (after) console.log(`Fetching next page...`);
+
+      } while (after);
+
+      return allResults;
     }
 
     // ACTION: Sync login activity from HubSpot
     if (action === 'sync-logins') {
       console.log('[Sync] Fetching login activity...');
-      
+
       try {
-        const data = await hubspotGet('/account-info/v3/activity/login');
-        const results = data.results || [];
-        
+        const results = await hubspotFetchAll('/account-info/v3/activity/login');
+
         let synced = 0;
         for (const event of results) {
           const { error } = await supabase.from('hubspot_login_activity').upsert({
@@ -183,11 +206,10 @@ serve(async (req) => {
     // ACTION: Sync security activity from HubSpot
     if (action === 'sync-security') {
       console.log('[Sync] Fetching security activity...');
-      
+
       try {
-        const data = await hubspotGet('/account-info/v3/activity/security');
-        const results = data.results || [];
-        
+        const results = await hubspotFetchAll('/account-info/v3/activity/security');
+
         let synced = 0;
         for (const event of results) {
           const { error } = await supabase.from('hubspot_security_activity').upsert({
@@ -223,35 +245,21 @@ serve(async (req) => {
     // ACTION: Sync recent contact changes (using timeline/property history)
     if (action === 'sync-contacts') {
       console.log('[Sync] Fetching recent contact changes...');
-      
+
       try {
-        // Get recently modified contacts
-        const searchData = await hubspotGet('/crm/v3/objects/contacts/search', {});
-        
-        // Use POST for search
-        const searchRes = await fetch(`${HUBSPOT_BASE_URL}/crm/v3/objects/contacts/search`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            filterGroups: [{
-              filters: [{
-                propertyName: 'lastmodifieddate',
-                operator: 'GTE',
-                value: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-              }]
-            }],
-            sorts: [{ propertyName: 'lastmodifieddate', direction: 'DESCENDING' }],
-            limit: 100,
-            properties: ['email', 'firstname', 'lastname', 'lifecyclestage', 'hs_lead_status', 'hubspot_owner_id'],
-          }),
+        const results = await hubspotFetchAll('/crm/v3/objects/contacts/search', 'POST', {
+          filterGroups: [{
+            filters: [{
+              propertyName: 'lastmodifieddate',
+              operator: 'GTE',
+              value: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            }]
+          }],
+          sorts: [{ propertyName: 'lastmodifieddate', direction: 'DESCENDING' }],
+          limit: 100,
+          properties: ['email', 'firstname', 'lastname', 'lifecyclestage', 'hs_lead_status', 'hubspot_owner_id'],
         });
 
-        const contacts = await searchRes.json();
-        const results = contacts.results || [];
-        
         let synced = 0;
         for (const contact of results) {
           const { score, reasons } = calculateRiskScore(
@@ -293,7 +301,7 @@ serve(async (req) => {
     // ACTION: Full sync (logins + security + contacts)
     if (action === 'full-sync') {
       console.log('[Sync] Running full sync...');
-      
+
       const results = {
         logins: { success: false, synced: 0 },
         security: { success: false, synced: 0 },

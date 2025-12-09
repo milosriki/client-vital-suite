@@ -288,6 +288,26 @@ serve(async (req) => {
       generated_at: new Date().toISOString()
     }, { onConflict: "summary_date" });
 
+    // TRIGGER NEXT AGENT: Churn Predictor
+    // Only trigger if we processed a full batch (mode='full')
+    if (mode === 'full' && results.processed > 0) {
+      console.log("[Health Calculator] Triggering Churn Predictor...");
+
+      // We don't await this to avoid timeout, just fire and forget
+      fetch(`${SUPABASE_URL}/functions/v1/churn-predictor`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          min_risk: 40,
+          save_to_db: true,
+          include_ai_insights: true
+        })
+      }).catch(err => console.error("Failed to trigger Churn Predictor:", err));
+    }
+
     const duration = Date.now() - startTime;
     console.log(`[Health Calculator] Complete in ${duration}ms:`, results);
 

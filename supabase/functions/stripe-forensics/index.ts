@@ -21,7 +21,7 @@ serve(async (req) => {
 
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
-    
+
     if (!STRIPE_SECRET_KEY) {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }
@@ -38,6 +38,32 @@ serve(async (req) => {
 
     if (action === "full-audit") {
       // Comprehensive audit - fetch everything
+      // Helper for paginated Stripe fetching
+      async function fetchAllStripe(resource: any, params: any = {}) {
+        let allItems: any[] = [];
+        let hasMore = true;
+        let startingAfter: string | undefined = undefined;
+
+        while (hasMore) {
+          const response = await resource.list({
+            limit: 100,
+            ...params,
+            starting_after: startingAfter
+          });
+
+          allItems = allItems.concat(response.data);
+          hasMore = response.has_more;
+
+          if (hasMore && response.data.length > 0) {
+            startingAfter = response.data[response.data.length - 1].id;
+          } else {
+            hasMore = false;
+          }
+        }
+        return { data: allItems };
+      }
+
+      // Comprehensive audit - fetch everything with pagination
       const [
         balance,
         payouts,
@@ -56,35 +82,35 @@ serve(async (req) => {
           console.error("Error fetching balance:", e.message);
           return null;
         }),
-        stripe.payouts.list({ limit: 100, created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.payouts, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching payouts:", e.message);
           return { data: [] };
         }),
-        stripe.balanceTransactions.list({ limit: 100, created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.balanceTransactions, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching balance transactions:", e.message);
           return { data: [] };
         }),
-        stripe.paymentIntents.list({ limit: 100, created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.paymentIntents, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching payments:", e.message);
           return { data: [] };
         }),
-        stripe.refunds.list({ limit: 100, created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.refunds, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching refunds:", e.message);
           return { data: [] };
         }),
-        stripe.charges.list({ limit: 100, created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.charges, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching charges:", e.message);
           return { data: [] };
         }),
-        stripe.transfers.list({ limit: 100, created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.transfers, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching transfers:", e.message);
           return { data: [] };
         }),
-        stripe.events.list({ limit: 100, created: { gte: sevenDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.events, { created: { gte: sevenDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching events:", e.message);
           return { data: [] };
         }),
-        stripe.webhookEndpoints.list({ limit: 50 }).catch((e: Error) => {
+        stripe.webhookEndpoints.list({ limit: 100 }).catch((e: Error) => {
           console.error("Error fetching webhooks:", e.message);
           return { data: [] };
         }),
@@ -92,11 +118,11 @@ serve(async (req) => {
           console.error("Error fetching account:", e.message);
           return null;
         }),
-        stripe.customers.list({ limit: 50, created: { gte: sevenDaysAgo } }).catch((e: Error) => {
+        fetchAllStripe(stripe.customers, { created: { gte: sevenDaysAgo } }).catch((e: Error) => {
           console.error("Error fetching recent customers:", e.message);
           return { data: [] };
         }),
-        stripe.disputes.list({ limit: 50 }).catch((e: Error) => {
+        fetchAllStripe(stripe.disputes, {}).catch((e: Error) => {
           console.error("Error fetching disputes:", e.message);
           return { data: [] };
         })
@@ -104,13 +130,13 @@ serve(async (req) => {
 
       // Analyze for anomalies
       const anomalies: AnomalyResult[] = [];
-      
+
       // 1. High Payout Ratio Analysis
-      const totalRevenue = (payments.data || []).reduce((sum: number, p: any) => 
+      const totalRevenue = (payments.data || []).reduce((sum: number, p: any) =>
         p.status === 'succeeded' ? sum + p.amount : sum, 0);
-      const totalPayouts = (payouts.data || []).reduce((sum: number, p: any) => 
+      const totalPayouts = (payouts.data || []).reduce((sum: number, p: any) =>
         p.status === 'paid' ? sum + p.amount : sum, 0);
-      
+
       if (totalRevenue > 0 && totalPayouts > totalRevenue * 0.8) {
         anomalies.push({
           type: "HIGH_PAYOUT_RATIO",
@@ -124,7 +150,7 @@ serve(async (req) => {
       const recentPayments = payments.data || [];
       const smallTransactions = recentPayments.filter((t: any) => t.amount < 1000);
       const largeTransactions = recentPayments.filter((t: any) => t.amount > 10000);
-      
+
       if (smallTransactions.length > 5 && largeTransactions.length > 0) {
         anomalies.push({
           type: "TEST_THEN_DRAIN",
@@ -139,7 +165,7 @@ serve(async (req) => {
         const hour = new Date(t.created * 1000).getHours();
         return hour < 6 || hour > 22;
       });
-      
+
       if (oddHoursTransactions.length > 5) {
         anomalies.push({
           type: "ODD_HOURS_ACTIVITY",
@@ -165,7 +191,7 @@ serve(async (req) => {
         const url = wh.url.toLowerCase();
         return !url.includes('supabase') && !url.includes('ptd') && !url.includes('lovable');
       });
-      
+
       if (suspiciousWebhooks.length > 0) {
         anomalies.push({
           type: "SUSPICIOUS_WEBHOOKS",
@@ -198,12 +224,58 @@ serve(async (req) => {
       }
 
       // 8. Check for suspicious events
-      const sensitiveEvents = (events.data || []).filter((e: any) => 
-        e.type.includes('bank_account') || 
+      const sensitiveEvents = (events.data || []).filter((e: any) =>
+        e.type.includes('bank_account') ||
         e.type.includes('payout') ||
         e.type.includes('transfer') ||
         e.type.includes('issuing')
       );
+
+      // 9. Instant Payouts & Card Transfers (Forensic Check)
+      const instantPayouts = (payouts.data || []).filter((p: any) => p.method === 'instant');
+      if (instantPayouts.length > 0) {
+        anomalies.push({
+          type: "INSTANT_PAYOUTS",
+          severity: "high",
+          message: `${instantPayouts.length} Instant Payouts detected (High Risk)`,
+          details: {
+            count: instantPayouts.length,
+            totalAmount: instantPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100,
+            destinations: instantPayouts.map((p: any) => p.destination)
+          }
+        });
+      }
+
+      const cardPayouts = (payouts.data || []).filter((p: any) => p.type === 'card');
+      if (cardPayouts.length > 0) {
+        anomalies.push({
+          type: "CARD_PAYOUTS",
+          severity: "medium",
+          message: `${cardPayouts.length} payouts to Debit/Credit Cards detected`,
+          details: {
+            count: cardPayouts.length,
+            totalAmount: cardPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100
+          }
+        });
+      }
+
+      // 10. Payout Velocity Check (Multiple payouts in 24h)
+      const payoutDates = (payouts.data || []).map((p: any) => new Date(p.created * 1000).toDateString());
+      const payoutsPerDay = payoutDates.reduce((acc: any, date: string) => {
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+
+      Object.entries(payoutsPerDay).forEach(([date, count]) => {
+        if ((count as number) > 3) {
+          anomalies.push({
+            type: "HIGH_VELOCITY_PAYOUTS",
+            severity: "high",
+            message: `Unusual payout velocity: ${count} payouts on ${date}`,
+            details: { date, count }
+          });
+        }
+      });
 
       // Calculate security score
       let securityScore = 100;
@@ -246,8 +318,8 @@ serve(async (req) => {
 
     if (action === "events-timeline") {
       // Get detailed event timeline for last 7 days
-      const events = await stripe.events.list({ 
-        limit: 100, 
+      const events = await stripe.events.list({
+        limit: 100,
         created: { gte: sevenDaysAgo }
       });
 
@@ -258,8 +330,8 @@ serve(async (req) => {
         transfers: events.data.filter((e: any) => e.type.startsWith('transfer')),
         customers: events.data.filter((e: any) => e.type.startsWith('customer')),
         subscriptions: events.data.filter((e: any) => e.type.startsWith('subscription') || e.type.startsWith('invoice')),
-        security: events.data.filter((e: any) => 
-          e.type.includes('bank_account') || 
+        security: events.data.filter((e: any) =>
+          e.type.includes('bank_account') ||
           e.type.includes('external_account') ||
           e.type.includes('issuing')
         ),
@@ -283,7 +355,7 @@ serve(async (req) => {
         created: { gte: sevenDaysAgo }
       });
 
-      const visaCharges = charges.data.filter((c: any) => 
+      const visaCharges = charges.data.filter((c: any) =>
         c.payment_method_details?.card?.brand === 'visa' && c.status === 'succeeded'
       );
 
