@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.stripe-dashboard-data]
 verify_jwt = false
+
+[functions.hubspot-command-center]
+verify_jwt = false
