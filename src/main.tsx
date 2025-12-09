@@ -12,7 +12,6 @@ import ClientDetail from "./pages/ClientDetail";
 import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
 import AnalyticsPage from "./pages/Analytics";
-import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
 import PTDControl from "./pages/PTDControl";
 import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
@@ -22,6 +21,8 @@ import YesterdayBookings from "./pages/YesterdayBookings";
 import HubSpotLiveData from "./pages/HubSpotLiveData";
 import SalesPipeline from "./pages/SalesPipeline";
 import CallTracking from "./pages/CallTracking";
+import AIKnowledge from "./pages/AIKnowledge";
+import AILearning from "./pages/AILearning";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -33,14 +34,14 @@ const router = createBrowserRouter([
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/sales-pipeline", element: <SalesPipeline /> },
       { path: "/call-tracking", element: <CallTracking /> },
+      { path: "/ai-knowledge", element: <AIKnowledge /> },
+      { path: "/ai-learning", element: <AILearning /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },
       { path: "/coaches", element: <Coaches /> },
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <AnalyticsPage /> },
-      { path: "/workflow-strategy", element: <WorkflowStrategy /> },
-      { path: "/fix-workflows", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "/ptd-control", element: <PTDControl /> },
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
