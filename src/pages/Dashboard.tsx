@@ -14,6 +14,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { SyncStatusBadge } from '@/components/dashboard/SyncStatusBadge';
+import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
@@ -181,6 +183,9 @@ export default function Dashboard() {
     <div className="flex gap-6 p-6">
       {/* Main Dashboard Content */}
       <div className={`space-y-6 ${showAIPanel ? 'flex-1' : 'w-full'}`}>
+        {/* Error Monitor at top */}
+        <ErrorMonitor />
+        
         {/* NEW EXECUTIVE BRIEFING CARD */}
         <Card className="bg-slate-900 text-white border-slate-800">
           <CardHeader>
