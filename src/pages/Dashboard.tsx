@@ -195,7 +195,7 @@ export default function Dashboard() {
           <CardContent className="space-y-4">
             {/* The Narrative */}
             <p className="text-lg leading-relaxed font-light">
-              {dailyBrief?.executive_briefing || "Gathering intelligence..."}
+              {(summary as any)?.executive_briefing || "Gathering intelligence..."}
             </p>
 
             <div className="grid grid-cols-3 gap-4 mt-4">
@@ -203,15 +203,15 @@ export default function Dashboard() {
               <div className="bg-slate-800 p-3 rounded-lg">
                 <div className="text-xs text-slate-400">Utilization Rate</div>
                 <div className="text-2xl font-bold text-blue-400">
-                  {dailyBrief?.max_utilization_rate || 0}%
+                  {(summary as any)?.max_utilization_rate || 0}%
                 </div>
               </div>
 
               {/* System Health Metric */}
               <div className="bg-slate-800 p-3 rounded-lg">
                 <div className="text-xs text-slate-400">System Health</div>
-                <div className={`text-sm font-bold ${dailyBrief?.system_health_status?.includes('Error') || dailyBrief?.system_health_status?.includes('WARNING') ? 'text-red-400' : 'text-green-400'}`}>
-                  {dailyBrief?.system_health_status || "Checking..."}
+                <div className={`text-sm font-bold ${(summary as any)?.system_health_status?.includes('Error') || (summary as any)?.system_health_status?.includes('WARNING') ? 'text-red-400' : 'text-green-400'}`}>
+                  {(summary as any)?.system_health_status || "Checking..."}
                 </div>
               </div>
 
@@ -219,7 +219,7 @@ export default function Dashboard() {
               <div className="bg-slate-800 p-3 rounded-lg">
                 <div className="text-xs text-slate-400">Priority Actions</div>
                 <ul className="list-disc list-inside text-sm text-yellow-400 mt-1">
-                  {dailyBrief?.action_plan?.map((action: string, i: number) => (
+                  {((summary as any)?.action_plan as string[] | undefined)?.map((action: string, i: number) => (
                     <li key={i}>{action}</li>
                   ))}
                 </ul>
