@@ -1803,6 +1803,195 @@ export type Database = {
         }
         Relationships: []
       }
+      hubspot_contact_changes: {
+        Row: {
+          contact_email: string | null
+          contact_id: string
+          created_at: string | null
+          event_type: string
+          id: string
+          new_value: string | null
+          occurred_at: string | null
+          old_value: string | null
+          property_name: string | null
+          raw: Json | null
+          risk_reasons: string[] | null
+          risk_score: number | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_id: string
+          created_at?: string | null
+          event_type: string
+          id?: string
+          new_value?: string | null
+          occurred_at?: string | null
+          old_value?: string | null
+          property_name?: string | null
+          raw?: Json | null
+          risk_reasons?: string[] | null
+          risk_score?: number | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          contact_id?: string
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          new_value?: string | null
+          occurred_at?: string | null
+          old_value?: string | null
+          property_name?: string | null
+          raw?: Json | null
+          risk_reasons?: string[] | null
+          risk_score?: number | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_login_activity: {
+        Row: {
+          created_at: string | null
+          hubspot_id: string | null
+          id: string
+          ip_address: string | null
+          location: string | null
+          login_type: string | null
+          occurred_at: string | null
+          raw: Json | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          login_type?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          login_type?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_security_activity: {
+        Row: {
+          created_at: string | null
+          details: string | null
+          event_type: string
+          hubspot_id: string | null
+          id: string
+          ip_address: string | null
+          occurred_at: string | null
+          raw: Json | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: string | null
+          event_type: string
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: string | null
+          event_type?: string
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_user_daily_summary: {
+        Row: {
+          anomaly_flags: string[] | null
+          contact_creations: number | null
+          contact_deletions: number | null
+          contact_updates: number | null
+          created_at: string | null
+          exports: number | null
+          id: string
+          logins: number | null
+          owner_changes: number | null
+          risk_score: number | null
+          security_events: number | null
+          status_changes: number | null
+          summary_date: string
+          updated_at: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          anomaly_flags?: string[] | null
+          contact_creations?: number | null
+          contact_deletions?: number | null
+          contact_updates?: number | null
+          created_at?: string | null
+          exports?: number | null
+          id?: string
+          logins?: number | null
+          owner_changes?: number | null
+          risk_score?: number | null
+          security_events?: number | null
+          status_changes?: number | null
+          summary_date: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          anomaly_flags?: string[] | null
+          contact_creations?: number | null
+          contact_deletions?: number | null
+          contact_updates?: number | null
+          created_at?: string | null
+          exports?: number | null
+          id?: string
+          logins?: number | null
+          owner_changes?: number | null
+          risk_score?: number | null
+          security_events?: number | null
+          status_changes?: number | null
+          summary_date?: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       intervention_log: {
         Row: {
           actioned_at: string | null
