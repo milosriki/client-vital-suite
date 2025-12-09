@@ -1,30 +1,28 @@
-// Temporary type definitions until Supabase types are regenerated
+// Type definitions aligned with Supabase schema
 export interface ClientHealthScore {
-  id: string;
-  client_id: string;
+  id: number;
   firstname: string | null;
   lastname: string | null;
-  email: string | null;
+  email: string;
   client_email?: string | null; // Alias for compatibility
-  health_score: number;
-  health_zone: 'RED' | 'YELLOW' | 'GREEN' | 'PURPLE';
+  health_score: number | null;
+  health_zone: string | null;
   engagement_score: number | null;
   momentum_score: number | null;
   package_health_score: number | null;
   relationship_score: number | null;
-  sessions_last_7d: number;
-  sessions_last_30d: number;
-  sessions_last_90d: number;
-  outstanding_sessions: number;
-  purchased_sessions: number;
+  sessions_last_7d: number | null;
+  sessions_last_30d: number | null;
+  sessions_last_90d: number | null;
+  outstanding_sessions: number | null;
+  sessions_purchased: number | null;
   days_since_last_session: number | null;
-  next_session_booked: boolean;
   client_segment: string | null;
   assigned_coach: string | null;
-  calculated_on: string;
-  calculated_at: string;
-  created_at: string;
-  updated_at: string;
+  calculated_on: string | null;
+  calculated_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
   financial_score: number | null;
   churn_risk_score: number | null;
   health_trend: string | null;

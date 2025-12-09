@@ -36,8 +36,8 @@ export default function Dashboard() {
         },
         (payload) => {
           const newClients = Array.isArray(payload.new) ? payload.new : [payload.new];
-          const highRiskCount = newClients.filter((c: any) => 
-            c.risk_category === 'HIGH' || c.risk_category === 'CRITICAL'
+          const highRiskCount = newClients.filter((c: any) =>
+            c.health_zone === 'RED' || (c.churn_risk_score && c.churn_risk_score > 70)
           ).length;
           
           if (highRiskCount > 0) {
@@ -74,9 +74,9 @@ export default function Dashboard() {
 
       // Apply filters - using explicit any cast to avoid TypeScript recursion depth issues
       if (filterMode === 'high-risk') {
-        query = (query as any).in('risk_category', ['HIGH', 'CRITICAL']);
+        query = (query as any).in('health_zone', ['RED']);
       } else if (filterMode === 'early-warning') {
-        query = (query as any).eq('early_warning_flag', true);
+        query = (query as any).in('health_zone', ['YELLOW']);
       }
 
       if (selectedCoach !== 'all') {
@@ -87,7 +87,7 @@ export default function Dashboard() {
         query = (query as any).eq('health_zone', selectedZone);
       }
 
-      query = (query as any).order('predictive_risk_score', { ascending: false });
+      query = (query as any).order('churn_risk_score', { ascending: false, nullsFirst: false });
 
       const { data, error } = await query;
       if (error) throw error;

@@ -61,7 +61,7 @@ export function useRealtimeHealthScores() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [queryClient]);
 }

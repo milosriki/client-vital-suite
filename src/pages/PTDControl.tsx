@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,18 @@ import StripeForensicsTab from "@/components/ptd/StripeForensicsTab";
 import HubSpotCommandCenter from "@/components/ptd/HubSpotCommandCenter";
 
 export default function PTDControl() {
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"test" | "live">("test");
-  
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  // Read tab from URL query parameter
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
   // Connection status states
   const [supabaseStatus, setSupabaseStatus] = useState("connected");
   const [n8nStatus, setN8nStatus] = useState("warning");
@@ -114,7 +125,7 @@ export default function PTDControl() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="dashboard" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-11 mb-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="stripe">Stripe</TabsTrigger>

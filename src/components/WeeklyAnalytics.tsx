@@ -4,18 +4,21 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format } from "date-fns";
 
 interface WeeklyPattern {
-  id: number;
-  week_start_date: string;
-  week_end_date: string;
-  avg_health_score: number | null;
-  total_clients: number | null;
-  green_clients: number | null;
-  yellow_clients: number | null;
-  red_clients: number | null;
-  purple_clients: number | null;
-  clients_improving: number | null;
-  clients_declining: number | null;
-  pattern_insights: string | null;
+  id: string;
+  client_id: string;
+  week_start: string;
+  pattern_summary: {
+    avg_health_score?: number;
+    total_clients?: number;
+    green_clients?: number;
+    yellow_clients?: number;
+    red_clients?: number;
+    purple_clients?: number;
+    clients_improving?: number;
+    clients_declining?: number;
+  } | null;
+  ai_insights: string | null;
+  created_at: string | null;
 }
 
 interface WeeklyAnalyticsProps {
@@ -53,9 +56,9 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
     );
   }
 
-  const greenChange = calculateChange(latestWeek.green_clients, previousWeek?.green_clients);
-  const yellowChange = calculateChange(latestWeek.yellow_clients, previousWeek?.yellow_clients);
-  const redChange = calculateChange(latestWeek.red_clients, previousWeek?.red_clients);
+  const greenChange = calculateChange(latestWeek.pattern_summary?.green_clients ?? null, previousWeek?.pattern_summary?.green_clients ?? null);
+  const yellowChange = calculateChange(latestWeek.pattern_summary?.yellow_clients ?? null, previousWeek?.pattern_summary?.yellow_clients ?? null);
+  const redChange = calculateChange(latestWeek.pattern_summary?.red_clients ?? null, previousWeek?.pattern_summary?.red_clients ?? null);
 
   return (
     <Card>
@@ -63,7 +66,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
         <CardTitle className="flex items-center justify-between">
           <span>Weekly Patterns</span>
           <Badge variant="outline">
-            {format(new Date(latestWeek.week_start_date), 'MMM dd')} - {format(new Date(latestWeek.week_end_date), 'MMM dd')}
+            Week of {format(new Date(latestWeek.week_start), 'MMM dd, yyyy')}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -73,11 +76,11 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
           <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
             <div>
               <p className="text-sm text-muted-foreground">Average Health Score</p>
-              <p className="text-2xl font-bold">{latestWeek.avg_health_score?.toFixed(1) || 'N/A'}</p>
+              <p className="text-2xl font-bold">{latestWeek.pattern_summary?.avg_health_score?.toFixed(1) || 'N/A'}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Total Clients</p>
-              <p className="text-2xl font-bold">{latestWeek.total_clients || 0}</p>
+              <p className="text-2xl font-bold">{latestWeek.pattern_summary?.total_clients || 0}</p>
             </div>
           </div>
 
@@ -91,7 +94,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
                 <span className="text-sm font-medium">Green Zone</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-lg font-bold">{latestWeek.green_clients || 0}</span>
+                <span className="text-lg font-bold">{latestWeek.pattern_summary?.green_clients || 0}</span>
                 {renderTrend(greenChange)}
                 {greenChange !== null && (
                   <span className={`text-xs ${greenChange > 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -107,7 +110,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
                 <span className="text-sm font-medium">Yellow Zone</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-lg font-bold">{latestWeek.yellow_clients || 0}</span>
+                <span className="text-lg font-bold">{latestWeek.pattern_summary?.yellow_clients || 0}</span>
                 {renderTrend(yellowChange)}
                 {yellowChange !== null && (
                   <span className={`text-xs ${yellowChange < 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -123,7 +126,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
                 <span className="text-sm font-medium">Red Zone</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-lg font-bold">{latestWeek.red_clients || 0}</span>
+                <span className="text-lg font-bold">{latestWeek.pattern_summary?.red_clients || 0}</span>
                 {renderTrend(redChange)}
                 {redChange !== null && (
                   <span className={`text-xs ${redChange < 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -138,19 +141,19 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-green-500/5 rounded-lg border border-green-500/20">
               <p className="text-xs text-muted-foreground mb-1">Improving</p>
-              <p className="text-2xl font-bold text-green-500">{latestWeek.clients_improving || 0}</p>
+              <p className="text-2xl font-bold text-green-500">{latestWeek.pattern_summary?.clients_improving || 0}</p>
             </div>
             <div className="p-3 bg-red-500/5 rounded-lg border border-red-500/20">
               <p className="text-xs text-muted-foreground mb-1">Declining</p>
-              <p className="text-2xl font-bold text-red-500">{latestWeek.clients_declining || 0}</p>
+              <p className="text-2xl font-bold text-red-500">{latestWeek.pattern_summary?.clients_declining || 0}</p>
             </div>
           </div>
 
           {/* Insights */}
-          {latestWeek.pattern_insights && (
+          {latestWeek.ai_insights && (
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
               <p className="text-xs font-medium text-primary mb-2">Pattern Insights</p>
-              <p className="text-sm text-muted-foreground">{latestWeek.pattern_insights}</p>
+              <p className="text-sm text-muted-foreground">{latestWeek.ai_insights}</p>
             </div>
           )}
         </div>

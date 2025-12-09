@@ -14,7 +14,7 @@ const Analytics = () => {
       const { data, error } = await supabase
         .from('weekly_patterns')
         .select('*')
-        .order('week_start_date', { ascending: true })
+        .order('week_start', { ascending: true })
         .limit(12);
       
       if (error) throw error;
@@ -40,12 +40,12 @@ const Analytics = () => {
 
   // Prepare data for charts
   const trendData = weeklyData?.map(week => ({
-    week: new Date(week.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    avgScore: week.avg_health_score,
-    red: week.red_clients,
-    yellow: week.yellow_clients,
-    green: week.green_clients,
-    purple: week.purple_clients,
+    week: new Date(week.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    avgScore: week.pattern_summary?.avg_health_score,
+    red: week.pattern_summary?.red_clients,
+    yellow: week.pattern_summary?.yellow_clients,
+    green: week.pattern_summary?.green_clients,
+    purple: week.pattern_summary?.purple_clients,
   })) || [];
 
   // Zone distribution for pie chart
