@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, 
-  DollarSign, 
+  DollarSign,
   Calendar, 
   TrendingUp, 
   Target,
@@ -53,6 +54,46 @@ const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; icon: R
 };
 
 export default function SalesPipeline() {
+  const queryClient = useQueryClient();
+
+  // Real-time subscriptions for live updates
+  useEffect(() => {
+    const callsChannel = supabase
+      .channel('calls-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'call_records' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['call-records'] });
+      })
+      .subscribe();
+
+    const leadsChannel = supabase
+      .channel('leads-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['lead-funnel'] });
+      })
+      .subscribe();
+
+    const dealsChannel = supabase
+      .channel('deals-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['deals-summary'] });
+      })
+      .subscribe();
+
+    const appointmentsChannel = supabase
+      .channel('appointments-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['appointments-summary'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callsChannel);
+      supabase.removeChannel(leadsChannel);
+      supabase.removeChannel(dealsChannel);
+      supabase.removeChannel(appointmentsChannel);
+    };
+  }, [queryClient]);
+
   // Fetch lead funnel data
   const { data: funnelData } = useQuery({
     queryKey: ['lead-funnel'],
