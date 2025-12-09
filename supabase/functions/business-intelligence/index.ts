@@ -101,18 +101,19 @@ serve(async (req) => {
             });
             const data = await response.json();
             const text = data.content[0]?.text;
-            // Extract JSON from text if needed, or assume Claude returns pure JSON if prompted well
-            // For safety, we'll try to parse, else fallback
+            // Extract JSON from text if needed (handling markdown code blocks)
             try {
-                aiResponse = JSON.parse(text);
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                const jsonString = jsonMatch ? jsonMatch[0] : text;
+                aiResponse = JSON.parse(jsonString);
             } catch {
                 // Simple fallback parsing or mock
                 aiResponse = {
-                    executive_summary: text,
+                    executive_summary: text.replace(/```json|```/g, '').trim(),
                     system_status: "See summary",
                     action_plan: ["Review full report"]
                 };
-            }
+            };
         } catch (e) {
             console.error("AI Call failed", e);
         }
