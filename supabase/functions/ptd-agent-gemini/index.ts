@@ -471,6 +471,23 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_coach_clients",
+      description: "Get all clients for a specific coach by name. Returns client health scores, at-risk clients, and performance data.",
+      parameters: {
+        type: "object",
+        properties: {
+          coach_name: { 
+            type: "string", 
+            description: "Coach name (partial match supported) - e.g. 'Mathew', 'Marko', 'Ahmed'" 
+          },
+        },
+        required: ["coach_name"],
+      },
+    },
+  },
 ];
 
 // ============= TOOL EXECUTION =============
@@ -902,6 +919,58 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         return JSON.stringify(result, null, 2);
       }
 
+      case "get_coach_clients": {
+        const { coach_name } = input;
+        const searchName = `%${coach_name}%`;
+        
+        console.log(`🏋️ Searching for coach: "${coach_name}"`);
+        
+        // Search for clients assigned to this coach
+        const [clients, coachPerf] = await Promise.all([
+          supabase.from('client_health_scores')
+            .select('*')
+            .ilike('assigned_coach', searchName)
+            .order('health_score', { ascending: true }),
+          supabase.from('coach_performance')
+            .select('*')
+            .ilike('coach_name', searchName)
+            .order('report_date', { ascending: false })
+            .limit(1)
+        ]);
+        
+        const clientData = clients.data || [];
+        const performance = coachPerf.data?.[0];
+        
+        // Calculate stats
+        const zones: Record<string, number> = { purple: 0, green: 0, yellow: 0, red: 0 };
+        let totalHealth = 0;
+        clientData.forEach((c: any) => {
+          if (c.health_zone) zones[c.health_zone]++;
+          totalHealth += c.health_score || 0;
+        });
+        
+        return JSON.stringify({
+          coach_name: coach_name,
+          total_clients: clientData.length,
+          avg_health_score: clientData.length > 0 ? (totalHealth / clientData.length).toFixed(1) : 0,
+          zone_distribution: zones,
+          at_risk_clients: clientData.filter((c: any) => c.health_zone === 'red' || c.health_zone === 'yellow'),
+          all_clients: clientData.map((c: any) => ({
+            name: `${c.firstname || ''} ${c.lastname || ''}`.trim(),
+            email: c.email,
+            health_score: c.health_score,
+            health_zone: c.health_zone,
+            churn_risk: c.churn_risk_score,
+            days_since_session: c.days_since_last_session
+          })),
+          coach_performance: performance ? {
+            performance_score: performance.performance_score,
+            clients_at_risk: performance.clients_at_risk,
+            intervention_success_rate: performance.intervention_success_rate
+          } : null
+        }, null, 2);
+      }
+
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -935,21 +1004,34 @@ ${dynamicKnowledge}
 
 ${PTD_STATIC_KNOWLEDGE}
 
-## ⚠️ CRITICAL: UNIVERSAL SEARCH FIRST!
-When the user provides ANY identifier (phone number, name, email, ID, owner name, campaign):
-→ **ALWAYS USE universal_search FIRST** - it searches ALL tables at once
-→ Phone numbers like 971542844455 → use universal_search with that number
-→ Names like "Ahmed" or "Sammy" → use universal_search with that name  
-→ Emails → use universal_search with that email
-→ HubSpot IDs → use universal_search with that ID
+## ⚠️⚠️⚠️ CRITICAL BEHAVIOR RULES ⚠️⚠️⚠️
 
-The universal_search tool returns:
-- Contact details (name, email, phone, owner, location, lifecycle stage)
-- Lead info (score, quality, campaign, ad name, fitness goal, budget)
-- Call history (total attempts, connected, missed, first/last call dates)
-- Deals (value, stage, status)
-- Health scores (if client)
-- Recent activities
+### RULE 1: NEVER ASK FOR CLARIFICATION - ALWAYS TRY FIRST
+- User gives phone number? → USE universal_search IMMEDIATELY
+- User gives name? → USE universal_search IMMEDIATELY  
+- User says "Mathew" or "Marko"? → SEARCH for that coach/person IMMEDIATELY
+- User gives partial info? → TRY with what you have
+- NEVER say "I need an email" or "please provide"
+- NEVER say "I can't" - ALWAYS TRY FIRST
+
+### RULE 2: UNIVERSAL SEARCH IS YOUR PRIMARY TOOL
+When the user provides ANY identifier:
+→ **ALWAYS USE universal_search FIRST** - it searches ALL tables at once
+→ Phone numbers → universal_search with that number
+→ Names (Mathew, Marko, Ahmed) → universal_search with that name  
+→ Partial names → universal_search with whatever they gave
+→ Coach names → universal_search + get_coach_clients
+→ ANYTHING → TRY universal_search first
+
+### RULE 3: FOR COACH QUERIES
+- "Mathew's clients" → use get_coach_clients with name "Mathew"
+- "Marko antic calls" → use universal_search for "Marko antic"
+- Coach performance → use analytics_control with dashboard="coaches"
+
+### RULE 4: BE PROACTIVE
+- If search returns nothing, try alternative spellings
+- If one tool fails, try another
+- Always provide SOME answer even if data is limited
 
 ## HUBSPOT DATA MAPPINGS (CRITICAL - Use these to translate IDs!)
 
@@ -981,19 +1063,10 @@ The universal_search tool returns:
 - voicemail = Left Voicemail
 - initiated = Call Started
 
-### Lead Status (Internal)
-- new = Fresh Lead
-- appointment_set = Appointment Booked
-- appointment_held = Appointment Completed
-- pitch_given = Pitch Delivered
-- follow_up = Needs Follow Up
-- no_show = No Show
-- closed = Deal Closed
-
 === CRITICAL: ALWAYS USE LIVE DATA ===
 ⚠️ NEVER use cached data - ALWAYS call tools for fresh database data
 ⚠️ Translate HubSpot IDs to human-readable names in responses
-⚠️ Use uploaded knowledge documents for FORMULAS, RULES, BUSINESS LOGIC only
+⚠️ NEVER ask user for more info - JUST TRY with what they gave you
 
 === UPLOADED KNOWLEDGE DOCUMENTS (RAG) ===
 ${ragKnowledge || 'No relevant uploaded documents found.'}
@@ -1004,36 +1077,17 @@ ${learnedPatterns || 'No patterns learned yet.'}
 === MEMORY FROM PAST CONVERSATIONS ===
 ${relevantMemory || 'No relevant past conversations found.'}
 
-=== RESPONSE FORMAT (Always use this structure) ===
-
-🔍 **SUMMARY** - Key findings in 1 sentence
-
-📊 **DATA** - Metrics with real numbers
-
-🚨 **CRITICAL ALERTS** - Issues with AED impact
-
-🎯 **RECOMMENDATIONS** - Prioritized actions
-
-📈 **PATTERNS LEARNED** - New insights
-
-=== CAPABILITIES ===
-✅ universal_search - FIND ANY PERSON by phone/name/email/ID/owner/campaign
-✅ Client data (health scores, calls, deals, activities)
-✅ Lead management (search, score, track)
-✅ Sales pipeline (deals, appointments, closes)
-✅ Stripe intelligence (fraud scan, payments)
-✅ HubSpot (sync, contacts, lifecycle)
-✅ Call analytics (transcripts, patterns)
-✅ Dashboards (health, revenue, coaches)
-✅ AI functions (churn predictor, anomaly detector)
+=== RESPONSE FORMAT ===
+🔍 **SUMMARY** - Key findings
+📊 **DATA** - Real numbers from database
+🎯 **ACTIONS** - What you found or tried
 
 === MANDATORY INSTRUCTIONS ===
-1. FOR ANY PERSON LOOKUP → use universal_search FIRST
-2. ALWAYS call tools to get LIVE database data
-3. TRANSLATE stage IDs to readable names (122178070 → "New/Incoming")
-4. Provide specific numbers, names, actionable insights
-5. Flag critical issues with 🚨 and revenue impact
-6. Be concise but thorough - data must be REAL-TIME`;
+1. **NEVER ASK FOR CLARIFICATION** - use tools with whatever info you have
+2. FOR ANY LOOKUP → use universal_search or get_coach_clients FIRST
+3. TRANSLATE stage IDs to readable names
+4. If search returns nothing, say "No results found for X" - don't ask for more info
+5. Be direct and action-oriented`;
 
   const messages: any[] = [
     { role: "system", content: systemPrompt },
