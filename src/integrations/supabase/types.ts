@@ -14,6 +14,171 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_context: {
+        Row: {
+          agent_type: string | null
+          created_at: string | null
+          expires_at: string | null
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          agent_type?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          agent_type?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      agent_conversations: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
+      ai_feedback_learning: {
+        Row: {
+          applied_at: string | null
+          applied_to_model: boolean | null
+          context_data: Json | null
+          corrected_recommendation: string | null
+          created_at: string | null
+          created_by: string | null
+          feedback_notes: string | null
+          feedback_score: number | null
+          feedback_type: string
+          id: string
+          insight_id: string | null
+          insight_type: string | null
+          intervention_id: number | null
+          original_recommendation: string | null
+          user_correction: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_to_model?: boolean | null
+          context_data?: Json | null
+          corrected_recommendation?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          feedback_notes?: string | null
+          feedback_score?: number | null
+          feedback_type: string
+          id?: string
+          insight_id?: string | null
+          insight_type?: string | null
+          intervention_id?: number | null
+          original_recommendation?: string | null
+          user_correction?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_to_model?: boolean | null
+          context_data?: Json | null
+          corrected_recommendation?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          feedback_notes?: string | null
+          feedback_score?: number | null
+          feedback_type?: string
+          id?: string
+          insight_id?: string | null
+          insight_type?: string | null
+          intervention_id?: number | null
+          original_recommendation?: string | null
+          user_correction?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_learning_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "proactive_insights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_learning_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_learning_rules: {
+        Row: {
+          action_pattern: Json
+          condition_pattern: Json
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          rule_type: string
+          source: string | null
+          success_count: number | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          action_pattern: Json
+          condition_pattern: Json
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          rule_type: string
+          source?: string | null
+          success_count?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          action_pattern?: Json
+          condition_pattern?: Json
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          rule_type?: string
+          source?: string | null
+          success_count?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -358,6 +523,39 @@ export type Database = {
           report_type?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      business_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          rule_category: string
+          rule_config: Json
+          rule_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category: string
+          rule_config: Json
+          rule_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category?: string
+          rule_config?: Json
+          rule_name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -717,6 +915,7 @@ export type Database = {
         Row: {
           assigned_coach: string | null
           calculated_at: string | null
+          calculated_date: string | null
           calculated_on: string | null
           calculation_version: string | null
           churn_risk_score: number | null
@@ -750,6 +949,7 @@ export type Database = {
         Insert: {
           assigned_coach?: string | null
           calculated_at?: string | null
+          calculated_date?: string | null
           calculated_on?: string | null
           calculation_version?: string | null
           churn_risk_score?: number | null
@@ -783,6 +983,7 @@ export type Database = {
         Update: {
           assigned_coach?: string | null
           calculated_at?: string | null
+          calculated_date?: string | null
           calculated_on?: string | null
           calculation_version?: string | null
           churn_risk_score?: number | null
@@ -989,72 +1190,203 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_activities: {
+        Row: {
+          activity_description: string | null
+          activity_title: string | null
+          activity_type: string
+          contact_id: string | null
+          created_at: string | null
+          hubspot_contact_id: string | null
+          id: string
+          metadata: Json | null
+          occurred_at: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          activity_description?: string | null
+          activity_title?: string | null
+          activity_type: string
+          contact_id?: string | null
+          created_at?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          activity_description?: string | null
+          activity_title?: string | null
+          activity_type?: string
+          contact_id?: string | null
+          created_at?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
+          call_attempt_count: number | null
           city: string | null
+          contact_unworked: boolean | null
+          count_of_reassignations: number | null
           created_at: string | null
+          currently_in_prospecting: boolean | null
+          custom_lifecycle_stage: string | null
+          delegation_date: string | null
           email: string | null
+          email_domain: string | null
           facebook_id: string | null
+          first_conversion_date: string | null
           first_name: string | null
+          first_outbound_call_time: string | null
           first_touch_source: string | null
           first_touch_time: string | null
           ghl_contact_id: string | null
           google_id: string | null
           hubspot_contact_id: string | null
+          hubspot_team: string | null
           id: string
+          job_title: string | null
+          last_activity_date: string | null
           last_name: string | null
           last_touch_source: string | null
           last_touch_time: string | null
+          latest_traffic_source: string | null
+          latest_traffic_source_2: string | null
+          lead_status: string | null
           lifecycle_stage: string | null
+          location: string | null
+          member_accessed_private_content: number | null
+          neighborhood: string | null
+          num_form_submissions: number | null
+          num_unique_forms_submitted: number | null
           owner_id: string | null
+          owner_name: string | null
           phone: string | null
+          recent_conversion: string | null
+          recent_conversion_date: string | null
+          registered_member: number | null
+          segment_memberships: string[] | null
+          sla_first_touch: string | null
+          speed_to_lead_minutes: number | null
           status: string | null
+          time_of_entry: string | null
           total_events: number | null
           total_value: number | null
           updated_at: string | null
         }
         Insert: {
+          call_attempt_count?: number | null
           city?: string | null
+          contact_unworked?: boolean | null
+          count_of_reassignations?: number | null
           created_at?: string | null
+          currently_in_prospecting?: boolean | null
+          custom_lifecycle_stage?: string | null
+          delegation_date?: string | null
           email?: string | null
+          email_domain?: string | null
           facebook_id?: string | null
+          first_conversion_date?: string | null
           first_name?: string | null
+          first_outbound_call_time?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           ghl_contact_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
+          hubspot_team?: string | null
           id?: string
+          job_title?: string | null
+          last_activity_date?: string | null
           last_name?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
+          latest_traffic_source?: string | null
+          latest_traffic_source_2?: string | null
+          lead_status?: string | null
           lifecycle_stage?: string | null
+          location?: string | null
+          member_accessed_private_content?: number | null
+          neighborhood?: string | null
+          num_form_submissions?: number | null
+          num_unique_forms_submitted?: number | null
           owner_id?: string | null
+          owner_name?: string | null
           phone?: string | null
+          recent_conversion?: string | null
+          recent_conversion_date?: string | null
+          registered_member?: number | null
+          segment_memberships?: string[] | null
+          sla_first_touch?: string | null
+          speed_to_lead_minutes?: number | null
           status?: string | null
+          time_of_entry?: string | null
           total_events?: number | null
           total_value?: number | null
           updated_at?: string | null
         }
         Update: {
+          call_attempt_count?: number | null
           city?: string | null
+          contact_unworked?: boolean | null
+          count_of_reassignations?: number | null
           created_at?: string | null
+          currently_in_prospecting?: boolean | null
+          custom_lifecycle_stage?: string | null
+          delegation_date?: string | null
           email?: string | null
+          email_domain?: string | null
           facebook_id?: string | null
+          first_conversion_date?: string | null
           first_name?: string | null
+          first_outbound_call_time?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           ghl_contact_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
+          hubspot_team?: string | null
           id?: string
+          job_title?: string | null
+          last_activity_date?: string | null
           last_name?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
+          latest_traffic_source?: string | null
+          latest_traffic_source_2?: string | null
+          lead_status?: string | null
           lifecycle_stage?: string | null
+          location?: string | null
+          member_accessed_private_content?: number | null
+          neighborhood?: string | null
+          num_form_submissions?: number | null
+          num_unique_forms_submitted?: number | null
           owner_id?: string | null
+          owner_name?: string | null
           phone?: string | null
+          recent_conversion?: string | null
+          recent_conversion_date?: string | null
+          registered_member?: number | null
+          segment_memberships?: string[] | null
+          sla_first_touch?: string | null
+          speed_to_lead_minutes?: number | null
           status?: string | null
+          time_of_entry?: string | null
           total_events?: number | null
           total_value?: number | null
           updated_at?: string | null
@@ -1803,6 +2135,231 @@ export type Database = {
         }
         Relationships: []
       }
+      hubspot_contact_changes: {
+        Row: {
+          contact_email: string | null
+          contact_id: string
+          created_at: string | null
+          event_type: string
+          id: string
+          new_value: string | null
+          occurred_at: string | null
+          old_value: string | null
+          property_name: string | null
+          raw: Json | null
+          risk_reasons: string[] | null
+          risk_score: number | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_id: string
+          created_at?: string | null
+          event_type: string
+          id?: string
+          new_value?: string | null
+          occurred_at?: string | null
+          old_value?: string | null
+          property_name?: string | null
+          raw?: Json | null
+          risk_reasons?: string[] | null
+          risk_score?: number | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          contact_id?: string
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          new_value?: string | null
+          occurred_at?: string | null
+          old_value?: string | null
+          property_name?: string | null
+          raw?: Json | null
+          risk_reasons?: string[] | null
+          risk_score?: number | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_login_activity: {
+        Row: {
+          created_at: string | null
+          hubspot_id: string | null
+          id: string
+          ip_address: string | null
+          location: string | null
+          login_type: string | null
+          occurred_at: string | null
+          raw: Json | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          login_type?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          login_type?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_property_definitions: {
+        Row: {
+          description: string | null
+          field_type: string | null
+          is_hidden: boolean | null
+          is_required: boolean | null
+          last_synced_at: string | null
+          object_type: string
+          options: Json | null
+          property_label: string | null
+          property_name: string
+        }
+        Insert: {
+          description?: string | null
+          field_type?: string | null
+          is_hidden?: boolean | null
+          is_required?: boolean | null
+          last_synced_at?: string | null
+          object_type: string
+          options?: Json | null
+          property_label?: string | null
+          property_name: string
+        }
+        Update: {
+          description?: string | null
+          field_type?: string | null
+          is_hidden?: boolean | null
+          is_required?: boolean | null
+          last_synced_at?: string | null
+          object_type?: string
+          options?: Json | null
+          property_label?: string | null
+          property_name?: string
+        }
+        Relationships: []
+      }
+      hubspot_security_activity: {
+        Row: {
+          created_at: string | null
+          details: string | null
+          event_type: string
+          hubspot_id: string | null
+          id: string
+          ip_address: string | null
+          occurred_at: string | null
+          raw: Json | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: string | null
+          event_type: string
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: string | null
+          event_type?: string
+          hubspot_id?: string | null
+          id?: string
+          ip_address?: string | null
+          occurred_at?: string | null
+          raw?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_user_daily_summary: {
+        Row: {
+          anomaly_flags: string[] | null
+          contact_creations: number | null
+          contact_deletions: number | null
+          contact_updates: number | null
+          created_at: string | null
+          exports: number | null
+          id: string
+          logins: number | null
+          owner_changes: number | null
+          risk_score: number | null
+          security_events: number | null
+          status_changes: number | null
+          summary_date: string
+          updated_at: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          anomaly_flags?: string[] | null
+          contact_creations?: number | null
+          contact_deletions?: number | null
+          contact_updates?: number | null
+          created_at?: string | null
+          exports?: number | null
+          id?: string
+          logins?: number | null
+          owner_changes?: number | null
+          risk_score?: number | null
+          security_events?: number | null
+          status_changes?: number | null
+          summary_date: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          anomaly_flags?: string[] | null
+          contact_creations?: number | null
+          contact_deletions?: number | null
+          contact_updates?: number | null
+          created_at?: string | null
+          exports?: number | null
+          id?: string
+          logins?: number | null
+          owner_changes?: number | null
+          risk_score?: number | null
+          security_events?: number | null
+          status_changes?: number | null
+          summary_date?: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       intervention_log: {
         Row: {
           actioned_at: string | null
@@ -2274,6 +2831,81 @@ export type Database = {
         }
         Relationships: []
       }
+      proactive_insights: {
+        Row: {
+          best_call_time: string | null
+          call_script: string | null
+          completed_at: string | null
+          completed_by: string | null
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          insight_type: string
+          is_dismissed: boolean | null
+          lead_id: string | null
+          notes: string | null
+          outcome: string | null
+          priority: string | null
+          reason: string | null
+          recommended_action: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          best_call_time?: string | null
+          call_script?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          insight_type: string
+          is_dismissed?: boolean | null
+          lead_id?: string | null
+          notes?: string | null
+          outcome?: string | null
+          priority?: string | null
+          reason?: string | null
+          recommended_action?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          best_call_time?: string | null
+          call_script?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          insight_type?: string
+          is_dismissed?: boolean | null
+          lead_id?: string | null
+          notes?: string | null
+          outcome?: string | null
+          priority?: string | null
+          reason?: string | null
+          recommended_action?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spark_leads: {
         Row: {
           created_at: string | null
@@ -2328,6 +2960,69 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_errors: {
+        Row: {
+          created_at: string | null
+          error_details: Json | null
+          error_message: string
+          error_type: string
+          id: string
+          max_retries: number | null
+          next_retry_at: string | null
+          object_id: string | null
+          object_type: string | null
+          operation: string | null
+          request_payload: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          response_payload: Json | null
+          retry_count: number | null
+          source: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_details?: Json | null
+          error_message: string
+          error_type: string
+          id?: string
+          max_retries?: number | null
+          next_retry_at?: string | null
+          object_id?: string | null
+          object_type?: string | null
+          operation?: string | null
+          request_payload?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          response_payload?: Json | null
+          retry_count?: number | null
+          source: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_details?: Json | null
+          error_message?: string
+          error_type?: string
+          id?: string
+          max_retries?: number | null
+          next_retry_at?: string | null
+          object_id?: string | null
+          object_type?: string | null
+          operation?: string | null
+          request_payload?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          response_payload?: Json | null
+          retry_count?: number | null
+          source?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sync_logs: {
         Row: {
           completed_at: string | null
@@ -2364,6 +3059,57 @@ export type Database = {
           started_at?: string | null
           status?: string
           sync_type?: string
+        }
+        Relationships: []
+      }
+      sync_queue: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          id: string
+          job_type: string
+          next_attempt_at: string | null
+          payload: Json | null
+          status: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          job_type: string
+          next_attempt_at?: string | null
+          payload?: Json | null
+          status?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          job_type?: string
+          next_attempt_at?: string | null
+          payload?: Json | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json | null
         }
         Relationships: []
       }
@@ -2699,6 +3445,7 @@ export type Database = {
         }
         Returns: number
       }
+      cleanup_old_logs: { Args: never; Returns: undefined }
       get_dashboard_metrics: {
         Args: never
         Returns: {

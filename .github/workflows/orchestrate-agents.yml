@@ -1,0 +1,39 @@
+name: "Orchestrate PTD Agents"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-agents:
+    name: Deploy Intelligence Agents
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_ID: ztjndilxurtsfqdsvfds
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy All Functions
+        run: |
+          supabase functions deploy --no-verify-jwt --project-ref $PROJECT_ID
+          
+  sync-check:
+    name: Verify System Health
+    needs: deploy-agents
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Business Intelligence Agent
+        run: |
+          curl -f -X POST https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/business-intelligence \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{}'

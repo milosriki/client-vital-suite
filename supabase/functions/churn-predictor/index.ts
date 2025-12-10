@@ -297,6 +297,25 @@ serve(async (req) => {
           // Continue saving other predictions
         }
       }
+
+      // TRIGGER NEXT AGENT: Intervention Recommender
+      // Only trigger if we found critical/high risk clients
+      if (criticalPredictions.length > 0) {
+        console.log("[Churn Predictor] Triggering Intervention Recommender...");
+
+        fetch(`${SUPABASE_URL}/functions/v1/intervention-recommender`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            zones: ["RED", "YELLOW"], // Focus on at-risk zones
+            generate_messages: true,
+            save_to_db: true
+          })
+        }).catch(err => console.error("Failed to trigger Intervention Recommender:", err));
+      }
     }
 
     const duration = Date.now() - startTime;

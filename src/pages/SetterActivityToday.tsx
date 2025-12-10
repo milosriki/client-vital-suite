@@ -4,36 +4,64 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Phone, PhoneCall, Calendar, User, Clock, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Phone, PhoneCall, Calendar, User, Clock, TrendingUp, CheckCircle2, Users } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
+import { useState } from "react";
 
 const SetterActivityToday = () => {
   const todayStart = startOfDay(new Date());
   const todayEnd = endOfDay(new Date());
+  const [selectedOwner, setSelectedOwner] = useState<string>("all");
 
-  // Query for Matthew's calls today
-  const { data: callsData, isLoading: loadingCalls } = useQuery({
-    queryKey: ["matthew-calls-today"],
+  // Fetch all unique owners from contacts
+  const { data: owners } = useQuery({
+    queryKey: ["contact-owners"],
     queryFn: async () => {
-      // Query intervention_log for calls made by Matthew today
-      const { data: interventions, error: interventionError } = await supabase
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("owner_id")
+        .not("owner_id", "is", null);
+      
+      if (error) throw error;
+      
+      // Get unique owners
+      const uniqueOwners = [...new Set(data?.map(c => c.owner_id).filter(Boolean))];
+      return uniqueOwners;
+    }
+  });
+
+  // Query for calls today - filtered by owner if selected
+  const { data: callsData, isLoading: loadingCalls } = useQuery({
+    queryKey: ["team-calls-today", selectedOwner],
+    queryFn: async () => {
+      // Query intervention_log for calls made today
+      let query = supabase
         .from("intervention_log")
         .select("*")
-        .or('executed_by.ilike.%matthew%,assigned_to.ilike.%matthew%')
         .gte("created_at", todayStart.toISOString())
         .lte("created_at", todayEnd.toISOString())
         .order("created_at", { ascending: false });
 
+      if (selectedOwner !== "all") {
+        query = query.or(`executed_by.ilike.%${selectedOwner}%,assigned_to.ilike.%${selectedOwner}%`);
+      }
+
+      const { data: interventions, error: interventionError } = await query;
       if (interventionError) throw interventionError;
 
-      // Query client_health_scores for Matthew's assigned clients contacted today
-      const { data: clients, error: clientError } = await supabase
+      // Query client_health_scores for clients contacted today
+      let clientQuery = supabase
         .from("client_health_scores")
         .select("*")
-        .ilike("assigned_coach", "%matthew%")
         .gte("calculated_at", todayStart.toISOString())
         .lte("calculated_at", todayEnd.toISOString());
 
+      if (selectedOwner !== "all") {
+        clientQuery = clientQuery.ilike("assigned_coach", `%${selectedOwner}%`);
+      }
+
+      const { data: clients, error: clientError } = await clientQuery;
       if (clientError) throw clientError;
 
       return {
@@ -41,22 +69,26 @@ const SetterActivityToday = () => {
         clients: clients || []
       };
     },
-    refetchInterval: 30000 // Refresh every 30 seconds
+    refetchInterval: 30000
   });
 
-  // Query for bookings today (assessments scheduled)
+  // Query for bookings today
   const { data: bookingsData, isLoading: loadingBookings } = useQuery({
-    queryKey: ["matthew-bookings-today"],
+    queryKey: ["team-bookings-today", selectedOwner],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("client_health_scores")
         .select("*")
-        .ilike("assigned_coach", "%matthew%")
         .not("health_zone", "eq", "RED")
         .gte("calculated_at", todayStart.toISOString())
         .lte("calculated_at", todayEnd.toISOString())
         .order("health_score", { ascending: false });
 
+      if (selectedOwner !== "all") {
+        query = query.ilike("assigned_coach", `%${selectedOwner}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -80,12 +112,31 @@ const SetterActivityToday = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Matthew's Activity Today</h1>
-        <p className="text-muted-foreground">
-          Real-time data from Supabase - {format(new Date(), "EEEE, MMMM dd, yyyy")}
-        </p>
+      {/* Header with Owner Filter */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Users className="h-8 w-8" />
+            {selectedOwner === "all" ? "Team Activity Today" : `${selectedOwner}'s Activity Today`}
+          </h1>
+          <p className="text-muted-foreground">
+            Real-time data from Supabase - {format(new Date(), "EEEE, MMMM dd, yyyy")}
+          </p>
+        </div>
+        
+        <Select value={selectedOwner} onValueChange={setSelectedOwner}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Select team member" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Team Members</SelectItem>
+            {owners?.map((ownerId) => (
+              <SelectItem key={ownerId} value={ownerId || ''}>
+                Owner: {ownerId}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Summary Cards */}
@@ -151,7 +202,7 @@ const SetterActivityToday = () => {
             Call Activity Log - Today
           </CardTitle>
           <CardDescription>
-            Real-time call records for Matthew (auto-refreshes every 30 seconds)
+            Real-time call records {selectedOwner !== "all" ? `for ${selectedOwner}` : "for all team members"} (auto-refreshes every 30 seconds)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -228,7 +279,7 @@ const SetterActivityToday = () => {
               <Phone className="h-4 w-4" />
               <AlertTitle>No Calls Yet Today</AlertTitle>
               <AlertDescription>
-                No call activity recorded for Matthew today. Data refreshes automatically every 30 seconds.
+                No call activity recorded {selectedOwner !== "all" ? `for ${selectedOwner}` : ""} today. Data refreshes automatically every 30 seconds.
               </AlertDescription>
             </Alert>
           )}
@@ -243,7 +294,7 @@ const SetterActivityToday = () => {
             Booked Assessments - Today
           </CardTitle>
           <CardDescription>
-            Clients Matthew has successfully booked today
+            Clients {selectedOwner !== "all" ? `${selectedOwner} has` : "team has"} successfully booked today
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -302,7 +353,7 @@ const SetterActivityToday = () => {
               <Calendar className="h-4 w-4" />
               <AlertTitle>No Bookings Yet</AlertTitle>
               <AlertDescription>
-                No assessments booked by Matthew today. Keep calling!
+                No assessments booked {selectedOwner !== "all" ? `by ${selectedOwner}` : ""} today. Keep calling!
               </AlertDescription>
             </Alert>
           )}
