@@ -3548,6 +3548,22 @@ export type Database = {
         Returns: number
       }
       cleanup_old_logs: { Args: never; Returns: undefined }
+      get_all_functions: {
+        Args: never
+        Returns: {
+          function_name: string
+          parameter_count: number
+          return_type: string
+        }[]
+      }
+      get_all_tables: {
+        Args: never
+        Returns: {
+          column_count: number
+          row_estimate: number
+          table_name: string
+        }[]
+      }
       get_dashboard_metrics: {
         Args: never
         Returns: {
@@ -3631,6 +3647,14 @@ export type Database = {
           leads: number
           purchases: number
           revenue_aed: number
+        }[]
+      }
+      get_table_columns: {
+        Args: { target_table: string }
+        Returns: {
+          column_name: string
+          data_type: string
+          is_nullable: string
         }[]
       }
       has_role:
