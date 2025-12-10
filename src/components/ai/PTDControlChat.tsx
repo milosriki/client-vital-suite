@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send, Brain, Upload, FileText, X } from "lucide-react";
+import { Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database } from "lucide-react";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
+import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { toast } from "sonner";
 
 export default function PTDControlChat() {
@@ -10,7 +11,38 @@ export default function PTDControlChat() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; content: string }[]>([]);
+  const [threadId, setThreadId] = useState<string>('');
+  const [memoryStats, setMemoryStats] = useState<{ memories: number; patterns: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize thread ID
+  useEffect(() => {
+    setThreadId(getThreadId());
+    loadMemoryStats();
+  }, []);
+
+  const loadMemoryStats = async () => {
+    try {
+      const [memRes, patRes] = await Promise.all([
+        supabase.from('agent_memory').select('id', { count: 'exact', head: true }),
+        supabase.from('agent_patterns').select('id', { count: 'exact', head: true })
+      ]);
+      setMemoryStats({
+        memories: memRes.count || 0,
+        patterns: patRes.count || 0
+      });
+    } catch (e) {
+      // Stats not critical
+    }
+  };
+
+  const handleNewThread = () => {
+    const newId = startNewThread();
+    setThreadId(newId);
+    setMessages([]);
+    setUploadedFiles([]);
+    toast.success('Started new conversation thread');
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -20,10 +52,8 @@ export default function PTDControlChat() {
 
     for (const file of Array.from(files)) {
       try {
-        // Read file content
         const content = await file.text();
         
-        // Process through RAG system
         const { data, error } = await supabase.functions.invoke("process-knowledge", {
           body: { 
             content, 
@@ -52,6 +82,7 @@ export default function PTDControlChat() {
     }
 
     setUploading(false);
+    loadMemoryStats();
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -69,7 +100,10 @@ export default function PTDControlChat() {
 
     try {
       const { data, error } = await supabase.functions.invoke("ptd-agent-claude", {
-        body: { message: input },
+        body: { 
+          message: input,
+          thread_id: threadId  // Pass thread ID for memory continuity
+        },
       });
 
       if (error) {
@@ -77,6 +111,7 @@ export default function PTDControlChat() {
       } else if (data?.response) {
         setMessages(prev => [...prev, { role: "ai", content: data.response }]);
         await learnFromInteraction(input, data.response);
+        loadMemoryStats(); // Refresh stats after interaction
       } else if (data?.error) {
         setMessages(prev => [...prev, { role: "ai", content: `Error: ${data.error}` }]);
       }
@@ -96,26 +131,53 @@ export default function PTDControlChat() {
             <Brain className="w-6 h-6 text-cyan-400 animate-pulse" />
             <div>
               <h2 className="font-bold text-lg text-white">PTD CONTROL</h2>
-              <p className="text-xs text-cyan-400">RAG-enabled learning agent</p>
+              <div className="flex items-center gap-2 text-xs text-cyan-400">
+                <span>Persistent Memory Agent</span>
+                {memoryStats && (
+                  <span className="flex items-center gap-1 text-white/50">
+                    <Database className="w-3 h-3" />
+                    {memoryStats.memories} memories
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          {/* Upload Button */}
-          <label className="cursor-pointer p-2 hover:bg-cyan-500/20 rounded-lg transition-all group">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".txt,.md,.csv,.json,.pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            {uploading ? (
-              <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-            ) : (
-              <Upload className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
-            )}
-          </label>
+          
+          <div className="flex items-center gap-2">
+            {/* New Thread Button */}
+            <button
+              onClick={handleNewThread}
+              className="p-2 hover:bg-cyan-500/20 rounded-lg transition-all group"
+              title="Start new thread"
+            >
+              <RotateCcw className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
+            </button>
+            
+            {/* Upload Button */}
+            <label className="cursor-pointer p-2 hover:bg-cyan-500/20 rounded-lg transition-all group">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".txt,.md,.csv,.json,.pdf"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              {uploading ? (
+                <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+              ) : (
+                <Upload className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
+              )}
+            </label>
+          </div>
         </div>
+        
+        {/* Thread ID indicator */}
+        {threadId && (
+          <div className="mt-2 text-xs text-white/30 truncate">
+            Thread: {threadId.slice(0, 20)}...
+          </div>
+        )}
         
         {/* Uploaded Files Pills */}
         {uploadedFiles.length > 0 && (
@@ -139,11 +201,12 @@ export default function PTDControlChat() {
           <div className="h-full flex items-center justify-center text-center">
             <div className="space-y-3">
               <Brain className="w-12 h-12 text-cyan-400 mx-auto opacity-50" />
-              <p className="text-white/70">Ask about your PTD system...</p>
+              <p className="text-white/70">I remember everything...</p>
               <div className="text-xs text-white/50 space-y-1">
                 <p>💡 "Show john@ptd.com full journey"</p>
                 <p>💡 "Scan for Stripe fraud"</p>
                 <p>📁 Upload files to teach me formulas!</p>
+                <p>🧠 I learn from every conversation</p>
               </div>
             </div>
           </div>
@@ -168,7 +231,7 @@ export default function PTDControlChat() {
             <div className="bg-white/5 border border-white/10 rounded-lg p-4">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                <span className="text-sm text-white/70">Analyzing...</span>
+                <span className="text-sm text-white/70">Thinking with memory...</span>
               </div>
             </div>
           </div>
@@ -182,7 +245,7 @@ export default function PTDControlChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && !loading && handleAsk()}
-            placeholder="Ask about clients, leads, calls, Stripe, HubSpot..."
+            placeholder="Ask anything - I remember our history..."
             className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
             disabled={loading}
           />

@@ -57,12 +57,100 @@ BUSINESS RULES:
 - Response time target: under 5 minutes for new leads
 `;
 
-// ============= LEARNING SYSTEM + RAG =============
+// ============= PERSISTENT MEMORY SYSTEM + RAG =============
+
+// Get embeddings for semantic search
+async function getEmbeddings(text: string): Promise<number[] | null> {
+  try {
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) return null;
+
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: text.slice(0, 8000),
+      }),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.data[0].embedding;
+  } catch (e) {
+    console.log('Embeddings error:', e);
+    return null;
+  }
+}
+
+// Search agent memory using vector similarity
+async function searchMemory(supabase: any, query: string, threadId?: string): Promise<string> {
+  try {
+    const embedding = await getEmbeddings(query);
+    
+    if (embedding) {
+      // Vector similarity search
+      const { data } = await supabase.rpc('match_memories', {
+        query_embedding: embedding,
+        match_threshold: 0.7,
+        match_count: 5,
+        filter_thread_id: threadId || null
+      });
+
+      if (data && data.length > 0) {
+        return data.slice(0, 3).map((m: any) => 
+          `[Memory] Q: "${m.query.slice(0, 100)}..." → A: "${m.response.slice(0, 200)}..."`
+        ).join('\n');
+      }
+    }
+
+    // Fallback to keyword search
+    return await searchMemoryByKeywords(supabase, query, threadId);
+  } catch (e) {
+    console.log('Memory search error:', e);
+    return '';
+  }
+}
+
+// Keyword-based memory search (fallback)
+async function searchMemoryByKeywords(supabase: any, query: string, threadId?: string): Promise<string> {
+  try {
+    let queryBuilder = supabase
+      .from('agent_memory')
+      .select('query, response, knowledge_extracted')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    
+    if (threadId) {
+      queryBuilder = queryBuilder.eq('thread_id', threadId);
+    }
+    
+    const { data } = await queryBuilder;
+    if (!data || data.length === 0) return '';
+
+    const keywords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+    
+    const relevant = data
+      .filter((m: any) => {
+        const content = `${m.query} ${m.response}`.toLowerCase();
+        return keywords.some((kw: string) => content.includes(kw));
+      })
+      .slice(0, 3);
+
+    return relevant.map((m: any) => 
+      `[Memory] Q: "${m.query.slice(0, 100)}..." → A: "${m.response.slice(0, 200)}..."`
+    ).join('\n');
+  } catch (e) {
+    return '';
+  }
+}
 
 // Search RAG knowledge documents
 async function searchKnowledgeDocuments(supabase: any, query: string): Promise<string> {
   try {
-    // Simple text search in knowledge documents
     const { data: docs } = await supabase
       .from('knowledge_documents')
       .select('filename, content, metadata')
@@ -71,7 +159,6 @@ async function searchKnowledgeDocuments(supabase: any, query: string): Promise<s
 
     if (!docs || docs.length === 0) return '';
 
-    // Keyword matching for relevance
     const queryLower = query.toLowerCase();
     const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
     
@@ -93,50 +180,92 @@ async function searchKnowledgeDocuments(supabase: any, query: string): Promise<s
   }
 }
 
-async function getRelevantLearnings(supabase: any, query: string): Promise<string> {
+// Get learned patterns
+async function getLearnedPatterns(supabase: any): Promise<string> {
   try {
-    // Get recent conversation learnings
-    const { data: learnings } = await supabase
-      .from('agent_context')
-      .select('key, value')
-      .eq('agent_type', 'ptd-agent')
-      .order('created_at', { ascending: false })
+    const { data } = await supabase
+      .from('agent_patterns')
+      .select('pattern_name, description, confidence')
+      .order('confidence', { ascending: false })
       .limit(10);
 
-    if (!learnings || learnings.length === 0) return '';
+    if (!data || data.length === 0) return '';
 
-    // Simple keyword matching for relevance
-    const queryLower = query.toLowerCase();
-    const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
-    
-    const relevantLearnings = learnings
-      .filter((l: any) => {
-        const content = JSON.stringify(l.value).toLowerCase();
-        return keywords.some((kw: string) => content.includes(kw));
-      })
-      .slice(0, 3)
-      .map((l: any) => typeof l.value === 'string' ? l.value : JSON.stringify(l.value))
-      .join('\n\n');
-
-    return relevantLearnings;
+    return data.map((p: any) => 
+      `• ${p.pattern_name} (${Math.round(p.confidence * 100)}% confidence): ${p.description || 'Auto-detected'}`
+    ).join('\n');
   } catch (e) {
-    console.log('Learning retrieval skipped:', e);
     return '';
   }
 }
 
-async function saveInteraction(supabase: any, query: string, response: string): Promise<void> {
+// Extract knowledge from interaction
+function extractKnowledge(query: string, response: string): any {
+  const combined = `${query} ${response}`.toLowerCase();
+  
+  const patterns: Record<string, boolean> = {
+    stripe_fraud: /fraud|suspicious|unknown card|dispute|chargeback/i.test(combined),
+    churn_risk: /churn|red zone|critical|at.?risk|declining/i.test(combined),
+    hubspot_sync: /hubspot|sync|workflow|pipeline|contact/i.test(combined),
+    revenue_leak: /leak|revenue loss|missed|opportunity/i.test(combined),
+    health_score: /health.?score|engagement|momentum|score/i.test(combined),
+    coach_performance: /coach|trainer|performance|clients/i.test(combined),
+    formula: /formula|calculate|equation|compute/i.test(combined),
+    meta_capi: /meta|capi|facebook|pixel|conversion/i.test(combined),
+  };
+  
+  return {
+    detected_patterns: Object.keys(patterns).filter(k => patterns[k]),
+    timestamp: new Date().toISOString()
+  };
+}
+
+// Save interaction to persistent memory
+async function saveToMemory(supabase: any, threadId: string, query: string, response: string): Promise<void> {
   try {
-    const key = `interaction_${Date.now()}`;
-    await supabase.from('agent_context').insert({
-      key,
-      value: { query, response: response.slice(0, 2000), timestamp: new Date().toISOString() },
-      agent_type: 'ptd-agent',
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+    const knowledge = extractKnowledge(query, response);
+    const embedding = await getEmbeddings(`${query}\n${response}`);
+    
+    await supabase.from('agent_memory').insert({
+      thread_id: threadId,
+      query,
+      response: response.slice(0, 10000),
+      knowledge_extracted: knowledge,
+      embeddings: embedding
     });
-    console.log('✅ Saved interaction for learning');
+
+    // Update pattern confidence
+    for (const pattern of knowledge.detected_patterns) {
+      const { data: existing } = await supabase
+        .from('agent_patterns')
+        .select('*')
+        .eq('pattern_name', pattern)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from('agent_patterns')
+          .update({
+            usage_count: (existing.usage_count || 0) + 1,
+            last_used_at: new Date().toISOString(),
+            confidence: Math.min(0.99, (existing.confidence || 0.5) + 0.01)
+          })
+          .eq('pattern_name', pattern);
+      } else {
+        await supabase
+          .from('agent_patterns')
+          .insert({
+            pattern_name: pattern,
+            description: `Auto-learned pattern: ${pattern}`,
+            confidence: 0.5,
+            usage_count: 1
+          });
+      }
+    }
+
+    console.log('✅ Saved to persistent memory');
   } catch (e) {
-    console.log('Learning save skipped:', e);
+    console.log('Memory save error:', e);
   }
 }
 
@@ -575,13 +704,14 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 }
 
 // Main agent function with agentic loop + learning + RAG
-async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string): Promise<string> {
-  // ============= RAG + LEARNING MIDDLEWARE: Before =============
-  const [relevantLearnings, ragKnowledge] = await Promise.all([
-    getRelevantLearnings(supabase, userMessage),
-    searchKnowledgeDocuments(supabase, userMessage)
+async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string, threadId: string = 'default'): Promise<string> {
+  // ============= PERSISTENT MEMORY + RAG MIDDLEWARE: Before =============
+  const [relevantMemory, ragKnowledge, learnedPatterns] = await Promise.all([
+    searchMemory(supabase, userMessage, threadId),
+    searchKnowledgeDocuments(supabase, userMessage),
+    getLearnedPatterns(supabase)
   ]);
-  console.log(`📚 Learnings: ${relevantLearnings.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}`);
+  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}`);
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 
@@ -598,8 +728,11 @@ ${ragKnowledge || 'No relevant uploaded documents found.'}
 === SYSTEM KNOWLEDGE BASE ===
 ${PTD_SYSTEM_KNOWLEDGE}
 
-=== PATTERN LEARNINGS (for context only, NOT data) ===
-${relevantLearnings || 'No relevant patterns found.'}
+=== LEARNED PATTERNS ===
+${learnedPatterns || 'No patterns learned yet.'}
+
+=== MEMORY FROM PAST CONVERSATIONS ===
+${relevantMemory || 'No relevant past conversations found.'}
 
 === CAPABILITIES ===
 ✅ Client data (health scores, calls, deals, activities)
@@ -682,8 +815,8 @@ ${relevantLearnings || 'No relevant patterns found.'}
     finalResponse = "Max iterations reached. Please try a more specific query.";
   }
 
-  // ============= LEARNING MIDDLEWARE: After =============
-  await saveInteraction(supabase, userMessage, finalResponse);
+  // ============= PERSISTENT MEMORY: Save After Response =============
+  await saveToMemory(supabase, threadId, userMessage, finalResponse);
 
   return finalResponse;
 }
@@ -695,7 +828,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, messages: chatHistory } = await req.json();
+    const { message, messages: chatHistory, thread_id } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -709,12 +842,14 @@ serve(async (req) => {
     const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
     const userMessage = message || (chatHistory?.[chatHistory.length - 1]?.content);
+    const threadId = thread_id || `default_${Date.now()}`;
     
     if (!userMessage) {
       throw new Error("No message provided");
     }
 
-    const response = await runAgent(supabase, anthropic, userMessage);
+    console.log(`🧠 Running agent with thread: ${threadId}`);
+    const response = await runAgent(supabase, anthropic, userMessage, threadId);
 
     return new Response(JSON.stringify({ response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
