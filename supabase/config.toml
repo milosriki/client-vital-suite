@@ -107,3 +107,7 @@ verify_jwt = false
 # RAG Knowledge Processor
 [functions.process-knowledge]
 verify_jwt = false
+
+# OpenAI Embeddings for Vector Search
+[functions.openai-embeddings]
+verify_jwt = false

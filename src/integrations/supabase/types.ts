@@ -65,6 +65,72 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_memory: {
+        Row: {
+          created_at: string | null
+          embeddings: string | null
+          id: string
+          knowledge_extracted: Json | null
+          query: string
+          response: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          embeddings?: string | null
+          id?: string
+          knowledge_extracted?: Json | null
+          query: string
+          response: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string | null
+          embeddings?: string | null
+          id?: string
+          knowledge_extracted?: Json | null
+          query?: string
+          response?: string
+          thread_id?: string
+        }
+        Relationships: []
+      }
+      agent_patterns: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          description: string | null
+          examples: Json[] | null
+          id: string
+          last_used_at: string | null
+          pattern_name: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          description?: string | null
+          examples?: Json[] | null
+          id?: string
+          last_used_at?: string | null
+          pattern_name: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          description?: string | null
+          examples?: Json[] | null
+          id?: string
+          last_used_at?: string | null
+          pattern_name?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       ai_feedback_learning: {
         Row: {
           applied_at: string | null
@@ -3577,6 +3643,23 @@ export type Database = {
           }
         | { Args: { role_name: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      match_memories: {
+        Args: {
+          filter_thread_id?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          knowledge_extracted: Json
+          query: string
+          response: string
+          similarity: number
+          thread_id: string
+        }[]
+      }
       process_hubspot_webhook: {
         Args: { webhook_payload: Json }
         Returns: Json
