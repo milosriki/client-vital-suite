@@ -6,11 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ============= PTD KNOWLEDGE BASE =============
-const PTD_SYSTEM_KNOWLEDGE = `
-PTD FITNESS PLATFORM - COMPLETE STRUCTURE (58 Tables + 21 Functions):
+// ============= DYNAMIC KNOWLEDGE LOADING =============
+async function loadDynamicKnowledge(supabase: any): Promise<string> {
+  try {
+    const [structure, patterns, interactions] = await Promise.all([
+      supabase.from('agent_context').select('value').eq('key', 'system_structure').single(),
+      supabase.from('agent_context').select('value').eq('key', 'data_patterns').single(),
+      supabase.from('agent_context').select('value').eq('key', 'interaction_patterns').single()
+    ]);
 
-TABLES (58):
+    const structureData = structure.data?.value || {};
+    const patternData = patterns.data?.value || {};
+    const interactionData = interactions.data?.value || {};
+
+    return `
+## DYNAMIC SYSTEM KNOWLEDGE (Auto-Discovered)
+
+### DISCOVERED STRUCTURE (${structureData.discovered_at || 'Not yet discovered'})
+Tables (${structureData.tables?.length || 0}): ${structureData.tables?.slice(0, 25).map((t: any) => `${t.name}(${t.rows})`).join(', ') || 'Run self-learn first'}
+Functions (${structureData.functions?.length || 0}): ${structureData.functions?.slice(0, 15).map((f: any) => f.name).join(', ') || 'Run self-learn first'}
+
+### CURRENT DATA PATTERNS (${patternData.analyzed_at || 'Not analyzed'})
+Health Zones: ${JSON.stringify(patternData.health_zones || {})}
+Active Coaches: ${Object.keys(patternData.coaches || {}).slice(0, 5).join(', ') || 'None'}
+Event Types: ${JSON.stringify(patternData.event_types || {})}
+Call Outcomes: ${JSON.stringify(patternData.call_outcomes || {})}
+Deal Stages: ${JSON.stringify(patternData.deal_stages || {})}
+Avg Health Score: ${patternData.avg_health || 'N/A'}
+Avg Deal Value: ${patternData.avg_deal_value ? `AED ${patternData.avg_deal_value}` : 'N/A'}
+
+### INTERACTION INSIGHTS (${interactionData.analyzed_at || 'None yet'})
+Query Types: ${JSON.stringify(interactionData.query_types || {})}
+Total Interactions: ${interactionData.total_interactions || 0}
+`;
+  } catch (e) {
+    console.log('Dynamic knowledge load error:', e);
+    return '## Dynamic knowledge not yet loaded - using static knowledge';
+  }
+}
+
+// ============= STATIC FALLBACK KNOWLEDGE =============
+const PTD_STATIC_KNOWLEDGE = `
+PTD FITNESS PLATFORM - CORE STRUCTURE:
+
+KEY TABLES:
 - client_health_scores: email, health_score, health_zone (purple/green/yellow/red), calculated_at, churn_risk_score
 - contacts: email, first_name, last_name, phone, lifecycle_stage, owner_name, lead_status
 - deals: deal_name, deal_value, stage, status, close_date, pipeline
@@ -20,40 +59,24 @@ TABLES (58):
 - intervention_log: status, action_type, recommended_action, outcome
 - daily_summary: summary_date, avg_health_score, clients_green/yellow/red/purple, at_risk_revenue_aed
 - campaign_performance: campaign_name, platform, spend, clicks, leads, conversions, roas
-- appointments: scheduled_at, status, notes
-- contact_activities: activity_type, activity_title, occurred_at
 
-EDGE FUNCTIONS (21):
-- churn-predictor: Predicts client dropout probability using ML
-- anomaly-detector: Finds unusual patterns in data
-- stripe-forensics: Detects fraud (instant payouts, test-drain, unknown cards)
-- business-intelligence: Generates BI insights
-- intervention-recommender: Suggests actions for at-risk clients
-- coach-analyzer: Analyzes coach performance
-- sync-hubspot-to-supabase: Syncs HubSpot data
-- fetch-hubspot-live: Gets real-time HubSpot data
+EDGE FUNCTIONS:
+- churn-predictor, anomaly-detector, stripe-forensics, business-intelligence
+- intervention-recommender, coach-analyzer, sync-hubspot-to-supabase, fetch-hubspot-live
 
 HEALTH ZONES:
-- Purple Zone (85-100): Champions - loyal, engaged, high value
-- Green Zone (70-84): Healthy - consistent, stable engagement
-- Yellow Zone (50-69): At Risk - showing warning signs
-- Red Zone (0-49): Critical - immediate intervention needed
+- Purple (85-100): Champions | Green (70-84): Healthy | Yellow (50-69): At Risk | Red (0-49): Critical
 
 STRIPE FRAUD PATTERNS:
-- Unknown cards used after trusted payments
-- Instant payouts bypassing normal settlement
-- Test-then-drain: small test charge followed by large withdrawal
-- Multiple failed charges followed by success
-
-HUBSPOT INSIGHTS:
-- Revenue leaks from workflow failures
-- Buried premium leads not being followed up
-- Lifecycle stage mismatches
+- Unknown cards after trusted payments
+- Instant payouts bypassing settlement
+- Test-then-drain pattern
+- Multiple failed charges then success
 
 BUSINESS RULES:
-- Clients with no session in 14+ days are at risk
-- Deals over 50K AED need manager approval
-- Response time target: under 5 minutes for new leads
+- No session in 14+ days = at risk
+- Deals over 50K AED need approval
+- Lead response target: under 5 minutes
 `;
 
 // ============= PERSISTENT MEMORY SYSTEM + RAG =============
@@ -724,18 +747,23 @@ async function runAgent(supabase: any, userMessage: string, threadId: string = '
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-  // Load memory + RAG + patterns
-  const [relevantMemory, ragKnowledge, learnedPatterns] = await Promise.all([
+  // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE
+  const [relevantMemory, ragKnowledge, learnedPatterns, dynamicKnowledge] = await Promise.all([
     searchMemory(supabase, userMessage, threadId),
     searchKnowledgeDocuments(supabase, userMessage),
-    getLearnedPatterns(supabase)
+    getLearnedPatterns(supabase),
+    loadDynamicKnowledge(supabase)
   ]);
-  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}`);
+  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}, Dynamic: ${dynamicKnowledge.length > 100 ? 'loaded' : 'basic'}`);
 
-  const systemPrompt = `# PTD FITNESS SUPER-INTELLIGENCE AGENT v2.0
+  const systemPrompt = `# PTD FITNESS SUPER-INTELLIGENCE AGENT v3.0 (Self-Learning)
 
 ## MISSION
 You are the CENTRAL NERVOUS SYSTEM of PTD Fitness. You observe, analyze, predict, and control the entire business.
+
+${dynamicKnowledge}
+
+${PTD_STATIC_KNOWLEDGE}
 
 ## HUBSPOT DATA MAPPINGS (CRITICAL - Use these to translate IDs!)
 
@@ -783,9 +811,6 @@ You are the CENTRAL NERVOUS SYSTEM of PTD Fitness. You observe, analyze, predict
 
 === UPLOADED KNOWLEDGE DOCUMENTS (RAG) ===
 ${ragKnowledge || 'No relevant uploaded documents found.'}
-
-=== SYSTEM KNOWLEDGE BASE ===
-${PTD_SYSTEM_KNOWLEDGE}
 
 === LEARNED PATTERNS ===
 ${learnedPatterns || 'No patterns learned yet.'}

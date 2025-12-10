@@ -114,3 +114,7 @@ verify_jwt = false
 # OpenAI Embeddings for Vector Search
 [functions.openai-embeddings]
 verify_jwt = false
+
+# Self-Learning Agent (Cron-triggered)
+[functions.ptd-self-learn]
+verify_jwt = false

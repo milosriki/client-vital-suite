@@ -1,10 +1,11 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
+import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import Dashboard from "./pages/Dashboard";
 import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
@@ -24,6 +25,9 @@ import SalesPipeline from "./pages/SalesPipeline";
 import CallTracking from "./pages/CallTracking";
 import NotFound from "./pages/NotFound";
 import "./index.css";
+
+// Start background learning on app init
+startBackgroundLearning();
 
 const router = createBrowserRouter([
   {
