@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_context: {
+        Row: {
+          agent_type: string | null
+          created_at: string | null
+          expires_at: string | null
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          agent_type?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          agent_type?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       agent_conversations: {
         Row: {
           content: string
@@ -2201,6 +2228,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hubspot_property_definitions: {
+        Row: {
+          description: string | null
+          field_type: string | null
+          is_hidden: boolean | null
+          is_required: boolean | null
+          last_synced_at: string | null
+          object_type: string
+          options: Json | null
+          property_label: string | null
+          property_name: string
+        }
+        Insert: {
+          description?: string | null
+          field_type?: string | null
+          is_hidden?: boolean | null
+          is_required?: boolean | null
+          last_synced_at?: string | null
+          object_type: string
+          options?: Json | null
+          property_label?: string | null
+          property_name: string
+        }
+        Update: {
+          description?: string | null
+          field_type?: string | null
+          is_hidden?: boolean | null
+          is_required?: boolean | null
+          last_synced_at?: string | null
+          object_type?: string
+          options?: Json | null
+          property_label?: string | null
+          property_name?: string
+        }
+        Relationships: []
+      }
       hubspot_security_activity: {
         Row: {
           created_at: string | null
@@ -2894,6 +2957,69 @@ export type Database = {
           id?: string
           name?: string
           role?: string
+        }
+        Relationships: []
+      }
+      sync_errors: {
+        Row: {
+          created_at: string | null
+          error_details: Json | null
+          error_message: string
+          error_type: string
+          id: string
+          max_retries: number | null
+          next_retry_at: string | null
+          object_id: string | null
+          object_type: string | null
+          operation: string | null
+          request_payload: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          response_payload: Json | null
+          retry_count: number | null
+          source: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_details?: Json | null
+          error_message: string
+          error_type: string
+          id?: string
+          max_retries?: number | null
+          next_retry_at?: string | null
+          object_id?: string | null
+          object_type?: string | null
+          operation?: string | null
+          request_payload?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          response_payload?: Json | null
+          retry_count?: number | null
+          source: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_details?: Json | null
+          error_message?: string
+          error_type?: string
+          id?: string
+          max_retries?: number | null
+          next_retry_at?: string | null
+          object_id?: string | null
+          object_type?: string | null
+          operation?: string | null
+          request_payload?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          response_payload?: Json | null
+          retry_count?: number | null
+          source?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
