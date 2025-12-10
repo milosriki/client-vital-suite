@@ -38,9 +38,22 @@ export const FloatingChat = () => {
   const [threadId, setThreadId] = useState<string>("");
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "connecting" | "error">("connected");
   const [memoryCount, setMemoryCount] = useState(0);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Timer for loading state
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      setLoadingSeconds(0);
+      interval = setInterval(() => {
+        setLoadingSeconds(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   // Initialize thread and load memory stats
   useEffect(() => {
@@ -235,6 +248,8 @@ export const FloatingChat = () => {
           ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map((f) => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map((f) => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
           : userMessage;
 
+      console.log("📤 Sending to agent:", userMessage.slice(0, 50));
+      
       const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
         body: {
           message: messageWithFiles,
@@ -244,9 +259,14 @@ export const FloatingChat = () => {
         },
       });
 
-      if (error) throw error;
+      console.log("📥 Agent response:", { data, error });
 
-      const responseText = data?.response || "No response received";
+      if (error) {
+        console.error("Function error:", error);
+        throw new Error(error.message || "Failed to get response");
+      }
+
+      const responseText = data?.response || data?.error || "No response received. Please try again.";
 
       // Update assistant message with response
       setMessages((prev) =>
@@ -259,20 +279,33 @@ export const FloatingChat = () => {
 
       setConnectionStatus("connected");
       loadMemoryStats();
-    } catch (error) {
+      
+      toast({
+        title: "Response received",
+        description: `Processed in ${data?.duration_ms ? Math.round(data.duration_ms / 1000) + 's' : 'a moment'}`,
+      });
+    } catch (error: any) {
       console.error("Chat error:", error);
+      const errorMsg = error?.message || "Sorry, I encountered an error. Please try again.";
+      
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMsgId
             ? {
                 ...msg,
-                content: "Sorry, I encountered an error. Please try again.",
+                content: `❌ Error: ${errorMsg}\n\nPlease try again or simplify your question.`,
                 isStreaming: false,
               }
             : msg
         )
       );
       setConnectionStatus("error");
+      
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -430,7 +463,12 @@ export const FloatingChat = () => {
                       {msg.isStreaming && !msg.content ? (
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                          <span className="text-white/60">Thinking...</span>
+                          <span className="text-white/60">
+                            Thinking{loadingSeconds > 0 ? ` (${loadingSeconds}s)` : '...'}
+                          </span>
+                          {loadingSeconds > 5 && (
+                            <span className="text-cyan-400/60 text-xs">Analyzing data...</span>
+                          )}
                         </div>
                       ) : (
                         <pre className="whitespace-pre-wrap font-sans leading-relaxed">
