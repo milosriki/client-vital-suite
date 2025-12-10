@@ -449,6 +449,28 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "universal_search",
+      description: "POWERFUL SEARCH - Find any person/lead/contact by phone number, name, email, ID, owner name, campaign, etc. Returns full enriched profile with all calls, deals, activities, owner info, location, campaign data. USE THIS for any search query.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { 
+            type: "string", 
+            description: "Search term - phone number, name, email, contact ID, HubSpot ID, owner name, campaign name, any identifier" 
+          },
+          search_type: { 
+            type: "string", 
+            enum: ["auto", "phone", "email", "name", "id", "owner", "campaign"],
+            description: "Type of search (default: auto-detect from query)"
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 // ============= TOOL EXECUTION =============
@@ -730,6 +752,154 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         }
         
         return `INTELLIGENCE RESULTS:\n${JSON.stringify(results, null, 2)}`;
+      }
+
+      case "universal_search": {
+        const { query, search_type = "auto" } = input;
+        const q = String(query).trim();
+        
+        // Auto-detect search type
+        let detectedType = search_type;
+        if (search_type === "auto") {
+          if (/^\d{9,15}$/.test(q.replace(/\D/g, ''))) detectedType = "phone";
+          else if (q.includes('@')) detectedType = "email";
+          else if (/^[a-f0-9-]{36}$/i.test(q)) detectedType = "id";
+          else detectedType = "name";
+        }
+        
+        console.log(`🔍 Universal search: "${q}" (type: ${detectedType})`);
+        
+        // Prepare search patterns
+        const phoneCleaned = q.replace(/\D/g, '');
+        const searchLike = `%${q}%`;
+        
+        // Search across all relevant tables
+        const [contacts, leads, calls, deals, healthScores, activities] = await Promise.all([
+          // Contacts search
+          supabase.from('contacts').select('*').or(
+            `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike},owner_name.ilike.${searchLike}`
+          ).limit(10),
+          
+          // Enhanced leads search
+          supabase.from('enhanced_leads').select('*').or(
+            `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},campaign_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike}`
+          ).limit(10),
+          
+          // Call records - search by phone number
+          supabase.from('call_records').select('*')
+            .or(`caller_number.ilike.%${phoneCleaned}%`)
+            .order('started_at', { ascending: false })
+            .limit(20),
+          
+          // Deals search
+          supabase.from('deals').select('*').or(
+            `deal_name.ilike.${searchLike},hubspot_deal_id.ilike.${searchLike}`
+          ).limit(10),
+          
+          // Health scores by email or name
+          supabase.from('client_health_scores').select('*').or(
+            `email.ilike.${searchLike},firstname.ilike.${searchLike},lastname.ilike.${searchLike}`
+          ).limit(5),
+          
+          // Contact activities
+          supabase.from('contact_activities').select('*').or(
+            `hubspot_contact_id.ilike.${searchLike}`
+          ).order('occurred_at', { ascending: false }).limit(10)
+        ]);
+        
+        // Count call attempts for phone searches
+        const callAttempts = calls.data?.length || 0;
+        const connectedCalls = calls.data?.filter((c: any) => c.call_status === 'completed')?.length || 0;
+        const callStats = {
+          total_attempts: callAttempts,
+          connected: connectedCalls,
+          missed: callAttempts - connectedCalls,
+          first_call: calls.data?.[calls.data.length - 1]?.started_at,
+          last_call: calls.data?.[0]?.started_at,
+          directions: calls.data?.reduce((acc: any, c: any) => {
+            acc[c.call_direction || 'unknown'] = (acc[c.call_direction || 'unknown'] || 0) + 1;
+            return acc;
+          }, {})
+        };
+        
+        // Build enriched result
+        const result = {
+          search_query: q,
+          search_type: detectedType,
+          
+          // Contact Info
+          contacts_found: contacts.data?.length || 0,
+          contact_details: contacts.data?.map((c: any) => ({
+            name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+            email: c.email,
+            phone: c.phone,
+            owner: c.owner_name,
+            lifecycle_stage: c.lifecycle_stage,
+            lead_status: c.lead_status,
+            city: c.city,
+            location: c.location,
+            hubspot_id: c.hubspot_contact_id,
+            first_touch: c.first_touch_time,
+            last_activity: c.last_activity_date,
+            created_at: c.created_at
+          })),
+          
+          // Lead Info
+          leads_found: leads.data?.length || 0,
+          lead_details: leads.data?.map((l: any) => ({
+            name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Unknown',
+            email: l.email,
+            phone: l.phone,
+            lead_score: l.lead_score,
+            lead_quality: l.lead_quality,
+            conversion_status: l.conversion_status,
+            campaign: l.campaign_name,
+            ad_name: l.ad_name,
+            fitness_goal: l.fitness_goal,
+            budget: l.budget_range,
+            urgency: l.urgency,
+            dubai_area: l.dubai_area
+          })),
+          
+          // Call History
+          call_stats: callStats,
+          call_history: calls.data?.slice(0, 10).map((c: any) => ({
+            date: c.started_at,
+            status: c.call_status,
+            direction: c.call_direction,
+            duration_seconds: c.duration_seconds,
+            outcome: c.call_outcome
+          })),
+          
+          // Deals
+          deals_found: deals.data?.length || 0,
+          deal_details: deals.data?.map((d: any) => ({
+            name: d.deal_name,
+            value: d.deal_value,
+            stage: d.stage,
+            status: d.status,
+            close_date: d.close_date
+          })),
+          
+          // Health Scores
+          health_scores: healthScores.data?.map((h: any) => ({
+            name: `${h.firstname || ''} ${h.lastname || ''}`.trim(),
+            email: h.email,
+            health_score: h.health_score,
+            health_zone: h.health_zone,
+            coach: h.assigned_coach,
+            churn_risk: h.churn_risk_score
+          })),
+          
+          // Recent Activities
+          recent_activities: activities.data?.slice(0, 5).map((a: any) => ({
+            type: a.activity_type,
+            title: a.activity_title,
+            date: a.occurred_at
+          }))
+        };
+        
+        return JSON.stringify(result, null, 2);
       }
 
       default:
