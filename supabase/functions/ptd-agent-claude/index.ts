@@ -57,7 +57,42 @@ BUSINESS RULES:
 - Response time target: under 5 minutes for new leads
 `;
 
-// ============= LEARNING SYSTEM =============
+// ============= LEARNING SYSTEM + RAG =============
+
+// Search RAG knowledge documents
+async function searchKnowledgeDocuments(supabase: any, query: string): Promise<string> {
+  try {
+    // Simple text search in knowledge documents
+    const { data: docs } = await supabase
+      .from('knowledge_documents')
+      .select('filename, content, metadata')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!docs || docs.length === 0) return '';
+
+    // Keyword matching for relevance
+    const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
+    
+    const relevantDocs = docs
+      .filter((doc: any) => {
+        const content = doc.content.toLowerCase();
+        return keywords.some((kw: string) => content.includes(kw));
+      })
+      .slice(0, 3);
+
+    if (relevantDocs.length === 0) return '';
+
+    return relevantDocs.map((doc: any) => 
+      `📄 FROM ${doc.filename}:\n${doc.content.slice(0, 2000)}`
+    ).join('\n\n---\n\n');
+  } catch (e) {
+    console.log('RAG search skipped:', e);
+    return '';
+  }
+}
+
 async function getRelevantLearnings(supabase: any, query: string): Promise<string> {
   try {
     // Get recent conversation learnings
@@ -72,12 +107,12 @@ async function getRelevantLearnings(supabase: any, query: string): Promise<strin
 
     // Simple keyword matching for relevance
     const queryLower = query.toLowerCase();
-    const keywords = queryLower.split(/\s+/).filter(w => w.length > 3);
+    const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
     
     const relevantLearnings = learnings
       .filter((l: any) => {
         const content = JSON.stringify(l.value).toLowerCase();
-        return keywords.some(kw => content.includes(kw));
+        return keywords.some((kw: string) => content.includes(kw));
       })
       .slice(0, 3)
       .map((l: any) => typeof l.value === 'string' ? l.value : JSON.stringify(l.value))
@@ -539,11 +574,14 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
   }
 }
 
-// Main agent function with agentic loop + learning
+// Main agent function with agentic loop + learning + RAG
 async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string): Promise<string> {
-  // ============= LEARNING MIDDLEWARE: Before =============
-  const relevantLearnings = await getRelevantLearnings(supabase, userMessage);
-  console.log(`📚 Retrieved ${relevantLearnings.length > 0 ? 'relevant learnings' : 'no prior learnings'}`);
+  // ============= RAG + LEARNING MIDDLEWARE: Before =============
+  const [relevantLearnings, ragKnowledge] = await Promise.all([
+    getRelevantLearnings(supabase, userMessage),
+    searchKnowledgeDocuments(supabase, userMessage)
+  ]);
+  console.log(`📚 Learnings: ${relevantLearnings.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}`);
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 
@@ -552,7 +590,10 @@ async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string
 === CRITICAL: ALWAYS USE LIVE DATA ===
 ⚠️ NEVER use cached data or past learnings for data queries
 ⚠️ ALWAYS call the appropriate tool to fetch FRESH data from the database
-⚠️ Past learnings are ONLY for understanding context/patterns, NOT for data values
+⚠️ Use uploaded knowledge documents for FORMULAS, RULES, and BUSINESS LOGIC only
+
+=== UPLOADED KNOWLEDGE DOCUMENTS (RAG) ===
+${ragKnowledge || 'No relevant uploaded documents found.'}
 
 === SYSTEM KNOWLEDGE BASE ===
 ${PTD_SYSTEM_KNOWLEDGE}

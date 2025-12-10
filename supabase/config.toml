@@ -103,3 +103,7 @@ verify_jwt = false
 # Claude-powered Agent with Anthropic SDK
 [functions.ptd-agent-claude]
 verify_jwt = false
+
+# RAG Knowledge Processor
+[functions.process-knowledge]
+verify_jwt = false
