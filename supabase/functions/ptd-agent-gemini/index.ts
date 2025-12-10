@@ -739,16 +739,19 @@ You are the CENTRAL NERVOUS SYSTEM of PTD Fitness. You observe, analyze, predict
 
 ## HUBSPOT DATA MAPPINGS (CRITICAL - Use these to translate IDs!)
 
-### Deal Stages (HubSpot IDs → Names)
-- 122178070 = New/Incoming Lead
-- 122237508 = Contacted
-- 122237276 = Appointment Set
-- 122221229 = Appointment Held
+### Deal Stages (HubSpot Pipeline IDs → PTD Sales Process)
+- 122178070 = New Lead (Incoming)
+- 122237508 = Assessment Booked
+- 122237276 = Assessment Completed
+- 122221229 = Booking Process
 - qualifiedtobuy = Qualified to Buy
 - decisionmakerboughtin = Decision Maker Bought In
 - contractsent = Contract Sent
+- 2900542 = Payment Pending
+- 987633705 = Onboarding
 - closedwon = Closed Won ✅
-- closedlost = Closed Lost ❌
+- 1063991961 = Closed Lost ❌
+- 1064059180 = On Hold
 
 ### Lifecycle Stages
 - lead = New Lead
