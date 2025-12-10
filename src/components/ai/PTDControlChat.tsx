@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Send, Brain } from "lucide-react";
+import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
 
 export default function PTDControlChat() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
@@ -24,6 +25,8 @@ export default function PTDControlChat() {
         setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message}` }]);
       } else if (data?.response) {
         setMessages(prev => [...prev, { role: "ai", content: data.response }]);
+        // Learn from every successful interaction
+        await learnFromInteraction(input, data.response);
       } else if (data?.error) {
         setMessages(prev => [...prev, { role: "ai", content: `Error: ${data.error}` }]);
       }
