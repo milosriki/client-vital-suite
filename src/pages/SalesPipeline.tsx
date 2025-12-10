@@ -69,19 +69,106 @@ const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; icon: R
 };
 
 const DAYS_FILTER_OPTIONS = [
-  { value: '1', label: 'Last 24 hours' },
+  { value: '1', label: 'Today (24h)' },
+  { value: '2', label: 'Last 2 days' },
   { value: '3', label: 'Last 3 days' },
+  { value: '5', label: 'Last 5 days' },
   { value: '7', label: 'Last 7 days' },
   { value: '14', label: 'Last 14 days' },
   { value: '30', label: 'Last 30 days' },
+  { value: '60', label: 'Last 60 days' },
   { value: '90', label: 'Last 90 days' },
   { value: 'all', label: 'All time' },
 ];
 
+// AI-powered follow-up insights
+const getFollowUpInsights = (
+  leads: any[], 
+  contacts: any[], 
+  calls: any[], 
+  deals: any[],
+  daysLabel: string
+) => {
+  const insights: { type: 'urgent' | 'warning' | 'info'; message: string; count: number }[] = [];
+  
+  // Leads needing follow-up
+  const followUpLeads = leads.filter(l => l.status === 'follow_up');
+  if (followUpLeads.length > 0) {
+    insights.push({ 
+      type: 'urgent', 
+      message: `${followUpLeads.length} leads marked for follow-up need action`, 
+      count: followUpLeads.length 
+    });
+  }
+  
+  // No-show appointments
+  const noShows = leads.filter(l => l.status === 'no_show');
+  if (noShows.length > 0) {
+    insights.push({ 
+      type: 'urgent', 
+      message: `${noShows.length} no-shows to reschedule`, 
+      count: noShows.length 
+    });
+  }
+  
+  // Missed calls
+  const missedCalls = calls.filter(c => c.call_status === 'missed');
+  if (missedCalls.length > 0) {
+    insights.push({ 
+      type: 'warning', 
+      message: `${missedCalls.length} missed calls to return`, 
+      count: missedCalls.length 
+    });
+  }
+  
+  // New leads not contacted
+  const newLeads = leads.filter(l => l.status === 'new');
+  if (newLeads.length > 0) {
+    insights.push({ 
+      type: 'warning', 
+      message: `${newLeads.length} new leads awaiting first contact`, 
+      count: newLeads.length 
+    });
+  }
+  
+  // Pending deals
+  const pendingDeals = deals.filter(d => d.status === 'pending');
+  if (pendingDeals.length > 0) {
+    const pendingValue = pendingDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
+    insights.push({ 
+      type: 'info', 
+      message: `${pendingDeals.length} pending deals worth ${pendingValue.toLocaleString('en-AE', { style: 'currency', currency: 'AED', maximumFractionDigits: 0 })}`, 
+      count: pendingDeals.length 
+    });
+  }
+  
+  // Unworked contacts
+  const unworkedContacts = contacts.filter(c => c.contact_unworked === true);
+  if (unworkedContacts.length > 0) {
+    insights.push({ 
+      type: 'warning', 
+      message: `${unworkedContacts.length} contacts marked as unworked`, 
+      count: unworkedContacts.length 
+    });
+  }
+  
+  // Appointments set but not held
+  const appointmentSet = leads.filter(l => l.status === 'appointment_set');
+  if (appointmentSet.length > 0) {
+    insights.push({ 
+      type: 'info', 
+      message: `${appointmentSet.length} appointments set - prepare for calls`, 
+      count: appointmentSet.length 
+    });
+  }
+  
+  return insights;
+};
+
 export default function SalesPipeline() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [daysFilter, setDaysFilter] = useState<string>('7');
+  const [daysFilter, setDaysFilter] = useState<string>('3');
   
   // Calculate date filter
   const getDateFilter = () => {
@@ -321,6 +408,16 @@ export default function SalesPipeline() {
     : 0;
 
   const allLeads = [...(funnelData?.leads || []), ...(enhancedLeads || [])];
+  
+  // Get follow-up insights
+  const daysLabel = DAYS_FILTER_OPTIONS.find(o => o.value === daysFilter)?.label || daysFilter;
+  const followUpInsights = getFollowUpInsights(
+    funnelData?.leads || [],
+    contacts || [],
+    callRecords?.calls || [],
+    dealsData?.deals || [],
+    daysLabel
+  );
 
   return (
     <div className="space-y-6 p-6">
@@ -370,6 +467,37 @@ export default function SalesPipeline() {
           </Button>
         </div>
       </div>
+
+      {/* Follow-Up Insights Panel */}
+      {followUpInsights.length > 0 && (
+        <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Action Required ({daysLabel})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {followUpInsights.map((insight, idx) => (
+                <div 
+                  key={idx}
+                  className={`flex items-center gap-3 p-3 rounded-lg ${
+                    insight.type === 'urgent' 
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' 
+                      : insight.type === 'warning'
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
+                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                  }`}
+                >
+                  <span className="text-2xl font-bold">{insight.count}</span>
+                  <span className="text-sm">{insight.message.replace(`${insight.count} `, '')}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top KPIs */}
       <div className="grid gap-4 md:grid-cols-6">
