@@ -118,3 +118,7 @@ verify_jwt = false
 # Self-Learning Agent (Cron-triggered)
 [functions.ptd-self-learn]
 verify_jwt = false
+
+# Generate Embeddings for Knowledge Base
+[functions.generate-embeddings]
+verify_jwt = false

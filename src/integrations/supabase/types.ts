@@ -1459,6 +1459,36 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_summaries: {
+        Row: {
+          created_at: string | null
+          embedding: string | null
+          id: string
+          key_points: Json | null
+          session_id: string | null
+          summary: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          key_points?: Json | null
+          session_id?: string | null
+          summary: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          key_points?: Json | null
+          session_id?: string | null
+          summary?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       conversion_events: {
         Row: {
           action_source: string | null
@@ -2567,6 +2597,39 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_base: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          source: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       knowledge_documents: {
         Row: {
           content: string
@@ -3667,6 +3730,21 @@ export type Database = {
           }
         | { Args: { role_name: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      match_knowledge: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          metadata: Json
+          similarity: number
+          source: string
+        }[]
+      }
       match_memories: {
         Args: {
           filter_thread_id?: string
