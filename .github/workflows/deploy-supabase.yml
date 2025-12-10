@@ -17,6 +17,19 @@ jobs:
       PROJECT_ID: ztjndilxurtsfqdsvfds
 
     steps:
+      - name: Validate Required Secrets
+        run: |
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not configured."
+            echo "Please add SUPABASE_ACCESS_TOKEN to your repository secrets:"
+            echo "  1. Go to Settings > Secrets and variables > Actions"
+            echo "  2. Click 'New repository secret'"
+            echo "  3. Add SUPABASE_ACCESS_TOKEN with your Supabase access token"
+            echo "  4. Get your token from: https://supabase.com/dashboard/account/tokens"
+            exit 1
+          fi
+          echo "✓ Required secrets are configured"
+
       - uses: actions/checkout@v3
 
       - uses: supabase/setup-cli@v1
