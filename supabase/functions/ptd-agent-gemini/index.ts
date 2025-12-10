@@ -165,6 +165,73 @@ async function searchMemoryByKeywords(supabase: any, query: string, threadId?: s
   }
 }
 
+async function searchKnowledgeBase(supabase: any, query: string): Promise<string> {
+  try {
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    
+    // First try vector search if OpenAI key is available
+    if (OPENAI_API_KEY) {
+      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: query.slice(0, 8000)
+        })
+      });
+
+      if (embRes.ok) {
+        const embData = await embRes.json();
+        const queryEmbedding = embData.data[0].embedding;
+
+        // Use RPC for vector search
+        const { data: matches } = await supabase.rpc('match_knowledge', {
+          query_embedding: queryEmbedding,
+          match_threshold: 0.65,
+          match_count: 5
+        });
+
+        if (matches && matches.length > 0) {
+          console.log(`📚 RAG: Found ${matches.length} relevant knowledge chunks`);
+          return matches.map((doc: any, i: number) => 
+            `📚 [${doc.category || 'knowledge'}] ${doc.content} (${Math.round(doc.similarity * 100)}% match)`
+          ).join('\n\n');
+        }
+      }
+    }
+
+    // Fallback: keyword search
+    const { data: docs } = await supabase
+      .from('knowledge_base')
+      .select('content, category, source')
+      .limit(20);
+
+    if (!docs || docs.length === 0) return '';
+
+    const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
+    
+    const relevantDocs = docs
+      .filter((doc: any) => {
+        const content = doc.content.toLowerCase();
+        return keywords.some((kw: string) => content.includes(kw));
+      })
+      .slice(0, 5);
+
+    if (relevantDocs.length === 0) return '';
+
+    return relevantDocs.map((doc: any) => 
+      `📚 [${doc.category || 'knowledge'}] ${doc.content}`
+    ).join('\n\n');
+  } catch (e) {
+    console.log('Knowledge base search error:', e);
+    return '';
+  }
+}
+
 async function searchKnowledgeDocuments(supabase: any, query: string): Promise<string> {
   try {
     const { data: docs } = await supabase
@@ -191,7 +258,7 @@ async function searchKnowledgeDocuments(supabase: any, query: string): Promise<s
       `📄 FROM ${doc.filename}:\n${doc.content.slice(0, 2000)}`
     ).join('\n\n---\n\n');
   } catch (e) {
-    console.log('RAG search skipped:', e);
+    console.log('Document search skipped:', e);
     return '';
   }
 }
@@ -986,14 +1053,15 @@ async function runAgent(supabase: any, userMessage: string, threadId: string = '
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-  // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE
-  const [relevantMemory, ragKnowledge, learnedPatterns, dynamicKnowledge] = await Promise.all([
+  // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
+  const [relevantMemory, ragKnowledge, knowledgeBase, learnedPatterns, dynamicKnowledge] = await Promise.all([
     searchMemory(supabase, userMessage, threadId),
     searchKnowledgeDocuments(supabase, userMessage),
+    searchKnowledgeBase(supabase, userMessage),
     getLearnedPatterns(supabase),
     loadDynamicKnowledge(supabase)
   ]);
-  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}, Dynamic: ${dynamicKnowledge.length > 100 ? 'loaded' : 'basic'}`);
+  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Knowledge: ${knowledgeBase.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}`);
 
   const systemPrompt = `# PTD FITNESS SUPER-INTELLIGENCE AGENT v3.0 (Self-Learning)
 
@@ -1068,7 +1136,10 @@ When the user provides ANY identifier:
 ⚠️ Translate HubSpot IDs to human-readable names in responses
 ⚠️ NEVER ask user for more info - JUST TRY with what they gave you
 
-=== UPLOADED KNOWLEDGE DOCUMENTS (RAG) ===
+=== PTD KNOWLEDGE BASE (RAG-ENHANCED) ===
+${knowledgeBase || 'No relevant knowledge found.'}
+
+=== UPLOADED KNOWLEDGE DOCUMENTS ===
 ${ragKnowledge || 'No relevant uploaded documents found.'}
 
 === LEARNED PATTERNS ===
