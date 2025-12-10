@@ -2936,6 +2936,57 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_queue: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          id: string
+          job_type: string
+          next_attempt_at: string | null
+          payload: Json | null
+          status: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          job_type: string
+          next_attempt_at?: string | null
+          payload?: Json | null
+          status?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          job_type?: string
+          next_attempt_at?: string | null
+          payload?: Json | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json | null
+        }
+        Relationships: []
+      }
       table_name: {
         Row: {
           data: Json | null
@@ -3268,6 +3319,7 @@ export type Database = {
         }
         Returns: number
       }
+      cleanup_old_logs: { Args: never; Returns: undefined }
       get_dashboard_metrics: {
         Args: never
         Returns: {
