@@ -14,6 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { 
   Users, 
   DollarSign,
@@ -32,7 +40,9 @@ import {
   AlertTriangle,
   Lightbulb,
   RefreshCw,
-  Trash2
+  Trash2,
+  FileText,
+  Play
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -658,6 +668,7 @@ export default function SalesPipeline() {
                       <TableHead>Duration</TableHead>
                       <TableHead>Quality</TableHead>
                       <TableHead>Appointment</TableHead>
+                      <TableHead>Transcript</TableHead>
                       <TableHead>Date</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -689,6 +700,60 @@ export default function SalesPipeline() {
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             ) : (
                               <XCircle className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {(call.transcription || call.recording_url) ? (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <FileText className="h-4 w-4 text-primary" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2">
+                                      <Phone className="h-5 w-5" />
+                                      Call Details - {call.caller_number}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                      {call.duration_seconds ? `Duration: ${Math.floor(call.duration_seconds / 60)}m ${call.duration_seconds % 60}s` : ''} 
+                                      {call.created_at ? ` • ${format(new Date(call.created_at), 'MMM d, yyyy HH:mm')}` : ''}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    {call.recording_url && (
+                                      <div className="space-y-2">
+                                        <h4 className="font-medium flex items-center gap-2">
+                                          <Play className="h-4 w-4" /> Recording
+                                        </h4>
+                                        <audio controls className="w-full">
+                                          <source src={call.recording_url} type="audio/mpeg" />
+                                          Your browser does not support audio playback.
+                                        </audio>
+                                      </div>
+                                    )}
+                                    {call.transcription && (
+                                      <div className="space-y-2">
+                                        <h4 className="font-medium flex items-center gap-2">
+                                          <FileText className="h-4 w-4" /> Transcript
+                                        </h4>
+                                        <div className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap">
+                                          {call.transcription}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {call.call_outcome && (
+                                      <div className="space-y-2">
+                                        <h4 className="font-medium">Outcome</h4>
+                                        <Badge>{call.call_outcome}</Badge>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
                             )}
                           </TableCell>
                           <TableCell>
