@@ -34,11 +34,12 @@ serve(async (req) => {
         .select('id, status, created_at')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Last 24h
 
-    // C. System Health: Errors from sync_errors table
+    // C. System Health: Errors (The "Errors" requirement)
+    // Check intervention log for errors or create a sync_logs check
     const { data: errorLogs } = await supabase
-        .from('sync_errors')
-        .select('error_type, source, error_message, object_type')
-        .is('resolved_at', null)
+        .from('intervention_log') // Using intervention log as proxy for system activity/errors
+        .select('trigger_reason, status')
+        .eq('status', 'FAILED')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
     // D. Financials: Deals Closed (from HubSpot synced data)
@@ -83,8 +84,8 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     let aiResponse;
 
-    try {
-        if (ANTHROPIC_API_KEY) {
+    if (ANTHROPIC_API_KEY) {
+        try {
             const response = await fetch("https://api.anthropic.com/v1/messages", {
                 method: "POST",
                 headers: {
@@ -98,37 +99,24 @@ serve(async (req) => {
                     messages: [{ role: "user", content: prompt }]
                 })
             });
-
-            if (!response.ok) {
-                throw new Error(`API returned ${response.status}`);
-            }
-
             const data = await response.json();
             const text = data.content[0]?.text;
-
+            // Extract JSON from text if needed (handling markdown code blocks)
             try {
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 const jsonString = jsonMatch ? jsonMatch[0] : text;
                 aiResponse = JSON.parse(jsonString);
             } catch {
+                // Simple fallback parsing or mock
                 aiResponse = {
                     executive_summary: text.replace(/```json|```/g, '').trim(),
                     system_status: "See summary",
                     action_plan: ["Review full report"]
                 };
-            }
+            };
+        } catch (e) {
+            console.error("AI Call failed", e);
         }
-    } catch (e) {
-        console.error("AI Call failed", e);
-
-        // Log the AI failure to sync_errors
-        await supabase.from('sync_errors').insert({
-            error_type: 'timeout',
-            source: 'internal',
-            object_type: 'ai_analysis',
-            error_message: `Claude API failed: ${e instanceof Error ? e.message : String(e)}`,
-            error_details: { error: String(e) }
-        });
     }
 
     // Fallback if AI fails or no key
