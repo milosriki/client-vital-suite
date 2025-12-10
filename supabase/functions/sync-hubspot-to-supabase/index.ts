@@ -21,32 +21,45 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { clear_fake_data = false, sync_type = 'all' } = await req.json().catch(() => ({}));
+    const { clear_fake_data = false, sync_type = 'all', incremental = true } = await req.json().catch(() => ({}));
 
     const results = {
       contacts_synced: 0,
       leads_synced: 0,
       deals_synced: 0,
       calls_synced: 0,
-      errors: [] as string[]
+      errors: [] as string[],
+      mode: incremental ? 'incremental' : 'full'
     };
+
+    // Get last sync timestamp for incremental sync
+    let lastSyncTime: string | null = null;
+    if (incremental) {
+      const { data: lastSync } = await supabase
+        .from('sync_logs')
+        .select('completed_at')
+        .eq('platform', 'hubspot')
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1);
+      
+      if (lastSync?.[0]?.completed_at) {
+        lastSyncTime = lastSync[0].completed_at;
+        console.log(`Incremental sync from: ${lastSyncTime}`);
+      } else {
+        // First sync - only get last 30 days, not all 100K
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        lastSyncTime = thirtyDaysAgo.toISOString();
+        console.log(`First sync - fetching from: ${lastSyncTime}`);
+      }
+    }
 
     // Clear fake/test data if requested
     if (clear_fake_data) {
       console.log('Clearing fake data...');
-
-      // Delete leads with example.com emails or test phone numbers
-      await supabase
-        .from('leads')
-        .delete()
-        .or('email.ilike.%@example.com,phone.ilike.%555-0%');
-
-      // Delete contacts with example.com emails
-      await supabase
-        .from('contacts')
-        .delete()
-        .ilike('email', '%@example.com');
-
+      await supabase.from('leads').delete().or('email.ilike.%@example.com,phone.ilike.%555-0%');
+      await supabase.from('contacts').delete().ilike('email', '%@example.com');
       console.log('Fake data cleared');
     }
 
@@ -63,14 +76,24 @@ serve(async (req) => {
       );
     }
 
-    // Helper for paginated fetching
-    async function fetchAllHubSpot(objectType: string, properties: string[], sortProperty: string = 'createdate') {
+    // Helper for paginated fetching with optional date filter
+    async function fetchAllHubSpot(objectType: string, properties: string[], sortProperty: string = 'createdate', filterAfter?: string) {
       let allResults: any[] = [];
       let after: string | undefined = undefined;
+      let pageCount = 0;
+      const MAX_PAGES = 50; // Limit to avoid timeout (5000 records max per sync)
 
-      console.log(`Starting sync for ${objectType}...`);
+      console.log(`Starting sync for ${objectType}${filterAfter ? ` (modified after ${filterAfter})` : ''}...`);
 
       do {
+        const filterGroups = filterAfter ? [{
+          filters: [{
+            propertyName: 'hs_lastmodifieddate',
+            operator: 'GTE',
+            value: new Date(filterAfter).getTime().toString()
+          }]
+        }] : [];
+
         const fetchResponse: Response = await fetch(
           `https://api.hubapi.com/crm/v3/objects/${objectType}/search`,
           {
@@ -80,7 +103,7 @@ serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              filterGroups: [],
+              filterGroups,
               properties,
               sorts: [{ propertyName: sortProperty, direction: 'DESCENDING' }],
               limit: 100,
@@ -96,23 +119,26 @@ serve(async (req) => {
         const jsonData: { results: any[]; paging?: { next?: { after?: string } } } = await fetchResponse.json();
         allResults = allResults.concat(jsonData.results);
         after = jsonData.paging?.next?.after;
+        pageCount++;
 
-        if (after) console.log(`Fetching next page for ${objectType}...`);
+        if (after && pageCount < MAX_PAGES) {
+          console.log(`Fetching page ${pageCount + 1} for ${objectType}...`);
+        }
 
-      } while (after);
+      } while (after && pageCount < MAX_PAGES);
 
-      console.log(`Fetched total ${allResults.length} ${objectType}`);
+      console.log(`Fetched ${allResults.length} ${objectType} (${pageCount} pages)`);
       return allResults;
     }
 
-    // Sync Contacts
+    // Sync Contacts (incremental by default)
     if (sync_type === 'all' || sync_type === 'contacts') {
       try {
         const contacts = await fetchAllHubSpot('contacts', [
           'firstname', 'lastname', 'email', 'phone', 'mobilephone',
           'hubspot_owner_id', 'lifecyclestage', 'hs_lead_status',
-          'createdate', 'lastmodifieddate', 'city'
-        ]);
+          'createdate', 'lastmodifieddate', 'city', 'hs_object_id'
+        ], 'lastmodifieddate', incremental ? lastSyncTime || undefined : undefined);
 
         for (const contact of contacts) {
           const props = contact.properties;
@@ -250,10 +276,22 @@ serve(async (req) => {
       }
     }
 
+    // Log successful sync
+    await supabase.from('sync_logs').insert({
+      platform: 'hubspot',
+      sync_type: sync_type,
+      status: results.errors.length > 0 ? 'completed_with_errors' : 'completed',
+      records_processed: results.contacts_synced + results.deals_synced + results.calls_synced,
+      records_failed: results.errors.length,
+      error_details: results.errors.length > 0 ? { errors: results.errors } : null,
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString()
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'HubSpot sync completed',
+        message: `HubSpot ${results.mode} sync completed`,
         ...results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
