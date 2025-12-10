@@ -33,7 +33,7 @@ export function useSmartAgent(): UseSmartAgentReturn {
         content: m.content
       }));
 
-      const { data, error: fnError } = await supabase.functions.invoke('smart-agent', {
+      const { data, error: fnError } = await supabase.functions.invoke('ptd-agent-gemini', {
         body: { messages: allMessages }
       });
 
