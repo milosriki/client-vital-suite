@@ -14,7 +14,7 @@ import { ExecutiveBriefing } from '@/components/dashboard/ExecutiveBriefing';
 import { LeakDetector } from '@/components/dashboard/LeakDetector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot } from 'lucide-react';
+import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { SyncStatusBadge } from '@/components/dashboard/SyncStatusBadge';
 import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
@@ -26,6 +26,28 @@ export default function Dashboard() {
   const [selectedCoach, setSelectedCoach] = useState('all');
   const [selectedZone, setSelectedZone] = useState('all');
   const [showAIPanel, setShowAIPanel] = useState(true);
+  const [isRunningBI, setIsRunningBI] = useState(false);
+
+  // Trigger Business Intelligence Agent
+  const runBusinessIntelligence = async () => {
+    setIsRunningBI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('business-intelligence');
+      if (error) throw error;
+      toast({
+        title: 'BI Agent Complete',
+        description: data?.analysis?.executive_summary || 'Analysis updated successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'BI Agent Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRunningBI(false);
+    }
+  };
 
   // Setup realtime subscription for new data notifications
   useEffect(() => {
@@ -197,6 +219,16 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
           <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runBusinessIntelligence}
+              disabled={isRunningBI}
+              className="gap-2"
+            >
+              <BrainCircuit className={`h-4 w-4 ${isRunningBI ? 'animate-spin' : ''}`} />
+              {isRunningBI ? "Running BI..." : "Run BI Agent"}
+            </Button>
             <SyncStatusBadge />
             <div className="text-sm text-muted-foreground">
               Predictive Analytics • Real-time Updates
