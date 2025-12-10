@@ -143,45 +143,37 @@ serve(async (req) => {
     }, { onConflict: 'summary_date' });
 
     // 5. PHASE 3: SMART LEAD FOLLOW-UP
-    // Fetch recent leads that don't have an AI reply yet
-    const { data: leadsToProcess } = await supabase
+    // Delegate to the dedicated AI-powered generate-lead-reply function
+    // instead of using hardcoded rules here
+    const { data: pendingLeads } = await supabase
         .from('leads')
-        .select('id, firstname, fitness_goal, budget_range')
+        .select('id')
         .is('ai_suggested_reply', null)
-        .order('created_at', { ascending: false })
         .limit(5);
 
-    if (leadsToProcess && leadsToProcess.length > 0) {
-        console.log(`[Smart Lead Follow-up] Processing ${leadsToProcess.length} leads...`);
-
-        for (const lead of leadsToProcess) {
-            let suggestedReply = "";
-            const name = lead.firstname || "there";
-            const goal = (lead.fitness_goal || "").toLowerCase();
-            const budget = parseInt((lead.budget_range || "0").replace(/[^0-9]/g, "")) || 0;
-
-            // Rule 1: High Budget (>15k)
-            if (budget > 15000) {
-                suggestedReply = `Hi ${name}, I saw you're interested in our premium coaching options. Given your budget, I have a senior coach opening that would be perfect for you. Would you be open to a quick call to discuss?`;
+    const pendingLeadCount = pendingLeads?.length || 0;
+    
+    if (pendingLeadCount > 0) {
+        console.log(`[Business Intelligence] ${pendingLeadCount} leads pending AI replies - will be handled by generate-lead-reply cron job`);
+        
+        // Optionally trigger the dedicated lead reply function for immediate processing
+        try {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL');
+            const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+            
+            if (supabaseUrl && supabaseAnonKey) {
+                await fetch(`${supabaseUrl}/functions/v1/generate-lead-reply`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${supabaseAnonKey}`
+                    },
+                    body: JSON.stringify({ source: 'business-intelligence' })
+                });
+                console.log('[Business Intelligence] Triggered generate-lead-reply for immediate processing');
             }
-            // Rule 2: Weight Loss Goal
-            else if (goal.includes('weight') || goal.includes('fat') || goal.includes('loss')) {
-                suggestedReply = `Hi ${name}, thanks for reaching out! We helped a client with similar weight loss goals lose 10kg just last month. I'd love to share how they did it. Are you free for a chat this week?`;
-            }
-            // Rule 3: Muscle/Strength Goal
-            else if (goal.includes('muscle') || goal.includes('strength') || goal.includes('build')) {
-                suggestedReply = `Hey ${name}! Awesome that you're looking to build strength. Our hypertrophy program is getting great results right now. When are you looking to get started?`;
-            }
-            // Default Fallback
-            else {
-                suggestedReply = `Hi ${name}, thanks for your interest in PTD Fitness! I'd love to learn more about your goals and see if we're a good fit. What's the best time to connect?`;
-            }
-
-            // Update the lead with the suggestion
-            await supabase
-                .from('leads')
-                .update({ ai_suggested_reply: suggestedReply })
-                .eq('id', lead.id);
+        } catch (e) {
+            console.log('[Business Intelligence] Lead reply delegation skipped, will run on next cron cycle');
         }
     }
 
