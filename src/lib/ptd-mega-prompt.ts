@@ -176,19 +176,18 @@ You control PTD Fitness. Be the perfect business intelligence system.
 `;
 
 export const DEAL_STAGE_MAP: Record<string, string> = {
-  '122178070': 'New/Incoming',
-  '122237508': 'Contacted',
-  '122237276': 'Appointment Set',
-  '122221229': 'Appointment Held',
-  '987633705': 'Custom Stage 1',
-  '1063991961': 'Custom Stage 2',
-  '1064059180': 'Custom Stage 3',
-  '2900542': 'Custom Stage 4',
+  '122178070': 'New Lead',
+  '122237508': 'Assessment Booked',
+  '122237276': 'Assessment Completed',
+  '122221229': 'Booking Process',
+  '2900542': 'Payment Pending',
+  '987633705': 'Onboarding',
+  '1063991961': 'Closed Lost',
+  '1064059180': 'On Hold',
   'qualifiedtobuy': 'Qualified to Buy',
   'decisionmakerboughtin': 'Decision Maker Bought In',
   'contractsent': 'Contract Sent',
-  'closedwon': 'Closed Won',
-  'closedlost': 'Closed Lost'
+  'closedwon': 'Closed Won'
 };
 
 export const LIFECYCLE_STAGE_MAP: Record<string, string> = {
