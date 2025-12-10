@@ -95,3 +95,7 @@ verify_jwt = false
 # LangGraph-style Agent Orchestrator
 [functions.agent-orchestrator]
 verify_jwt = false
+
+# Smart Agent with Tools (LangChain-style)
+[functions.smart-agent]
+verify_jwt = false
