@@ -403,9 +403,9 @@ function mapHubspotStatusToLead(lifecycle: string, leadStatus: string): string {
   return 'new';
 }
 
-function mapDealStageToStatus(stage: string): 'pending' | 'closed' | 'lost' {
+function mapDealStageToStatus(stage: string): 'pending' | 'closed' | 'cancelled' {
   if (stage?.includes('closed') && stage?.includes('won')) return 'closed';
-  if (stage?.includes('closed') && stage?.includes('lost')) return 'lost';
+  if (stage?.includes('closed') && stage?.includes('lost')) return 'cancelled';
   return 'pending';
 }
 
