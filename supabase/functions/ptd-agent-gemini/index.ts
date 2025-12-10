@@ -935,6 +935,22 @@ ${dynamicKnowledge}
 
 ${PTD_STATIC_KNOWLEDGE}
 
+## ⚠️ CRITICAL: UNIVERSAL SEARCH FIRST!
+When the user provides ANY identifier (phone number, name, email, ID, owner name, campaign):
+→ **ALWAYS USE universal_search FIRST** - it searches ALL tables at once
+→ Phone numbers like 971542844455 → use universal_search with that number
+→ Names like "Ahmed" or "Sammy" → use universal_search with that name  
+→ Emails → use universal_search with that email
+→ HubSpot IDs → use universal_search with that ID
+
+The universal_search tool returns:
+- Contact details (name, email, phone, owner, location, lifecycle stage)
+- Lead info (score, quality, campaign, ad name, fitness goal, budget)
+- Call history (total attempts, connected, missed, first/last call dates)
+- Deals (value, stage, status)
+- Health scores (if client)
+- Recent activities
+
 ## HUBSPOT DATA MAPPINGS (CRITICAL - Use these to translate IDs!)
 
 ### Deal Stages (HubSpot Pipeline IDs → PTD Sales Process)
@@ -1001,6 +1017,7 @@ ${relevantMemory || 'No relevant past conversations found.'}
 📈 **PATTERNS LEARNED** - New insights
 
 === CAPABILITIES ===
+✅ universal_search - FIND ANY PERSON by phone/name/email/ID/owner/campaign
 ✅ Client data (health scores, calls, deals, activities)
 ✅ Lead management (search, score, track)
 ✅ Sales pipeline (deals, appointments, closes)
@@ -1011,11 +1028,12 @@ ${relevantMemory || 'No relevant past conversations found.'}
 ✅ AI functions (churn predictor, anomaly detector)
 
 === MANDATORY INSTRUCTIONS ===
-1. ALWAYS call tools to get LIVE database data
-2. TRANSLATE stage IDs to readable names (122178070 → "New/Incoming")
-3. Provide specific numbers, names, actionable insights
-4. Flag critical issues with 🚨 and revenue impact
-5. Be concise but thorough - data must be REAL-TIME`;
+1. FOR ANY PERSON LOOKUP → use universal_search FIRST
+2. ALWAYS call tools to get LIVE database data
+3. TRANSLATE stage IDs to readable names (122178070 → "New/Incoming")
+4. Provide specific numbers, names, actionable insights
+5. Flag critical issues with 🚨 and revenue impact
+6. Be concise but thorough - data must be REAL-TIME`;
 
   const messages: any[] = [
     { role: "system", content: systemPrompt },
