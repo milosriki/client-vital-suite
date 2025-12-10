@@ -388,6 +388,84 @@ async function getSuccessfulDecisions(type?: string, limit = 5) {
   return [];
 }
 
+// Extract emails from query text
+function extractEmailsFromQuery(query: string): string[] {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const matches = query.match(emailRegex) || [];
+  return [...new Set(matches.map(e => e.toLowerCase()))];
+}
+
+// Lookup specific clients by email
+async function lookupClientsByEmail(emails: string[]) {
+  if (!emails.length) return { healthScores: [], contacts: [], leads: [], deals: [], notFound: [] as string[] };
+
+  const results = {
+    healthScores: [] as any[],
+    contacts: [] as any[],
+    leads: [] as any[],
+    deals: [] as any[],
+    notFound: [] as string[]
+  };
+
+  try {
+    // Check client_health_scores
+    const { data: healthData } = await supabase
+      .from("client_health_scores")
+      .select("*")
+      .in("email", emails);
+    results.healthScores = healthData || [];
+
+    // Check contacts
+    const { data: contactsData } = await supabase
+      .from("contacts")
+      .select("*")
+      .in("email", emails);
+    results.contacts = contactsData || [];
+
+    // Check leads
+    const { data: leadsData } = await supabase
+      .from("leads")
+      .select("*")
+      .in("email", emails);
+    results.leads = leadsData || [];
+
+    // Check enhanced_leads
+    const { data: enhancedLeadsData } = await supabase
+      .from("enhanced_leads")
+      .select("*")
+      .in("email", emails);
+    if (enhancedLeadsData?.length) {
+      results.leads = [...results.leads, ...enhancedLeadsData];
+    }
+
+    // Get deals for found leads
+    const leadIds = results.leads.map((l: any) => l.id).filter(Boolean);
+    if (leadIds.length) {
+      const { data: dealsData } = await supabase
+        .from("deals")
+        .select("*")
+        .in("lead_id", leadIds);
+      results.deals = dealsData || [];
+    }
+
+    // Track which emails weren't found anywhere
+    const foundEmails = new Set([
+      ...results.healthScores.map((h: any) => h.email?.toLowerCase()),
+      ...results.contacts.map((c: any) => c.email?.toLowerCase()),
+      ...results.leads.map((l: any) => l.email?.toLowerCase())
+    ].filter(Boolean));
+
+    results.notFound = emails.filter(e => !foundEmails.has(e.toLowerCase()));
+
+    console.log(`[PTD Agent] Email lookup: ${emails.length} queried, ${foundEmails.size} found, ${results.notFound.length} not found`);
+
+  } catch (error) {
+    console.error("[PTD Agent] Error looking up clients by email:", error);
+  }
+
+  return results;
+}
+
 async function saveConversation(sessionId: string, role: string, content: string) {
   try {
     const { error } = await supabase.from("agent_conversations").insert({
@@ -484,13 +562,21 @@ serve(async (req) => {
 
     console.log(`[PTD Agent] Action: ${action}, Query: ${query.substring(0, 100)}...`);
 
-    // 1. Get conversation history for context
+    // 1. Extract and lookup any emails in the query
+    const emailsInQuery = extractEmailsFromQuery(query);
+    let emailLookupData = null;
+    if (emailsInQuery.length > 0) {
+      console.log(`[PTD Agent] Found ${emailsInQuery.length} emails in query, looking up...`);
+      emailLookupData = await lookupClientsByEmail(emailsInQuery);
+    }
+
+    // 2. Get conversation history for context
     const conversationHistory = await getConversationHistory(session_id);
 
-    // 2. Get live dashboard data
+    // 3. Get live dashboard data
     const dashboardData = await getLiveDashboardData();
 
-    // 3. Get successful past decisions for learning
+    // 4. Get successful past decisions for learning
     const successfulDecisions = await getSuccessfulDecisions(undefined, 5);
 
     // 4. Build the system prompt with ALL knowledge
@@ -553,6 +639,52 @@ ${dashboardData.coaches?.map((c: any) =>
   `- ${c.coach_name}: ${c.total_clients} clients, Avg Health: ${c.avg_client_health}, RED: ${c.red_count}, YELLOW: ${c.yellow_count}`
 ).join('\n')}
 
+${emailLookupData ? `
+## QUERIED CLIENTS DATA (User asked about these ${emailsInQuery.length} specific emails)
+
+### Health Scores (${emailLookupData.healthScores.length} found)
+${emailLookupData.healthScores.length > 0 ? emailLookupData.healthScores.map((c: any) =>
+  `📊 ${c.email}:
+   - Name: ${c.firstname || 'Unknown'} ${c.lastname || ''}
+   - Health Score: ${c.health_score ?? 'N/A'} | Zone: ${c.health_zone ?? 'N/A'}
+   - Engagement: ${c.engagement_score ?? 'N/A'} | Package Health: ${c.package_health_score ?? 'N/A'} | Momentum: ${c.momentum_score ?? 'N/A'}
+   - Sessions: Last 7d: ${c.sessions_last_7d ?? 0} | Last 30d: ${c.sessions_last_30d ?? 0}
+   - Days Since Last Session: ${c.days_since_last_session ?? 'N/A'}
+   - Outstanding Sessions: ${c.outstanding_sessions ?? 0} / ${c.sessions_purchased ?? 0}
+   - Coach: ${c.assigned_coach || 'Unassigned'}
+   - Churn Risk: ${c.churn_risk_score ?? 'N/A'}%`
+).join('\n\n') : '(No health score data found)'}
+
+### Contacts (${emailLookupData.contacts.length} found)
+${emailLookupData.contacts.length > 0 ? emailLookupData.contacts.map((c: any) =>
+  `📇 ${c.email}:
+   - Name: ${c.first_name || 'Unknown'} ${c.last_name || ''}
+   - Status: ${c.status ?? 'N/A'} | Lifecycle: ${c.lifecycle_stage ?? 'N/A'}
+   - Owner: ${c.owner_name || 'Unassigned'}
+   - Last Activity: ${c.last_activity_date || 'N/A'}
+   - Lead Status: ${c.lead_status || 'N/A'}`
+).join('\n\n') : '(No contact data found)'}
+
+### Leads (${emailLookupData.leads.length} found)
+${emailLookupData.leads.length > 0 ? emailLookupData.leads.map((l: any) =>
+  `🎯 ${l.email}:
+   - Name: ${l.first_name || l.name || 'Unknown'} ${l.last_name || ''}
+   - Status: ${l.status ?? 'N/A'} | Quality: ${l.lead_quality ?? 'N/A'}
+   - Source: ${l.source ?? 'N/A'}
+   - Created: ${l.created_at || 'N/A'}`
+).join('\n\n') : '(No lead data found)'}
+
+### Deals (${emailLookupData.deals.length} found)
+${emailLookupData.deals.length > 0 ? emailLookupData.deals.map((d: any) =>
+  `💰 Deal: ${d.deal_name || 'Unnamed'}
+   - Value: ${d.deal_value ?? 0} AED | Status: ${d.status ?? 'N/A'}
+   - Stage: ${d.stage ?? 'N/A'} | Close Date: ${d.close_date || 'N/A'}`
+).join('\n\n') : '(No deals found)'}
+
+### NOT FOUND IN DATABASE (${emailLookupData.notFound.length} emails)
+${emailLookupData.notFound.length > 0 ? emailLookupData.notFound.map((e: string) => `❌ ${e} - Not in system, may need HubSpot sync`).join('\n') : '(All emails were found)'}
+` : ''}
+
 ## PAST SUCCESSFUL DECISIONS (Learn from these)
 ${successfulDecisions.length > 0 ? successfulDecisions.map((d: any) =>
   `Decision Type: ${d.decision_type}
@@ -572,6 +704,8 @@ ${conversationHistory || "(No previous messages in this session)"}
 5. Identify patterns and anomalies in the data
 6. Write personalized outreach messages for at-risk clients
 7. Explain your reasoning using the formulas above
+8. Analyze bulk email lists and provide comprehensive reports
+9. Identify who has no bookings, missing tasks, or needs attention
 
 ## RESPONSE GUIDELINES
 - Always cite specific data points from the dashboard
@@ -580,6 +714,8 @@ ${conversationHistory || "(No previous messages in this session)"}
 - Suggest specific actions, not vague advice
 - If recommending an intervention, include a draft message
 - Format responses clearly with sections when appropriate
+- When given a list of emails, provide a structured report with categories
+- Group clients by status: At-Risk, Healthy, Not Found, etc.
 
 Today's Date: ${new Date().toISOString().split('T')[0]}`;
 
