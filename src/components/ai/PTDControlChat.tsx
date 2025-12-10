@@ -1,142 +1,118 @@
 import { useState } from "react";
-import { useSmartAgent } from "@/hooks/useSmartAgent";
-import { Loader2, Send, Trash2, Bot, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, Send, Brain } from "lucide-react";
 
 export default function PTDControlChat() {
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [input, setInput] = useState("");
-  const { messages, isLoading, error, sendMessage, clearMessages } = useSmartAgent();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim() || isLoading) return;
-    
-    const message = input;
+  const handleAsk = async () => {
+    if (!input.trim()) return;
+
+    const userMsg = { role: "user", content: input };
+    setMessages(prev => [...prev, userMsg]);
+    setLoading(true);
     setInput("");
-    await sendMessage(message);
-  };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
+    try {
+      const { data, error } = await supabase.functions.invoke("ptd-agent-claude", {
+        body: { message: input },
+      });
+
+      if (error) {
+        setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message}` }]);
+      } else if (data?.response) {
+        setMessages(prev => [...prev, { role: "ai", content: data.response }]);
+      } else if (data?.error) {
+        setMessages(prev => [...prev, { role: "ai", content: `Error: ${data.error}` }]);
+      }
+    } catch (error) {
+      setMessages(prev => [...prev, { role: "ai", content: `Error: ${error}` }]);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Card className="flex flex-col h-[600px] max-h-[80vh]">
-      <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Bot className="h-5 w-5 text-primary" />
-          PTD Super Intelligence
-        </CardTitle>
-        {messages.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearMessages}>
-            <Trash2 className="h-4 w-4 mr-1" />
-            Clear
-          </Button>
-        )}
-      </CardHeader>
+    <div className="fixed bottom-6 right-6 w-[500px] h-[700px] bg-gradient-to-br from-slate-900 via-slate-800 to-black border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col z-50">
+      {/* Header */}
+      <div className="p-4 border-b border-cyan-500/20 bg-gradient-to-r from-slate-900 to-slate-800 rounded-t-2xl">
+        <div className="flex items-center gap-3">
+          <Brain className="w-6 h-6 text-cyan-400 animate-pulse" />
+          <div>
+            <h2 className="font-bold text-lg text-white">PTD CONTROL</h2>
+            <p className="text-xs text-cyan-400">Chat-based system control</p>
+          </div>
+        </div>
+      </div>
 
-      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="flex-1 p-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="font-medium">PTD Control Agent Ready</p>
-              <p className="text-sm mt-2">Ask me anything about clients, leads, sales, coaches, or analytics.</p>
-              <div className="mt-4 grid gap-2 text-xs">
-                <button 
-                  className="px-3 py-2 bg-muted rounded-lg hover:bg-muted/80 transition"
-                  onClick={() => setInput("Show me all at-risk clients")}
-                >
-                  "Show me all at-risk clients"
-                </button>
-                <button 
-                  className="px-3 py-2 bg-muted rounded-lg hover:bg-muted/80 transition"
-                  onClick={() => setInput("Run fraud scan on Stripe")}
-                >
-                  "Run fraud scan on Stripe"
-                </button>
-                <button 
-                  className="px-3 py-2 bg-muted rounded-lg hover:bg-muted/80 transition"
-                  onClick={() => setInput("Show coach performance dashboard")}
-                >
-                  "Show coach performance dashboard"
-                </button>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-cyan-500/20">
+        {messages.length === 0 && (
+          <div className="h-full flex items-center justify-center text-center">
+            <div className="space-y-3">
+              <Brain className="w-12 h-12 text-cyan-400 mx-auto opacity-50" />
+              <p className="text-white/70">Ask about your PTD system...</p>
+              <div className="text-xs text-white/50 space-y-1">
+                <p>💡 "Show john@ptd.com full journey"</p>
+                <p>💡 "Scan for Stripe fraud"</p>
+                <p>💡 "Sync HubSpot now"</p>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <pre className="whitespace-pre-wrap font-sans text-sm">
-                      {msg.content}
-                    </pre>
-                  </div>
-                  {msg.role === "user" && (
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                      <User className="h-4 w-4 text-primary-foreground" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                  </div>
-                  <div className="bg-muted rounded-lg px-4 py-2">
-                    <span className="text-sm text-muted-foreground">Thinking...</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </ScrollArea>
-
-        {error && (
-          <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm">
-            {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-4 border-t flex gap-2">
-          <Textarea
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[85%] rounded-lg p-4 ${
+              msg.role === "user"
+                ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
+                : "bg-white/5 border border-white/10 text-white/90"
+            }`}>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                {msg.content}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                <span className="text-sm text-white/70">Analyzing...</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="p-4 border-t border-cyan-500/20 bg-gradient-to-r from-slate-900 to-slate-800 rounded-b-2xl">
+        <div className="flex gap-2">
+          <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about clients, leads, analytics, fraud detection..."
-            className="min-h-[44px] max-h-[120px] resize-none"
-            disabled={isLoading}
+            onKeyPress={(e) => e.key === "Enter" && !loading && handleAsk()}
+            placeholder="Ask about clients, leads, calls, Stripe, HubSpot..."
+            className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+            disabled={loading}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+          <button
+            onClick={handleAsk}
+            disabled={loading || !input.trim()}
+            className="p-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 rounded-lg text-white transition-all"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="w-5 h-5" />
             )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
