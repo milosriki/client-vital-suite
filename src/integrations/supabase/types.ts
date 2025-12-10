@@ -864,6 +864,7 @@ export type Database = {
         Row: {
           assigned_coach: string | null
           calculated_at: string | null
+          calculated_date: string | null
           calculated_on: string | null
           calculation_version: string | null
           churn_risk_score: number | null
@@ -897,6 +898,7 @@ export type Database = {
         Insert: {
           assigned_coach?: string | null
           calculated_at?: string | null
+          calculated_date?: string | null
           calculated_on?: string | null
           calculation_version?: string | null
           churn_risk_score?: number | null
@@ -930,6 +932,7 @@ export type Database = {
         Update: {
           assigned_coach?: string | null
           calculated_at?: string | null
+          calculated_date?: string | null
           calculated_on?: string | null
           calculation_version?: string | null
           churn_risk_score?: number | null
