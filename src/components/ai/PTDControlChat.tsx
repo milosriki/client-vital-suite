@@ -99,7 +99,7 @@ export default function PTDControlChat() {
     setInput("");
 
     try {
-      const { data, error } = await supabase.functions.invoke("ptd-agent-claude", {
+      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
         body: { 
           message: input,
           thread_id: threadId  // Pass thread ID for memory continuity

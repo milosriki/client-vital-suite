@@ -1,5 +1,8 @@
 project_id = "ztjndilxurtsfqdsvfds"
 
+[functions.ptd-agent-gemini]
+verify_jwt = false
+
 # ============================================
 # SUPABASE-NATIVE EDGE FUNCTIONS (AI Agents)
 # No n8n dependency - all run directly
