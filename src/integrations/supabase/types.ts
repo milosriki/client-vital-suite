@@ -2501,6 +2501,42 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_documents: {
+        Row: {
+          content: string
+          content_chunks: string[] | null
+          created_at: string | null
+          embedding: string | null
+          filename: string
+          id: string
+          metadata: Json | null
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          content: string
+          content_chunks?: string[] | null
+          created_at?: string | null
+          embedding?: string | null
+          filename: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          content?: string
+          content_chunks?: string[] | null
+          created_at?: string | null
+          embedding?: string | null
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       kpi_tracking: {
         Row: {
           category: string
