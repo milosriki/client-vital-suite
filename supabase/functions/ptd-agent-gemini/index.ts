@@ -860,7 +860,7 @@ ${relevantMemory || 'No relevant past conversations found.'}
     iterations++;
     console.log(`🚀 Gemini iteration ${iterations}`);
 
-    // Call Gemini 2.5 Pro via Lovable AI gateway
+    // Call Gemini 2.5 Flash via Lovable AI gateway (FAST)
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -868,7 +868,7 @@ ${relevantMemory || 'No relevant past conversations found.'}
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages,
         tools,
         tool_choice: "auto",
