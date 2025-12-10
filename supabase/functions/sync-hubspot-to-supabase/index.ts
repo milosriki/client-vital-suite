@@ -311,24 +311,55 @@ serve(async (req) => {
       }
     }
 
-    // Sync Calls (only if not resuming contacts)
+    // Sync Calls (only if not resuming contacts) - includes Call Gear data
     if ((sync_type === 'all' || sync_type === 'calls') && !cursor) {
       try {
         const { results: calls } = await fetchBatchHubSpot('calls', [
+          // Standard HubSpot call properties
           'hs_call_title', 'hs_call_status', 'hs_call_duration',
           'hs_timestamp', 'hs_call_to_number', 'hs_call_from_number',
-          'hubspot_owner_id', 'hs_call_disposition'
+          'hubspot_owner_id', 'hs_call_disposition', 'hs_call_direction',
+          'hs_call_body', 'hs_call_recording_url',
+          // Call Gear custom properties
+          'full_talk_record_link', 'total_talk_duration', 'total_waiting_duration',
+          'call_finish_date_and_time', 'call_finish_reason', 'called_phone_number',
+          'postprocessing_time', 'hs_activity_type'
         ], undefined, incremental ? lastSyncTime || undefined : undefined);
+
+        // Log first call properties to debug Call Gear data
+        if (calls.length > 0) {
+          console.log('📞 Sample call properties:', JSON.stringify(calls[0].properties, null, 2));
+        }
 
         const callsToUpsert = calls.map((call: any) => {
           const props = call.properties;
+          
+          // Parse duration - Call Gear sends "3 minutes and 12 seconds" format
+          let durationSeconds = parseInt(props.hs_call_duration) || 0;
+          if (props.total_talk_duration) {
+            const match = props.total_talk_duration.match(/(\d+)\s*minutes?\s*(?:and\s*)?(\d+)?\s*seconds?/i);
+            if (match) {
+              durationSeconds = (parseInt(match[1]) || 0) * 60 + (parseInt(match[2]) || 0);
+            }
+          }
+          
+          // Get recording URL - prefer Call Gear's full_talk_record_link
+          const recordingUrl = props.full_talk_record_link || props.hs_call_recording_url || null;
+          
+          // Map call direction
+          const direction = props.hs_call_direction?.toLowerCase() || 
+                           (props.hs_call_from_number ? 'outbound' : 'inbound');
+          
           return {
             provider_call_id: `hubspot_${call.id}`,
-            caller_number: props.hs_call_from_number || props.hs_call_to_number || 'Unknown',
+            caller_number: props.hs_call_from_number || props.hs_call_to_number || props.called_phone_number || 'Unknown',
             call_status: mapHubspotCallStatus(props.hs_call_status, props.hs_call_disposition),
-            duration_seconds: parseInt(props.hs_call_duration) || 0,
+            duration_seconds: durationSeconds,
             started_at: props.hs_timestamp,
-            call_outcome: props.hs_call_disposition
+            call_outcome: props.hs_call_disposition || props.call_finish_reason,
+            call_direction: direction,
+            recording_url: recordingUrl,
+            transcription: props.hs_call_body || null  // HubSpot AI call notes
           };
         });
 
