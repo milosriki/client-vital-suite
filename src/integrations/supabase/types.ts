@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_conversations: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
       ai_feedback_learning: {
         Row: {
           applied_at: string | null
@@ -2623,6 +2647,7 @@ export type Database = {
           created_at: string | null
           id: string
           insight_type: string
+          is_dismissed: boolean | null
           lead_id: string | null
           notes: string | null
           outcome: string | null
@@ -2641,6 +2666,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           insight_type: string
+          is_dismissed?: boolean | null
           lead_id?: string | null
           notes?: string | null
           outcome?: string | null
@@ -2659,6 +2685,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           insight_type?: string
+          is_dismissed?: boolean | null
           lead_id?: string | null
           notes?: string | null
           outcome?: string | null
