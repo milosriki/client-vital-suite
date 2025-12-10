@@ -79,3 +79,15 @@ verify_jwt = false
 # HubSpot to Supabase sync
 [functions.sync-hubspot-to-supabase]
 verify_jwt = false
+
+# Business Intelligence Agent
+[functions.business-intelligence]
+verify_jwt = false
+
+# AnyTrack Webhook
+[functions.anytrack-webhook]
+verify_jwt = false
+
+# AI Lead Reply
+[functions.generate-lead-reply]
+verify_jwt = false
