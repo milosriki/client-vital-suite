@@ -7,6 +7,104 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============= PTD KNOWLEDGE BASE =============
+const PTD_SYSTEM_KNOWLEDGE = `
+PTD FITNESS PLATFORM - COMPLETE STRUCTURE (58 Tables + 21 Functions):
+
+TABLES (58):
+- client_health_scores: email, health_score, health_zone (purple/green/yellow/red), calculated_at, churn_risk_score
+- contacts: email, first_name, last_name, phone, lifecycle_stage, owner_name, lead_status
+- deals: deal_name, deal_value, stage, status, close_date, pipeline
+- enhanced_leads: email, first_name, last_name, lead_score, lead_quality, conversion_status, campaign_name
+- call_records: caller_number, transcription, call_outcome, duration_seconds, call_score
+- coach_performance: coach_name, avg_client_health, clients_at_risk, performance_score
+- intervention_log: status, action_type, recommended_action, outcome
+- daily_summary: summary_date, avg_health_score, clients_green/yellow/red/purple, at_risk_revenue_aed
+- campaign_performance: campaign_name, platform, spend, clicks, leads, conversions, roas
+- appointments: scheduled_at, status, notes
+- contact_activities: activity_type, activity_title, occurred_at
+
+EDGE FUNCTIONS (21):
+- churn-predictor: Predicts client dropout probability using ML
+- anomaly-detector: Finds unusual patterns in data
+- stripe-forensics: Detects fraud (instant payouts, test-drain, unknown cards)
+- business-intelligence: Generates BI insights
+- intervention-recommender: Suggests actions for at-risk clients
+- coach-analyzer: Analyzes coach performance
+- sync-hubspot-to-supabase: Syncs HubSpot data
+- fetch-hubspot-live: Gets real-time HubSpot data
+
+HEALTH ZONES:
+- Purple Zone (85-100): Champions - loyal, engaged, high value
+- Green Zone (70-84): Healthy - consistent, stable engagement
+- Yellow Zone (50-69): At Risk - showing warning signs
+- Red Zone (0-49): Critical - immediate intervention needed
+
+STRIPE FRAUD PATTERNS:
+- Unknown cards used after trusted payments
+- Instant payouts bypassing normal settlement
+- Test-then-drain: small test charge followed by large withdrawal
+- Multiple failed charges followed by success
+
+HUBSPOT INSIGHTS:
+- Revenue leaks from workflow failures
+- Buried premium leads not being followed up
+- Lifecycle stage mismatches
+
+BUSINESS RULES:
+- Clients with no session in 14+ days are at risk
+- Deals over 50K AED need manager approval
+- Response time target: under 5 minutes for new leads
+`;
+
+// ============= LEARNING SYSTEM =============
+async function getRelevantLearnings(supabase: any, query: string): Promise<string> {
+  try {
+    // Get recent conversation learnings
+    const { data: learnings } = await supabase
+      .from('agent_context')
+      .select('key, value')
+      .eq('agent_type', 'ptd-agent')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (!learnings || learnings.length === 0) return '';
+
+    // Simple keyword matching for relevance
+    const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/).filter(w => w.length > 3);
+    
+    const relevantLearnings = learnings
+      .filter((l: any) => {
+        const content = JSON.stringify(l.value).toLowerCase();
+        return keywords.some(kw => content.includes(kw));
+      })
+      .slice(0, 3)
+      .map((l: any) => typeof l.value === 'string' ? l.value : JSON.stringify(l.value))
+      .join('\n\n');
+
+    return relevantLearnings;
+  } catch (e) {
+    console.log('Learning retrieval skipped:', e);
+    return '';
+  }
+}
+
+async function saveInteraction(supabase: any, query: string, response: string): Promise<void> {
+  try {
+    const key = `interaction_${Date.now()}`;
+    await supabase.from('agent_context').insert({
+      key,
+      value: { query, response: response.slice(0, 2000), timestamp: new Date().toISOString() },
+      agent_type: 'ptd-agent',
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+    });
+    console.log('✅ Saved interaction for learning');
+  } catch (e) {
+    console.log('Learning save skipped:', e);
+  }
+}
+
 // Define tools for the agent (Anthropic format)
 const tools: Anthropic.Tool[] = [
   {
@@ -441,13 +539,23 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
   }
 }
 
-// Main agent function with agentic loop
+// Main agent function with agentic loop + learning
 async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string): Promise<string> {
+  // ============= LEARNING MIDDLEWARE: Before =============
+  const relevantLearnings = await getRelevantLearnings(supabase, userMessage);
+  console.log(`📚 Retrieved ${relevantLearnings.length > 0 ? 'relevant learnings' : 'no prior learnings'}`);
+
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 
   const systemPrompt = `You are PTD SUPER-INTELLIGENCE AGENT - an AI that controls the ENTIRE PTD Fitness business system.
 
-CAPABILITIES:
+=== SYSTEM KNOWLEDGE BASE ===
+${PTD_SYSTEM_KNOWLEDGE}
+
+=== PAST LEARNINGS ===
+${relevantLearnings || 'No relevant past interactions found.'}
+
+=== CAPABILITIES ===
 ✅ Client data (health scores, calls, deals, activities)
 ✅ Lead management (search, score, track)
 ✅ Sales pipeline (deals, appointments, closes)
@@ -457,15 +565,17 @@ CAPABILITIES:
 ✅ Dashboards (health, revenue, coaches)
 ✅ AI functions (churn predictor, anomaly detector)
 
-INSTRUCTIONS:
+=== INSTRUCTIONS ===
 1. Use tools to get REAL data - never guess
 2. Provide specific numbers, names, actionable insights
 3. For fraud scans, run stripe_control with fraud_scan
 4. For at-risk clients, use get_at_risk_clients
-5. Be concise but thorough`;
+5. Be concise but thorough
+6. Learn from each interaction to improve future responses`;
 
   let iterations = 0;
   const maxIterations = 8;
+  let finalResponse = '';
 
   while (iterations < maxIterations) {
     iterations++;
@@ -483,11 +593,11 @@ INSTRUCTIONS:
 
     // Check if done
     if (response.stop_reason === "end_turn") {
-      const finalText = response.content
+      finalResponse = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === "text")
         .map((block) => block.text)
         .join("\n");
-      return finalText;
+      break;
     }
 
     // Get tool use blocks
@@ -496,11 +606,11 @@ INSTRUCTIONS:
     );
 
     if (toolUseBlocks.length === 0) {
-      const finalText = response.content
+      finalResponse = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === "text")
         .map((block) => block.text)
         .join("\n");
-      return finalText;
+      break;
     }
 
     // Add assistant response to messages
@@ -522,7 +632,14 @@ INSTRUCTIONS:
     messages.push({ role: "user", content: toolResults });
   }
 
-  return "Max iterations reached. Please try a more specific query.";
+  if (!finalResponse) {
+    finalResponse = "Max iterations reached. Please try a more specific query.";
+  }
+
+  // ============= LEARNING MIDDLEWARE: After =============
+  await saveInteraction(supabase, userMessage, finalResponse);
+
+  return finalResponse;
 }
 
 // HTTP Handler
