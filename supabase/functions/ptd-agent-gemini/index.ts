@@ -944,38 +944,108 @@ ${relevantMemory || 'No relevant past conversations found.'}
   return finalResponse;
 }
 
-// ============= HTTP HANDLER =============
+// ============= HTTP HANDLER WITH IMPROVED ERROR HANDLING =============
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  console.log(`🚀 Request received at ${new Date().toISOString()}`);
+
   try {
     const { message, messages: chatHistory, thread_id } = await req.json();
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    // Validate required secrets
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("❌ Missing Supabase configuration");
+      return new Response(JSON.stringify({ 
+        error: "Server configuration error - Supabase not configured",
+        response: "I'm experiencing configuration issues. Please try again later."
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!LOVABLE_API_KEY) {
+      console.error("❌ Missing LOVABLE_API_KEY");
+      return new Response(JSON.stringify({ 
+        error: "AI Gateway not configured",
+        response: "AI service is not configured. Please check the API key."
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const userMessage = message || (chatHistory?.[chatHistory.length - 1]?.content);
-    const threadId = thread_id || `default_${Date.now()}`;
+    const threadId = thread_id || `thread_${Date.now()}`;
     
     if (!userMessage) {
-      throw new Error("No message provided");
+      return new Response(JSON.stringify({ 
+        error: "No message provided",
+        response: "Please provide a message."
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log(`🧠 Running Gemini 2.5 Pro agent with thread: ${threadId}`);
-    const response = await runAgent(supabase, userMessage, threadId);
+    console.log(`🧠 Processing: "${userMessage.slice(0, 100)}..." (thread: ${threadId})`);
+    
+    // Run agent with timeout protection
+    const response = await Promise.race([
+      runAgent(supabase, userMessage, threadId),
+      new Promise<string>((_, reject) => 
+        setTimeout(() => reject(new Error("Request timeout after 55s")), 55000)
+      )
+    ]);
 
-    return new Response(JSON.stringify({ response }), {
+    const duration = Date.now() - startTime;
+    console.log(`✅ Response generated in ${duration}ms`);
+
+    return new Response(JSON.stringify({ 
+      response,
+      thread_id: threadId,
+      duration_ms: duration
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (error: unknown) {
-    console.error("Agent error:", error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ Agent error after ${duration}ms:`, error);
+    
     const errMsg = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errMsg }), {
-      status: 500,
+    
+    // Provide user-friendly error messages
+    let userResponse = "Sorry, I encountered an error. Please try again.";
+    let statusCode = 500;
+    
+    if (errMsg.includes("timeout")) {
+      userResponse = "My response is taking too long. Try a simpler question or break it into smaller parts.";
+      statusCode = 504;
+    } else if (errMsg.includes("rate limit") || errMsg.includes("429")) {
+      userResponse = "I'm receiving too many requests. Please wait a moment and try again.";
+      statusCode = 429;
+    } else if (errMsg.includes("402") || errMsg.includes("payment")) {
+      userResponse = "AI service credits may be exhausted. Please contact support.";
+      statusCode = 402;
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: errMsg,
+      response: userResponse,
+      duration_ms: duration
+    }), {
+      status: statusCode,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

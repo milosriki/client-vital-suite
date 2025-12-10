@@ -1,16 +1,24 @@
-import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Minimize2, Paperclip, FileText, FileSpreadsheet } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { 
+  MessageCircle, X, Send, Loader2, Minimize2, Paperclip, 
+  FileText, FileSpreadsheet, Brain, Sparkles, RefreshCw, 
+  Zap, Database, ChevronDown 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
   files?: { name: string; type: string }[];
+  timestamp: Date;
+  isStreaming?: boolean;
 }
 
 interface UploadedFile {
@@ -22,25 +30,56 @@ interface UploadedFile {
 export const FloatingChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [threadId, setThreadId] = useState<string>("");
+  const [connectionStatus, setConnectionStatus] = useState<"connected" | "connecting" | "error">("connected");
+  const [memoryCount, setMemoryCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Initialize thread and load memory stats
+  useEffect(() => {
+    setThreadId(getThreadId());
+    loadMemoryStats();
+  }, []);
+
+  const loadMemoryStats = async () => {
+    try {
+      const { count } = await supabase
+        .from("agent_memory")
+        .select("id", { count: "exact", head: true });
+      setMemoryCount(count || 0);
+    } catch {
+      // Non-critical
+    }
+  };
+
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
+  // Focus input when opened
   useEffect(() => {
     if (isOpen && !isMinimized && inputRef.current) {
-      inputRef.current.focus();
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen, isMinimized]);
+
+  const handleNewThread = () => {
+    const newId = startNewThread();
+    setThreadId(newId);
+    setMessages([]);
+    setUploadedFiles([]);
+    toast({ title: "New conversation started" });
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -49,7 +88,7 @@ export const FloatingChat = () => {
     const newFiles: UploadedFile[] = [];
 
     for (const file of Array.from(files)) {
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         toast({
           title: "File too large",
@@ -90,11 +129,16 @@ export const FloatingChat = () => {
   const readFileContent = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
       const fileType = file.type || getFileType(file.name);
-      
-      if (fileType.includes("pdf") || fileType.includes("excel") || fileType.includes("spreadsheet") || 
-          fileType.includes("csv") || file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+
+      if (
+        fileType.includes("pdf") ||
+        fileType.includes("excel") ||
+        fileType.includes("spreadsheet") ||
+        fileType.includes("csv") ||
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls")
+      ) {
         reader.onload = () => {
           const base64 = btoa(
             new Uint8Array(reader.result as ArrayBuffer).reduce(
@@ -134,26 +178,49 @@ export const FloatingChat = () => {
 
   const getFileIcon = (type: string) => {
     if (type.includes("pdf")) return <FileText className="h-3 w-3" />;
-    if (type.includes("excel") || type.includes("spreadsheet") || type.includes("csv")) 
+    if (type.includes("excel") || type.includes("spreadsheet") || type.includes("csv"))
       return <FileSpreadsheet className="h-3 w-3" />;
     return <FileText className="h-3 w-3" />;
   };
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
 
     const userMessage = input.trim();
     const files = [...uploadedFiles];
-    
+
     setInput("");
     setUploadedFiles([]);
-    
+    setConnectionStatus("connecting");
+
     const displayMessage = userMessage || `Analyzing ${files.length} file(s)...`;
-    setMessages((prev) => [...prev, { 
-      role: "user", 
-      content: displayMessage,
-      files: files.map(f => ({ name: f.name, type: f.type }))
-    }]);
+    const userMsgId = `user-${Date.now()}`;
+    const assistantMsgId = `assistant-${Date.now()}`;
+
+    // Add user message
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: userMsgId,
+        role: "user",
+        content: displayMessage,
+        files: files.map((f) => ({ name: f.name, type: f.type })),
+        timestamp: new Date(),
+      },
+    ]);
+
+    // Add placeholder for assistant response
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: assistantMsgId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        isStreaming: true,
+      },
+    ]);
+
     setIsLoading(true);
 
     try {
@@ -163,35 +230,53 @@ export const FloatingChat = () => {
         content: f.content,
       }));
 
-      const messageWithFiles = files.length > 0
-        ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map(f => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map(f => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
-        : userMessage;
+      const messageWithFiles =
+        files.length > 0
+          ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map((f) => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map((f) => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
+          : userMessage;
 
       const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
-        body: { 
+        body: {
           message: messageWithFiles,
-          thread_id: localStorage.getItem("chat-thread") || `chat-${Date.now()}`,
+          thread_id: threadId,
           has_files: files.length > 0,
-          file_names: files.map(f => f.name),
+          file_names: files.map((f) => f.name),
         },
       });
 
       if (error) throw error;
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data?.response || "No response received" },
-      ]);
+      const responseText = data?.response || "No response received";
+
+      // Update assistant message with response
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? { ...msg, content: responseText, isStreaming: false }
+            : msg
+        )
+      );
+
+      setConnectionStatus("connected");
+      loadMemoryStats();
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Sorry, I encountered an error. Please try again." },
-      ]);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                content: "Sorry, I encountered an error. Please try again.",
+                isStreaming: false,
+              }
+            : msg
+        )
+      );
+      setConnectionStatus("error");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, uploadedFiles, isLoading, threadId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -200,14 +285,15 @@ export const FloatingChat = () => {
     }
   };
 
+  // Floating button when closed
   if (!isOpen) {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 border-2 border-cyan-400/50 animate-pulse"
         size="icon"
       >
-        <MessageCircle className="h-6 w-6" />
+        <Brain className="h-6 w-6" />
       </Button>
     );
   }
@@ -215,21 +301,67 @@ export const FloatingChat = () => {
   return (
     <div
       className={cn(
-        "fixed bottom-6 right-6 z-50 flex flex-col bg-background border border-border rounded-lg shadow-2xl transition-all duration-200",
-        isMinimized ? "w-72 h-12" : "w-96 h-[500px]"
+        "fixed z-50 flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-cyan-500/30 rounded-2xl shadow-2xl transition-all duration-300 backdrop-blur-xl",
+        isMinimized
+          ? "bottom-6 right-6 w-72 h-14"
+          : isExpanded
+            ? "inset-4"
+            : "bottom-6 right-6 w-[420px] h-[600px]"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50 rounded-t-lg">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-primary" />
-          <span className="font-medium text-sm">PTD Assistant</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-cyan-500/20 bg-gradient-to-r from-slate-800/80 to-slate-900/80 rounded-t-2xl">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Brain className="h-6 w-6 text-cyan-400" />
+            <span
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900",
+                connectionStatus === "connected"
+                  ? "bg-green-500"
+                  : connectionStatus === "connecting"
+                    ? "bg-yellow-500 animate-pulse"
+                    : "bg-red-500"
+              )}
+            />
+          </div>
+          <div>
+            <span className="font-semibold text-sm text-white">PTD Agent</span>
+            <div className="flex items-center gap-2 text-[10px] text-cyan-400/70">
+              <Zap className="w-3 h-3" />
+              <span>Self-Learning AI</span>
+              {memoryCount > 0 && (
+                <>
+                  <Database className="w-3 h-3 ml-1" />
+                  <span>{memoryCount}</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-7 w-7 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20"
+            onClick={handleNewThread}
+            title="New conversation"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20"
+            onClick={() => setIsExpanded(!isExpanded)}
+            title={isExpanded ? "Minimize" : "Expand"}
+          >
+            <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20"
             onClick={() => setIsMinimized(!isMinimized)}
           >
             <Minimize2 className="h-4 w-4" />
@@ -237,7 +369,7 @@ export const FloatingChat = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-7 w-7 text-white/70 hover:text-white hover:bg-red-500/20"
             onClick={() => setIsOpen(false)}
           >
             <X className="h-4 w-4" />
@@ -250,16 +382,25 @@ export const FloatingChat = () => {
           {/* Messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
             {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">
-                <p>Ask me anything about your data!</p>
-                <p className="mt-2 text-xs">Upload PDFs, Excel, CSV to analyze</p>
-                <p className="mt-1 text-xs text-primary">📎 Click + to attach files</p>
+              <div className="text-center py-12">
+                <div className="relative inline-block mb-4">
+                  <Brain className="h-16 w-16 text-cyan-400/50 mx-auto" />
+                  <Sparkles className="h-6 w-6 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+                </div>
+                <p className="text-white/80 font-medium mb-2">PTD Super-Intelligence</p>
+                <p className="text-cyan-400/70 text-sm mb-4">I learn from every conversation</p>
+                <div className="space-y-2 text-xs text-white/50">
+                  <p>💡 "john@ptd.com full journey"</p>
+                  <p>🔍 "Scan for Stripe fraud"</p>
+                  <p>📊 "Coach performance ranking"</p>
+                  <p>📎 Attach files to teach me</p>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
-                {messages.map((msg, i) => (
+                {messages.map((msg) => (
                   <div
-                    key={i}
+                    key={msg.id}
                     className={cn(
                       "flex",
                       msg.role === "user" ? "justify-end" : "justify-start"
@@ -267,51 +408,57 @@ export const FloatingChat = () => {
                   >
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+                        "max-w-[85%] rounded-xl px-4 py-3 text-sm",
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          ? "bg-gradient-to-r from-cyan-500/30 to-blue-500/30 border border-cyan-500/40 text-white"
+                          : "bg-white/5 border border-white/10 text-white/90"
                       )}
                     >
                       {msg.files && msg.files.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-2">
                           {msg.files.map((f, j) => (
-                            <span key={j} className="inline-flex items-center gap-1 bg-background/20 px-2 py-0.5 rounded text-xs">
+                            <span
+                              key={j}
+                              className="inline-flex items-center gap-1 bg-cyan-500/20 px-2 py-0.5 rounded text-xs text-cyan-300"
+                            >
                               {getFileIcon(f.type)}
                               {f.name.slice(0, 20)}
                             </span>
                           ))}
                         </div>
                       )}
-                      <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+                      {msg.isStreaming && !msg.content ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                          <span className="text-white/60">Thinking...</span>
+                        </div>
+                      ) : (
+                        <pre className="whitespace-pre-wrap font-sans leading-relaxed">
+                          {msg.content}
+                        </pre>
+                      )}
                     </div>
                   </div>
                 ))}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted rounded-lg px-3 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </ScrollArea>
 
           {/* Uploaded Files Preview */}
           {uploadedFiles.length > 0 && (
-            <div className="px-3 py-2 border-t border-border bg-muted/30">
+            <div className="px-4 py-2 border-t border-cyan-500/20 bg-slate-800/50">
               <div className="flex flex-wrap gap-1">
                 {uploadedFiles.map((file, i) => (
-                  <span 
-                    key={i} 
-                    className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded text-xs cursor-pointer hover:bg-primary/20"
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-lg text-xs cursor-pointer hover:bg-cyan-500/30 transition-colors"
                     onClick={() => removeFile(i)}
                     title="Click to remove"
                   >
                     {getFileIcon(file.type)}
-                    {file.name.slice(0, 15)}...
-                    <X className="h-3 w-3" />
+                    {file.name.slice(0, 15)}
+                    {file.name.length > 15 && "..."}
+                    <X className="h-3 w-3 hover:text-white" />
                   </span>
                 ))}
               </div>
@@ -319,7 +466,7 @@ export const FloatingChat = () => {
           )}
 
           {/* Input */}
-          <div className="p-3 border-t border-border">
+          <div className="p-4 border-t border-cyan-500/20 bg-gradient-to-r from-slate-800/80 to-slate-900/80 rounded-b-2xl">
             <div className="flex gap-2">
               <input
                 ref={fileInputRef}
@@ -330,30 +477,37 @@ export const FloatingChat = () => {
                 onChange={handleFileUpload}
               />
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="shrink-0"
+                className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
-                title="Attach files (PDF, Excel, CSV)"
+                title="Attach files"
               >
-                <Paperclip className="h-4 w-4" />
+                <Paperclip className="h-5 w-5" />
               </Button>
               <Input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={uploadedFiles.length > 0 ? "Ask about files..." : "Ask anything..."}
+                placeholder={
+                  uploadedFiles.length > 0 ? "Ask about files..." : "Ask anything..."
+                }
                 disabled={isLoading}
-                className="flex-1"
+                className="flex-1 bg-white/10 border-cyan-500/30 text-white placeholder-white/40 focus:ring-cyan-500/50 focus:border-cyan-500"
               />
               <Button
                 onClick={handleSend}
                 disabled={(!input.trim() && uploadedFiles.length === 0) || isLoading}
+                className="shrink-0 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 border-0"
                 size="icon"
               >
-                <Send className="h-4 w-4" />
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
               </Button>
             </div>
           </div>
