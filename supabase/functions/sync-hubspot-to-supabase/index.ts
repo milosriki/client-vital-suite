@@ -131,13 +131,25 @@ serve(async (req) => {
       return allResults;
     }
 
-    // Sync Contacts (incremental by default)
+    // Sync Contacts (incremental by default) - with ALL HubSpot fields
     if (sync_type === 'all' || sync_type === 'contacts') {
       try {
         const contacts = await fetchAllHubSpot('contacts', [
           'firstname', 'lastname', 'email', 'phone', 'mobilephone',
           'hubspot_owner_id', 'lifecyclestage', 'hs_lead_status',
-          'createdate', 'lastmodifieddate', 'city', 'hs_object_id'
+          'createdate', 'lastmodifieddate', 'city', 'hs_object_id',
+          // NEW: Location/neighborhood fields
+          'address', 'state', 'country', 'zip',
+          // NEW: Job and traffic source
+          'jobtitle', 'hs_analytics_source', 'hs_analytics_source_data_1', 'hs_analytics_source_data_2',
+          // NEW: Call tracking
+          'num_contacted_notes', 'notes_last_contacted', 'hs_sales_email_last_replied',
+          // NEW: Custom lifecycle
+          'custom_lifecycle_stage',
+          // NEW: Speed to lead metrics
+          'hs_time_to_first_engagement', 'first_conversion_date',
+          // NEW: Lead scoring
+          'hs_lead_status', 'hs_lifecyclestage_lead_date'
         ], 'lastmodifieddate', incremental ? lastSyncTime || undefined : undefined);
 
         for (const contact of contacts) {
@@ -146,7 +158,14 @@ serve(async (req) => {
           // Skip if no email
           if (!props.email) continue;
 
-          // Upsert into contacts table
+          // Get owner name from map
+          const ownerName = props.hubspot_owner_id ? ownerMap[props.hubspot_owner_id] || null : null;
+
+          // Calculate location/neighborhood from city or address
+          const location = props.city || props.state || props.address || null;
+          const neighborhood = props.city || null;
+
+          // Upsert into contacts table with ALL fields
           const { error } = await supabase
             .from('contacts')
             .upsert({
@@ -156,9 +175,19 @@ serve(async (req) => {
               last_name: props.lastname,
               phone: props.phone || props.mobilephone,
               owner_id: props.hubspot_owner_id,
+              owner_name: ownerName,
               lifecycle_stage: props.lifecyclestage,
               status: props.hs_lead_status || 'active',
               city: props.city,
+              // NEW fields
+              location: location,
+              neighborhood: neighborhood,
+              job_title: props.jobtitle,
+              latest_traffic_source: props.hs_analytics_source,
+              latest_traffic_source_2: props.hs_analytics_source_data_1,
+              call_attempt_count: parseInt(props.num_contacted_notes) || 0,
+              custom_lifecycle_stage: props.custom_lifecycle_stage,
+              lead_status: props.hs_lead_status,
               created_at: props.createdate,
               updated_at: props.lastmodifieddate || new Date().toISOString()
             }, {

@@ -1163,71 +1163,157 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_activities: {
+        Row: {
+          activity_description: string | null
+          activity_title: string | null
+          activity_type: string
+          contact_id: string | null
+          created_at: string | null
+          hubspot_contact_id: string | null
+          id: string
+          metadata: Json | null
+          occurred_at: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          activity_description?: string | null
+          activity_title?: string | null
+          activity_type: string
+          contact_id?: string | null
+          created_at?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          activity_description?: string | null
+          activity_title?: string | null
+          activity_type?: string
+          contact_id?: string | null
+          created_at?: string | null
+          hubspot_contact_id?: string | null
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
+          call_attempt_count: number | null
           city: string | null
           created_at: string | null
+          custom_lifecycle_stage: string | null
+          delegation_date: string | null
           email: string | null
           facebook_id: string | null
           first_name: string | null
+          first_outbound_call_time: string | null
           first_touch_source: string | null
           first_touch_time: string | null
           ghl_contact_id: string | null
           google_id: string | null
           hubspot_contact_id: string | null
           id: string
+          job_title: string | null
           last_name: string | null
           last_touch_source: string | null
           last_touch_time: string | null
+          latest_traffic_source: string | null
+          latest_traffic_source_2: string | null
+          lead_status: string | null
           lifecycle_stage: string | null
+          location: string | null
+          neighborhood: string | null
           owner_id: string | null
+          owner_name: string | null
           phone: string | null
+          segment_memberships: string[] | null
+          speed_to_lead_minutes: number | null
           status: string | null
           total_events: number | null
           total_value: number | null
           updated_at: string | null
         }
         Insert: {
+          call_attempt_count?: number | null
           city?: string | null
           created_at?: string | null
+          custom_lifecycle_stage?: string | null
+          delegation_date?: string | null
           email?: string | null
           facebook_id?: string | null
           first_name?: string | null
+          first_outbound_call_time?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           ghl_contact_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
           id?: string
+          job_title?: string | null
           last_name?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
+          latest_traffic_source?: string | null
+          latest_traffic_source_2?: string | null
+          lead_status?: string | null
           lifecycle_stage?: string | null
+          location?: string | null
+          neighborhood?: string | null
           owner_id?: string | null
+          owner_name?: string | null
           phone?: string | null
+          segment_memberships?: string[] | null
+          speed_to_lead_minutes?: number | null
           status?: string | null
           total_events?: number | null
           total_value?: number | null
           updated_at?: string | null
         }
         Update: {
+          call_attempt_count?: number | null
           city?: string | null
           created_at?: string | null
+          custom_lifecycle_stage?: string | null
+          delegation_date?: string | null
           email?: string | null
           facebook_id?: string | null
           first_name?: string | null
+          first_outbound_call_time?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           ghl_contact_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
           id?: string
+          job_title?: string | null
           last_name?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
+          latest_traffic_source?: string | null
+          latest_traffic_source_2?: string | null
+          lead_status?: string | null
           lifecycle_stage?: string | null
+          location?: string | null
+          neighborhood?: string | null
           owner_id?: string | null
+          owner_name?: string | null
           phone?: string | null
+          segment_memberships?: string[] | null
+          speed_to_lead_minutes?: number | null
           status?: string | null
           total_events?: number | null
           total_value?: number | null
