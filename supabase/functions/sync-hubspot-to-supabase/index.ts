@@ -138,18 +138,26 @@ serve(async (req) => {
           'firstname', 'lastname', 'email', 'phone', 'mobilephone',
           'hubspot_owner_id', 'lifecyclestage', 'hs_lead_status',
           'createdate', 'lastmodifieddate', 'city', 'hs_object_id',
-          // NEW: Location/neighborhood fields
+          // Location/neighborhood fields
           'address', 'state', 'country', 'zip',
-          // NEW: Job and traffic source
+          // Job and traffic source
           'jobtitle', 'hs_analytics_source', 'hs_analytics_source_data_1', 'hs_analytics_source_data_2',
-          // NEW: Call tracking
+          // Call tracking
           'num_contacted_notes', 'notes_last_contacted', 'hs_sales_email_last_replied',
-          // NEW: Custom lifecycle
+          // Custom lifecycle
           'custom_lifecycle_stage',
-          // NEW: Speed to lead metrics
+          // Speed to lead metrics
           'hs_time_to_first_engagement', 'first_conversion_date',
-          // NEW: Lead scoring
-          'hs_lead_status', 'hs_lifecyclestage_lead_date'
+          // Lead scoring
+          'hs_lead_status', 'hs_lifecyclestage_lead_date',
+          // Form submissions & conversions
+          'num_form_submissions', 'num_unique_forms_submitted', 'recent_conversion_event_name', 'recent_conversion_date',
+          // SLA & team tracking
+          'hubspot_team_id', 'hs_content_membership_registered_at', 'hs_sa_first_engagement_descr',
+          // Reassignment & delegation
+          'hs_date_entered_lead', 'hs_latest_sequence_enrolled_date', 'contact_unworked',
+          // Engagement tracking
+          'hs_last_sales_activity_date', 'hs_email_domain', 'hs_is_unworked'
         ], 'lastmodifieddate', incremental ? lastSyncTime || undefined : undefined);
 
         for (const contact of contacts) {
@@ -179,7 +187,7 @@ serve(async (req) => {
               lifecycle_stage: props.lifecyclestage,
               status: props.hs_lead_status || 'active',
               city: props.city,
-              // NEW fields
+              // Location fields
               location: location,
               neighborhood: neighborhood,
               job_title: props.jobtitle,
@@ -188,6 +196,22 @@ serve(async (req) => {
               call_attempt_count: parseInt(props.num_contacted_notes) || 0,
               custom_lifecycle_stage: props.custom_lifecycle_stage,
               lead_status: props.hs_lead_status,
+              // Form submissions & conversions
+              first_conversion_date: props.first_conversion_date || null,
+              num_form_submissions: parseInt(props.num_form_submissions) || 0,
+              num_unique_forms_submitted: parseInt(props.num_unique_forms_submitted) || 0,
+              recent_conversion: props.recent_conversion_event_name,
+              recent_conversion_date: props.recent_conversion_date || null,
+              // Team & SLA tracking
+              hubspot_team: props.hubspot_team_id,
+              sla_first_touch: props.hs_sa_first_engagement_descr,
+              time_of_entry: props.hs_date_entered_lead || null,
+              // Engagement & member tracking
+              contact_unworked: props.hs_is_unworked === 'true' || props.contact_unworked === 'true',
+              last_activity_date: props.hs_last_sales_activity_date || null,
+              email_domain: props.hs_email_domain,
+              currently_in_prospecting: !!props.hs_latest_sequence_enrolled_date,
+              registered_member: props.hs_content_membership_registered_at ? 1 : 0,
               created_at: props.createdate,
               updated_at: props.lastmodifieddate || new Date().toISOString()
             }, {

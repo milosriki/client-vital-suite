@@ -1214,11 +1214,16 @@ export type Database = {
         Row: {
           call_attempt_count: number | null
           city: string | null
+          contact_unworked: boolean | null
+          count_of_reassignations: number | null
           created_at: string | null
+          currently_in_prospecting: boolean | null
           custom_lifecycle_stage: string | null
           delegation_date: string | null
           email: string | null
+          email_domain: string | null
           facebook_id: string | null
+          first_conversion_date: string | null
           first_name: string | null
           first_outbound_call_time: string | null
           first_touch_source: string | null
@@ -1226,8 +1231,10 @@ export type Database = {
           ghl_contact_id: string | null
           google_id: string | null
           hubspot_contact_id: string | null
+          hubspot_team: string | null
           id: string
           job_title: string | null
+          last_activity_date: string | null
           last_name: string | null
           last_touch_source: string | null
           last_touch_time: string | null
@@ -1236,13 +1243,21 @@ export type Database = {
           lead_status: string | null
           lifecycle_stage: string | null
           location: string | null
+          member_accessed_private_content: number | null
           neighborhood: string | null
+          num_form_submissions: number | null
+          num_unique_forms_submitted: number | null
           owner_id: string | null
           owner_name: string | null
           phone: string | null
+          recent_conversion: string | null
+          recent_conversion_date: string | null
+          registered_member: number | null
           segment_memberships: string[] | null
+          sla_first_touch: string | null
           speed_to_lead_minutes: number | null
           status: string | null
+          time_of_entry: string | null
           total_events: number | null
           total_value: number | null
           updated_at: string | null
@@ -1250,11 +1265,16 @@ export type Database = {
         Insert: {
           call_attempt_count?: number | null
           city?: string | null
+          contact_unworked?: boolean | null
+          count_of_reassignations?: number | null
           created_at?: string | null
+          currently_in_prospecting?: boolean | null
           custom_lifecycle_stage?: string | null
           delegation_date?: string | null
           email?: string | null
+          email_domain?: string | null
           facebook_id?: string | null
+          first_conversion_date?: string | null
           first_name?: string | null
           first_outbound_call_time?: string | null
           first_touch_source?: string | null
@@ -1262,8 +1282,10 @@ export type Database = {
           ghl_contact_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
+          hubspot_team?: string | null
           id?: string
           job_title?: string | null
+          last_activity_date?: string | null
           last_name?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
@@ -1272,13 +1294,21 @@ export type Database = {
           lead_status?: string | null
           lifecycle_stage?: string | null
           location?: string | null
+          member_accessed_private_content?: number | null
           neighborhood?: string | null
+          num_form_submissions?: number | null
+          num_unique_forms_submitted?: number | null
           owner_id?: string | null
           owner_name?: string | null
           phone?: string | null
+          recent_conversion?: string | null
+          recent_conversion_date?: string | null
+          registered_member?: number | null
           segment_memberships?: string[] | null
+          sla_first_touch?: string | null
           speed_to_lead_minutes?: number | null
           status?: string | null
+          time_of_entry?: string | null
           total_events?: number | null
           total_value?: number | null
           updated_at?: string | null
@@ -1286,11 +1316,16 @@ export type Database = {
         Update: {
           call_attempt_count?: number | null
           city?: string | null
+          contact_unworked?: boolean | null
+          count_of_reassignations?: number | null
           created_at?: string | null
+          currently_in_prospecting?: boolean | null
           custom_lifecycle_stage?: string | null
           delegation_date?: string | null
           email?: string | null
+          email_domain?: string | null
           facebook_id?: string | null
+          first_conversion_date?: string | null
           first_name?: string | null
           first_outbound_call_time?: string | null
           first_touch_source?: string | null
@@ -1298,8 +1333,10 @@ export type Database = {
           ghl_contact_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
+          hubspot_team?: string | null
           id?: string
           job_title?: string | null
+          last_activity_date?: string | null
           last_name?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
@@ -1308,13 +1345,21 @@ export type Database = {
           lead_status?: string | null
           lifecycle_stage?: string | null
           location?: string | null
+          member_accessed_private_content?: number | null
           neighborhood?: string | null
+          num_form_submissions?: number | null
+          num_unique_forms_submitted?: number | null
           owner_id?: string | null
           owner_name?: string | null
           phone?: string | null
+          recent_conversion?: string | null
+          recent_conversion_date?: string | null
+          registered_member?: number | null
           segment_memberships?: string[] | null
+          sla_first_touch?: string | null
           speed_to_lead_minutes?: number | null
           status?: string | null
+          time_of_entry?: string | null
           total_events?: number | null
           total_value?: number | null
           updated_at?: string | null
