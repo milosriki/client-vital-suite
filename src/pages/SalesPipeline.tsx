@@ -44,7 +44,8 @@ import {
   FileText,
   Play
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 const STATUS_CONFIG = {
@@ -67,9 +68,26 @@ const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; icon: R
   busy: { label: "Busy", color: "bg-orange-500", icon: PhoneOff },
 };
 
+const DAYS_FILTER_OPTIONS = [
+  { value: '1', label: 'Last 24 hours' },
+  { value: '3', label: 'Last 3 days' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '14', label: 'Last 14 days' },
+  { value: '30', label: 'Last 30 days' },
+  { value: '90', label: 'Last 90 days' },
+  { value: 'all', label: 'All time' },
+];
+
 export default function SalesPipeline() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [daysFilter, setDaysFilter] = useState<string>('7');
+  
+  // Calculate date filter
+  const getDateFilter = () => {
+    if (daysFilter === 'all') return null;
+    return subDays(new Date(), parseInt(daysFilter)).toISOString();
+  };
 
   // Sync from HubSpot mutation
   const syncFromHubspot = useMutation({
@@ -133,11 +151,14 @@ export default function SalesPipeline() {
 
   // Fetch lead funnel data
   const { data: funnelData } = useQuery({
-    queryKey: ['lead-funnel'],
+    queryKey: ['lead-funnel', daysFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*');
+      const dateFilter = getDateFilter();
+      let query = supabase.from('leads').select('*');
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       
@@ -158,12 +179,14 @@ export default function SalesPipeline() {
 
   // Fetch enhanced leads
   const { data: enhancedLeads } = useQuery({
-    queryKey: ['enhanced-leads'],
+    queryKey: ['enhanced-leads', daysFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('enhanced_leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const dateFilter = getDateFilter();
+      let query = supabase.from('enhanced_leads').select('*');
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -173,12 +196,14 @@ export default function SalesPipeline() {
 
   // Fetch contacts
   const { data: contacts } = useQuery({
-    queryKey: ['contacts'],
+    queryKey: ['contacts', daysFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const dateFilter = getDateFilter();
+      let query = supabase.from('contacts').select('*');
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -188,12 +213,14 @@ export default function SalesPipeline() {
 
   // Fetch deals data
   const { data: dealsData } = useQuery({
-    queryKey: ['deals-summary'],
+    queryKey: ['deals-summary', daysFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deals')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const dateFilter = getDateFilter();
+      let query = supabase.from('deals').select('*');
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       
@@ -214,12 +241,14 @@ export default function SalesPipeline() {
 
   // Fetch call records
   const { data: callRecords } = useQuery({
-    queryKey: ['call-records'],
+    queryKey: ['call-records', daysFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('call_records')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const dateFilter = getDateFilter();
+      let query = supabase.from('call_records').select('*');
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       
@@ -236,12 +265,14 @@ export default function SalesPipeline() {
 
   // Fetch appointments
   const { data: appointments } = useQuery({
-    queryKey: ['appointments-summary'],
+    queryKey: ['appointments-summary', daysFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('*')
-        .order('scheduled_at', { ascending: false });
+      const dateFilter = getDateFilter();
+      let query = supabase.from('appointments').select('*');
+      if (dateFilter) {
+        query = query.gte('scheduled_at', dateFilter);
+      }
+      const { data, error } = await query.order('scheduled_at', { ascending: false });
       
       if (error) throw error;
       
@@ -294,12 +325,27 @@ export default function SalesPipeline() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
           <p className="text-muted-foreground">Full visibility: leads, contacts, deals, calls & proactive outreach</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Days Filter */}
+          <Select value={daysFilter} onValueChange={setDaysFilter}>
+            <SelectTrigger className="w-[160px]">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by date" />
+            </SelectTrigger>
+            <SelectContent>
+              {DAYS_FILTER_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <Button 
             variant="outline" 
             size="sm"
