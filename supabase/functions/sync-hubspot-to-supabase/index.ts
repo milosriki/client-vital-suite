@@ -78,6 +78,9 @@ serve(async (req) => {
       console.log('Clearing fake data...');
       await supabase.from('leads').delete().or('email.ilike.%@example.com,phone.ilike.%555-0%');
       await supabase.from('contacts').delete().ilike('email', '%@example.com');
+      // Also clear enhanced_leads test data
+      await supabase.from('enhanced_leads').delete().ilike('email', '%@email.com');
+      await supabase.from('enhanced_leads').delete().ilike('email', '%@example.com');
       console.log('Fake data cleared');
     }
 

@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   RefreshCw, Activity, Users, Phone, Calendar, DollarSign, 
   TrendingUp, Target, AlertTriangle, CheckCircle, Clock, Zap,
-  BarChart3, ArrowUpRight, ArrowDownRight
+  BarChart3, ArrowUpRight, ArrowDownRight, Trash2
 } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, subMonths, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
@@ -250,6 +250,23 @@ const HubSpotLiveData = () => {
     toast.success("Data refreshed!");
   };
 
+  const handleClearFakeData = async () => {
+    if (!confirm('This will delete all test/fake data (emails ending with @email.com or @example.com) and sync fresh data from HubSpot. Continue?')) {
+      return;
+    }
+    toast.info("Clearing fake data and syncing from HubSpot...");
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-hubspot-to-supabase', {
+        body: { clear_fake_data: true, sync_type: 'all' }
+      });
+      if (error) throw error;
+      toast.success(`Synced ${data.contacts_synced} contacts, ${data.leads_synced} leads, ${data.deals_synced} deals`);
+      await Promise.all([refetchLeads(), refetchEnhanced(), refetchDeals(), refetchCalls(), refetchMonthlyDeals()]);
+    } catch (err: any) {
+      toast.error('Sync failed: ' + err.message);
+    }
+  };
+
   const isLoading = loadingLeads || loadingEnhanced || loadingDeals || loadingCalls;
 
   const getStatusBadgeVariant = (status: string) => {
@@ -294,10 +311,16 @@ const HubSpotLiveData = () => {
             Real-time metrics from your database • Formula-driven KPIs
           </p>
         </div>
-        <Button onClick={handleRefresh} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRefresh} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button variant="destructive" onClick={handleClearFakeData} disabled={isLoading}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Clear Fake & Sync
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
