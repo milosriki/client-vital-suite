@@ -43,10 +43,33 @@ export default function PTDUnlimitedChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setThreadId(getThreadId());
+    const tid = getThreadId();
+    setThreadId(tid);
     loadStats();
     loadPendingApprovals();
+    loadChatHistory(tid);
   }, []);
+
+  const loadChatHistory = async (tid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('agent_memory')
+        .select('query, response')
+        .eq('thread_id', tid)
+        .order('created_at', { ascending: true });
+      
+      if (!error && data && data.length > 0) {
+        const loadedMessages: { role: string; content: string }[] = [];
+        data.forEach(item => {
+          loadedMessages.push({ role: 'user', content: item.query });
+          loadedMessages.push({ role: 'ai', content: item.response });
+        });
+        setMessages(loadedMessages);
+      }
+    } catch (e) {
+      console.error('Failed to load chat history:', e);
+    }
+  };
 
   const loadStats = async () => {
     try {
