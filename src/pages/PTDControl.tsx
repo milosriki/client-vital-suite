@@ -14,6 +14,8 @@ import CoachReviewsTab from "@/components/ptd/CoachReviewsTab";
 import DataEnrichmentTab from "@/components/ptd/DataEnrichmentTab";
 import StripeDashboardTab from "@/components/ptd/StripeDashboardTab";
 import StripeForensicsTab from "@/components/ptd/StripeForensicsTab";
+import StripeIssuingTab from "@/components/ptd/StripeIssuingTab";
+import StripeConnectTab from "@/components/ptd/StripeConnectTab";
 import HubSpotCommandCenter from "@/components/ptd/HubSpotCommandCenter";
 import PTDUnlimitedChat from "@/components/ai/PTDUnlimitedChat";
 
@@ -125,9 +127,11 @@ export default function PTDControl() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-11 mb-6">
+          <TabsList className="grid w-full grid-cols-13 mb-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="stripe">Stripe</TabsTrigger>
+            <TabsTrigger value="issuing">💳 Issuing</TabsTrigger>
+            <TabsTrigger value="connect">🔗 Connect</TabsTrigger>
             <TabsTrigger value="forensics">🛡️ Forensics</TabsTrigger>
             <TabsTrigger value="hubspot">🔶 HubSpot</TabsTrigger>
             <TabsTrigger value="health">Health</TabsTrigger>
@@ -145,6 +149,14 @@ export default function PTDControl() {
 
           <TabsContent value="stripe">
             <StripeDashboardTab mode={mode} />
+          </TabsContent>
+
+          <TabsContent value="issuing">
+            <StripeIssuingTab mode={mode} />
+          </TabsContent>
+
+          <TabsContent value="connect">
+            <StripeConnectTab mode={mode} />
           </TabsContent>
 
           <TabsContent value="forensics">
