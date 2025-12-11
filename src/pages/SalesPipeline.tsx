@@ -42,7 +42,8 @@ import {
   RefreshCw,
   Trash2,
   FileText,
-  Play
+  Play,
+  ExternalLink
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -652,8 +653,9 @@ export default function SalesPipeline() {
 
       {/* Detailed Data Tabs */}
       <Tabs defaultValue="leads" className="space-y-4">
-        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-6 w-full max-w-3xl">
           <TabsTrigger value="leads">Leads ({funnelData?.total || 0})</TabsTrigger>
+          <TabsTrigger value="enhanced">Ad Leads ({enhancedLeads?.length || 0})</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts?.length || 0})</TabsTrigger>
           <TabsTrigger value="deals">Deals ({dealsData?.deals?.length || 0})</TabsTrigger>
           <TabsTrigger value="calls">Calls ({callRecords?.total || 0})</TabsTrigger>
@@ -702,6 +704,89 @@ export default function SalesPipeline() {
                 </Table>
                 {!funnelData?.leads?.length && (
                   <p className="text-sm text-muted-foreground text-center py-8">No leads found</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Enhanced Leads with Ad Data Tab */}
+        <TabsContent value="enhanced">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Facebook Ad Leads
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Campaign</TableHead>
+                      <TableHead>Ad</TableHead>
+                      <TableHead>Quality</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {enhancedLeads?.slice(0, 50).map((lead) => (
+                      <TableRow key={lead.id}>
+                        <TableCell className="font-medium">
+                          {lead.first_name} {lead.last_name}
+                        </TableCell>
+                        <TableCell>{lead.email}</TableCell>
+                        <TableCell>{lead.phone}</TableCell>
+                        <TableCell>
+                          {lead.campaign_id ? (
+                            <a 
+                              href={`https://www.facebook.com/adsmanager/manage/campaigns?act=&selected_campaign_ids=${lead.campaign_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              {lead.campaign_name || lead.campaign_id.slice(0, 10)}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {lead.ad_id ? (
+                            <a 
+                              href={`https://www.facebook.com/adsmanager/manage/ads?act=&selected_ad_ids=${lead.ad_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              {lead.ad_name || lead.ad_id.slice(0, 10)}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {lead.lead_quality && (
+                            <Badge variant={lead.lead_quality === 'high' ? 'default' : lead.lead_quality === 'medium' ? 'secondary' : 'outline'}>
+                              {lead.lead_quality}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {lead.created_at && format(new Date(lead.created_at), 'MMM d, HH:mm')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {!enhancedLeads?.length && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No enhanced leads with ad data found</p>
                 )}
               </div>
             </CardContent>
