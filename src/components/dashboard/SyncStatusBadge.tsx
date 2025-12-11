@@ -27,7 +27,7 @@ export function SyncStatusBadge() {
             const { data: recentErrors } = await supabase
                 .from("sync_errors")
                 .select("id")
-                .eq("resolved", false)
+                .is("resolved_at", null)
                 .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
                 .limit(1);
 
