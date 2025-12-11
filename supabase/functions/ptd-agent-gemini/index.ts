@@ -555,6 +555,60 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_coach_performance",
+      description: "Get performance metrics for coaches",
+      parameters: {
+        type: "object",
+        properties: {
+          coach_name: { type: "string", description: "Optional: specific coach name" }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_proactive_insights",
+      description: "Get AI-generated proactive insights and recommendations",
+      parameters: {
+        type: "object",
+        properties: {
+          priority: { type: "string", enum: ["critical", "high", "medium", "low", "all"] },
+          limit: { type: "number", description: "Max results (default 10)" }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_daily_summary",
+      description: "Get business intelligence summary for a date",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Date in YYYY-MM-DD format (default: today)" }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "run_sql_query",
+      description: "Run a read-only SQL query for complex data retrieval. Only SELECT allowed.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "SQL SELECT query (read-only)" }
+        },
+        required: ["query"]
+      }
+    }
+  }
 ];
 
 // ============= TOOL EXECUTION =============
@@ -842,6 +896,11 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         const { query, search_type = "auto" } = input;
         const q = String(query).trim();
         
+        // Input validation: prevent excessively long queries
+        if (q.length > 100) {
+          return JSON.stringify({ error: "Search query too long (max 100 characters)" });
+        }
+        
         // Auto-detect search type
         let detectedType = search_type;
         if (search_type === "auto") {
@@ -853,7 +912,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         
         console.log(`🔍 Universal search: "${q}" (type: ${detectedType})`);
         
-        // Prepare search patterns
+        // Prepare search patterns - Note: PostgREST properly escapes these parameters
         const phoneCleaned = q.replace(/\D/g, '');
         const searchLike = `%${q}%`;
         
@@ -1036,6 +1095,87 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             intervention_success_rate: performance.intervention_success_rate
           } : null
         }, null, 2);
+      }
+
+      case "get_coach_performance": {
+        const { coach_name } = input;
+        
+        let query = supabase.from('coach_performance').select('*').order('report_date', { ascending: false });
+        
+        if (coach_name) {
+          query = query.ilike('coach_name', `%${coach_name}%`);
+        }
+        
+        const { data } = await query.limit(20);
+        return JSON.stringify(data || []);
+      }
+
+      case "get_proactive_insights": {
+        const { priority = "all", limit = 10 } = input;
+        
+        let query = supabase.from('proactive_insights').select('*');
+        
+        if (priority !== "all") {
+          query = query.eq('priority', priority);
+        }
+        
+        const { data } = await query
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        
+        return JSON.stringify({ insights_count: data?.length || 0, insights: data || [] });
+      }
+
+      case "get_daily_summary": {
+        const { date } = input;
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        
+        const { data } = await supabase
+          .from('daily_summary')
+          .select('*')
+          .eq('summary_date', targetDate)
+          .single();
+        
+        if (!data) {
+          return JSON.stringify({ message: "No summary found for this date", date: targetDate });
+        }
+        
+        return JSON.stringify(data);
+      }
+
+      case "run_sql_query": {
+        const { query } = input;
+        
+        // Security: Only allow SELECT queries
+        const normalizedQuery = query.trim().toLowerCase();
+        if (!normalizedQuery.startsWith('select')) {
+          return JSON.stringify({ error: "Only SELECT queries are allowed" });
+        }
+        
+        // Prevent certain risky operations - check word boundaries to avoid false positives
+        const forbiddenPattern = /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|execute|exec)\b/i;
+        if (forbiddenPattern.test(normalizedQuery)) {
+          return JSON.stringify({ error: "Query contains forbidden operations" });
+        }
+        
+        // Additional security: prevent comments and multi-statement queries
+        if (normalizedQuery.includes('--') || normalizedQuery.includes('/*') || normalizedQuery.includes(';')) {
+          return JSON.stringify({ error: "Query contains forbidden characters (comments or multiple statements)" });
+        }
+        
+        try {
+          const { data, error } = await supabase.rpc('execute_sql_query', { sql_query: query });
+          
+          if (error) {
+            return JSON.stringify({ error: error.message });
+          }
+          
+          return JSON.stringify({ results: data });
+        } catch (e) {
+          // RPC function not configured - do not attempt direct query for security
+          console.log("execute_sql_query RPC not found");
+          return JSON.stringify({ error: "SQL query execution not available - RPC function not configured. Use specific tools for data queries." });
+        }
       }
 
       default:
