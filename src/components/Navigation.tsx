@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command, Search, TrendingUp, PhoneCall, Zap, Phone } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, AlertTriangle, BarChart3, Settings, BookOpen, Activity, Command, Search, TrendingUp, PhoneCall, Zap, Phone, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionStatus } from "./ConnectionStatus";
 
@@ -17,6 +17,7 @@ export const Navigation = () => {
     { path: "/interventions", label: "Interventions", icon: AlertTriangle },
     { path: "/meta-dashboard", label: "Meta CAPI", icon: Activity },
     { path: "/ptd-control", label: "PTD Control", icon: Command },
+    { path: "/ultimate-ceo", label: "AI CEO", icon: Brain },
   ];
 
   return (
@@ -35,7 +36,7 @@ export const Navigation = () => {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
-                
+
                 return (
                   <Link
                     key={item.path}
@@ -54,7 +55,7 @@ export const Navigation = () => {
               })}
             </div>
           </div>
-          
+
           <ConnectionStatus />
         </div>
       </div>

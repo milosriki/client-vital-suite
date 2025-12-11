@@ -24,6 +24,7 @@ import HubSpotLiveData from "./pages/HubSpotLiveData";
 import SalesPipeline from "./pages/SalesPipeline";
 import CallTracking from "./pages/CallTracking";
 import NotFound from "./pages/NotFound";
+import UltimateCEO from "./pages/UltimateCEO";
 import "./index.css";
 
 // Start background learning on app init
