@@ -14,6 +14,21 @@ interface AnomalyResult {
   timestamp?: number;
 }
 
+interface MoneyFlowEvent {
+  id: string;
+  type: 'inflow' | 'outflow' | 'internal';
+  category: string;
+  amount: number;
+  currency: string;
+  timestamp: number;
+  source: string;
+  destination: string;
+  description: string;
+  metadata: any;
+  status: string;
+  traceId?: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -27,7 +42,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
-    const { action } = await req.json();
+    const { action, days = 30 } = await req.json();
 
     console.log("[STRIPE-FORENSICS] Action:", action);
 
@@ -35,34 +50,295 @@ serve(async (req) => {
     const now = Math.floor(Date.now() / 1000);
     const sevenDaysAgo = now - (7 * 24 * 60 * 60);
     const thirtyDaysAgo = now - (30 * 24 * 60 * 60);
+    const daysAgo = now - (days * 24 * 60 * 60);
 
-    if (action === "full-audit") {
-      // Comprehensive audit - fetch everything
-      // Helper for paginated Stripe fetching
-      async function fetchAllStripe(resource: any, params: any = {}) {
-        let allItems: any[] = [];
-        let hasMore = true;
-        let startingAfter: string | undefined = undefined;
+    // Helper for paginated Stripe fetching
+    async function fetchAllStripe(resource: any, params: any = {}) {
+      let allItems: any[] = [];
+      let hasMore = true;
+      let startingAfter: string | undefined = undefined;
 
-        while (hasMore) {
-          const listResponse: { data: any[]; has_more: boolean } = await resource.list({
-            limit: 100,
-            ...params,
-            starting_after: startingAfter
-          });
+      while (hasMore) {
+        const listResponse: { data: any[]; has_more: boolean } = await resource.list({
+          limit: 100,
+          ...params,
+          starting_after: startingAfter
+        });
 
-          allItems = allItems.concat(listResponse.data);
-          hasMore = listResponse.has_more;
+        allItems = allItems.concat(listResponse.data);
+        hasMore = listResponse.has_more;
 
-          if (hasMore && listResponse.data.length > 0) {
-            startingAfter = listResponse.data[listResponse.data.length - 1].id;
-          } else {
-            hasMore = false;
-          }
+        if (hasMore && listResponse.data.length > 0) {
+          startingAfter = listResponse.data[listResponse.data.length - 1].id;
+        } else {
+          hasMore = false;
         }
-        return { data: allItems };
+      }
+      return { data: allItems };
+    }
+
+    // ==================== MONEY FLOW TRACKER ====================
+    if (action === "money-flow") {
+      console.log("[STRIPE-FORENSICS] Fetching complete money flow...");
+
+      const [
+        balance,
+        payouts,
+        balanceTransactions,
+        charges,
+        refunds,
+        transfers,
+        topups,
+        account
+      ] = await Promise.all([
+        stripe.balance.retrieve().catch(() => null),
+        fetchAllStripe(stripe.payouts, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.balanceTransactions, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.charges, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.refunds, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.transfers, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        stripe.topups.list({ limit: 100, created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        stripe.accounts.retrieve().catch(() => null)
+      ]);
+
+      // Try to fetch Issuing data (may fail if not enabled)
+      let issuingCards: any[] = [];
+      let issuingTransactions: any[] = [];
+      let issuingAuthorizations: any[] = [];
+      
+      try {
+        const [cards, txns, auths] = await Promise.all([
+          stripe.issuing.cards.list({ limit: 100 }),
+          stripe.issuing.transactions.list({ limit: 100, created: { gte: daysAgo } }),
+          stripe.issuing.authorizations.list({ limit: 100, created: { gte: daysAgo } })
+        ]);
+        issuingCards = cards.data || [];
+        issuingTransactions = txns.data || [];
+        issuingAuthorizations = auths.data || [];
+        console.log("[STRIPE-FORENSICS] Issuing data fetched:", { 
+          cards: issuingCards.length, 
+          transactions: issuingTransactions.length 
+        });
+      } catch (e) {
+        console.log("[STRIPE-FORENSICS] Issuing not enabled or no access");
       }
 
+      // Build unified money flow timeline
+      const moneyFlow: MoneyFlowEvent[] = [];
+
+      // INFLOWS: Charges (payments received)
+      (charges.data || []).forEach((charge: any) => {
+        if (charge.status === 'succeeded') {
+          moneyFlow.push({
+            id: charge.id,
+            type: 'inflow',
+            category: 'payment',
+            amount: charge.amount,
+            currency: charge.currency,
+            timestamp: charge.created,
+            source: charge.billing_details?.email || charge.customer || 'customer',
+            destination: 'stripe_balance',
+            description: `Payment received${charge.description ? ': ' + charge.description : ''}`,
+            metadata: {
+              paymentMethod: charge.payment_method_details?.type,
+              cardBrand: charge.payment_method_details?.card?.brand,
+              cardLast4: charge.payment_method_details?.card?.last4,
+              country: charge.payment_method_details?.card?.country,
+              customer: charge.customer,
+              receiptUrl: charge.receipt_url
+            },
+            status: charge.status
+          });
+        }
+      });
+
+      // INFLOWS: Top-ups
+      (topups.data || []).forEach((topup: any) => {
+        if (topup.status === 'succeeded') {
+          moneyFlow.push({
+            id: topup.id,
+            type: 'inflow',
+            category: 'topup',
+            amount: topup.amount,
+            currency: topup.currency,
+            timestamp: topup.created,
+            source: topup.source?.bank_name || 'bank_account',
+            destination: 'stripe_balance',
+            description: `Balance top-up from bank`,
+            metadata: {
+              bankName: topup.source?.bank_name,
+              last4: topup.source?.last4,
+              statementDescriptor: topup.statement_descriptor
+            },
+            status: topup.status
+          });
+        }
+      });
+
+      // OUTFLOWS: Payouts (money leaving to bank/card)
+      (payouts.data || []).forEach((payout: any) => {
+        moneyFlow.push({
+          id: payout.id,
+          type: 'outflow',
+          category: payout.method === 'instant' ? 'instant_payout' : 'payout',
+          amount: payout.amount,
+          currency: payout.currency,
+          timestamp: payout.created,
+          source: 'stripe_balance',
+          destination: payout.destination || 'external_account',
+          description: `Payout to ${payout.type === 'card' ? 'debit card' : 'bank account'}`,
+          metadata: {
+            method: payout.method,
+            type: payout.type,
+            arrivalDate: payout.arrival_date,
+            statementDescriptor: payout.statement_descriptor,
+            automatic: payout.automatic,
+            destinationId: payout.destination
+          },
+          status: payout.status,
+          traceId: payout.trace_id?.value
+        });
+      });
+
+      // OUTFLOWS: Refunds
+      (refunds.data || []).forEach((refund: any) => {
+        moneyFlow.push({
+          id: refund.id,
+          type: 'outflow',
+          category: 'refund',
+          amount: refund.amount,
+          currency: refund.currency,
+          timestamp: refund.created,
+          source: 'stripe_balance',
+          destination: refund.destination_details?.card?.last4 || 'customer',
+          description: `Refund${refund.reason ? ': ' + refund.reason : ''}`,
+          metadata: {
+            reason: refund.reason,
+            chargeId: refund.charge,
+            receiptNumber: refund.receipt_number
+          },
+          status: refund.status
+        });
+      });
+
+      // OUTFLOWS: Transfers (Connect payouts to connected accounts)
+      (transfers.data || []).forEach((transfer: any) => {
+        moneyFlow.push({
+          id: transfer.id,
+          type: 'outflow',
+          category: 'transfer',
+          amount: transfer.amount,
+          currency: transfer.currency,
+          timestamp: transfer.created,
+          source: 'stripe_balance',
+          destination: transfer.destination || 'connected_account',
+          description: `Transfer to connected account`,
+          metadata: {
+            destinationAccount: transfer.destination,
+            sourceTransaction: transfer.source_transaction,
+            reversals: transfer.reversals?.total_count || 0
+          },
+          status: transfer.reversed ? 'reversed' : 'completed'
+        });
+      });
+
+      // OUTFLOWS: Issuing Transactions (card spend)
+      issuingTransactions.forEach((txn: any) => {
+        moneyFlow.push({
+          id: txn.id,
+          type: 'outflow',
+          category: 'card_spend',
+          amount: Math.abs(txn.amount),
+          currency: txn.currency,
+          timestamp: txn.created,
+          source: txn.card || 'issued_card',
+          destination: txn.merchant_data?.name || 'merchant',
+          description: `Card purchase: ${txn.merchant_data?.name || 'Unknown merchant'}`,
+          metadata: {
+            cardId: txn.card,
+            merchantName: txn.merchant_data?.name,
+            merchantCategory: txn.merchant_data?.category,
+            merchantCity: txn.merchant_data?.city,
+            merchantCountry: txn.merchant_data?.country,
+            authorizationId: txn.authorization
+          },
+          status: txn.type
+        });
+      });
+
+      // Sort by timestamp descending
+      moneyFlow.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Calculate summaries
+      const totalInflow = moneyFlow
+        .filter(f => f.type === 'inflow')
+        .reduce((sum, f) => sum + f.amount, 0);
+      
+      const totalOutflow = moneyFlow
+        .filter(f => f.type === 'outflow')
+        .reduce((sum, f) => sum + f.amount, 0);
+
+      const flowByCategory: Record<string, { count: number; amount: number }> = {};
+      moneyFlow.forEach(f => {
+        if (!flowByCategory[f.category]) {
+          flowByCategory[f.category] = { count: 0, amount: 0 };
+        }
+        flowByCategory[f.category].count++;
+        flowByCategory[f.category].amount += f.amount;
+      });
+
+      // Destination analysis (who received money)
+      const destinationAnalysis: Record<string, { count: number; amount: number; type: string }> = {};
+      moneyFlow.filter(f => f.type === 'outflow').forEach(f => {
+        const dest = f.destination;
+        if (!destinationAnalysis[dest]) {
+          destinationAnalysis[dest] = { count: 0, amount: 0, type: f.category };
+        }
+        destinationAnalysis[dest].count++;
+        destinationAnalysis[dest].amount += f.amount;
+      });
+
+      return new Response(
+        JSON.stringify({
+          moneyFlow,
+          summary: {
+            totalInflow: totalInflow / 100,
+            totalOutflow: totalOutflow / 100,
+            netFlow: (totalInflow - totalOutflow) / 100,
+            transactionCount: moneyFlow.length,
+            flowByCategory: Object.fromEntries(
+              Object.entries(flowByCategory).map(([k, v]) => [k, { ...v, amount: v.amount / 100 }])
+            ),
+            destinationAnalysis: Object.fromEntries(
+              Object.entries(destinationAnalysis)
+                .sort(([, a], [, b]) => b.amount - a.amount)
+                .slice(0, 20)
+                .map(([k, v]) => [k, { ...v, amount: v.amount / 100 }])
+            )
+          },
+          balance,
+          issuing: {
+            enabled: issuingCards.length > 0 || issuingTransactions.length > 0,
+            cards: issuingCards.map((c: any) => ({
+              id: c.id,
+              last4: c.last4,
+              brand: c.brand,
+              type: c.type,
+              status: c.status,
+              cardholder: c.cardholder?.name,
+              spendingControls: c.spending_controls
+            })),
+            transactions: issuingTransactions.length,
+            pendingAuthorizations: issuingAuthorizations.filter((a: any) => a.status === 'pending').length
+          },
+          period: { days, from: new Date(daysAgo * 1000).toISOString(), to: new Date().toISOString() }
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ==================== FULL AUDIT ====================
+    if (action === "full-audit") {
       // Comprehensive audit - fetch everything with pagination
       const [
         balance,
