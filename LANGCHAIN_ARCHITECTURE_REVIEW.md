@@ -10,15 +10,16 @@ This document provides a comprehensive analysis of the LangChain/AI agent setup 
 
 ### Package Dependencies
 
+**UPDATE (December 2024):** The unused LangChain packages have been removed from the frontend as they were not being utilized. The AI functionality is implemented via direct API calls in Supabase Edge Functions.
+
 ```json
-{
-  "@langchain/anthropic": "^1.2.3",
-  "@langchain/core": "^1.1.4",
-  "langchain": "^1.1.5"
-}
+// Previously installed but now removed (unused):
+// "@langchain/anthropic": "^1.2.3",
+// "@langchain/core": "^1.1.4",
+// "langchain": "^1.1.5"
 ```
 
-**Note:** While LangChain packages are installed in `package.json`, the current implementation primarily uses **direct API calls** to AI providers (Anthropic, OpenAI, Google Gemini) rather than LangChain abstractions in the Supabase Edge Functions.
+**Note:** The implementation uses **direct API calls** to AI providers (Anthropic, OpenAI, Google Gemini) in the Supabase Edge Functions rather than LangChain abstractions.
 
 ### Agent Ecosystem
 
@@ -110,13 +111,13 @@ This document provides a comprehensive analysis of the LangChain/AI agent setup 
 
 ## ❌ CONS - Areas for Improvement
 
-### 1. **Underutilized LangChain Packages**
-- ❌ LangChain packages are installed but NOT used in edge functions
-- ❌ Edge functions use direct API calls instead of LangChain abstractions
-- ❌ Missing LangChain benefits: chains, output parsers, structured output
-- ❌ Package bloat - dependencies add to bundle size without benefit
+### 1. **~~Underutilized LangChain Packages~~ ✅ RESOLVED**
+- ~~❌ LangChain packages are installed but NOT used in edge functions~~
+- ~~❌ Edge functions use direct API calls instead of LangChain abstractions~~
+- ~~❌ Missing LangChain benefits: chains, output parsers, structured output~~
+- ~~❌ Package bloat - dependencies add to bundle size without benefit~~
 
-**Impact:** Maintaining two patterns (LangChain in frontend, direct API in backend) creates cognitive overhead.
+**UPDATE:** Unused LangChain dependencies have been removed from package.json (December 2024).
 
 ### 2. **Code Duplication Across Agents**
 - ❌ Tool definitions are duplicated in 3+ files:
@@ -281,29 +282,17 @@ function executeClientControl(supabase, args) {
 
 ### Medium Priority
 
-#### 5. **Remove Unused LangChain Dependencies (Effort: Low)**
+#### 5. **~~Remove Unused LangChain Dependencies~~ ✅ COMPLETED**
 
-If not using LangChain in edge functions, remove from `package.json`:
+The following packages have been removed from `package.json` (December 2024):
 ```json
-// Remove these if not using in frontend:
+// REMOVED:
 "@langchain/anthropic": "^1.2.3",
 "@langchain/core": "^1.1.4",
 "langchain": "^1.1.5"
 ```
 
-Or migrate to using LangChain properly:
-```typescript
-import { ChatAnthropic } from "@langchain/anthropic";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-
-const model = new ChatAnthropic({
-  model: "claude-sonnet-4-20250514",
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-// Use LangChain's tool binding
-const modelWithTools = model.bindTools(tools);
-```
+This reduced the dependency count from 423 to 367 packages and reduced vulnerabilities.
 
 #### 6. **Implement Cost Tracking (Effort: Medium)**
 

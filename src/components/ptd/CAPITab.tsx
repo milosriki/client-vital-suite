@@ -104,7 +104,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
 
   const calculateEMQ = (hashedPayload: any): number => {
     let score = 0;
-    let maxScore = 10;
+    const maxScore = 10;
     
     // fbp = 3 points
     if (hashedPayload.user_data.fbp) score += 3;
