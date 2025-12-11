@@ -54,17 +54,31 @@ export default function PTDUnlimitedChat() {
     try {
       const { data, error } = await supabase
         .from('agent_memory')
-        .select('query, response')
+        .select('query, response, knowledge_extracted')
         .eq('thread_id', tid)
         .order('created_at', { ascending: true });
       
       if (!error && data && data.length > 0) {
         const loadedMessages: { role: string; content: string }[] = [];
+        const loadedFiles: { name: string; content: string }[] = [];
+        
         data.forEach(item => {
+          // Check if this is a document upload entry
+          const knowledge = item.knowledge_extracted as any;
+          if (knowledge?.type === 'document_upload') {
+            loadedFiles.push({ 
+              name: knowledge.filename, 
+              content: knowledge.preview || '' 
+            });
+          }
           loadedMessages.push({ role: 'user', content: item.query });
           loadedMessages.push({ role: 'ai', content: item.response });
         });
+        
         setMessages(loadedMessages);
+        if (loadedFiles.length > 0) {
+          setUploadedFiles(loadedFiles);
+        }
       }
     } catch (e) {
       console.error('Failed to load chat history:', e);
@@ -173,12 +187,32 @@ export default function PTDUnlimitedChat() {
         if (error) {
           toast.error(`Failed to process ${file.name}`);
         } else {
-          setUploadedFiles(prev => [...prev, { name: file.name, content: content.slice(0, 500) }]);
+          // Save full content (no size limit)
+          setUploadedFiles(prev => [...prev, { name: file.name, content }]);
+          
+          const responseMsg = `📚 Learned from **${file.name}**\n\n${data.chunks_created} knowledge chunks created.`;
+          const userQuery = `[Document Upload] ${file.name}`;
+          
+          // Save to agent_memory for persistence across sessions
+          await supabase.from('agent_memory').insert({
+            thread_id: threadId,
+            query: userQuery,
+            response: responseMsg,
+            knowledge_extracted: {
+              type: 'document_upload',
+              filename: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              chunks_created: data.chunks_created,
+              preview: content.slice(0, 1000) // Store preview for display
+            }
+          });
+          
           toast.success(`Agent learned from ${file.name}`);
-          setMessages(prev => [...prev, { 
-            role: "ai", 
-            content: `📚 Learned from **${file.name}**\n\n${data.chunks_created} knowledge chunks created.` 
-          }]);
+          setMessages(prev => [...prev, 
+            { role: "user", content: userQuery },
+            { role: "ai", content: responseMsg }
+          ]);
         }
       } catch (error) {
         toast.error(`Error reading ${file.name}`);
