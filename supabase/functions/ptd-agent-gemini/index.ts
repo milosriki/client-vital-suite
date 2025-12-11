@@ -896,6 +896,11 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         const { query, search_type = "auto" } = input;
         const q = String(query).trim();
         
+        // Input validation: prevent excessively long queries
+        if (q.length > 100) {
+          return JSON.stringify({ error: "Search query too long (max 100 characters)" });
+        }
+        
         // Auto-detect search type
         let detectedType = search_type;
         if (search_type === "auto") {
@@ -907,7 +912,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         
         console.log(`🔍 Universal search: "${q}" (type: ${detectedType})`);
         
-        // Prepare search patterns
+        // Prepare search patterns - Note: PostgREST properly escapes these parameters
         const phoneCleaned = q.replace(/\D/g, '');
         const searchLike = `%${q}%`;
         
@@ -1147,10 +1152,15 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           return JSON.stringify({ error: "Only SELECT queries are allowed" });
         }
         
-        // Prevent certain risky operations
-        const forbidden = ['drop', 'delete', 'insert', 'update', 'alter', 'create', 'truncate'];
-        if (forbidden.some(cmd => normalizedQuery.includes(cmd))) {
+        // Prevent certain risky operations - check word boundaries to avoid false positives
+        const forbiddenPattern = /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|execute|exec)\b/i;
+        if (forbiddenPattern.test(normalizedQuery)) {
           return JSON.stringify({ error: "Query contains forbidden operations" });
+        }
+        
+        // Additional security: prevent comments and multi-statement queries
+        if (normalizedQuery.includes('--') || normalizedQuery.includes('/*') || normalizedQuery.includes(';')) {
+          return JSON.stringify({ error: "Query contains forbidden characters (comments or multiple statements)" });
         }
         
         try {
@@ -1162,9 +1172,9 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           
           return JSON.stringify({ results: data });
         } catch (e) {
-          // If RPC doesn't exist, try direct query (less safe but functional)
-          console.log("execute_sql_query RPC not found, attempting direct query");
-          return JSON.stringify({ error: "SQL query execution not available - RPC function not configured" });
+          // RPC function not configured - do not attempt direct query for security
+          console.log("execute_sql_query RPC not found");
+          return JSON.stringify({ error: "SQL query execution not available - RPC function not configured. Use specific tools for data queries." });
         }
       }
 

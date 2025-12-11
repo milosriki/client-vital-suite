@@ -718,12 +718,23 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
       
       // TOOL 13: SQL Query
       case "run_sql_query": {
-        const query = args.query.trim().toLowerCase();
-        if (!query.startsWith('select')) {
+        const query = args.query.trim();
+        const normalizedQuery = query.toLowerCase();
+        
+        // Security: Only allow SELECT queries
+        if (!normalizedQuery.startsWith('select')) {
           return "Error: Only SELECT queries are allowed";
         }
-        if (query.includes('delete') || query.includes('update') || query.includes('insert') || query.includes('drop') || query.includes('alter')) {
-          return "Error: Modifying queries are not allowed";
+        
+        // Prevent certain risky operations - check word boundaries to avoid false positives
+        const forbiddenPattern = /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|execute|exec)\b/i;
+        if (forbiddenPattern.test(normalizedQuery)) {
+          return "Error: Query contains forbidden operations";
+        }
+        
+        // Additional security: prevent comments and multi-statement queries
+        if (normalizedQuery.includes('--') || normalizedQuery.includes('/*') || normalizedQuery.includes(';')) {
+          return "Error: Query contains forbidden characters (comments or multiple statements)";
         }
         
         return "SQL RPC not available. Use the specific tools instead for data queries.";
@@ -732,6 +743,11 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
       case "universal_search": {
         const { query, search_type = "auto" } = args;
         const q = String(query).trim();
+        
+        // Input validation: prevent excessively long queries
+        if (q.length > 100) {
+          return JSON.stringify({ error: "Search query too long (max 100 characters)" });
+        }
         
         // Auto-detect search type
         let detectedType = search_type;
@@ -744,7 +760,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         
         console.log(`🔍 Universal search: "${q}" (type: ${detectedType})`);
         
-        // Prepare search patterns
+        // Prepare search patterns - Note: PostgREST properly escapes these parameters
         const phoneCleaned = q.replace(/\D/g, '');
         const searchLike = `%${q}%`;
         
