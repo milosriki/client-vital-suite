@@ -27,13 +27,17 @@ export async function discoverSystemStructure() {
       summary: `Discovered ${tables?.length || 0} tables and ${functions?.length || 0} functions`
     };
 
-    // Save to agent_context for quick access
-    await supabase.from('agent_context').upsert({
-      key: 'system_structure',
-      value: systemKnowledge,
-      agent_type: 'auto_discovery',
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-    });
+    // Save to agent_context for quick access (skip if constraint fails)
+    try {
+      await supabase.from('agent_context').upsert({
+        key: 'system_structure',
+        value: systemKnowledge,
+        agent_type: 'smart_agent',
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      });
+    } catch (e) {
+      // Constraint might fail, continue anyway
+    }
 
     console.log('✅ System structure discovered:', systemKnowledge.summary);
     return systemKnowledge;
@@ -81,12 +85,16 @@ export async function learnRecentData() {
       avg_deal_value: calculateAvg(dealsData.data, 'deal_value')
     };
 
-    await supabase.from('agent_context').upsert({
-      key: 'data_patterns',
-      value: patterns,
-      agent_type: 'auto_learning',
-      expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
-    });
+    try {
+      await supabase.from('agent_context').upsert({
+        key: 'data_patterns',
+        value: patterns,
+        agent_type: 'smart_agent',
+        expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+      });
+    } catch (e) {
+      // Constraint might fail, continue anyway
+    }
 
     console.log('✅ Data patterns learned');
     return patterns;

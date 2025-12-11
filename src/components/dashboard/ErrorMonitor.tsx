@@ -14,8 +14,7 @@ export function ErrorMonitor() {
             const { data } = await supabase
                 .from("sync_errors")
                 .select("*")
-                .in("severity", ["critical", "high"])
-                .eq("resolved", false)
+                .is("resolved_at", null)
                 .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
                 .order("created_at", { ascending: false })
                 .limit(5);
@@ -49,7 +48,7 @@ export function ErrorMonitor() {
     const resolveError = async (errorId: string) => {
         await supabase
             .from("sync_errors")
-            .update({ resolved: true, resolved_at: new Date().toISOString() })
+            .update({ resolved_at: new Date().toISOString() })
             .eq("id", errorId);
         refetch();
     };
@@ -58,15 +57,15 @@ export function ErrorMonitor() {
         if (!errors) return;
         await supabase
             .from("sync_errors")
-            .update({ resolved: true, resolved_at: new Date().toISOString() })
+            .update({ resolved_at: new Date().toISOString() })
             .in("id", errors.map(e => e.id));
         refetch();
     };
 
     if (isLoading || !errors || errors.length === 0) return null;
 
-    const criticalCount = errors.filter(e => e.severity === 'critical').length;
-    const highCount = errors.filter(e => e.severity === 'high').length;
+    const criticalCount = errors.filter(e => e.error_type === 'critical' || e.error_type === 'error').length;
+    const highCount = errors.length - criticalCount;
 
     return (
         <Alert variant="destructive" className="mb-6 border-red-900 bg-red-950/50 text-red-200">
@@ -103,7 +102,7 @@ export function ErrorMonitor() {
                         className="flex items-center justify-between text-xs font-mono opacity-90"
                     >
                         <span>
-                            [{error.severity?.toUpperCase()}] {error.platform}: {error.error_message}
+                            [{error.error_type?.toUpperCase() || 'ERROR'}] {error.platform}: {error.error_message}
                             <span className="text-red-400/70 ml-2">
                                 ({new Date(error.created_at).toLocaleTimeString()})
                             </span>
