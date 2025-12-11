@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StripeMoneyFlowTab } from "./StripeMoneyFlowTab";
+import { StripeCompleteIntelligence } from "./StripeCompleteIntelligence";
 
 interface StripeForensicsTabProps {
   mode: "test" | "live";
@@ -368,8 +369,12 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
       </div>
 
       {/* Detailed Tabs */}
-      <Tabs defaultValue="money-flow" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+      <Tabs defaultValue="complete-intel" className="w-full">
+        <TabsList className="grid w-full grid-cols-8">
+          <TabsTrigger value="complete-intel" className="gap-1">
+            <Shield className="h-4 w-4" />
+            Full Intel
+          </TabsTrigger>
           <TabsTrigger value="money-flow" className="gap-1">
             <ArrowLeftRight className="h-4 w-4" />
             Money Flow
@@ -399,6 +404,11 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
             Disputes
           </TabsTrigger>
         </TabsList>
+
+        {/* Complete Intelligence Tab */}
+        <TabsContent value="complete-intel">
+          <StripeCompleteIntelligence mode={mode} />
+        </TabsContent>
 
         {/* Money Flow Tab */}
         <TabsContent value="money-flow">

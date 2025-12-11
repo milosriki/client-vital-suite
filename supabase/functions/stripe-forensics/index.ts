@@ -77,10 +77,11 @@ serve(async (req) => {
       return { data: allItems };
     }
 
-    // ==================== MONEY FLOW TRACKER ====================
-    if (action === "money-flow") {
-      console.log("[STRIPE-FORENSICS] Fetching complete money flow...");
+    // ==================== COMPLETE MONEY INTELLIGENCE ====================
+    if (action === "complete-intelligence") {
+      console.log("[STRIPE-FORENSICS] Running Complete Money Intelligence...");
 
+      // Core data fetch
       const [
         balance,
         payouts,
@@ -89,7 +90,10 @@ serve(async (req) => {
         refunds,
         transfers,
         topups,
-        account
+        account,
+        disputes,
+        customers,
+        events
       ] = await Promise.all([
         stripe.balance.retrieve().catch(() => null),
         fetchAllStripe(stripe.payouts, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
@@ -98,35 +102,324 @@ serve(async (req) => {
         fetchAllStripe(stripe.refunds, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
         fetchAllStripe(stripe.transfers, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
         stripe.topups.list({ limit: 100, created: { gte: daysAgo } }).catch(() => ({ data: [] })),
-        stripe.accounts.retrieve().catch(() => null)
+        stripe.accounts.retrieve().catch(() => null),
+        fetchAllStripe(stripe.disputes, {}).catch(() => ({ data: [] })),
+        stripe.customers.list({ limit: 100 }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.events, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] }))
       ]);
 
-      // Try to fetch Issuing data (may fail if not enabled)
-      let issuingCards: any[] = [];
-      let issuingTransactions: any[] = [];
-      let issuingAuthorizations: any[] = [];
-      
+      // ====== ISSUING (Card Spend Tracking) ======
+      let issuing = {
+        enabled: false,
+        cards: [] as any[],
+        cardholders: [] as any[],
+        transactions: [] as any[],
+        authorizations: [] as any[],
+        disputes: [] as any[],
+        totalSpend: 0,
+        pendingAuth: 0
+      };
+
       try {
-        const [cards, txns, auths] = await Promise.all([
+        const [cards, cardholders, txns, auths, issuingDisputes] = await Promise.all([
           stripe.issuing.cards.list({ limit: 100 }),
+          stripe.issuing.cardholders.list({ limit: 100 }),
           stripe.issuing.transactions.list({ limit: 100, created: { gte: daysAgo } }),
-          stripe.issuing.authorizations.list({ limit: 100, created: { gte: daysAgo } })
+          stripe.issuing.authorizations.list({ limit: 100, created: { gte: daysAgo } }),
+          stripe.issuing.disputes.list({ limit: 100 }).catch(() => ({ data: [] }))
         ]);
-        issuingCards = cards.data || [];
-        issuingTransactions = txns.data || [];
-        issuingAuthorizations = auths.data || [];
+        
+        issuing = {
+          enabled: true,
+          cards: cards.data.map((c: any) => ({
+            id: c.id,
+            last4: c.last4,
+            brand: c.brand,
+            type: c.type,
+            status: c.status,
+            cardholderName: c.cardholder?.name,
+            cardholderId: c.cardholder?.id,
+            spendingControls: c.spending_controls,
+            created: c.created,
+            expMonth: c.exp_month,
+            expYear: c.exp_year
+          })),
+          cardholders: cardholders.data.map((ch: any) => ({
+            id: ch.id,
+            name: ch.name,
+            email: ch.email,
+            phone: ch.phone_number,
+            status: ch.status,
+            type: ch.type,
+            created: ch.created,
+            company: ch.company?.name
+          })),
+          transactions: txns.data.map((t: any) => ({
+            id: t.id,
+            amount: t.amount,
+            currency: t.currency,
+            type: t.type,
+            cardId: t.card,
+            cardLast4: t.card?.last4,
+            merchantName: t.merchant_data?.name,
+            merchantCategory: t.merchant_data?.category,
+            merchantCategoryCode: t.merchant_data?.category_code,
+            merchantCity: t.merchant_data?.city,
+            merchantCountry: t.merchant_data?.country,
+            merchantPostalCode: t.merchant_data?.postal_code,
+            created: t.created,
+            authorizationId: t.authorization
+          })),
+          authorizations: auths.data.map((a: any) => ({
+            id: a.id,
+            amount: a.amount,
+            currency: a.currency,
+            status: a.status,
+            approved: a.approved,
+            cardId: a.card?.id,
+            cardLast4: a.card?.last4,
+            merchantName: a.merchant_data?.name,
+            merchantCategory: a.merchant_data?.category,
+            merchantCity: a.merchant_data?.city,
+            merchantCountry: a.merchant_data?.country,
+            created: a.created,
+            authorizationMethod: a.authorization_method
+          })),
+          disputes: issuingDisputes.data || [],
+          totalSpend: txns.data.reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0),
+          pendingAuth: auths.data.filter((a: any) => a.status === 'pending').length
+        };
         console.log("[STRIPE-FORENSICS] Issuing data fetched:", { 
-          cards: issuingCards.length, 
-          transactions: issuingTransactions.length 
+          cards: issuing.cards.length, 
+          transactions: issuing.transactions.length,
+          cardholders: issuing.cardholders.length
         });
       } catch (e) {
-        console.log("[STRIPE-FORENSICS] Issuing not enabled or no access");
+        console.log("[STRIPE-FORENSICS] Issuing not enabled:", e);
       }
 
-      // Build unified money flow timeline
+      // ====== TREASURY (Financial Accounts) ======
+      let treasury = {
+        enabled: false,
+        financialAccounts: [] as any[],
+        transactions: [] as any[],
+        inboundTransfers: [] as any[],
+        outboundTransfers: [] as any[],
+        outboundPayments: [] as any[],
+        receivedCredits: [] as any[],
+        receivedDebits: [] as any[],
+        totalBalance: 0
+      };
+
+      try {
+        const [financialAccounts] = await Promise.all([
+          stripe.treasury.financialAccounts.list({ limit: 100 })
+        ]);
+        
+        if (financialAccounts.data.length > 0) {
+          const faIds = financialAccounts.data.map((fa: any) => fa.id);
+          
+          // Fetch transactions for each FA
+          const allTxns: any[] = [];
+          const allInbound: any[] = [];
+          const allOutbound: any[] = [];
+          const allOutboundPayments: any[] = [];
+          const allReceivedCredits: any[] = [];
+          const allReceivedDebits: any[] = [];
+
+          for (const faId of faIds) {
+            try {
+              const [txns, inbound, outbound, outPay, recCred, recDeb] = await Promise.all([
+                stripe.treasury.transactions.list({ financial_account: faId, limit: 100 }).catch(() => ({ data: [] })),
+                stripe.treasury.inboundTransfers.list({ financial_account: faId, limit: 100 }).catch(() => ({ data: [] })),
+                stripe.treasury.outboundTransfers.list({ financial_account: faId, limit: 100 }).catch(() => ({ data: [] })),
+                stripe.treasury.outboundPayments.list({ financial_account: faId, limit: 100 }).catch(() => ({ data: [] })),
+                stripe.treasury.receivedCredits.list({ financial_account: faId, limit: 100 }).catch(() => ({ data: [] })),
+                stripe.treasury.receivedDebits.list({ financial_account: faId, limit: 100 }).catch(() => ({ data: [] }))
+              ]);
+              allTxns.push(...(txns.data || []));
+              allInbound.push(...(inbound.data || []));
+              allOutbound.push(...(outbound.data || []));
+              allOutboundPayments.push(...(outPay.data || []));
+              allReceivedCredits.push(...(recCred.data || []));
+              allReceivedDebits.push(...(recDeb.data || []));
+            } catch (e) {
+              console.log(`[STRIPE-FORENSICS] Error fetching Treasury data for ${faId}:`, e);
+            }
+          }
+
+          treasury = {
+            enabled: true,
+            financialAccounts: financialAccounts.data.map((fa: any) => ({
+              id: fa.id,
+              status: fa.status,
+              balance: fa.balance,
+              supportedCurrencies: fa.supported_currencies,
+              activeFeatures: fa.active_features,
+              pendingFeatures: fa.pending_features,
+              restrictedFeatures: fa.restricted_features,
+              financialAddresses: fa.financial_addresses,
+              livemode: fa.livemode,
+              created: fa.created
+            })),
+            transactions: allTxns.map((t: any) => ({
+              id: t.id,
+              amount: t.amount,
+              currency: t.currency,
+              status: t.status,
+              flowType: t.flow_type,
+              flowDetails: t.flow_details,
+              created: t.created,
+              description: t.description
+            })),
+            inboundTransfers: allInbound.map((t: any) => ({
+              id: t.id,
+              amount: t.amount,
+              currency: t.currency,
+              status: t.status,
+              originPaymentMethod: t.origin_payment_method,
+              originPaymentMethodDetails: t.origin_payment_method_details,
+              created: t.created,
+              statementDescriptor: t.statement_descriptor,
+              failureDetails: t.failure_details
+            })),
+            outboundTransfers: allOutbound.map((t: any) => ({
+              id: t.id,
+              amount: t.amount,
+              currency: t.currency,
+              status: t.status,
+              destination: t.destination_payment_method,
+              created: t.created,
+              expectedArrivalDate: t.expected_arrival_date,
+              statementDescriptor: t.statement_descriptor,
+              trackingDetails: t.tracking_details
+            })),
+            outboundPayments: allOutboundPayments.map((p: any) => ({
+              id: p.id,
+              amount: p.amount,
+              currency: p.currency,
+              status: p.status,
+              destinationType: p.destination_payment_method_details?.type,
+              created: p.created,
+              expectedArrivalDate: p.expected_arrival_date,
+              statementDescriptor: p.statement_descriptor
+            })),
+            receivedCredits: allReceivedCredits,
+            receivedDebits: allReceivedDebits,
+            totalBalance: financialAccounts.data.reduce((sum: number, fa: any) => {
+              return sum + (fa.balance?.cash?.usd || 0) + (fa.balance?.inbound_pending?.usd || 0);
+            }, 0)
+          };
+          console.log("[STRIPE-FORENSICS] Treasury data fetched:", { 
+            accounts: treasury.financialAccounts.length,
+            transactions: treasury.transactions.length,
+            inbound: treasury.inboundTransfers.length,
+            outbound: treasury.outboundTransfers.length
+          });
+        }
+      } catch (e) {
+        console.log("[STRIPE-FORENSICS] Treasury not enabled:", e);
+      }
+
+      // ====== TERMINAL (POS Configuration) ======
+      let terminal = {
+        enabled: false,
+        readers: [] as any[],
+        locations: [] as any[],
+        configurations: [] as any[],
+        connectionTokens: 0
+      };
+
+      try {
+        const [readers, locations, configs] = await Promise.all([
+          stripe.terminal.readers.list({ limit: 100 }),
+          stripe.terminal.locations.list({ limit: 100 }),
+          stripe.terminal.configurations.list({ limit: 100 })
+        ]);
+        
+        terminal = {
+          enabled: true,
+          readers: readers.data.map((r: any) => ({
+            id: r.id,
+            deviceType: r.device_type,
+            label: r.label,
+            status: r.status,
+            location: r.location,
+            serialNumber: r.serial_number,
+            deviceSwVersion: r.device_sw_version,
+            ipAddress: r.ip_address,
+            lastSeenAt: r.last_seen_at,
+            livemode: r.livemode
+          })),
+          locations: locations.data.map((l: any) => ({
+            id: l.id,
+            displayName: l.display_name,
+            address: l.address,
+            configurationOverrides: l.configuration_overrides,
+            livemode: l.livemode
+          })),
+          configurations: configs.data.map((c: any) => ({
+            id: c.id,
+            isAccountDefault: c.is_account_default,
+            name: c.name,
+            offline: c.offline,
+            rebootWindow: c.reboot_window,
+            tipping: c.tipping,
+            livemode: c.livemode
+          })),
+          connectionTokens: 0
+        };
+        console.log("[STRIPE-FORENSICS] Terminal data fetched:", {
+          readers: terminal.readers.length,
+          locations: terminal.locations.length,
+          configs: terminal.configurations.length
+        });
+      } catch (e) {
+        console.log("[STRIPE-FORENSICS] Terminal not enabled:", e);
+      }
+
+      // ====== CASH BALANCE (Customer Prepaid Funds) ======
+      let cashBalances: any[] = [];
+      try {
+        // Fetch customers with cash balance
+        const customersWithCash = (customers.data || []).filter((c: any) => c.cash_balance);
+        
+        for (const customer of customersWithCash.slice(0, 20)) {
+          try {
+            const cashBalance = await stripe.customers.retrieveCashBalance(customer.id);
+            const cashTxns = await stripe.customers.listCashBalanceTransactions(customer.id, { limit: 50 });
+            
+            cashBalances.push({
+              customerId: customer.id,
+              customerEmail: customer.email,
+              customerName: customer.name,
+              balance: cashBalance.available,
+              livemode: cashBalance.livemode,
+              transactions: (cashTxns.data || []).map((t: any) => ({
+                id: t.id,
+                type: t.type,
+                amount: t.net_amount,
+                currency: t.currency,
+                endingBalance: t.ending_balance,
+                created: t.created,
+                funded: t.funded,
+                appliedToPayment: t.applied_to_payment,
+                refunded: t.refunded_from_payment
+              }))
+            });
+          } catch (e) {
+            // Skip if cash balance not available
+          }
+        }
+        console.log("[STRIPE-FORENSICS] Cash balances fetched:", cashBalances.length);
+      } catch (e) {
+        console.log("[STRIPE-FORENSICS] Cash balance fetch error:", e);
+      }
+
+      // ====== BUILD UNIFIED MONEY FLOW TIMELINE ======
       const moneyFlow: MoneyFlowEvent[] = [];
 
-      // INFLOWS: Charges (payments received)
+      // INFLOWS: Charges
       (charges.data || []).forEach((charge: any) => {
         if (charge.status === 'succeeded') {
           moneyFlow.push({
@@ -143,9 +436,12 @@ serve(async (req) => {
               paymentMethod: charge.payment_method_details?.type,
               cardBrand: charge.payment_method_details?.card?.brand,
               cardLast4: charge.payment_method_details?.card?.last4,
-              country: charge.payment_method_details?.card?.country,
+              cardCountry: charge.payment_method_details?.card?.country,
+              cardFunding: charge.payment_method_details?.card?.funding,
               customer: charge.customer,
-              receiptUrl: charge.receipt_url
+              receiptUrl: charge.receipt_url,
+              riskScore: charge.outcome?.risk_score,
+              riskLevel: charge.outcome?.risk_level
             },
             status: charge.status
           });
@@ -175,7 +471,41 @@ serve(async (req) => {
         }
       });
 
-      // OUTFLOWS: Payouts (money leaving to bank/card)
+      // INFLOWS: Treasury Inbound Transfers
+      treasury.inboundTransfers.forEach((t: any) => {
+        moneyFlow.push({
+          id: t.id,
+          type: 'inflow',
+          category: 'treasury_inbound',
+          amount: t.amount,
+          currency: t.currency,
+          timestamp: t.created,
+          source: t.originPaymentMethodDetails?.us_bank_account?.bank_name || 'external_bank',
+          destination: 'financial_account',
+          description: `Treasury inbound transfer`,
+          metadata: t,
+          status: t.status
+        });
+      });
+
+      // INFLOWS: Treasury Received Credits
+      treasury.receivedCredits.forEach((c: any) => {
+        moneyFlow.push({
+          id: c.id,
+          type: 'inflow',
+          category: 'treasury_credit',
+          amount: c.amount,
+          currency: c.currency,
+          timestamp: c.created,
+          source: c.initiating_payment_method_details?.type || 'external',
+          destination: 'financial_account',
+          description: `Treasury received credit`,
+          metadata: c,
+          status: c.status
+        });
+      });
+
+      // OUTFLOWS: Payouts
       (payouts.data || []).forEach((payout: any) => {
         moneyFlow.push({
           id: payout.id,
@@ -193,7 +523,9 @@ serve(async (req) => {
             arrivalDate: payout.arrival_date,
             statementDescriptor: payout.statement_descriptor,
             automatic: payout.automatic,
-            destinationId: payout.destination
+            destinationId: payout.destination,
+            failureCode: payout.failure_code,
+            failureMessage: payout.failure_message
           },
           status: payout.status,
           traceId: payout.trace_id?.value
@@ -221,7 +553,7 @@ serve(async (req) => {
         });
       });
 
-      // OUTFLOWS: Transfers (Connect payouts to connected accounts)
+      // OUTFLOWS: Transfers
       (transfers.data || []).forEach((transfer: any) => {
         moneyFlow.push({
           id: transfer.id,
@@ -242,8 +574,8 @@ serve(async (req) => {
         });
       });
 
-      // OUTFLOWS: Issuing Transactions (card spend)
-      issuingTransactions.forEach((txn: any) => {
+      // OUTFLOWS: Issuing Transactions
+      issuing.transactions.forEach((txn: any) => {
         moneyFlow.push({
           id: txn.id,
           type: 'outflow',
@@ -251,18 +583,54 @@ serve(async (req) => {
           amount: Math.abs(txn.amount),
           currency: txn.currency,
           timestamp: txn.created,
-          source: txn.card || 'issued_card',
-          destination: txn.merchant_data?.name || 'merchant',
-          description: `Card purchase: ${txn.merchant_data?.name || 'Unknown merchant'}`,
+          source: `card_${txn.cardLast4}`,
+          destination: txn.merchantName || 'merchant',
+          description: `Card purchase: ${txn.merchantName || 'Unknown merchant'}`,
           metadata: {
-            cardId: txn.card,
-            merchantName: txn.merchant_data?.name,
-            merchantCategory: txn.merchant_data?.category,
-            merchantCity: txn.merchant_data?.city,
-            merchantCountry: txn.merchant_data?.country,
-            authorizationId: txn.authorization
+            cardId: txn.cardId,
+            merchantName: txn.merchantName,
+            merchantCategory: txn.merchantCategory,
+            merchantCategoryCode: txn.merchantCategoryCode,
+            merchantCity: txn.merchantCity,
+            merchantCountry: txn.merchantCountry,
+            authorizationId: txn.authorizationId
           },
           status: txn.type
+        });
+      });
+
+      // OUTFLOWS: Treasury Outbound Transfers
+      treasury.outboundTransfers.forEach((t: any) => {
+        moneyFlow.push({
+          id: t.id,
+          type: 'outflow',
+          category: 'treasury_outbound',
+          amount: t.amount,
+          currency: t.currency,
+          timestamp: t.created,
+          source: 'financial_account',
+          destination: t.destination || 'external_bank',
+          description: `Treasury outbound transfer`,
+          metadata: t,
+          status: t.status,
+          traceId: t.trackingDetails?.ach?.trace_number
+        });
+      });
+
+      // OUTFLOWS: Treasury Outbound Payments
+      treasury.outboundPayments.forEach((p: any) => {
+        moneyFlow.push({
+          id: p.id,
+          type: 'outflow',
+          category: 'treasury_payment',
+          amount: p.amount,
+          currency: p.currency,
+          timestamp: p.created,
+          source: 'financial_account',
+          destination: p.destinationType || 'external',
+          description: `Treasury outbound payment`,
+          metadata: p,
+          status: p.status
         });
       });
 
@@ -270,13 +638,8 @@ serve(async (req) => {
       moneyFlow.sort((a, b) => b.timestamp - a.timestamp);
 
       // Calculate summaries
-      const totalInflow = moneyFlow
-        .filter(f => f.type === 'inflow')
-        .reduce((sum, f) => sum + f.amount, 0);
-      
-      const totalOutflow = moneyFlow
-        .filter(f => f.type === 'outflow')
-        .reduce((sum, f) => sum + f.amount, 0);
+      const totalInflow = moneyFlow.filter(f => f.type === 'inflow').reduce((sum, f) => sum + f.amount, 0);
+      const totalOutflow = moneyFlow.filter(f => f.type === 'outflow').reduce((sum, f) => sum + f.amount, 0);
 
       const flowByCategory: Record<string, { count: number; amount: number }> = {};
       moneyFlow.forEach(f => {
@@ -287,13 +650,207 @@ serve(async (req) => {
         flowByCategory[f.category].amount += f.amount;
       });
 
-      // Destination analysis (who received money)
+      // Destination analysis
       const destinationAnalysis: Record<string, { count: number; amount: number; type: string }> = {};
       moneyFlow.filter(f => f.type === 'outflow').forEach(f => {
-        const dest = f.destination;
+        const dest = String(f.destination).slice(0, 50);
         if (!destinationAnalysis[dest]) {
           destinationAnalysis[dest] = { count: 0, amount: 0, type: f.category };
         }
+        destinationAnalysis[dest].count++;
+        destinationAnalysis[dest].amount += f.amount;
+      });
+
+      // Anomaly detection
+      const anomalies: AnomalyResult[] = [];
+
+      // Check for instant payouts
+      const instantPayouts = (payouts.data || []).filter((p: any) => p.method === 'instant');
+      if (instantPayouts.length > 0) {
+        anomalies.push({
+          type: "INSTANT_PAYOUTS",
+          severity: "high",
+          message: `${instantPayouts.length} Instant Payouts detected`,
+          details: {
+            count: instantPayouts.length,
+            totalAmount: instantPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100
+          }
+        });
+      }
+
+      // Check for high payout velocity
+      const payoutDates = (payouts.data || []).map((p: any) => new Date(p.created * 1000).toDateString());
+      const payoutsPerDay = payoutDates.reduce((acc: Record<string, number>, date: string) => {
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+      Object.entries(payoutsPerDay).forEach(([date, count]) => {
+        if ((count as number) > 3) {
+          anomalies.push({
+            type: "HIGH_VELOCITY_PAYOUTS",
+            severity: "high",
+            message: `${count} payouts on ${date}`,
+            details: { date, count }
+          });
+        }
+      });
+
+      // Check for open disputes
+      const openDisputes = (disputes.data || []).filter((d: any) => 
+        d.status === 'needs_response' || d.status === 'under_review'
+      );
+      if (openDisputes.length > 0) {
+        anomalies.push({
+          type: "OPEN_DISPUTES",
+          severity: "high",
+          message: `${openDisputes.length} open disputes`,
+          details: { disputes: openDisputes.map((d: any) => ({ id: d.id, amount: d.amount / 100, reason: d.reason })) }
+        });
+      }
+
+      // Calculate security score
+      let securityScore = 100;
+      anomalies.forEach(a => {
+        if (a.severity === 'critical') securityScore -= 25;
+        else if (a.severity === 'high') securityScore -= 15;
+        else if (a.severity === 'medium') securityScore -= 10;
+        else securityScore -= 5;
+      });
+      securityScore = Math.max(0, securityScore);
+
+      return new Response(
+        JSON.stringify({
+          moneyFlow,
+          summary: {
+            totalInflow: totalInflow / 100,
+            totalOutflow: totalOutflow / 100,
+            netFlow: (totalInflow - totalOutflow) / 100,
+            transactionCount: moneyFlow.length,
+            flowByCategory: Object.fromEntries(
+              Object.entries(flowByCategory).map(([k, v]) => [k, { ...v, amount: v.amount / 100 }])
+            ),
+            destinationAnalysis: Object.fromEntries(
+              Object.entries(destinationAnalysis)
+                .sort(([, a], [, b]) => b.amount - a.amount)
+                .slice(0, 20)
+                .map(([k, v]) => [k, { ...v, amount: v.amount / 100 }])
+            )
+          },
+          balance,
+          account,
+          issuing,
+          treasury,
+          terminal,
+          cashBalances,
+          disputes: disputes.data || [],
+          anomalies,
+          securityScore,
+          period: { days, from: new Date(daysAgo * 1000).toISOString(), to: new Date().toISOString() }
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ==================== MONEY FLOW TRACKER (Simplified) ====================
+    if (action === "money-flow") {
+      console.log("[STRIPE-FORENSICS] Fetching money flow...");
+
+      const [balance, payouts, charges, refunds, transfers, topups] = await Promise.all([
+        stripe.balance.retrieve().catch(() => null),
+        fetchAllStripe(stripe.payouts, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.charges, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.refunds, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.transfers, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        stripe.topups.list({ limit: 100, created: { gte: daysAgo } }).catch(() => ({ data: [] }))
+      ]);
+
+      // Try to fetch Issuing data
+      let issuingCards: any[] = [];
+      let issuingTransactions: any[] = [];
+      try {
+        const [cards, txns] = await Promise.all([
+          stripe.issuing.cards.list({ limit: 100 }),
+          stripe.issuing.transactions.list({ limit: 100, created: { gte: daysAgo } })
+        ]);
+        issuingCards = cards.data || [];
+        issuingTransactions = txns.data || [];
+      } catch (e) {
+        console.log("[STRIPE-FORENSICS] Issuing not enabled");
+      }
+
+      const moneyFlow: MoneyFlowEvent[] = [];
+
+      // Build flow (simplified version of complete-intelligence)
+      (charges.data || []).forEach((charge: any) => {
+        if (charge.status === 'succeeded') {
+          moneyFlow.push({
+            id: charge.id, type: 'inflow', category: 'payment',
+            amount: charge.amount, currency: charge.currency,
+            timestamp: charge.created,
+            source: charge.billing_details?.email || 'customer',
+            destination: 'stripe_balance',
+            description: `Payment${charge.description ? ': ' + charge.description : ''}`,
+            metadata: { cardLast4: charge.payment_method_details?.card?.last4 },
+            status: charge.status
+          });
+        }
+      });
+
+      (payouts.data || []).forEach((payout: any) => {
+        moneyFlow.push({
+          id: payout.id, type: 'outflow',
+          category: payout.method === 'instant' ? 'instant_payout' : 'payout',
+          amount: payout.amount, currency: payout.currency,
+          timestamp: payout.created,
+          source: 'stripe_balance',
+          destination: payout.destination || 'bank',
+          description: `Payout to ${payout.type}`,
+          metadata: { method: payout.method },
+          status: payout.status,
+          traceId: payout.trace_id?.value
+        });
+      });
+
+      (refunds.data || []).forEach((refund: any) => {
+        moneyFlow.push({
+          id: refund.id, type: 'outflow', category: 'refund',
+          amount: refund.amount, currency: refund.currency,
+          timestamp: refund.created,
+          source: 'stripe_balance', destination: 'customer',
+          description: `Refund${refund.reason ? ': ' + refund.reason : ''}`,
+          metadata: { chargeId: refund.charge },
+          status: refund.status
+        });
+      });
+
+      issuingTransactions.forEach((txn: any) => {
+        moneyFlow.push({
+          id: txn.id, type: 'outflow', category: 'card_spend',
+          amount: Math.abs(txn.amount), currency: txn.currency,
+          timestamp: txn.created,
+          source: 'issued_card', destination: txn.merchant_data?.name || 'merchant',
+          description: `Card: ${txn.merchant_data?.name}`,
+          metadata: { merchantCategory: txn.merchant_data?.category },
+          status: txn.type
+        });
+      });
+
+      moneyFlow.sort((a, b) => b.timestamp - a.timestamp);
+
+      const totalInflow = moneyFlow.filter(f => f.type === 'inflow').reduce((sum, f) => sum + f.amount, 0);
+      const totalOutflow = moneyFlow.filter(f => f.type === 'outflow').reduce((sum, f) => sum + f.amount, 0);
+
+      const flowByCategory: Record<string, { count: number; amount: number }> = {};
+      moneyFlow.forEach(f => {
+        if (!flowByCategory[f.category]) flowByCategory[f.category] = { count: 0, amount: 0 };
+        flowByCategory[f.category].count++;
+        flowByCategory[f.category].amount += f.amount;
+      });
+
+      const destinationAnalysis: Record<string, { count: number; amount: number; type: string }> = {};
+      moneyFlow.filter(f => f.type === 'outflow').forEach(f => {
+        const dest = String(f.destination).slice(0, 50);
+        if (!destinationAnalysis[dest]) destinationAnalysis[dest] = { count: 0, amount: 0, type: f.category };
         destinationAnalysis[dest].count++;
         destinationAnalysis[dest].amount += f.amount;
       });
@@ -318,18 +875,10 @@ serve(async (req) => {
           },
           balance,
           issuing: {
-            enabled: issuingCards.length > 0 || issuingTransactions.length > 0,
-            cards: issuingCards.map((c: any) => ({
-              id: c.id,
-              last4: c.last4,
-              brand: c.brand,
-              type: c.type,
-              status: c.status,
-              cardholder: c.cardholder?.name,
-              spendingControls: c.spending_controls
-            })),
+            enabled: issuingCards.length > 0,
+            cards: issuingCards.map((c: any) => ({ id: c.id, last4: c.last4, status: c.status })),
             transactions: issuingTransactions.length,
-            pendingAuthorizations: issuingAuthorizations.filter((a: any) => a.status === 'pending').length
+            pendingAuthorizations: 0
           },
           period: { days, from: new Date(daysAgo * 1000).toISOString(), to: new Date().toISOString() }
         }),
@@ -339,221 +888,41 @@ serve(async (req) => {
 
     // ==================== FULL AUDIT ====================
     if (action === "full-audit") {
-      // Comprehensive audit - fetch everything with pagination
-      const [
-        balance,
-        payouts,
-        balanceTransactions,
-        payments,
-        refunds,
-        charges,
-        transfers,
-        events,
-        webhookEndpoints,
-        account,
-        customers,
-        disputes
-      ] = await Promise.all([
-        stripe.balance.retrieve().catch((e: Error) => {
-          console.error("Error fetching balance:", e.message);
-          return null;
-        }),
-        fetchAllStripe(stripe.payouts, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching payouts:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.balanceTransactions, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching balance transactions:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.paymentIntents, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching payments:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.refunds, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching refunds:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.charges, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching charges:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.transfers, { created: { gte: thirtyDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching transfers:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.events, { created: { gte: sevenDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching events:", e.message);
-          return { data: [] };
-        }),
-        stripe.webhookEndpoints.list({ limit: 100 }).catch((e: Error) => {
-          console.error("Error fetching webhooks:", e.message);
-          return { data: [] };
-        }),
-        stripe.accounts.retrieve().catch((e: Error) => {
-          console.error("Error fetching account:", e.message);
-          return null;
-        }),
-        fetchAllStripe(stripe.customers, { created: { gte: sevenDaysAgo } }).catch((e: Error) => {
-          console.error("Error fetching recent customers:", e.message);
-          return { data: [] };
-        }),
-        fetchAllStripe(stripe.disputes, {}).catch((e: Error) => {
-          console.error("Error fetching disputes:", e.message);
-          return { data: [] };
-        })
+      const [balance, payouts, balanceTransactions, payments, refunds, charges, transfers, events, webhookEndpoints, account, customers, disputes] = await Promise.all([
+        stripe.balance.retrieve().catch(() => null),
+        fetchAllStripe(stripe.payouts, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.balanceTransactions, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.paymentIntents, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.refunds, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.charges, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.transfers, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.events, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] })),
+        stripe.webhookEndpoints.list({ limit: 100 }).catch(() => ({ data: [] })),
+        stripe.accounts.retrieve().catch(() => null),
+        fetchAllStripe(stripe.customers, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.disputes, {}).catch(() => ({ data: [] }))
       ]);
 
-      // Analyze for anomalies
       const anomalies: AnomalyResult[] = [];
 
-      // 1. High Payout Ratio Analysis
-      const totalRevenue = (payments.data || []).reduce((sum: number, p: any) =>
-        p.status === 'succeeded' ? sum + p.amount : sum, 0);
-      const totalPayouts = (payouts.data || []).reduce((sum: number, p: any) =>
-        p.status === 'paid' ? sum + p.amount : sum, 0);
+      // Analyze for anomalies
+      const totalRevenue = (payments.data || []).reduce((sum: number, p: any) => p.status === 'succeeded' ? sum + p.amount : sum, 0);
+      const totalPayouts = (payouts.data || []).reduce((sum: number, p: any) => p.status === 'paid' ? sum + p.amount : sum, 0);
 
       if (totalRevenue > 0 && totalPayouts > totalRevenue * 0.8) {
-        anomalies.push({
-          type: "HIGH_PAYOUT_RATIO",
-          severity: "critical",
-          message: "Payouts exceed 80% of recent revenue",
-          details: { totalRevenue: totalRevenue / 100, totalPayouts: totalPayouts / 100, ratio: (totalPayouts / totalRevenue * 100).toFixed(1) + "%" }
-        });
+        anomalies.push({ type: "HIGH_PAYOUT_RATIO", severity: "critical", message: "Payouts exceed 80% of revenue", details: { ratio: (totalPayouts / totalRevenue * 100).toFixed(1) + "%" } });
       }
 
-      // 2. Test-then-Drain Pattern
-      const recentPayments = payments.data || [];
-      const smallTransactions = recentPayments.filter((t: any) => t.amount < 1000);
-      const largeTransactions = recentPayments.filter((t: any) => t.amount > 10000);
-
-      if (smallTransactions.length > 5 && largeTransactions.length > 0) {
-        anomalies.push({
-          type: "TEST_THEN_DRAIN",
-          severity: "high",
-          message: "Multiple small test transactions followed by large ones detected",
-          details: { smallCount: smallTransactions.length, largeCount: largeTransactions.length }
-        });
-      }
-
-      // 3. Odd Hours Transactions
-      const oddHoursTransactions = recentPayments.filter((t: any) => {
-        const hour = new Date(t.created * 1000).getHours();
-        return hour < 6 || hour > 22;
-      });
-
-      if (oddHoursTransactions.length > 5) {
-        anomalies.push({
-          type: "ODD_HOURS_ACTIVITY",
-          severity: "medium",
-          message: `${oddHoursTransactions.length} transactions during unusual hours (10PM-6AM)`,
-          details: { count: oddHoursTransactions.length, transactions: oddHoursTransactions.slice(0, 5).map((t: any) => ({ id: t.id, amount: t.amount / 100, time: new Date(t.created * 1000).toISOString() })) }
-        });
-      }
-
-      // 4. Large Refunds
-      const largeRefunds = (refunds.data || []).filter((r: any) => r.amount > 50000);
-      if (largeRefunds.length > 0) {
-        anomalies.push({
-          type: "LARGE_REFUNDS",
-          severity: "high",
-          message: `${largeRefunds.length} large refunds detected (>$500)`,
-          details: { refunds: largeRefunds.map((r: any) => ({ id: r.id, amount: r.amount / 100, reason: r.reason })) }
-        });
-      }
-
-      // 5. Unknown Webhook Endpoints
-      const suspiciousWebhooks = (webhookEndpoints.data || []).filter((wh: any) => {
-        const url = wh.url.toLowerCase();
-        return !url.includes('supabase') && !url.includes('ptd') && !url.includes('lovable');
-      });
-
-      if (suspiciousWebhooks.length > 0) {
-        anomalies.push({
-          type: "SUSPICIOUS_WEBHOOKS",
-          severity: "critical",
-          message: `${suspiciousWebhooks.length} webhook endpoints pointing to unknown domains`,
-          details: { webhooks: suspiciousWebhooks.map((wh: any) => ({ id: wh.id, url: wh.url, events: wh.enabled_events })) }
-        });
-      }
-
-      // 6. Rapid Customer Creation
-      const recentCustomers = customers.data || [];
-      if (recentCustomers.length > 20) {
-        anomalies.push({
-          type: "RAPID_CUSTOMER_CREATION",
-          severity: "medium",
-          message: `${recentCustomers.length} new customers created in last 7 days`,
-          details: { count: recentCustomers.length }
-        });
-      }
-
-      // 7. Open Disputes
-      const openDisputes = (disputes.data || []).filter((d: any) => d.status === 'needs_response' || d.status === 'under_review');
-      if (openDisputes.length > 0) {
-        anomalies.push({
-          type: "OPEN_DISPUTES",
-          severity: "high",
-          message: `${openDisputes.length} open disputes requiring attention`,
-          details: { disputes: openDisputes.map((d: any) => ({ id: d.id, amount: d.amount / 100, reason: d.reason, status: d.status })) }
-        });
-      }
-
-      // 8. Check for suspicious events
-      const sensitiveEvents = (events.data || []).filter((e: any) =>
-        e.type.includes('bank_account') ||
-        e.type.includes('payout') ||
-        e.type.includes('transfer') ||
-        e.type.includes('issuing')
-      );
-
-      // 9. Instant Payouts & Card Transfers (Forensic Check)
       const instantPayouts = (payouts.data || []).filter((p: any) => p.method === 'instant');
       if (instantPayouts.length > 0) {
-        anomalies.push({
-          type: "INSTANT_PAYOUTS",
-          severity: "high",
-          message: `${instantPayouts.length} Instant Payouts detected (High Risk)`,
-          details: {
-            count: instantPayouts.length,
-            totalAmount: instantPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100,
-            destinations: instantPayouts.map((p: any) => p.destination)
-          }
-        });
+        anomalies.push({ type: "INSTANT_PAYOUTS", severity: "high", message: `${instantPayouts.length} Instant Payouts`, details: { totalAmount: instantPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100 } });
       }
 
-      const cardPayouts = (payouts.data || []).filter((p: any) => p.type === 'card');
-      if (cardPayouts.length > 0) {
-        anomalies.push({
-          type: "CARD_PAYOUTS",
-          severity: "medium",
-          message: `${cardPayouts.length} payouts to Debit/Credit Cards detected`,
-          details: {
-            count: cardPayouts.length,
-            totalAmount: cardPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100
-          }
-        });
+      const openDisputes = (disputes.data || []).filter((d: any) => d.status === 'needs_response');
+      if (openDisputes.length > 0) {
+        anomalies.push({ type: "OPEN_DISPUTES", severity: "high", message: `${openDisputes.length} open disputes`, details: { disputes: openDisputes.slice(0, 5) } });
       }
 
-      // 10. Payout Velocity Check (Multiple payouts in 24h)
-      const payoutDates = (payouts.data || []).map((p: any) => new Date(p.created * 1000).toDateString());
-      const payoutsPerDay = payoutDates.reduce((acc: any, date: string) => {
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-
-      Object.entries(payoutsPerDay).forEach(([date, count]) => {
-        if ((count as number) > 3) {
-          anomalies.push({
-            type: "HIGH_VELOCITY_PAYOUTS",
-            severity: "high",
-            message: `Unusual payout velocity: ${count} payouts on ${date}`,
-            details: { date, count }
-          });
-        }
-      });
-
-      // Calculate security score
       let securityScore = 100;
       anomalies.forEach(a => {
         if (a.severity === 'critical') securityScore -= 25;
@@ -561,96 +930,33 @@ serve(async (req) => {
         else if (a.severity === 'medium') securityScore -= 10;
         else securityScore -= 5;
       });
-      securityScore = Math.max(0, securityScore);
-
-      console.log("[STRIPE-FORENSICS] Audit complete:", {
-        anomaliesCount: anomalies.length,
-        securityScore,
-        eventsCount: events.data?.length || 0
-      });
 
       return new Response(
         JSON.stringify({
-          balance,
-          payouts: payouts.data || [],
-          balanceTransactions: balanceTransactions.data || [],
-          payments: payments.data || [],
-          refunds: refunds.data || [],
-          charges: charges.data || [],
-          transfers: transfers.data || [],
-          events: events.data || [],
-          sensitiveEvents,
-          webhookEndpoints: webhookEndpoints.data || [],
-          disputes: disputes.data || [],
-          recentCustomers: customers.data || [],
-          account,
-          anomalies,
-          securityScore,
-          auditTimestamp: new Date().toISOString()
+          balance, payouts: payouts.data, balanceTransactions: balanceTransactions.data,
+          payments: payments.data, refunds: refunds.data, charges: charges.data,
+          transfers: transfers.data, events: events.data, webhookEndpoints: webhookEndpoints.data,
+          disputes: disputes.data, recentCustomers: customers.data, account,
+          anomalies, securityScore: Math.max(0, securityScore), auditTimestamp: new Date().toISOString()
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (action === "events-timeline") {
-      // Get detailed event timeline for last 7 days
-      const events = await stripe.events.list({
-        limit: 100,
-        created: { gte: sevenDaysAgo }
-      });
-
-      // Categorize events
-      const categorized = {
-        payments: events.data.filter((e: any) => e.type.startsWith('payment_intent') || e.type.startsWith('charge')),
-        payouts: events.data.filter((e: any) => e.type.startsWith('payout')),
-        transfers: events.data.filter((e: any) => e.type.startsWith('transfer')),
-        customers: events.data.filter((e: any) => e.type.startsWith('customer')),
-        subscriptions: events.data.filter((e: any) => e.type.startsWith('subscription') || e.type.startsWith('invoice')),
-        security: events.data.filter((e: any) =>
-          e.type.includes('bank_account') ||
-          e.type.includes('external_account') ||
-          e.type.includes('issuing')
-        ),
-        disputes: events.data.filter((e: any) => e.type.startsWith('dispute') || e.type.startsWith('charge.dispute'))
-      };
-
+      const events = await stripe.events.list({ limit: 100, created: { gte: sevenDaysAgo } });
       return new Response(
         JSON.stringify({
           events: events.data,
-          categorized,
+          categorized: {
+            payments: events.data.filter((e: any) => e.type.startsWith('payment_intent') || e.type.startsWith('charge')),
+            payouts: events.data.filter((e: any) => e.type.startsWith('payout')),
+            transfers: events.data.filter((e: any) => e.type.startsWith('transfer')),
+            issuing: events.data.filter((e: any) => e.type.startsWith('issuing')),
+            treasury: events.data.filter((e: any) => e.type.startsWith('treasury')),
+            disputes: events.data.filter((e: any) => e.type.includes('dispute'))
+          },
           total: events.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (action === "visa-approvals") {
-      // Get Visa-specific transactions
-      const charges = await stripe.charges.list({
-        limit: 100,
-        created: { gte: sevenDaysAgo }
-      });
-
-      const visaCharges = charges.data.filter((c: any) =>
-        c.payment_method_details?.card?.brand === 'visa' && c.status === 'succeeded'
-      );
-
-      return new Response(
-        JSON.stringify({
-          visaApprovals: visaCharges.map((c: any) => ({
-            id: c.id,
-            amount: c.amount / 100,
-            currency: c.currency,
-            created: c.created,
-            customer: c.customer,
-            last4: c.payment_method_details?.card?.last4,
-            country: c.payment_method_details?.card?.country,
-            network: c.payment_method_details?.card?.network,
-            funding: c.payment_method_details?.card?.funding,
-            metadata: c.metadata,
-            billing_details: c.billing_details
-          })),
-          total: visaCharges.length
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -659,9 +965,8 @@ serve(async (req) => {
     throw new Error("Invalid action: " + action);
   } catch (error) {
     console.error("[STRIPE-FORENSICS] Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
