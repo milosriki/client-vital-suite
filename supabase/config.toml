@@ -122,3 +122,15 @@ verify_jwt = false
 # Generate Embeddings for Knowledge Base
 [functions.generate-embeddings]
 verify_jwt = false
+
+# ============================================
+# UNLIMITED POWER AGENT SYSTEM
+# ============================================
+
+# 24/7 Background Monitoring
+[functions.ptd-24x7-monitor]
+verify_jwt = false
+
+# Agent Execution Engine (write actions)
+[functions.ptd-execute-action]
+verify_jwt = false

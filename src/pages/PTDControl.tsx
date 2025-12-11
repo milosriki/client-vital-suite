@@ -15,6 +15,7 @@ import DataEnrichmentTab from "@/components/ptd/DataEnrichmentTab";
 import StripeDashboardTab from "@/components/ptd/StripeDashboardTab";
 import StripeForensicsTab from "@/components/ptd/StripeForensicsTab";
 import HubSpotCommandCenter from "@/components/ptd/HubSpotCommandCenter";
+import PTDUnlimitedChat from "@/components/ai/PTDUnlimitedChat";
 
 export default function PTDControl() {
   // Persist mode to localStorage, default to "live"
@@ -183,6 +184,9 @@ export default function PTDControl() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* UNLIMITED POWER Agent Chat */}
+      <PTDUnlimitedChat />
     </div>
   );
 }
