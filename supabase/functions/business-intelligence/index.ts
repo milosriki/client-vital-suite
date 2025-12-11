@@ -40,12 +40,12 @@ serve(async (req) => {
             .limit(1)
             .maybeSingle();
 
-        const hoursSinceLastSync = lastSuccessSync 
+        const hoursSinceLastSync = lastSuccessSync
             ? (Date.now() - new Date(lastSuccessSync.started_at).getTime()) / (1000 * 60 * 60)
             : 999;
 
         const dataIsStale = hoursSinceLastSync > 24;
-        const staleWarning = dataIsStale 
+        const staleWarning = dataIsStale
             ? `⚠️ CRITICAL WARNING: Data is ${Math.round(hoursSinceLastSync)}h stale! Last sync: ${lastSuccessSync?.started_at || 'Never'}. Analysis may be inaccurate.`
             : null;
 
@@ -147,11 +147,11 @@ serve(async (req) => {
                     })
                 });
                 const data = await response.json();
-                
+
                 if (data.error) {
                     throw new Error(data.error.message || 'API error');
                 }
-                
+
                 const text = data.content[0]?.text;
                 try {
                     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -206,8 +206,8 @@ serve(async (req) => {
 
         console.log(`[BI Agent] Analysis complete. Data freshness: ${aiResponse.data_freshness}`);
 
-        return new Response(JSON.stringify({ 
-            success: true, 
+        return new Response(JSON.stringify({
+            success: true,
             analysis: aiResponse,
             dataFreshness: aiResponse.data_freshness,
             staleWarning: staleWarning || null
@@ -216,13 +216,13 @@ serve(async (req) => {
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await logError(supabase, 'business-intelligence', 'function_error', message, { stack: String(error) });
-        
-        return new Response(JSON.stringify({ 
-            success: false, 
-            error: message 
-        }), { 
-            status: 500, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: message
+        }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     }
 });

@@ -18,6 +18,8 @@ import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircu
 import { toast } from '@/hooks/use-toast';
 import { SyncStatusBadge } from '@/components/dashboard/SyncStatusBadge';
 import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
+import { ErrorMonitorPanel } from '@/components/dashboard/ErrorMonitorPanel';
+import { HubSpotSyncStatus } from '@/components/dashboard/HubSpotSyncStatus';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
@@ -209,12 +211,15 @@ export default function Dashboard() {
       <div className={`space-y-6 ${showAIPanel ? 'flex-1' : 'w-full'}`}>
         {/* Error Monitor at top */}
         <ErrorMonitor />
-        
+
         {/* Executive Briefing Component */}
         <ExecutiveBriefing summary={summary as any} />
 
         {/* Leak Detector - Shows hidden problems */}
         <LeakDetector />
+
+        {/* Error Monitor Panel */}
+        <ErrorMonitorPanel />
 
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
@@ -233,6 +238,7 @@ export default function Dashboard() {
             <div className="text-sm text-muted-foreground">
               Predictive Analytics • Real-time Updates
             </div>
+            <HubSpotSyncStatus />
             <Button
               variant={showAIPanel ? "default" : "outline"}
               size="sm"
