@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Activity, TrendingUp, Settings, AlertTriangle, TrendingDown, Users, RefreshCw, Eye, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardTabProps {
