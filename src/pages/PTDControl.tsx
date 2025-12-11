@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,16 @@ import StripeForensicsTab from "@/components/ptd/StripeForensicsTab";
 import HubSpotCommandCenter from "@/components/ptd/HubSpotCommandCenter";
 
 export default function PTDControl() {
-  const [mode, setMode] = useState<"test" | "live">("test");
+  // Persist mode to localStorage, default to "live"
+  const [mode, setMode] = useState<"test" | "live">(() => {
+    const saved = localStorage.getItem("ptd-mode");
+    return (saved === "test" || saved === "live") ? saved : "live";
+  });
+  
+  // Save mode changes to localStorage
+  useEffect(() => {
+    localStorage.setItem("ptd-mode", mode);
+  }, [mode]);
   
   // Connection status states
   const [supabaseStatus, setSupabaseStatus] = useState("connected");
