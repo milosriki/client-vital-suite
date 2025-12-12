@@ -53,6 +53,7 @@ const router = createBrowserRouter([
       { path: "/setter-activity-today", element: <SetterActivityToday /> },
       { path: "/yesterday-bookings", element: <YesterdayBookings /> },
       { path: "/hubspot-live", element: <HubSpotLiveData /> },
+      { path: "/ultimate-ceo", element: <UltimateCEO /> },
       { path: "*", element: <NotFound /> },
     ],
   },
