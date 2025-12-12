@@ -425,11 +425,12 @@ serve(async (req) => {
             response: response
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('PTD Intelligence Error:', error);
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return new Response(JSON.stringify({
             success: false,
-            error: error.message
+            error: message
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

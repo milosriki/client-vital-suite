@@ -59,8 +59,9 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ received: true }));
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Callback error:', error);
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return new Response(JSON.stringify({ error: message }), { status: 500 });
     }
 });

@@ -76,12 +76,12 @@ export function UltimateAICEO() {
         queryKey: ['pending-actions'],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('prepared_actions')
+                .from('prepared_actions' as any)
                 .select('*')
                 .eq('status', 'prepared')
                 .order('priority', { ascending: false });
             if (error) throw error;
-            return data as PreparedAction[];
+            return (data || []) as unknown as PreparedAction[];
         },
         refetchInterval: 15000
     });
@@ -90,13 +90,13 @@ export function UltimateAICEO() {
         queryKey: ['executed-actions'],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('prepared_actions')
+                .from('prepared_actions' as any)
                 .select('*')
                 .in('status', ['executed', 'failed'])
                 .order('executed_at', { ascending: false })
                 .limit(10);
             if (error) throw error;
-            return data as PreparedAction[];
+            return (data || []) as unknown as PreparedAction[];
         },
         refetchInterval: 30000
     });
@@ -105,11 +105,11 @@ export function UltimateAICEO() {
         queryKey: ['business-goals'],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('business_goals')
+                .from('business_goals' as any)
                 .select('*')
                 .eq('status', 'active');
             if (error) throw error;
-            return data as BusinessGoal[];
+            return (data || []) as unknown as BusinessGoal[];
         }
     });
 
@@ -117,12 +117,12 @@ export function UltimateAICEO() {
         queryKey: ['business-calibration'],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('business_calibration')
+                .from('business_calibration' as any)
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(20);
             if (error) throw error;
-            return data as CalibrationExample[];
+            return (data || []) as unknown as CalibrationExample[];
         }
     });
 
@@ -131,11 +131,16 @@ export function UltimateAICEO() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('proactive_insights')
-                .select('*')
+                .select('id, insight_type, priority, created_at')
                 .order('created_at', { ascending: false })
                 .limit(10);
             if (error) throw error;
-            return data as ProactiveInsight[];
+            // Map to add missing fields from existing columns
+            return (data || []).map((item: any) => ({
+                ...item,
+                title: item.insight_type || 'Insight',
+                description: ''
+            })) as ProactiveInsight[];
         },
         refetchInterval: 60000
     });

@@ -135,9 +135,10 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
             }
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error:', error);
-        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return new Response(JSON.stringify({ success: false, error: message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 });
 
