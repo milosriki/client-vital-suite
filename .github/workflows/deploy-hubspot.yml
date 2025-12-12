@@ -1,0 +1,61 @@
+name: Deploy to HubSpot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'hubspot-integration/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install HubSpot CLI
+        run: npm install -g @hubspot/cli
+
+      - name: Create HubSpot Config
+        run: |
+          mkdir -p hubspot-integration/src/app/workflow-actions
+          # Move our tool definitions to the correct structure if they aren't already
+          cp hubspot-integration/*.json hubspot-integration/src/app/workflow-actions/ 2>/dev/null || true
+          
+          # Create hsproject.json if it doesn't exist
+          if [ ! -f hubspot-integration/hsproject.json ]; then
+            echo '{
+              "name": "ai-agent-tools",
+              "src": "src",
+              "platformVersion": "2025.2"
+            }' > hubspot-integration/hsproject.json
+          fi
+
+      - name: Deploy to HubSpot
+        env:
+          HUBSPOT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_ACCESS_TOKEN }}
+          HUBSPOT_PORTAL_ID: ${{ secrets.HUBSPOT_PORTAL_ID }}
+        run: |
+          # Configure HubSpot CLI with the access token
+          # Note: The CLI usually expects an interactive auth or a config file.
+          # For CI/CD, we use the personal access key or OAuth token.
+          
+          # Create a config file manually for the CLI
+          mkdir -p ~/.hubspot
+          echo "defaultPortal: default
+          portals:
+            - name: default
+              portalId: $HUBSPOT_PORTAL_ID
+              authType: personalaccesskey
+              personalAccessKey: $HUBSPOT_ACCESS_TOKEN" > ~/.hubspot/hubspot.config.yml
+
+          # Deploy the project
+          cd hubspot-integration
+          hs project upload --auto-deploy
