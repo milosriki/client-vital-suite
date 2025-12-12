@@ -40,7 +40,9 @@ serve(async (req) => {
                     auth_token: CALLGEAR_API_KEY,
                     date_from: fromDate,
                     date_to: toDate,
-                    limit: limit
+                    limit: limit,
+                    // Request specific fields to ensure we get employee info
+                    fields: ["id", "start_time", "duration", "calling_phone", "called_phone", "employee_full_name", "status", "finish_reason", "record_url"]
                 },
                 id: 1
             })
