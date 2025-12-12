@@ -101,7 +101,7 @@ serve(async (req) => {
         });
         const assocData = await associationsResponse.json();
 
-        const deal audits = [];
+        const dealAudits = [];
         if (assocData.results) {
             for (const deal of assocData.results) {
                 const dealHistoryResponse = await fetch(`https://api.hubapi.com/crm/v3/objects/deals/${deal.id}?properties=dealstage,amount&propertiesWithHistory=dealstage,amount`, {

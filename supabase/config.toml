@@ -134,3 +134,11 @@ verify_jwt = false
 # Agent Execution Engine (write actions)
 [functions.ptd-execute-action]
 verify_jwt = false
+
+# CallGear Integration
+[functions.fetch-callgear-data]
+verify_jwt = false
+
+# Forensic Audit (HubSpot History)
+[functions.fetch-forensic-data]
+verify_jwt = false
