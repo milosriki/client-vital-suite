@@ -97,18 +97,20 @@ export function LeakDetector() {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {metrics.map((metric) => {
         const Icon = metric.icon;
         return (
-          <Card key={metric.label} className={`${metric.bgColor} ${metric.borderColor} border`}>
+          <Card key={metric.label} className={`${metric.bgColor} ${metric.borderColor} border hover:shadow-md transition-shadow`}>
             <div className="p-4">
-              <div className={`${metric.textColor} font-bold flex items-center gap-2`}>
-                <Icon className="h-4 w-4" />
-                {metric.label}
+              <div className="flex items-start justify-between mb-2">
+                <Icon className={`h-4 w-4 ${metric.textColor}`} />
+                <span className="text-2xl font-bold">{metric.value}</span>
               </div>
-              <div className="text-3xl font-black">{metric.value}</div>
-              <div className={`text-xs ${metric.textColor} opacity-70`}>{metric.description}</div>
+              <div className="space-y-0.5">
+                <p className={`font-medium text-sm ${metric.textColor}`}>{metric.label}</p>
+                <p className="text-xs text-muted-foreground">{metric.description}</p>
+              </div>
             </div>
           </Card>
         );

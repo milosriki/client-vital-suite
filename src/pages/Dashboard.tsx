@@ -206,9 +206,51 @@ export default function Dashboard() {
   ) as string[];
 
   return (
-    <div className="flex gap-6 p-6">
+    <div className="flex gap-6 p-6 min-h-screen">
       {/* Main Dashboard Content */}
-      <div className={`space-y-6 ${showAIPanel ? 'flex-1' : 'w-full'}`}>
+      <div className={`space-y-6 ${showAIPanel ? 'flex-1 max-w-[calc(100%-424px)]' : 'w-full'}`}>
+        
+        {/* Page Header - Clean alignment */}
+        <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
+              Client Health Intelligence Dashboard
+            </h1>
+            
+            {/* Action Buttons Row - Properly aligned */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={runBusinessIntelligence}
+                disabled={isRunningBI}
+                className="gap-2 h-9"
+              >
+                <BrainCircuit className={`h-4 w-4 ${isRunningBI ? 'animate-spin' : ''}`} />
+                {isRunningBI ? "Running..." : "Run BI Agent"}
+              </Button>
+              
+              <SyncStatusBadge />
+              <HubSpotSyncStatus />
+              
+              <Button
+                variant={showAIPanel ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowAIPanel(!showAIPanel)}
+                className="gap-2 h-9"
+              >
+                <Bot className="h-4 w-4" />
+                {showAIPanel ? "Hide AI" : "Show AI"}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Subtitle */}
+          <p className="text-sm text-muted-foreground">
+            Predictive Analytics • Real-time Updates
+          </p>
+        </div>
+
         {/* Error Monitor at top */}
         <ErrorMonitor />
 
@@ -221,96 +263,72 @@ export default function Dashboard() {
         {/* Error Monitor Panel */}
         <ErrorMonitorPanel />
 
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Client Health Intelligence Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={runBusinessIntelligence}
-              disabled={isRunningBI}
-              className="gap-2"
-            >
-              <BrainCircuit className={`h-4 w-4 ${isRunningBI ? 'animate-spin' : ''}`} />
-              {isRunningBI ? "Running BI..." : "Run BI Agent"}
-            </Button>
-            <SyncStatusBadge />
-            <div className="text-sm text-muted-foreground">
-              Predictive Analytics • Real-time Updates
-            </div>
-            <HubSpotSyncStatus />
-            <Button
-              variant={showAIPanel ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowAIPanel(!showAIPanel)}
-              className="gap-2"
-            >
-              <Bot className="h-4 w-4" />
-              {showAIPanel ? "Hide AI" : "Show AI"}
-            </Button>
-          </div>
-        </div>
-
         {/* Quick Access to PTD Control Panel Features */}
-        <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-background border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Command className="h-5 w-5" />
-              PTD Control Panel
-            </CardTitle>
-            <CardDescription>
-              Quick access to conversion tracking, automation, and system settings
-            </CardDescription>
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Command className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">PTD Control Panel</CardTitle>
+                  <CardDescription className="text-xs">
+                    Quick access to conversion tracking, automation & settings
+                  </CardDescription>
+                </div>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2"
+                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/ptd-control')}
               >
-                <Command className="h-5 w-5" />
-                <span className="text-xs">Full Control Panel</span>
+                <Command className="h-4 w-4" />
+                <span>Control Panel</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2"
+                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/meta-dashboard')}
               >
-                <Activity className="h-5 w-5" />
-                <span className="text-xs">CAPI Events</span>
+                <Activity className="h-4 w-4" />
+                <span>CAPI Events</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2"
+                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/analytics')}
               >
-                <TrendingUp className="h-5 w-5" />
-                <span className="text-xs">Analytics</span>
+                <TrendingUp className="h-4 w-4" />
+                <span>Analytics</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2"
+                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/hubspot-live')}
               >
-                <Zap className="h-5 w-5" />
-                <span className="text-xs">HubSpot Sync</span>
+                <Zap className="h-4 w-4" />
+                <span>HubSpot Sync</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2"
+                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/ptd-control?tab=settings')}
               >
-                <Settings className="h-5 w-5" />
-                <span className="text-xs">Settings</span>
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2"
+                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => window.open('https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds', '_blank')}
               >
-                <Database className="h-5 w-5" />
-                <span className="text-xs">Supabase</span>
+                <Database className="h-4 w-4" />
+                <span>Supabase</span>
               </Button>
             </div>
           </CardContent>
