@@ -69,10 +69,10 @@ serve(async (req) => {
           },
         };
 
-        // Insert into events table
+        // Insert into events table - use composite key (event_id, source)
         const { error: eventError } = await supabase
           .from("events")
-          .upsert(eventData, { onConflict: "event_id" });
+          .upsert(eventData, { onConflict: "event_id,source" });
 
         if (eventError) {
           console.error("[AnyTrack Webhook] Event insert error:", eventError);

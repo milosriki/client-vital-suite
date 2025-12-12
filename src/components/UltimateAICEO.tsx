@@ -31,6 +31,8 @@ interface PreparedAction {
     priority: number;
     source_agent: string;
     created_at: string;
+    executed_at?: string;
+    rejection_reason?: string;
 }
 
 interface BusinessGoal {
