@@ -2,8 +2,55 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Phone, PhoneIncoming, PhoneOutgoing, Clock, Calendar, Star } from "lucide-react";
+import { Phone, PhoneIncoming, PhoneOutgoing, Clock, Calendar, Star, MapPin, User, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+
+// Format phone number for display
+const formatPhoneNumber = (phone: string) => {
+  if (!phone) return "-";
+  // Remove non-digits
+  const digits = phone.replace(/\D/g, '');
+  // Format based on length
+  if (digits.length === 12 && digits.startsWith('971')) {
+    return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
+  }
+  if (digits.length >= 10) {
+    return `+${digits.slice(0, -9)} ${digits.slice(-9, -6)} ${digits.slice(-6, -3)} ${digits.slice(-3)}`;
+  }
+  return phone;
+};
+
+// Get country flag emoji from country code
+const getCountryFlag = (countryCode: string | null) => {
+  if (!countryCode) return "🌍";
+  const code = countryCode.toUpperCase();
+  const flags: Record<string, string> = {
+    'AE': '🇦🇪', 'US': '🇺🇸', 'GB': '🇬🇧', 'IN': '🇮🇳', 'SA': '🇸🇦', 
+    'EG': '🇪🇬', 'PK': '🇵🇰', 'PH': '🇵🇭', 'BD': '🇧🇩', 'LB': '🇱🇧',
+    'JO': '🇯🇴', 'KW': '🇰🇼', 'QA': '🇶🇦', 'BH': '🇧🇭', 'OM': '🇴🇲'
+  };
+  return flags[code] || '🌍';
+};
+
+// Get status color and icon
+const getStatusInfo = (status: string, outcome: string | null) => {
+  if (status === 'completed') {
+    if (outcome === 'appointment_set' || outcome === 'qualified') {
+      return { color: 'text-green-500 bg-green-500/10 border-green-500/30', icon: CheckCircle2, label: 'Success' };
+    }
+    if (outcome === 'not_interested' || outcome === 'disqualified') {
+      return { color: 'text-red-500 bg-red-500/10 border-red-500/30', icon: XCircle, label: 'No Interest' };
+    }
+    return { color: 'text-blue-500 bg-blue-500/10 border-blue-500/30', icon: CheckCircle2, label: 'Completed' };
+  }
+  if (status === 'no_answer' || status === 'missed') {
+    return { color: 'text-orange-500 bg-orange-500/10 border-orange-500/30', icon: AlertCircle, label: 'Missed' };
+  }
+  if (status === 'initiated' || status === 'ringing') {
+    return { color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30', icon: Phone, label: 'Initiated' };
+  }
+  return { color: 'text-muted-foreground bg-muted/30', icon: Phone, label: status };
+};
 
 export default function CallTracking() {
   const { data: callRecordsData, isLoading } = useQuery({
@@ -19,7 +66,6 @@ export default function CallTracking() {
     },
   });
 
-  // Ensure callRecords is always an array
   const callRecords = Array.isArray(callRecordsData) ? callRecordsData : [];
 
   const stats = {
@@ -109,73 +155,123 @@ export default function CallTracking() {
           </Card>
         </div>
 
-        {/* Call Records Table */}
+        {/* Recent Calls - Card-based layout for better visibility */}
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Calls</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Recent Calls
+            </CardTitle>
+            <Badge variant="outline" className="font-normal">
+              {callRecords.length} calls
+            </Badge>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Caller</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Direction</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Duration</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Score</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {callRecords?.map((call) => (
-                    <tr key={call.id} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium">{call.caller_number}</p>
-                          <p className="text-xs text-muted-foreground">{call.caller_country}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {call.call_direction === "inbound" ? (
-                          <Badge variant="outline" className="gap-1">
-                            <PhoneIncoming className="h-3 w-3" /> Inbound
-                          </Badge>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {callRecords?.map((call) => {
+                const statusInfo = getStatusInfo(call.call_status, call.call_outcome);
+                const StatusIcon = statusInfo.icon;
+                const isInbound = call.call_direction === "inbound";
+                
+                return (
+                  <div 
+                    key={call.id} 
+                    className="p-4 hover:bg-muted/30 transition-colors flex items-center gap-4"
+                  >
+                    {/* Caller Avatar with Direction Indicator */}
+                    <div className="relative">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold ${
+                        isInbound ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'
+                      }`}>
+                        {getCountryFlag(call.caller_country)}
+                      </div>
+                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
+                        isInbound ? 'bg-green-500' : 'bg-blue-500'
+                      }`}>
+                        {isInbound ? (
+                          <PhoneIncoming className="h-3 w-3 text-white" />
                         ) : (
-                          <Badge variant="outline" className="gap-1">
-                            <PhoneOutgoing className="h-3 w-3" /> Outbound
+                          <PhoneOutgoing className="h-3 w-3 text-white" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Caller Info - Main Focus */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-foreground text-lg tracking-wide">
+                          {formatPhoneNumber(call.caller_number)}
+                        </span>
+                        {call.appointment_set && (
+                          <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Appt Set
                           </Badge>
                         )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={call.call_status === "completed" ? "default" : "secondary"}>
-                          {call.call_status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        {(call.caller_city || call.caller_state || call.caller_country) && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {[call.caller_city, call.caller_state, call.caller_country].filter(Boolean).join(', ')}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {call.created_at ? format(new Date(call.created_at), "MMM d, h:mm a") : "-"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Duration - Prominent Display */}
+                    <div className="text-right hidden sm:block">
+                      <div className="text-lg font-mono font-medium text-foreground">
                         {call.duration_seconds 
                           ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}`
-                          : "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`font-medium ${
-                          (call.call_score || 0) >= 80 ? "text-green-500" :
-                          (call.call_score || 0) >= 60 ? "text-yellow-500" : "text-red-500"
+                          : "--:--"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">duration</div>
+                    </div>
+
+                    {/* Score - Visual Indicator */}
+                    {call.call_score !== null && call.call_score !== undefined ? (
+                      <div className="hidden md:flex flex-col items-center">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                          call.call_score >= 80 ? 'bg-green-500/20 text-green-500' :
+                          call.call_score >= 60 ? 'bg-yellow-500/20 text-yellow-500' : 
+                          'bg-red-500/20 text-red-500'
                         }`}>
-                          {call.call_score || "-"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground text-sm">
-                        {call.created_at ? format(new Date(call.created_at), "MMM d, HH:mm") : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {(!callRecords || callRecords.length === 0) && (
-                <div className="text-center py-8 text-muted-foreground">No call records found</div>
-              )}
+                          {call.call_score}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">score</div>
+                      </div>
+                    ) : (
+                      <div className="hidden md:flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-muted/30 text-muted-foreground text-sm">
+                          --
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">score</div>
+                      </div>
+                    )}
+
+                    {/* Status Badge */}
+                    <Badge 
+                      variant="outline" 
+                      className={`${statusInfo.color} border flex items-center gap-1.5 px-3 py-1.5`}
+                    >
+                      <StatusIcon className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">{statusInfo.label}</span>
+                    </Badge>
+                  </div>
+                );
+              })}
             </div>
+            {(!callRecords || callRecords.length === 0) && (
+              <div className="text-center py-12 text-muted-foreground">
+                <Phone className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p>No call records found</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -188,9 +284,12 @@ export default function CallTracking() {
             {callRecords?.filter(c => c.transcription).slice(0, 5).map((call) => (
               <div key={call.id} className="p-4 rounded-lg bg-muted/30 border border-border/50">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{call.caller_number}</span>
+                  <span className="font-medium flex items-center gap-2">
+                    {getCountryFlag(call.caller_country)}
+                    {formatPhoneNumber(call.caller_number)}
+                  </span>
                   <span className="text-xs text-muted-foreground">
-                    {call.created_at ? format(new Date(call.created_at), "MMM d, HH:mm") : "-"}
+                    {call.created_at ? format(new Date(call.created_at), "MMM d, h:mm a") : "-"}
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{call.transcription}</p>
