@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Phone, PhoneCall, Calendar, User, Clock, TrendingUp, CheckCircle2, Users } from "lucide-react";
+import { Phone, PhoneCall, Calendar, User, Clock, TrendingUp, CheckCircle2, Activity, RefreshCw } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { useState } from "react";
 
@@ -109,239 +109,265 @@ const SetterActivityToday = () => {
   ).length || 0;
 
   const conversionRate = totalCalls > 0 ? ((booked / totalCalls) * 100).toFixed(1) : 0;
+  const connectionRate = totalCalls > 0 ? ((reached / totalCalls) * 100).toFixed(1) : 0;
+  const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.package_value_aed || 0), 0) || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header with Owner Filter */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="h-8 w-8" />
-            {selectedOwner === "all" ? "Team Activity Today" : `${selectedOwner}'s Activity Today`}
-          </h1>
-          <p className="text-muted-foreground">
-            Real-time data from Supabase - {format(new Date(), "EEEE, MMMM dd, yyyy")}
-          </p>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between gap-4 pb-4 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Activity className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">
+              {selectedOwner === "all" ? "Team Activity" : selectedOwner}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(), "EEE, MMM d")} · Auto-refreshes
+            </p>
+          </div>
         </div>
         
         <Select value={selectedOwner} onValueChange={setSelectedOwner}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select team member" />
+          <SelectTrigger className="w-[160px] h-9">
+            <SelectValue placeholder="Filter by owner" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Team Members</SelectItem>
+            <SelectItem value="all">All Members</SelectItem>
             {owners?.map((ownerId) => (
               <SelectItem key={ownerId} value={ownerId || ''}>
-                Owner: {ownerId}
+                {ownerId}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCalls}</div>
-            <p className="text-xs text-muted-foreground">
-              Calls made today
-            </p>
+      {/* KPI Row - Compact Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Calls</p>
+                <p className="text-2xl font-bold mt-1">{totalCalls}</p>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-muted/50 flex items-center justify-center">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reached</CardTitle>
-            <PhoneCall className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{reached}</div>
-            <p className="text-xs text-muted-foreground">
-              Successfully connected
-            </p>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Reached</p>
+                <p className="text-2xl font-bold mt-1 text-emerald-500">{reached}</p>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <PhoneCall className="h-4 w-4 text-emerald-500" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Booked</CardTitle>
-            <Calendar className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{booked}</div>
-            <p className="text-xs text-muted-foreground">
-              Assessments scheduled
-            </p>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Booked</p>
+                <p className="text-2xl font-bold mt-1 text-primary">{booked}</p>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-primary" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{conversionRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              Calls to bookings
-            </p>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Convert</p>
+                <p className="text-2xl font-bold mt-1">{conversionRate}%</p>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-muted/50 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Performance Summary - Inline */}
+      <div className="flex flex-wrap items-center gap-6 px-4 py-3 rounded-lg bg-muted/30 border border-border/30 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Status:</span>
+          <Badge variant={totalCalls > 0 ? "default" : "secondary"} className="text-xs">
+            {totalCalls > 0 ? "Active" : "Idle"}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Connection:</span>
+          <span className="font-medium">{connectionRate}%</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Revenue Potential:</span>
+          <span className="font-semibold text-emerald-500">{totalRevenue.toLocaleString()} AED</span>
+        </div>
+        <div className="flex items-center gap-2 ml-auto text-xs text-muted-foreground">
+          <RefreshCw className="h-3 w-3" />
+          Updated {format(new Date(), "HH:mm")}
+        </div>
+      </div>
+
       {/* Call Activity Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PhoneCall className="h-5 w-5" />
-            Call Activity Log - Today
-          </CardTitle>
-          <CardDescription>
-            Real-time call records {selectedOwner !== "all" ? `for ${selectedOwner}` : "for all team members"} (auto-refreshes every 30 seconds)
-          </CardDescription>
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PhoneCall className="h-4 w-4" />
+              Call Activity
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">
+              {selectedOwner !== "all" ? selectedOwner : "All members"}
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
           {loadingCalls ? (
-            <div className="text-center py-8 text-muted-foreground">Loading call activity...</div>
+            <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
           ) : callsData && (callsData.interventions.length > 0 || callsData.clients.length > 0) ? (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Outcome</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs">Time</TableHead>
+                  <TableHead className="text-xs">Client</TableHead>
+                  <TableHead className="text-xs">Type</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-xs">Outcome</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {callsData.interventions.map((call) => (
                   <TableRow key={call.id}>
-                    <TableCell className="text-sm">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3" />
+                    <TableCell className="text-sm py-2">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
                         {format(new Date(call.created_at || new Date()), "HH:mm")}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {call.firstname} {call.lastname}
+                    <TableCell className="py-2">
+                      <span className="font-medium text-sm">{call.firstname} {call.lastname}</span>
                       <div className="text-xs text-muted-foreground">{call.email}</div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{call.intervention_type}</Badge>
+                    <TableCell className="py-2">
+                      <Badge variant="outline" className="text-xs">{call.intervention_type}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={call.status === "COMPLETED" ? "default" : "secondary"}>
+                    <TableCell className="py-2">
+                      <Badge variant={call.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">
                         {call.status || "Pending"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {call.outcome ? (
-                        <span className="text-sm">{call.outcome}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">In progress</span>
-                      )}
+                    <TableCell className="py-2 text-sm">
+                      {call.outcome || <span className="text-muted-foreground text-xs">—</span>}
                     </TableCell>
                   </TableRow>
                 ))}
                 {callsData.clients.slice(0, 5).map((client) => (
                   <TableRow key={client.id}>
-                    <TableCell className="text-sm">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3" />
+                    <TableCell className="text-sm py-2">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
                         {format(new Date(client.calculated_at || new Date()), "HH:mm")}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {client.firstname} {client.lastname}
+                    <TableCell className="py-2">
+                      <span className="font-medium text-sm">{client.firstname} {client.lastname}</span>
                       <div className="text-xs text-muted-foreground">{client.email}</div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">Client Contact</Badge>
+                    <TableCell className="py-2">
+                      <Badge variant="outline" className="text-xs">Contact</Badge>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="default">Active</Badge>
+                    <TableCell className="py-2">
+                      <Badge variant="default" className="text-xs">Active</Badge>
                     </TableCell>
-                    <TableCell>
-                      <span className="text-sm">Health: {client.health_score?.toFixed(0)}</span>
+                    <TableCell className="py-2 text-sm">
+                      Health: {client.health_score?.toFixed(0)}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           ) : (
-            <Alert>
-              <Phone className="h-4 w-4" />
-              <AlertTitle>No Calls Yet Today</AlertTitle>
-              <AlertDescription>
-                No call activity recorded {selectedOwner !== "all" ? `for ${selectedOwner}` : ""} today. Data refreshes automatically every 30 seconds.
-              </AlertDescription>
-            </Alert>
+            <div className="text-center py-8 text-muted-foreground">
+              <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No calls recorded today</p>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Bookings Today */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-success" />
-            Booked Assessments - Today
-          </CardTitle>
-          <CardDescription>
-            Clients {selectedOwner !== "all" ? `${selectedOwner} has` : "team has"} successfully booked today
-          </CardDescription>
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Booked Assessments
+            </CardTitle>
+            <Badge variant="outline" className="text-xs">{bookingsData?.length || 0} today</Badge>
+          </div>
         </CardHeader>
         <CardContent>
           {loadingBookings ? (
-            <div className="text-center py-8 text-muted-foreground">Loading bookings...</div>
+            <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
           ) : bookingsData && bookingsData.length > 0 ? (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Package Value</TableHead>
-                  <TableHead>Health Zone</TableHead>
-                  <TableHead>Booked At</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs">Client</TableHead>
+                  <TableHead className="text-xs">Segment</TableHead>
+                  <TableHead className="text-xs">Value</TableHead>
+                  <TableHead className="text-xs">Zone</TableHead>
+                  <TableHead className="text-xs">Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bookingsData.map((booking) => (
                   <TableRow key={booking.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="py-2">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {booking.firstname} {booking.lastname}
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="font-medium text-sm">{booking.firstname} {booking.lastname}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground">{booking.email}</div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{booking.client_segment || "N/A"}</Badge>
+                    <TableCell className="py-2">
+                      <Badge variant="outline" className="text-xs">{booking.client_segment || "—"}</Badge>
                     </TableCell>
-                    <TableCell className="font-bold text-success">
+                    <TableCell className="py-2 font-semibold text-emerald-500 text-sm">
                       {(booking.package_value_aed || 0).toLocaleString()} AED
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2">
                       <Badge 
-                        variant="default" 
-                        className={
+                        className={`text-xs ${
                           booking.health_zone === "GREEN" 
-                            ? "bg-success" 
+                            ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/30" 
                             : booking.health_zone === "PURPLE" 
-                            ? "bg-primary" 
-                            : "bg-warning"
-                        }
+                            ? "bg-primary/20 text-primary border-primary/30" 
+                            : "bg-amber-500/20 text-amber-500 border-amber-500/30"
+                        }`}
+                        variant="outline"
                       >
                         {booking.health_zone}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="py-2 text-sm text-muted-foreground">
                       {format(new Date(booking.calculated_at || new Date()), "HH:mm")}
                     </TableCell>
                   </TableRow>
@@ -349,60 +375,13 @@ const SetterActivityToday = () => {
               </TableBody>
             </Table>
           ) : (
-            <Alert>
-              <Calendar className="h-4 w-4" />
-              <AlertTitle>No Bookings Yet</AlertTitle>
-              <AlertDescription>
-                No assessments booked {selectedOwner !== "all" ? `by ${selectedOwner}` : ""} today. Keep calling!
-              </AlertDescription>
-            </Alert>
+            <div className="text-center py-8 text-muted-foreground">
+              <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No bookings yet today</p>
+            </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Performance Summary */}
-      <Card className="border-primary">
-        <CardHeader>
-          <CardTitle>Today's Performance Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <span className="font-medium">Activity Status</span>
-              <Badge variant={totalCalls > 0 ? "default" : "secondary"}>
-                {totalCalls > 0 ? "Active" : "No Activity"}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b">
-              <span className="font-medium">Connection Rate</span>
-              <span className="font-bold">
-                {totalCalls > 0 ? ((reached / totalCalls) * 100).toFixed(1) : 0}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b">
-              <span className="font-medium">Booking Rate</span>
-              <span className="font-bold text-success">
-                {conversionRate}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Total Revenue Potential</span>
-              <span className="font-bold text-success">
-                {bookingsData?.reduce((sum, b) => sum + (b.package_value_aed || 0), 0).toLocaleString() || 0} AED
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Alert>
-        <Clock className="h-4 w-4" />
-        <AlertTitle>Live Data</AlertTitle>
-        <AlertDescription>
-          This dashboard automatically refreshes every 30 seconds to show real-time activity from Supabase.
-          Last updated: {format(new Date(), "HH:mm:ss")}
-        </AlertDescription>
-      </Alert>
     </div>
   );
 };
