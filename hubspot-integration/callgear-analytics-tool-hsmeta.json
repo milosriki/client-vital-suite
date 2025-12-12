@@ -1,0 +1,73 @@
+{
+    "uid": "callgear_analytics_tool",
+    "type": "workflow-action",
+    "config": {
+        "actionUrl": "https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/fetch-callgear-data",
+        "isPublished": true,
+        "supportedClients": [
+            {
+                "client": "AGENTS",
+                "toolType": "GET_DATA",
+                "llmConfig": {
+                    "actionDescription": "Fetch call analytics and logs from CallGear, including employee names and call details. Use this to answer questions about who called, call durations, and call outcomes."
+                }
+            }
+        ],
+        "inputFields": [
+            {
+                "typeDefinition": {
+                    "name": "date_from",
+                    "type": "string",
+                    "fieldType": "text"
+                },
+                "supportedValueTypes": [
+                    "STATIC_VALUE"
+                ],
+                "isRequired": false
+            },
+            {
+                "typeDefinition": {
+                    "name": "date_to",
+                    "type": "string",
+                    "fieldType": "text"
+                },
+                "supportedValueTypes": [
+                    "STATIC_VALUE"
+                ],
+                "isRequired": false
+            },
+            {
+                "typeDefinition": {
+                    "name": "limit",
+                    "type": "number",
+                    "fieldType": "number"
+                },
+                "supportedValueTypes": [
+                    "STATIC_VALUE"
+                ],
+                "isRequired": false
+            }
+        ],
+        "labels": {
+            "en": {
+                "actionName": "Get CallGear Analytics",
+                "actionDescription": "Retrieves call logs and analytics from CallGear.",
+                "actionCardContent": "Get CallGear Data",
+                "inputFieldLabels": {
+                    "date_from": "Start Date (YYYY-MM-DD)",
+                    "date_to": "End Date (YYYY-MM-DD)",
+                    "limit": "Limit Results"
+                },
+                "inputFieldDescriptions": {
+                    "date_from": "The start date for the report (optional, defaults to 30 days ago).",
+                    "date_to": "The end date for the report (optional, defaults to today).",
+                    "limit": "Maximum number of records to return (default 100)."
+                }
+            }
+        },
+        "objectTypes": [
+            "CONTACT",
+            "DEAL"
+        ]
+    }
+}
