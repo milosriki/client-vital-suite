@@ -62,8 +62,9 @@ serve(async (req) => {
             headers: { 'Content-Type': 'application/json' }
         });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Scanner Error:', error);
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return new Response(JSON.stringify({ error: message }), { status: 500 });
     }
 });
