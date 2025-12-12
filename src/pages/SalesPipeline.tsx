@@ -423,17 +423,19 @@ export default function SalesPipeline() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
           <p className="text-muted-foreground">Full visibility: leads, contacts, deals, calls & proactive outreach</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        
+        {/* Controls - Grouped together */}
+        <div className="flex items-center gap-3 bg-card/50 backdrop-blur-sm rounded-lg p-2 border border-border/50">
           {/* Days Filter */}
           <Select value={daysFilter} onValueChange={setDaysFilter}>
-            <SelectTrigger className="w-[160px]">
-              <Calendar className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by date" />
+            <SelectTrigger className="w-[140px] bg-background border-border/50">
+              <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
               {DAYS_FILTER_OPTIONS.map(option => (
@@ -444,117 +446,133 @@ export default function SalesPipeline() {
             </SelectContent>
           </Select>
           
+          <div className="h-6 w-px bg-border/50" />
+          
           <Button 
             variant="outline" 
             size="sm"
             onClick={() => syncFromHubspot.mutate(false)}
             disabled={syncFromHubspot.isPending}
+            className="bg-background border-border/50"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${syncFromHubspot.isPending ? 'animate-spin' : ''}`} />
-            Sync from HubSpot
+            Sync HubSpot
           </Button>
-          <Button 
-            variant="destructive" 
-            size="sm"
-            onClick={() => {
-              if (confirm('This will delete fake/test data and sync real data from HubSpot. Continue?')) {
-                syncFromHubspot.mutate(true);
-              }
-            }}
-            disabled={syncFromHubspot.isPending}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Clear Fake & Sync
-          </Button>
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                disabled={syncFromHubspot.isPending}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Clear Test Data & Sync</DialogTitle>
+                <DialogDescription>
+                  This will delete all fake/test data and sync real data from HubSpot. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => {}}>Cancel</Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => syncFromHubspot.mutate(true)}
+                  disabled={syncFromHubspot.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear & Sync
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Follow-Up Insights Panel */}
+      {/* Action Required Banner - Compact */}
       {followUpInsights.length > 0 && (
-        <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Action Required ({daysLabel})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {followUpInsights.map((insight, idx) => (
-                <div 
-                  key={idx}
-                  className={`flex items-center gap-3 p-3 rounded-lg ${
-                    insight.type === 'urgent' 
-                      ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' 
-                      : insight.type === 'warning'
-                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
-                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
-                  }`}
-                >
-                  <span className="text-2xl font-bold">{insight.count}</span>
-                  <span className="text-sm">{insight.message.replace(`${insight.count} `, '')}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-red-500/10 border border-amber-500/20">
+          <div className="flex items-center gap-2 shrink-0">
+            <AlertTriangle className="h-5 w-5 text-amber-400" />
+            <span className="font-semibold text-amber-400">Action Required</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 overflow-x-auto">
+            {followUpInsights.slice(0, 4).map((insight, idx) => (
+              <div 
+                key={idx}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${
+                  insight.type === 'urgent' 
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
+                    : insight.type === 'warning'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                }`}
+              >
+                <span className="font-bold">{insight.count}</span>
+                <span className="text-xs opacity-80">{insight.message.replace(`${insight.count} `, '').split(' ').slice(0, 3).join(' ')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      {/* Top KPIs */}
-      <div className="grid gap-4 md:grid-cols-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
+      {/* Top KPIs - Compact Grid */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Leads</span>
+              <Users className="h-4 w-4 text-primary" />
+            </div>
             <div className="text-2xl font-bold">{funnelData?.total || 0}</div>
             <p className="text-xs text-muted-foreground">In pipeline</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Contacts</CardTitle>
-            <UserCheck className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contacts</span>
+              <UserCheck className="h-4 w-4 text-blue-400" />
+            </div>
             <div className="text-2xl font-bold">{contacts?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Total contacts</p>
+            <p className="text-xs text-muted-foreground">Total synced</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-            <Phone className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Calls</span>
+              <Phone className="h-4 w-4 text-purple-400" />
+            </div>
             <div className="text-2xl font-bold">{callRecords?.total || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {callRecords?.statusCounts?.answered || 0} answered
-            </p>
+            <p className="text-xs text-muted-foreground">{callRecords?.statusCounts?.answered || 0} answered</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Closed Deals</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Closed</span>
+              <CheckCircle className="h-4 w-4 text-green-400" />
+            </div>
             <div className="text-2xl font-bold">{dealsData?.closedCount || 0}</div>
-            <p className="text-xs text-muted-foreground">{conversionRate}% conversion</p>
+            <p className="text-xs text-muted-foreground">{conversionRate}% rate</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+        <Card className="bg-gradient-to-br from-green-500/10 to-card border-green-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-green-400 uppercase tracking-wide">Revenue</span>
+              <DollarSign className="h-4 w-4 text-green-400" />
+            </div>
+            <div className="text-xl font-bold text-green-400">
               {(dealsData?.totalValue || 0).toLocaleString('en-AE', { 
                 style: 'currency', 
                 currency: 'AED',
@@ -562,29 +580,29 @@ export default function SalesPipeline() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Collected: {(dealsData?.totalCollected || 0).toLocaleString('en-AE', { 
+              {(dealsData?.totalCollected || 0).toLocaleString('en-AE', { 
                 style: 'currency', 
                 currency: 'AED',
                 maximumFractionDigits: 0 
-              })}
+              })} collected
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Avg Deal Value</CardTitle>
-            <TrendingUp className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Deal</span>
+              <TrendingUp className="h-4 w-4 text-blue-400" />
+            </div>
+            <div className="text-xl font-bold">
               {(dealsData?.avgDealValue || 0).toLocaleString('en-AE', { 
                 style: 'currency', 
                 currency: 'AED',
                 maximumFractionDigits: 0 
               })}
             </div>
-            <p className="text-xs text-muted-foreground">Per closed deal</p>
+            <p className="text-xs text-muted-foreground">Per deal</p>
           </CardContent>
         </Card>
       </div>
