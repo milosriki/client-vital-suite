@@ -78,7 +78,7 @@ export function UltimateAICEO() {
             const { data, error } = await supabase
                 .from('prepared_actions' as any)
                 .select('*')
-                .eq('status', 'prepared')
+                .in('status', ['prepared', 'executing'])
                 .order('priority', { ascending: false });
             if (error) throw error;
             return (data || []) as unknown as PreparedAction[];
@@ -420,6 +420,12 @@ export function UltimateAICEO() {
                                                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400/50">
                                                                     {Math.round(action.confidence * 100)}%
                                                                 </Badge>
+                                                                {action.status === 'executing' && (
+                                                                    <Badge variant="outline" className="text-yellow-400 border-yellow-400/50 animate-pulse">
+                                                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                                        Deploying...
+                                                                    </Badge>
+                                                                )}
                                                                 {action.action_type === 'code_deploy' && (
                                                                     <Badge variant="outline" className="text-purple-400 border-purple-400/50">
                                                                         <Code className="w-3 h-3 mr-1" />
@@ -431,17 +437,19 @@ export function UltimateAICEO() {
                                                             <p className="text-xs text-cyan-400/70 mt-2 italic">{action.reasoning}</p>
                                                         </div>
                                                         <div className="flex gap-2 ml-4">
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    approveAction.mutate(action.id);
-                                                                }}
-                                                                disabled={approveAction.isPending}
-                                                                className="bg-green-600 hover:bg-green-700"
-                                                            >
-                                                                <ThumbsUp className="w-4 h-4" />
-                                                            </Button>
+                                                            {action.status !== 'executing' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        approveAction.mutate(action.id);
+                                                                    }}
+                                                                    disabled={approveAction.isPending}
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                >
+                                                                    <ThumbsUp className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
@@ -505,7 +513,8 @@ export function UltimateAICEO() {
                                         {executedActions?.slice(0, 5).map(action => (
                                             <div
                                                 key={action.id}
-                                                className={`p-2 rounded-lg text-sm ${action.status === 'executed'
+                                                onClick={() => setSelectedAction(action)}
+                                                className={`p-2 rounded-lg text-sm cursor-pointer hover:opacity-80 transition-opacity ${action.status === 'executed'
                                                     ? 'bg-green-500/10 border border-green-500/20'
                                                     : 'bg-red-500/10 border border-red-500/20'
                                                     }`}
@@ -671,45 +680,65 @@ export function UltimateAICEO() {
                                     />
                                 </div>
 
-                                <div className="flex gap-3 pt-4">
-                                    <Button
-                                        onClick={() => approveAction.mutate(selectedAction.id)}
-                                        disabled={approveAction.isPending}
-                                        className="flex-1 bg-green-600 hover:bg-green-700 h-12"
-                                    >
-                                        {approveAction.isPending ? (
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <ThumbsUp className="w-5 h-5 mr-2" />
-                                                Approve & Deploy
-                                            </>
+                                {(selectedAction.status === 'executed' || selectedAction.status === 'failed') && (
+                                    <div className={`p-4 rounded-lg border ${selectedAction.status === 'executed' ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                                        <h4 className={`text-sm font-medium mb-1 ${selectedAction.status === 'executed' ? 'text-green-400' : 'text-red-400'}`}>
+                                            {selectedAction.status === 'executed' ? 'Execution Successful' : 'Execution Failed'}
+                                        </h4>
+                                        {selectedAction.status === 'executed' && (
+                                            <p className="text-white/80 text-sm">
+                                                Completed at: {new Date(selectedAction.executed_at || '').toLocaleString()}
+                                            </p>
                                         )}
-                                    </Button>
-                                    <Button
-                                        onClick={() => rejectAction.mutate({
-                                            actionId: selectedAction.id,
-                                            reason: rejectionReason
-                                        })}
-                                        disabled={rejectAction.isPending}
-                                        variant="outline"
-                                        className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10 h-12"
-                                    >
-                                        {rejectAction.isPending ? (
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <ThumbsDown className="w-5 h-5 mr-2" />
-                                                Reject (AI Learns)
-                                            </>
+                                        {selectedAction.status === 'failed' && (
+                                            <p className="text-white/80 text-sm">
+                                                Reason: {selectedAction.rejection_reason || 'Unknown error'}
+                                            </p>
                                         )}
-                                    </Button>
-                                </div>
+                                    </div>
+                                )}
+
+                                {selectedAction.status === 'prepared' && (
+                                    <div className="flex gap-3 pt-4">
+                                        <Button
+                                            onClick={() => approveAction.mutate(selectedAction.id)}
+                                            disabled={approveAction.isPending}
+                                            className="flex-1 bg-green-600 hover:bg-green-700 h-12"
+                                        >
+                                            {approveAction.isPending ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <ThumbsUp className="w-5 h-5 mr-2" />
+                                                    Approve & Deploy
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            onClick={() => rejectAction.mutate({
+                                                actionId: selectedAction.id,
+                                                reason: rejectionReason
+                                            })}
+                                            disabled={rejectAction.isPending}
+                                            variant="outline"
+                                            className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10 h-12"
+                                        >
+                                            {rejectAction.isPending ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <ThumbsDown className="w-5 h-5 mr-2" />
+                                                    Reject (AI Learns)
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
