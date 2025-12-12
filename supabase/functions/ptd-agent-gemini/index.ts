@@ -623,6 +623,21 @@ const tools = [
         }
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "forensic_control",
+      description: "AUDIT LOG & FORENSICS - Track WHO changed WHAT and WHEN in HubSpot. Use this to investigate changes to contacts, deals, or settings. Returns a timeline of property changes.",
+      parameters: {
+        type: "object",
+        properties: {
+          target_identity: { type: "string", description: "Email, Phone, or HubSpot ID to investigate" },
+          limit: { type: "number", description: "Max log entries (default 50)" }
+        },
+        required: ["target_identity"]
+      }
+    }
   }
 ];
 
@@ -1183,6 +1198,25 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           });
         } catch (e) {
           return `CallGear integration error: ${e}`;
+        }
+      }
+
+      case "forensic_control": {
+        const { target_identity, limit = 50 } = input;
+        try {
+          const { data, error } = await supabase.functions.invoke('fetch-forensic-data', {
+            body: { target_identity, limit }
+          });
+
+          if (error) return `Forensic Audit Error: ${error.message}`;
+          if (!data.success) return `Forensic Audit Failed: ${data.message || 'Unknown error'}`;
+
+          return JSON.stringify({
+            target: data.contact,
+            audit_log: data.audit_log
+          });
+        } catch (e) {
+          return `Forensic integration error: ${e}`;
         }
       }
 

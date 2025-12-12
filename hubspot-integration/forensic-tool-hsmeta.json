@@ -1,0 +1,60 @@
+{
+    "uid": "forensic_audit_tool",
+    "type": "workflow-action",
+    "config": {
+        "actionUrl": "https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/fetch-forensic-data",
+        "isPublished": true,
+        "supportedClients": [
+            {
+                "client": "AGENTS",
+                "toolType": "GET_DATA",
+                "llmConfig": {
+                    "actionDescription": "Fetch a forensic audit log of changes for a contact or deal. Use this to investigate WHO changed WHAT and WHEN. Returns a timeline of property changes."
+                }
+            }
+        ],
+        "inputFields": [
+            {
+                "typeDefinition": {
+                    "name": "target_identity",
+                    "type": "string",
+                    "fieldType": "text"
+                },
+                "supportedValueTypes": [
+                    "STATIC_VALUE"
+                ],
+                "isRequired": true
+            },
+            {
+                "typeDefinition": {
+                    "name": "limit",
+                    "type": "number",
+                    "fieldType": "number"
+                },
+                "supportedValueTypes": [
+                    "STATIC_VALUE"
+                ],
+                "isRequired": false
+            }
+        ],
+        "labels": {
+            "en": {
+                "actionName": "Forensic Audit Log",
+                "actionDescription": "Retrieves change history for contacts and deals.",
+                "actionCardContent": "Get Audit Log",
+                "inputFieldLabels": {
+                    "target_identity": "Target Email, Phone, or ID",
+                    "limit": "Limit Results"
+                },
+                "inputFieldDescriptions": {
+                    "target_identity": "The email, phone number, or HubSpot ID of the contact/deal to investigate.",
+                    "limit": "Maximum number of audit entries to return (default 50)."
+                }
+            }
+        },
+        "objectTypes": [
+            "CONTACT",
+            "DEAL"
+        ]
+    }
+}
