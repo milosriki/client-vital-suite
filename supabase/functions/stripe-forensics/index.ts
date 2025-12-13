@@ -696,7 +696,7 @@ serve(async (req) => {
       });
 
       // Check for open disputes
-      const openDisputes = (disputes.data || []).filter((d: any) => 
+      const openDisputes = (disputes.data || []).filter((d: any) =>
         d.status === 'needs_response' || d.status === 'under_review'
       );
       if (openDisputes.length > 0) {
@@ -705,6 +705,115 @@ serve(async (req) => {
           severity: "high",
           message: `${openDisputes.length} open disputes`,
           details: { disputes: openDisputes.map((d: any) => ({ id: d.id, amount: d.amount / 100, reason: d.reason })) }
+        });
+      }
+
+      // ====== FORENSIC CHECK 1: SHADOW ADMIN DETECTION ======
+      // Check if account is controlled by external platform (is_controller)
+      if (account?.controller?.is_controller === true) {
+        anomalies.push({
+          type: "SHADOW_ADMIN_DETECTED",
+          severity: "critical",
+          message: "Account is controlled by an external Platform! They can initiate payouts and change settings invisible to you.",
+          details: {
+            controller: account.controller,
+            controllerType: account.controller?.type,
+            losses: account.controller?.losses,
+            requirement_collection: account.controller?.requirement_collection,
+            stripe_dashboard: account.controller?.stripe_dashboard
+          }
+        });
+      }
+
+      // ====== FORENSIC CHECK 2: MANUAL VISA APPROVAL AUDIT ======
+      // Check capability.updated events for manual (non-system) approvals
+      const capabilityEvents = (events.data || []).filter((e: any) =>
+        e.type === 'capability.updated' || e.type === 'account.updated'
+      );
+      capabilityEvents.forEach((event: any) => {
+        const capability = event.data?.object;
+        // If request.id exists, it was a MANUAL action (API call), not system automation
+        if (event.request?.id && capability?.status === 'active') {
+          anomalies.push({
+            type: "MANUAL_CAPABILITY_APPROVAL",
+            severity: "high",
+            message: `Capability '${capability?.id || 'unknown'}' was manually activated via API request`,
+            details: {
+              requestId: event.request.id,
+              capabilityId: capability?.id,
+              status: capability?.status,
+              timestamp: event.created,
+              eventId: event.id,
+              note: "Check Dashboard > Developers > Logs for IP address of this request"
+            },
+            timestamp: event.created
+          });
+        }
+      });
+
+      // ====== FORENSIC CHECK 3: APPLICATION FEE SKIMMING ======
+      // Check charges for hidden application_fee redirecting money to platform
+      const chargesWithFees = (charges.data || []).filter((c: any) =>
+        c.application_fee_amount && c.application_fee_amount > 0
+      );
+      if (chargesWithFees.length > 0) {
+        const totalSkimmed = chargesWithFees.reduce((sum: number, c: any) => sum + c.application_fee_amount, 0);
+        anomalies.push({
+          type: "HIDDEN_FEE_SKIMMING",
+          severity: "critical",
+          message: `${chargesWithFees.length} charges have hidden application fees redirecting ${(totalSkimmed / 100).toFixed(2)} to a platform!`,
+          details: {
+            totalSkimmed: totalSkimmed / 100,
+            chargeCount: chargesWithFees.length,
+            samples: chargesWithFees.slice(0, 5).map((c: any) => ({
+              chargeId: c.id,
+              amount: c.amount / 100,
+              feeSkimmed: c.application_fee_amount / 100,
+              applicationId: c.application,
+              created: c.created
+            }))
+          }
+        });
+      }
+
+      // ====== FORENSIC CHECK 4: TRANSFER DATA MONEY REDIRECT ======
+      // Check charges for transfer_data.destination routing funds to connected accounts
+      const chargesWithTransfer = (charges.data || []).filter((c: any) =>
+        c.transfer_data?.destination
+      );
+      if (chargesWithTransfer.length > 0) {
+        const totalRedirected = chargesWithTransfer.reduce((sum: number, c: any) =>
+          sum + (c.transfer_data?.amount || c.amount), 0
+        );
+        // Group by destination
+        const destinationGroups: Record<string, { count: number; amount: number }> = {};
+        chargesWithTransfer.forEach((c: any) => {
+          const dest = c.transfer_data.destination;
+          if (!destinationGroups[dest]) destinationGroups[dest] = { count: 0, amount: 0 };
+          destinationGroups[dest].count++;
+          destinationGroups[dest].amount += (c.transfer_data?.amount || c.amount);
+        });
+
+        anomalies.push({
+          type: "TRANSFER_MONEY_REDIRECT",
+          severity: "high",
+          message: `${chargesWithTransfer.length} charges have funds routed to connected accounts (${(totalRedirected / 100).toFixed(2)} total)`,
+          details: {
+            totalRedirected: totalRedirected / 100,
+            chargeCount: chargesWithTransfer.length,
+            destinations: Object.entries(destinationGroups).map(([dest, data]) => ({
+              accountId: dest,
+              chargeCount: data.count,
+              totalAmount: data.amount / 100
+            })),
+            samples: chargesWithTransfer.slice(0, 5).map((c: any) => ({
+              chargeId: c.id,
+              amount: c.amount / 100,
+              destination: c.transfer_data.destination,
+              transferAmount: (c.transfer_data?.amount || c.amount) / 100,
+              created: c.created
+            }))
+          }
         });
       }
 
