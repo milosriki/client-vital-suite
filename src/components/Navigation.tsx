@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CheckCircle } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CheckCircle, CreditCard, Settings, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -16,7 +16,8 @@ export const Navigation = () => {
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/sales-pipeline", label: "Sales Pipeline", icon: TrendingUp },
+    { path: "/sales-pipeline", label: "Sales", icon: TrendingUp },
+    { path: "/stripe", label: "Stripe", icon: CreditCard },
     { path: "/call-tracking", label: "Calls", icon: Phone },
     { path: "/hubspot-live", label: "HubSpot", icon: Zap },
     { path: "/clients", label: "Clients", icon: Users },
@@ -96,29 +97,64 @@ export const Navigation = () => {
               {isSyncing ? "Syncing..." : "Sync"}
             </Button>
 
-            {/* Mobile Menu */}
-            {isMobile && (
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[280px]">
-                  <div className="flex flex-col gap-4 mt-8">
-                    <div className="flex items-center gap-2 pb-4 border-b">
-                      <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold">P</span>
-                      </div>
-                      <span className="font-bold text-xl">PTD Fitness</span>
+            {/* Mobile Menu - Always show hamburger for more options */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[300px]">
+                <div className="flex flex-col gap-2 mt-8">
+                  <div className="flex items-center gap-2 pb-4 border-b border-border/50">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold">P</span>
                     </div>
-                    {navItems.map((item) => (
-                      <NavLink key={item.path} item={item} onClick={() => setMobileMenuOpen(false)} />
-                    ))}
+                    <span className="font-bold text-xl">PTD Fitness</span>
                   </div>
-                </SheetContent>
-              </Sheet>
-            )}
+                  
+                  {/* Main Nav */}
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mt-4 mb-2">Main</p>
+                  {navItems.map((item) => (
+                    <NavLink key={item.path} item={item} onClick={() => setMobileMenuOpen(false)} />
+                  ))}
+                  
+                  {/* More Pages */}
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mt-6 mb-2">More</p>
+                  <Link to="/analytics" onClick={() => setMobileMenuOpen(false)} className="nav-link">
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Analytics</span>
+                  </Link>
+                  <Link to="/ptd-control" onClick={() => setMobileMenuOpen(false)} className="nav-link">
+                    <Settings className="h-4 w-4" />
+                    <span>PTD Control</span>
+                  </Link>
+                  <Link to="/ultimate-ceo" onClick={() => setMobileMenuOpen(false)} className="nav-link">
+                    <Bot className="h-4 w-4" />
+                    <span>AI CEO</span>
+                  </Link>
+                  
+                  {/* Quick Actions */}
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mt-6 mb-2">Quick Actions</p>
+                  <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="justify-start">
+                    <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} />
+                    {isSyncing ? "Syncing..." : "Sync HubSpot"}
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="justify-start">
+                    <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Open Stripe
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="justify-start">
+                    <a href="https://app.hubspot.com" target="_blank" rel="noopener noreferrer">
+                      <Zap className="h-4 w-4 mr-2" />
+                      Open HubSpot
+                    </a>
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
