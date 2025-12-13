@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Client {
@@ -83,7 +84,10 @@ export function LiveHealthDistribution({ clients, isLoading }: LiveHealthDistrib
     <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '200ms' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          <h3 
+            onClick={() => navigate('/clients')}
+            className="text-sm font-medium uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-primary hover:underline transition-colors"
+          >
             Client Health Distribution
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
@@ -96,18 +100,28 @@ export function LiveHealthDistribution({ clients, isLoading }: LiveHealthDistrib
       <div className="h-3 rounded-full overflow-hidden flex mb-6 bg-muted/30">
         {zoneConfig.map(zone => {
           const percent = distribution.percentages[zone.key as keyof typeof distribution.percentages];
+          const count = distribution.zones[zone.key as keyof typeof distribution.zones];
           if (percent === 0) return null;
           return (
-            <button
-              key={zone.key}
-              onClick={() => handleZoneClick(zone.key)}
-              className={cn(
-                "h-full transition-all duration-300 hover:opacity-80 first:rounded-l-full last:rounded-r-full",
-                zone.color
-              )}
-              style={{ width: `${percent}%` }}
-              title={`${zone.label}: ${percent}%`}
-            />
+            <TooltipProvider key={zone.key}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleZoneClick(zone.key)}
+                    className={cn(
+                      "h-full transition-all duration-300 hover:opacity-80 hover:scale-y-125 first:rounded-l-full last:rounded-r-full cursor-pointer",
+                      zone.color
+                    )}
+                    style={{ width: `${percent}%` }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-medium">{zone.label}</p>
+                  <p className="text-xs text-muted-foreground">{count} clients ({percent}%)</p>
+                  <p className="text-xs text-muted-foreground mt-1">Click to filter</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         })}
       </div>
@@ -118,18 +132,27 @@ export function LiveHealthDistribution({ clients, isLoading }: LiveHealthDistrib
           const count = distribution.zones[zone.key as keyof typeof distribution.zones];
           const percent = distribution.percentages[zone.key as keyof typeof distribution.percentages];
           return (
-            <button
-              key={zone.key}
-              onClick={() => handleZoneClick(zone.key)}
-              className="flex flex-col items-center p-3 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors border border-transparent hover:border-primary/20"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className={cn("w-2.5 h-2.5 rounded-full", zone.color)} />
-                <span className="text-xs font-medium text-muted-foreground">{zone.label}</span>
-              </div>
-              <span className={cn("stat-number text-2xl", zone.textColor)}>{count}</span>
-              <span className="text-xs text-muted-foreground">{percent}%</span>
-            </button>
+            <TooltipProvider key={zone.key}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleZoneClick(zone.key)}
+                    className="flex flex-col items-center p-3 rounded-lg bg-muted/20 hover:bg-muted/40 transition-all border border-transparent hover:border-primary/20 hover:scale-105"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={cn("w-2.5 h-2.5 rounded-full", zone.color)} />
+                      <span className="text-xs font-medium text-muted-foreground">{zone.label}</span>
+                    </div>
+                    <span className={cn("stat-number text-2xl", zone.textColor)}>{count}</span>
+                    <span className="text-xs text-muted-foreground">{percent}%</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Score range: {zone.desc}</p>
+                  <p className="text-xs text-muted-foreground">Click to view {zone.label.toLowerCase()} clients</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         })}
       </div>
