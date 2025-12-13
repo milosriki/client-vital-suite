@@ -3,7 +3,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const CALLGEAR_API_URL = "https://api.callgear.ru/rpc";
+// Use environment variable for region flexibility, default to .com (international)
+const CALLGEAR_API_URL = Deno.env.get("CALLGEAR_API_URL") || "https://api.callgear.com/rpc";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

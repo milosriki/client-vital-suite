@@ -34,12 +34,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Get IP address from request headers (for IP restriction detection)
-  const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
-                   req.headers.get("x-real-ip") || 
-                   "unknown";
-  const userAgent = req.headers.get("user-agent") || "unknown";
-
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
@@ -47,35 +41,16 @@ serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
-    
-    let body: any = {};
-    try {
-      const bodyText = await req.text();
-      if (bodyText) {
-        body = JSON.parse(bodyText);
-      }
-    } catch (e) {
-      console.log("[STRIPE-FORENSICS] Error parsing body:", e);
-    }
-    
-    const action = body?.action;
-    const days = body?.days ? Number(body.days) : 30;
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+    const { action, days = 30 } = await req.json();
 
-    console.log(`[STRIPE-FORENSICS] Action: ${action}, Days: ${days}, Client IP: ${clientIP}, User-Agent: ${userAgent}`);
+    console.log("[STRIPE-FORENSICS] Action:", action);
 
-    if (!action) {
-      return new Response(
-        JSON.stringify({ error: "Action is required. Available actions: account-verification, full-audit, complete-intelligence, money-flow, events-timeline" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Calculate timestamps (only if needed)
+    // Calculate timestamps
     const now = Math.floor(Date.now() / 1000);
     const sevenDaysAgo = now - (7 * 24 * 60 * 60);
     const thirtyDaysAgo = now - (30 * 24 * 60 * 60);
-    const daysAgo = action !== "account-verification" ? now - (days * 24 * 60 * 60) : undefined;
+    const daysAgo = now - (days * 24 * 60 * 60);
 
     // Helper for paginated Stripe fetching
     async function fetchAllStripe(resource: any, params: any = {}) {
@@ -1077,255 +1052,6 @@ serve(async (req) => {
       );
     }
 
-    if (action === "account-verification") {
-      console.log("[STRIPE-FORENSICS] Fetching Account Verification & Person Data...");
-      
-      let account: any = null;
-      let persons: any[] = [];
-      let accountRequirements: any = null;
-      
-      try {
-        // Try to retrieve account (works for both standard and Connect accounts)
-        account = await stripe.accounts.retrieve();
-      } catch (e: any) {
-        const errorMessage = e.message || String(e);
-        const errorType = e.type || 'unknown';
-        const errorCode = e.code || 'unknown';
-        
-        console.log(`[STRIPE-FORENSICS] Error retrieving account: ${errorMessage} (Type: ${errorType}, Code: ${errorCode})`);
-        console.log(`[STRIPE-FORENSICS] Client IP: ${clientIP}`);
-        
-        // Check for IP restriction errors
-        if (errorMessage.includes('IP') || errorMessage.includes('ip') || errorMessage.includes('restricted') || errorMessage.includes('blocked') || errorCode === 'ip_address_rejected') {
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: "IP_ADDRESS_RESTRICTED",
-              message: `Stripe API call blocked by IP restriction. Your IP address (${clientIP}) is not allowed.`,
-              details: {
-                client_ip: clientIP,
-                error_code: errorCode,
-                error_type: errorType,
-                error_message: errorMessage,
-                solution: "Add this IP address to Stripe's IP allowlist in Dashboard > Settings > API > IP Allowlist",
-                stripe_dashboard_url: "https://dashboard.stripe.com/settings/security",
-              },
-              request_info: {
-                client_ip: clientIP,
-                user_agent: userAgent,
-                timestamp: new Date().toISOString(),
-              },
-            }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        
-        // For standard accounts, try retrieving without ID
-        try {
-          account = await stripe.accounts.retrieve({});
-        } catch (e2: any) {
-          const errorMessage2 = e2.message || String(e2);
-          const errorType2 = e2.type || 'unknown';
-          const errorCode2 = e2.code || 'unknown';
-          
-          console.log(`[STRIPE-FORENSICS] Alternative account retrieval failed: ${errorMessage2} (Type: ${errorType2}, Code: ${errorCode2})`);
-          
-          // Check for IP restriction in second attempt
-          if (errorMessage2.includes('IP') || errorMessage2.includes('ip') || errorMessage2.includes('restricted') || errorMessage2.includes('blocked') || errorCode2 === 'ip_address_rejected') {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: "IP_ADDRESS_RESTRICTED",
-                message: `Stripe API call blocked by IP restriction. Your IP address (${clientIP}) is not allowed.`,
-                details: {
-                  client_ip: clientIP,
-                  error_code: errorCode2,
-                  error_type: errorType2,
-                  error_message: errorMessage2,
-                  solution: "Add this IP address to Stripe's IP allowlist in Dashboard > Settings > API > IP Allowlist",
-                  stripe_dashboard_url: "https://dashboard.stripe.com/settings/security",
-                },
-                request_info: {
-                  client_ip: clientIP,
-                  user_agent: userAgent,
-                  timestamp: new Date().toISOString(),
-                },
-              }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-        }
-      }
-      
-      if (account) {
-        // Get account requirements
-        accountRequirements = {
-          currently_due: account.requirements?.currently_due || [],
-          past_due: account.requirements?.past_due || [],
-          eventually_due: account.requirements?.eventually_due || [],
-          disabled_reason: account.requirements?.disabled_reason,
-          verification: account.verification,
-          details_submitted: account.details_submitted,
-          charges_enabled: account.charges_enabled,
-          payouts_enabled: account.payouts_enabled,
-        };
-        
-        // Safe date conversion helper
-        const safeDate = (timestamp: number | undefined | null): string | null => {
-          if (!timestamp || typeof timestamp !== 'number' || isNaN(timestamp)) return null;
-          try {
-            return new Date(timestamp * 1000).toISOString();
-          } catch (e) {
-            console.log("[STRIPE-FORENSICS] Date conversion error:", e, "timestamp:", timestamp);
-            return null;
-          }
-        };
-
-        // Get all persons associated with the account
-        try {
-          const personsList = await stripe.accounts.listPersons(account.id, { limit: 100 });
-          persons = personsList.data.map((p: any) => ({
-            id: p.id,
-            email: p.email,
-            first_name: p.first_name,
-            last_name: p.last_name,
-            relationship: p.relationship,
-            verification: {
-              status: p.verification?.status,
-              document: {
-                front: p.verification?.document?.front ? "Uploaded" : "Missing",
-                back: p.verification?.document?.back ? "Uploaded" : "Missing",
-              },
-              additional_document: p.verification?.additional_document,
-            },
-            created: safeDate(p.created),
-            dob: p.dob,
-            address: p.address,
-            phone: p.phone,
-            metadata: p.metadata,
-          }));
-        } catch (e: any) {
-          const errorMessage = e.message || String(e);
-          const errorCode = e.code || 'unknown';
-          
-          console.log(`[STRIPE-FORENSICS] Error fetching persons with account ID: ${errorMessage} (Code: ${errorCode})`);
-          console.log(`[STRIPE-FORENSICS] Client IP: ${clientIP}`);
-          
-          // Check for IP restriction
-          if (errorMessage.includes('IP') || errorMessage.includes('ip') || errorMessage.includes('restricted') || errorMessage.includes('blocked') || errorCode === 'ip_address_rejected') {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: "IP_ADDRESS_RESTRICTED",
-                message: `Stripe API call blocked by IP restriction. Your IP address (${clientIP}) is not allowed.`,
-                details: {
-                  client_ip: clientIP,
-                  error_code: errorCode,
-                  error_message: errorMessage,
-                  solution: "Add this IP address to Stripe's IP allowlist in Dashboard > Settings > API > IP Allowlist",
-                  stripe_dashboard_url: "https://dashboard.stripe.com/settings/security",
-                },
-                request_info: {
-                  client_ip: clientIP,
-                  user_agent: userAgent,
-                  timestamp: new Date().toISOString(),
-                },
-              }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          
-          // For standard accounts, try without account ID
-          try {
-            const personsList = await stripe.accounts.listPersons({ limit: 100 });
-            persons = personsList.data.map((p: any) => ({
-              id: p.id,
-              email: p.email,
-              first_name: p.first_name,
-              last_name: p.last_name,
-              relationship: p.relationship,
-              verification: {
-                status: p.verification?.status,
-                document: {
-                  front: p.verification?.document?.front ? "Uploaded" : "Missing",
-                  back: p.verification?.document?.back ? "Uploaded" : "Missing",
-                },
-              },
-              created: safeDate(p.created),
-            }));
-          } catch (e2: any) {
-            const errorMessage2 = e2.message || String(e2);
-            const errorCode2 = e2.code || 'unknown';
-            
-            console.log(`[STRIPE-FORENSICS] Alternative persons fetch failed: ${errorMessage2} (Code: ${errorCode2})`);
-            
-            // Check for IP restriction in second attempt
-            if (errorMessage2.includes('IP') || errorMessage2.includes('ip') || errorMessage2.includes('restricted') || errorMessage2.includes('blocked') || errorCode2 === 'ip_address_rejected') {
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: "IP_ADDRESS_RESTRICTED",
-                  message: `Stripe API call blocked by IP restriction. Your IP address (${clientIP}) is not allowed.`,
-                  details: {
-                    client_ip: clientIP,
-                    error_code: errorCode2,
-                    error_message: errorMessage2,
-                    solution: "Add this IP address to Stripe's IP allowlist in Dashboard > Settings > API > IP Allowlist",
-                    stripe_dashboard_url: "https://dashboard.stripe.com/settings/security",
-                  },
-                  request_info: {
-                    client_ip: clientIP,
-                    user_agent: userAgent,
-                    timestamp: new Date().toISOString(),
-                  },
-                }),
-                { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
-            }
-          }
-        }
-      }
-      
-      // Safe date conversion helper
-      const safeDate = (timestamp: number | undefined | null): string | null => {
-        if (!timestamp || typeof timestamp !== 'number' || isNaN(timestamp)) return null;
-        try {
-          return new Date(timestamp * 1000).toISOString();
-        } catch (e) {
-          console.log("[STRIPE-FORENSICS] Date conversion error:", e, "timestamp:", timestamp);
-          return null;
-        }
-      };
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          account: account ? {
-            id: account.id,
-            type: account.type,
-            country: account.country,
-            email: account.email,
-            business_type: account.business_type,
-            created: safeDate(account.created),
-          } : null,
-          account_requirements: accountRequirements,
-          verified_persons: persons,
-          summary: {
-            total_persons: persons.length,
-            verified_count: persons.filter((p: any) => p.verification?.status === "verified").length,
-            pending_verification: persons.filter((p: any) => p.verification?.status === "pending").length,
-            unverified_count: persons.filter((p: any) => p.verification?.status === "unverified").length,
-          },
-          request_info: {
-            client_ip: clientIP,
-            user_agent: userAgent,
-            timestamp: new Date().toISOString(),
-          },
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     if (action === "events-timeline") {
       const events = await stripe.events.list({ limit: 100, created: { gte: sevenDaysAgo } });
       return new Response(
@@ -1346,63 +1072,10 @@ serve(async (req) => {
     }
 
     throw new Error("Invalid action: " + action);
-  } catch (error: any) {
-    const errorMessage = error?.message || String(error);
-    const errorType = error?.type || 'unknown';
-    const errorCode = error?.code || 'unknown';
-    
-    console.error(`[STRIPE-FORENSICS] Error: ${errorMessage} (Type: ${errorType}, Code: ${errorCode})`);
-    console.error(`[STRIPE-FORENSICS] Client IP: ${clientIP}, User-Agent: ${userAgent}`);
-    console.error(`[STRIPE-FORENSICS] Stack:`, error?.stack);
-    
-    // Check for IP restriction errors
-    if (errorMessage.includes('IP') || errorMessage.includes('ip') || errorMessage.includes('restricted') || errorMessage.includes('blocked') || errorCode === 'ip_address_rejected') {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "IP_ADDRESS_RESTRICTED",
-          message: `Stripe API call blocked by IP restriction. Your IP address (${clientIP}) is not allowed.`,
-          details: {
-            client_ip: clientIP,
-            error_code: errorCode,
-            error_type: errorType,
-            error_message: errorMessage,
-            solution: "Add this IP address to Stripe's IP allowlist in Dashboard > Settings > API > IP Allowlist",
-            stripe_dashboard_url: "https://dashboard.stripe.com/settings/security",
-            how_to_add_ip: [
-              "1. Go to Stripe Dashboard > Settings > API",
-              "2. Scroll to 'IP Allowlist' section",
-              `3. Click 'Add IP' and enter: ${clientIP}`,
-              "4. Save changes",
-              "5. Wait 1-2 minutes for changes to propagate",
-            ],
-          },
-          request_info: {
-            client_ip: clientIP,
-            user_agent: userAgent,
-            timestamp: new Date().toISOString(),
-          },
-        }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
+  } catch (error) {
+    console.error("[STRIPE-FORENSICS] Error:", error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: "STRIPE_API_ERROR",
-        message: errorMessage,
-        details: {
-          error_code: errorCode,
-          error_type: errorType,
-          client_ip: clientIP,
-        },
-        request_info: {
-          client_ip: clientIP,
-          user_agent: userAgent,
-          timestamp: new Date().toISOString(),
-        },
-      }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

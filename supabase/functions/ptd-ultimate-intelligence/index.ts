@@ -5,7 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const GEMINI_API_KEY = Deno.env.get('GOOGLE_API_KEY');
+const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY'); // Used for Gemini API
 
 // ============================================
 // PERSONA DEFINITIONS
@@ -447,7 +447,7 @@ async function generateWithClaude(query: string, persona: any, context: any) {
         method: 'POST',
         headers: {
             'x-api-key': ANTHROPIC_API_KEY!,
-            'anthropic-version': '2023-06-01',
+            'anthropic-version': '2024-10-22',
             'content-type': 'application/json'
         },
         body: JSON.stringify({
@@ -468,7 +468,7 @@ async function generateWithClaude(query: string, persona: any, context: any) {
 
 async function generateWithGemini(query: string, persona: any, context: any) {
     const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
