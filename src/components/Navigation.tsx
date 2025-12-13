@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { SystemStatusDropdown } from "@/components/dashboard/SystemStatusDropdown";
@@ -22,8 +23,19 @@ export const Navigation = () => {
     { path: "/stripe", label: "Stripe", icon: CreditCard },
     { path: "/call-tracking", label: "Calls", icon: Phone },
     { path: "/hubspot-live", label: "HubSpot", icon: Zap },
+    { path: "/audit-trail", label: "Audit", icon: History },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
+  ];
+
+  const moreItems = [
+    { path: "/analytics", label: "Analytics", icon: BarChart3 },
+    { path: "/ptd-control", label: "PTD Control", icon: Settings },
+    { path: "/ultimate-ceo", label: "AI CEO", icon: Bot },
+    { path: "/hubspot-analyzer", label: "HubSpot Analyzer", icon: FileSearch },
+    { path: "/sales-coach-tracker", label: "Coach Tracker", icon: UserCheck },
+    { path: "/yesterday-bookings", label: "Yesterday Bookings", icon: Calendar },
+    { path: "/workflow-strategy", label: "Workflow Strategy", icon: Workflow },
   ];
 
   const handleSync = async () => {
@@ -91,6 +103,26 @@ export const Navigation = () => {
               {navItems.map((item) => (
                 <NavLink key={item.path} item={item} />
               ))}
+              
+              {/* More Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="nav-link flex items-center gap-1">
+                    <span className="font-medium">More</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {moreItems.map((item) => (
+                    <DropdownMenuItem key={item.path} asChild>
+                      <Link to={item.path} className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 
