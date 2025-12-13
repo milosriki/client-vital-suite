@@ -638,6 +638,52 @@ const tools = [
         required: ["target_identity"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "callgear_supervisor",
+      description: "SUPERVISOR BARGE-IN/WHISPER - Attach AI supervisor to active calls for monitoring. Modes: 'listen' (silent), 'whisper' (coach agent), 'barge' (conference). Use when user asks to monitor calls or coach agents.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["attach_coach", "detach_coach", "change_mode"], description: "Action to perform" },
+          call_session_id: { type: "string", description: "Active call session ID" },
+          mode: { type: "string", enum: ["listen", "whisper", "barge"], description: "Monitoring mode" },
+          coach_sip_uri: { type: "string", description: "SIP URI of supervisor (optional)" }
+        },
+        required: ["action", "call_session_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "callgear_live_monitor",
+      description: "REAL-TIME CALL MONITORING - Get live call status, agent availability, and queue stats. Use when user asks 'who is on a call', 'active calls', 'agent status', or 'queue length'.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["list_active_calls", "get_employee_status", "get_queue_stats", "get_all"], description: "What to fetch" }
+        },
+        required: ["action"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "callgear_icp_router",
+      description: "ICP ROUTING CONFIG - Configure AI-driven inbound call routing. Use to set VIP lists, blacklists, or routing rules for incoming calls.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["test_routing", "get_config"], description: "Action to perform" },
+          test_caller: { type: "string", description: "Phone number to test routing for" }
+        },
+        required: ["action"]
+      }
+    }
   }
 ];
 
@@ -1217,6 +1263,48 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           });
         } catch (e) {
           return `Forensic integration error: ${e}`;
+        }
+      }
+
+      case "callgear_supervisor": {
+        const { action, call_session_id, mode, coach_sip_uri } = input;
+        try {
+          const { data, error } = await supabase.functions.invoke('callgear-supervisor', {
+            body: { action, call_session_id, mode, coach_sip_uri }
+          });
+
+          if (error) return `CallGear Supervisor Error: ${error.message}`;
+          return JSON.stringify(data);
+        } catch (e) {
+          return `CallGear Supervisor error: ${e}`;
+        }
+      }
+
+      case "callgear_live_monitor": {
+        const { action } = input;
+        try {
+          const { data, error } = await supabase.functions.invoke('callgear-live-monitor', {
+            body: { action }
+          });
+
+          if (error) return `CallGear Monitor Error: ${error.message}`;
+          return JSON.stringify(data);
+        } catch (e) {
+          return `CallGear Monitor error: ${e}`;
+        }
+      }
+
+      case "callgear_icp_router": {
+        const { action, test_caller } = input;
+        try {
+          const { data, error } = await supabase.functions.invoke('callgear-icp-router', {
+            body: { action, test_caller }
+          });
+
+          if (error) return `CallGear ICP Error: ${error.message}`;
+          return JSON.stringify(data);
+        } catch (e) {
+          return `CallGear ICP error: ${e}`;
         }
       }
 

@@ -42,7 +42,7 @@ serve(async (req) => {
                     date_to: toDate,
                     limit: limit,
                     // Request specific fields to ensure we get employee info
-                    fields: ["id", "start_time", "duration", "calling_phone", "called_phone", "employee_full_name", "status", "finish_reason", "record_url"]
+                    fields: ["id", "start_time", "duration", "calling_phone", "called_phone", "employee_full_name", "status", "finish_reason", "record_url", "source", "campaign_name", "medium", "keyword"]
                 },
                 id: 1
             })
