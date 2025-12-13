@@ -1,8 +1,21 @@
+/**
+ * @deprecated This is the legacy PTD agent. Use `ptd-agent-gemini` or `smart-agent` instead.
+ * 
+ * This version is kept for backward compatibility only.
+ * 
+ * Recommended replacements:
+ * - `ptd-agent-gemini` - Advanced RAG + Chain-of-Thought with 16+ tools, dynamic knowledge loading
+ * - `smart-agent` - Smart agentic tool-calling system with Gemini 2.5 Flash
+ * - `ptd-agent-claude` - Claude Sonnet 4 agent with native Anthropic SDK
+ * 
+ * Migration: Update all references from `ptd-agent` to `ptd-agent-gemini`
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================
-// PTD INTELLIGENCE AGENT
+// PTD INTELLIGENCE AGENT (LEGACY)
 // Smart RAG Agent with Memory & Learning
 // ============================================
 

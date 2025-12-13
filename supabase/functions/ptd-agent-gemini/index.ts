@@ -414,16 +414,16 @@ const tools = [
     type: "function",
     function: {
       name: "stripe_control",
-      description: "Stripe intelligence - fraud scan, payment history, transaction analysis",
+      description: "Stripe intelligence - fraud scan, payment history, transaction analysis, account verification, who verified account and visa documents",
       parameters: {
         type: "object",
         properties: {
           action: {
             type: "string",
-            enum: ["fraud_scan", "get_summary", "get_events", "analyze"],
-            description: "Action to perform"
+            enum: ["fraud_scan", "account_verification", "who_verified", "verification_details", "get_summary", "get_events", "analyze"],
+            description: "Action to perform: fraud_scan for fraud detection, account_verification/who_verified/verification_details to find who verified the account and visa documents, get_summary/get_events/analyze for payment analysis"
           },
-          days: { type: "number", description: "Days back to analyze (default 90)" },
+          days: { type: "number", description: "Days back to analyze (default 90, not used for account_verification)" },
         },
         required: ["action"],
       },
@@ -798,13 +798,23 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
       case "stripe_control": {
         const { action, days = 90 } = input;
 
-        if (action === "fraud_scan") {
+        if (action === "fraud_scan" || action === "full-audit") {
           try {
-            const { data, error } = await supabase.functions.invoke('stripe-forensics', { body: { mode: 'full', days } });
+            const { data, error } = await supabase.functions.invoke('stripe-forensics', { body: { action: 'full-audit', days } });
             if (error) return `Fraud scan error: ${error.message}`;
             return `STRIPE FRAUD SCAN RESULTS:\n${JSON.stringify(data, null, 2)}`;
           } catch (e) {
             return `Fraud scan unavailable: ${e}`;
+          }
+        }
+
+        if (action === "account_verification" || action === "who_verified" || action === "verification_details") {
+          try {
+            const { data, error } = await supabase.functions.invoke('stripe-forensics', { body: { action: 'account-verification' } });
+            if (error) return `Account verification query error: ${error.message}`;
+            return `STRIPE ACCOUNT VERIFICATION DATA:\n${JSON.stringify(data, null, 2)}`;
+          } catch (e) {
+            return `Account verification query unavailable: ${e}`;
           }
         }
 
@@ -818,7 +828,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           }
         }
 
-        return "Unknown action";
+        return "Unknown action. Available: fraud_scan, account_verification, get_summary, get_events, analyze";
       }
 
       case "hubspot_control": {

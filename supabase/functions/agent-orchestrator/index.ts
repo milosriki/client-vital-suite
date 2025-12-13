@@ -163,7 +163,7 @@ const leadReplyNode: NodeFunction = async (state, supabase) => {
   console.log("[Orchestrator] Running: leadReply");
   
   try {
-    const response = await supabase.functions.invoke('generate-lead-reply', {
+    const response = await supabase.functions.invoke('generate-lead-replies', {
       body: { batchSize: 5 }
     });
     

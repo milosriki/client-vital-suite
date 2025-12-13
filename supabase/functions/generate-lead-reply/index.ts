@@ -1,3 +1,15 @@
+/**
+ * @deprecated This function is deprecated. Use `generate-lead-replies` (plural) instead.
+ * This version is kept for backward compatibility only.
+ * 
+ * The advanced version (`generate-lead-replies`) provides:
+ * - Better Anthropic API integration
+ * - More sophisticated lead analysis
+ * - Enhanced error handling
+ * 
+ * Migration: Update all references from `generate-lead-reply` to `generate-lead-replies`
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

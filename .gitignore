@@ -27,3 +27,4 @@ dist-ssr
 # Lovable protection
 .lovableignore
 .env.vercel
+.env*.local
