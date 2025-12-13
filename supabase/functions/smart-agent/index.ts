@@ -964,13 +964,17 @@ serve(async (req) => {
   try {
     const { messages, stream = false } = await req.json();
     
+    // Try direct Gemini API first, fallback to Lovable
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    const useDirectGemini = !!GEMINI_API_KEY;
+    if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
+      throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
     }
+    console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -1022,20 +1026,39 @@ IMPORTANT:
       ...messages
     ];
 
-    let response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: currentMessages,
-        tools,
-        tool_choice: "auto",
-        stream: false
-      }),
-    });
+    // Call AI API - Direct Gemini or Lovable fallback
+    let response: Response;
+    if (useDirectGemini) {
+      response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-2.0-flash",
+          messages: currentMessages,
+          tools,
+          tool_choice: "auto",
+          stream: false
+        }),
+      });
+    } else {
+      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: currentMessages,
+          tools,
+          tool_choice: "auto",
+          stream: false
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

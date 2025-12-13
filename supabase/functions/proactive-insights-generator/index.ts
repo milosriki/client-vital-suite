@@ -9,7 +9,10 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+// Try direct Gemini API first, fallback to Lovable
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
 const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+const useDirectGemini = !!geminiApiKey;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -182,20 +185,28 @@ serve(async (req) => {
 
     // Use AI to enhance insights if available
     let aiEnhancedInsights = insights;
-    if (lovableApiKey && insights.length > 0) {
+    const hasAiKey = geminiApiKey || lovableApiKey;
+    if (hasAiKey && insights.length > 0) {
       try {
         const learningContext = learningRules?.map(r => 
           `Pattern: ${JSON.stringify(r.condition_pattern)} → ${JSON.stringify(r.action_pattern)} (confidence: ${r.confidence_score})`
         ).join('\n') || 'No learned patterns yet';
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        // Use direct Gemini API or Lovable fallback
+        const aiUrl = useDirectGemini 
+          ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+          : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+        const aiKey = useDirectGemini ? geminiApiKey : lovableApiKey;
+        const aiModel = useDirectGemini ? 'gemini-2.0-flash' : 'google/gemini-2.5-flash';
+
+        const response = await fetch(aiUrl, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
+            'Authorization': `Bearer ${aiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: aiModel,
             messages: [
               {
                 role: 'system',

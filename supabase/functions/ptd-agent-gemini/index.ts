@@ -1355,8 +1355,14 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 
 // ============= MAIN AGENT WITH GEMINI 2.5 PRO =============
 async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default'): Promise<string> {
+  // Try GEMINI_API_KEY first (direct Google API), fallback to LOVABLE_API_KEY
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+  
+  const useDirectGemini = !!GEMINI_API_KEY;
+  if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
+    throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+  }
 
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
   const [relevantMemory, ragKnowledge, knowledgeBase, learnedPatterns, dynamicKnowledge] = await Promise.all([
@@ -1567,20 +1573,40 @@ ${relevantMemory || 'No relevant past conversations found.'}
     iterations++;
     console.log(`🚀 Gemini iteration ${iterations}`);
 
-    // Call Gemini 2.5 Flash via Lovable AI gateway (FAST)
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages,
-        tools,
-        tool_choice: "auto",
-      }),
-    });
+    // Call Gemini API - Direct Google API or Lovable gateway fallback
+    let response: Response;
+    
+    if (useDirectGemini) {
+      // Direct Google Gemini API (OpenAI-compatible endpoint)
+      response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-2.0-flash",
+          messages,
+          tools,
+          tool_choice: "auto",
+        }),
+      });
+    } else {
+      // Fallback to Lovable AI gateway
+      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages,
+          tools,
+          tool_choice: "auto",
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -1679,16 +1705,18 @@ serve(async (req) => {
       });
     }
 
-    if (!LOVABLE_API_KEY) {
-      console.error("❌ Missing LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+    if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
+      console.error("❌ Missing AI API key (GEMINI_API_KEY or LOVABLE_API_KEY)");
       return new Response(JSON.stringify({
         error: "AI Gateway not configured",
-        response: "AI service is not configured. Please check the API key."
+        response: "AI service is not configured. Please set GEMINI_API_KEY or LOVABLE_API_KEY."
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log(`🤖 Using ${GEMINI_API_KEY ? 'Direct Gemini API' : 'Lovable Gateway'}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

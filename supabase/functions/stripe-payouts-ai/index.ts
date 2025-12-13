@@ -65,10 +65,15 @@ serve(async (req) => {
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
 
+      // Try direct Gemini API first, fallback to Lovable
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) {
-        throw new Error("LOVABLE_API_KEY is not configured");
+      const useDirectGemini = !!GEMINI_API_KEY;
+      
+      if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
+        throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
       }
+      console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
 
       const systemPrompt = `You are a Stripe financial assistant specialized in payouts, transfers, and balance management. 
 You have access to the user's Stripe data including:
@@ -97,14 +102,21 @@ If asked about authorized persons or suspicious activity, analyze the transfer d
         { role: "user", content: message },
       ];
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // Call AI API - Direct Gemini or Lovable fallback
+      const aiUrl = useDirectGemini 
+        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        : "https://ai.gateway.lovable.dev/v1/chat/completions";
+      const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
+      const aiModel = useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash";
+
+      const response = await fetch(aiUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${aiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: aiModel,
           messages,
           stream: true,
         }),
