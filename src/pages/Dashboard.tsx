@@ -1,20 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
-import { StatCard } from '@/components/dashboard/StatCard';
-import { HealthDistribution } from '@/components/dashboard/HealthDistribution';
-import { QuickActions } from '@/components/dashboard/QuickActions';
-import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
-import { RevenueChart } from '@/components/dashboard/RevenueChart';
-import { ClientRiskMatrix } from '@/components/dashboard/ClientRiskMatrix';
+import { HeroStatCard } from '@/components/dashboard/HeroStatCard';
+import { GreetingBar } from '@/components/dashboard/GreetingBar';
+import { LiveHealthDistribution } from '@/components/dashboard/LiveHealthDistribution';
+import { LiveQuickActions } from '@/components/dashboard/LiveQuickActions';
+import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
+import { LiveRevenueChart } from '@/components/dashboard/LiveRevenueChart';
+import { TodaySnapshot } from '@/components/dashboard/TodaySnapshot';
+import { CoachLeaderboard } from '@/components/dashboard/CoachLeaderboard';
+import { AlertsBar } from '@/components/dashboard/AlertsBar';
 import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
-import { FloatingAIButton } from '@/components/FloatingAIButton';
-import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Users, DollarSign, AlertTriangle, TrendingUp, Bot, Activity } from 'lucide-react';
+import { Users, DollarSign, AlertTriangle, TrendingUp } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
@@ -48,18 +50,53 @@ export default function Dashboard() {
     refetchInterval: 60000,
   });
 
-  // Fetch summary
-  const { data: summary } = useQuery({
-    queryKey: ['daily-summary-dashboard'],
+  // Fetch revenue this month
+  const { data: revenueData, isLoading: revenueLoading } = useQuery({
+    queryKey: ['monthly-revenue'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('daily_summary')
-        .select('*')
-        .order('summary_date', { ascending: false })
-        .limit(1);
-      return data?.[0] || null;
+      const now = new Date();
+      const thisMonthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+      const thisMonthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+      const lastMonthStart = format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
+      const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
+
+      const [thisMonth, lastMonth] = await Promise.all([
+        (supabase as any)
+          .from('deals')
+          .select('deal_value')
+          .eq('status', 'won')
+          .gte('close_date', thisMonthStart)
+          .lte('close_date', thisMonthEnd),
+        (supabase as any)
+          .from('deals')
+          .select('deal_value')
+          .eq('status', 'won')
+          .gte('close_date', lastMonthStart)
+          .lte('close_date', lastMonthEnd),
+      ]);
+
+      const thisTotal = thisMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
+      const lastTotal = lastMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
+      const trend = lastTotal > 0 ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0;
+
+      return { total: thisTotal, trend, isPositive: trend >= 0 };
     },
-    refetchInterval: 60000,
+    refetchInterval: 120000,
+  });
+
+  // Fetch pipeline value
+  const { data: pipelineData } = useQuery({
+    queryKey: ['pipeline-value'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('deals')
+        .select('deal_value')
+        .not('status', 'in', '("won","lost")');
+
+      if (error) return { total: 0, count: 0 };
+      const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
+      return { total, count: data?.length || 0 };
+    },
   });
 
   // Compute stats
@@ -68,48 +105,18 @@ export default function Dashboard() {
     const atRisk = allClients.filter(c => 
       c.health_zone === 'RED' || c.health_zone === 'YELLOW'
     ).length;
-    const totalRevenue = allClients.reduce((sum, c) => 
-      sum + (c.package_value_aed || 0), 0
-    );
-    const avgHealth = allClients.length > 0 
-      ? Math.round(allClients.reduce((sum, c) => sum + (c.health_score || 0), 0) / allClients.length)
-      : 0;
 
     return {
       totalClients: allClients.length,
       atRiskClients: atRisk,
-      totalRevenue,
-      avgHealth,
     };
   }, [clients]);
-
-  // Mock revenue data for chart
-  const revenueData = useMemo(() => {
-    const days = 30;
-    const data = [];
-    for (let i = days; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      data.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value: Math.floor(Math.random() * 50000) + 20000,
-      });
-    }
-    return data;
-  }, []);
-
-  // Mock activities
-  const activities = useMemo(() => [
-    { id: '1', type: 'sync' as const, title: 'HubSpot Synced', description: 'Latest contacts imported', timestamp: new Date(Date.now() - 1000 * 60 * 5) },
-    { id: '2', type: 'payment' as const, title: 'New Payment', description: 'AED 5,000 collected', timestamp: new Date(Date.now() - 1000 * 60 * 30) },
-    { id: '3', type: 'intervention' as const, title: 'Intervention Triggered', description: 'Client at risk detected', timestamp: new Date(Date.now() - 1000 * 60 * 60) },
-  ], []);
 
   // Handlers
   const runBusinessIntelligence = async () => {
     setIsRunningBI(true);
     try {
-      const { data, error } = await supabase.functions.invoke('business-intelligence');
+      const { error } = await supabase.functions.invoke('business-intelligence');
       if (error) throw error;
       toast({ title: 'BI Agent Complete', description: 'Analysis updated successfully' });
     } catch (error: any) {
@@ -122,7 +129,7 @@ export default function Dashboard() {
   const syncHubSpot = async () => {
     setIsSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-hubspot-to-supabase');
+      const { error } = await supabase.functions.invoke('sync-hubspot-to-supabase');
       if (error) throw error;
       toast({ title: 'Sync Complete', description: 'HubSpot data synchronized' });
     } catch (error: any) {
@@ -135,84 +142,81 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background gradient-mesh">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Header */}
-        <div className="animate-fade-up">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            PTD Intelligence Dashboard
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Real-time business health monitoring
-          </p>
-        </div>
+        {/* Greeting Bar */}
+        <GreetingBar />
 
-        {/* Error Monitor */}
-        <ErrorMonitor />
-
-        {/* Stats Row */}
+        {/* Hero Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
+          <HeroStatCard
+            label="Revenue This Month"
+            value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
+            icon={DollarSign}
+            trend={revenueData?.total ? { value: Math.abs(revenueData.trend), isPositive: revenueData.isPositive } : undefined}
+            variant="success"
+            delay={0}
+            href="/analytics"
+            emptyMessage="No revenue yet"
+            isLoading={revenueLoading}
+          />
+          <HeroStatCard
             label="Active Clients"
             value={stats.totalClients}
             icon={Users}
-            trend={{ value: 12, isPositive: true }}
             variant="default"
-            delay={0}
+            delay={50}
+            href="/clients"
+            emptyMessage="No clients yet"
+            isLoading={clientsLoading}
           />
-          <StatCard
-            label="At Risk"
+          <HeroStatCard
+            label="Needs Attention"
             value={stats.atRiskClients}
             icon={AlertTriangle}
             variant={stats.atRiskClients > 5 ? "danger" : "warning"}
             pulse={stats.atRiskClients > 10}
-            subtitle={stats.atRiskClients > 0 ? "Needs attention" : "All healthy!"}
-            delay={50}
-          />
-          <StatCard
-            label="Portfolio Value"
-            value={`AED ${(stats.totalRevenue / 1000).toFixed(0)}K`}
-            icon={DollarSign}
-            trend={{ value: 8, isPositive: true }}
-            variant="success"
             delay={100}
+            href="/clients?zone=RED"
+            subtitle={stats.atRiskClients === 0 ? "All healthy! 🎉" : undefined}
+            isLoading={clientsLoading}
           />
-          <StatCard
-            label="Avg Health Score"
-            value={stats.avgHealth}
-            icon={Activity}
-            variant={stats.avgHealth >= 70 ? "success" : stats.avgHealth >= 50 ? "warning" : "danger"}
+          <HeroStatCard
+            label="Pipeline Value"
+            value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
+            icon={TrendingUp}
+            variant="default"
             delay={150}
+            href="/sales-pipeline"
+            subtitle={pipelineData?.count ? `from ${pipelineData.count} deals` : undefined}
+            emptyMessage="No active deals"
           />
         </div>
 
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <HealthDistribution 
-            clients={clients || []} 
-            onZoneClick={(zone) => navigate(`/clients?zone=${zone}`)}
-          />
-          <RevenueChart data={revenueData} isLoading={clientsLoading} />
-        </div>
-
-        {/* Quick Actions */}
-        <QuickActions
-          onRunBI={runBusinessIntelligence}
-          onSyncHubSpot={syncHubSpot}
-          onOpenAI={() => setShowAIPanel(true)}
-          isRunningBI={isRunningBI}
-          isSyncing={isSyncing}
-        />
-
-        {/* Activity & Risk Matrix */}
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <ActivityFeed activities={activities} />
-          <div className="lg:col-span-2">
-            <ClientRiskMatrix clients={clients || []} isLoading={clientsLoading} />
+          {/* Left Column - 2/3 */}
+          <div className="lg:col-span-2 space-y-6">
+            <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
+            <LiveRevenueChart />
+            <LiveActivityFeed />
+          </div>
+
+          {/* Right Column - 1/3 */}
+          <div className="space-y-6">
+            <LiveQuickActions
+              onRunBI={runBusinessIntelligence}
+              onSyncHubSpot={syncHubSpot}
+              onOpenAI={() => setShowAIPanel(true)}
+              isRunningBI={isRunningBI}
+              isSyncing={isSyncing}
+            />
+            <TodaySnapshot />
+            <CoachLeaderboard />
           </div>
         </div>
-      </div>
 
-      {/* Floating AI Button */}
-      <FloatingAIButton onOpen={() => setShowAIPanel(true)} />
+        {/* Alerts Bar */}
+        <AlertsBar />
+      </div>
 
       {/* AI Panel Sheet */}
       <Sheet open={showAIPanel} onOpenChange={setShowAIPanel}>
