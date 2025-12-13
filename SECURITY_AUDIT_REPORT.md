@@ -295,7 +295,7 @@ if (q.length > 100) {
 **Recommendations**:
 1. Implement strict input sanitization:
    ```typescript
-   const sanitizedQuery = q.replace(/[^\w\s@.-]/g, '');
+   const sanitizedQuery = q.replace(/[^\w\s@.\-]/g, '');
    ```
 2. Add rate limiting per IP/user
 3. Implement result pagination
