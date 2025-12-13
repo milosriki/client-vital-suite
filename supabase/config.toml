@@ -62,6 +62,23 @@ verify_jwt = false
 [functions.process-capi-batch]
 verify_jwt = false
 
+# CallGear Integrations
+[functions.fetch-callgear-data]
+verify_jwt = false
+
+[functions.callgear-live-monitor]
+verify_jwt = false
+
+[functions.callgear-supervisor]
+verify_jwt = false
+
+[functions.callgear-icp-router]
+verify_jwt = false
+
+# Forensic Data Integration
+[functions.fetch-forensic-data]
+verify_jwt = false
+
 # Stripe Integrations
 [functions.stripe-dashboard-data]
 verify_jwt = false
@@ -93,6 +110,9 @@ verify_jwt = false
 
 # AI Lead Reply
 [functions.generate-lead-reply]
+verify_jwt = false
+
+[functions.generate-lead-replies]
 verify_jwt = false
 
 # LangGraph-style Agent Orchestrator
@@ -127,10 +147,29 @@ verify_jwt = false
 # UNLIMITED POWER AGENT SYSTEM
 # ============================================
 
+# AI CEO Master Intelligence
+[functions.ai-ceo-master]
+verify_jwt = false
+
+# Ultimate Intelligence System
+[functions.ptd-ultimate-intelligence]
+verify_jwt = false
+
 # 24/7 Background Monitoring
 [functions.ptd-24x7-monitor]
 verify_jwt = false
 
 # Agent Execution Engine (write actions)
 [functions.ptd-execute-action]
+verify_jwt = false
+
+# Proactive Scanner
+[functions.ptd-proactive-scanner]
+verify_jwt = false
+
+# AI Deployment System
+[functions.ai-trigger-deploy]
+verify_jwt = false
+
+[functions.ai-deploy-callback]
 verify_jwt = false
