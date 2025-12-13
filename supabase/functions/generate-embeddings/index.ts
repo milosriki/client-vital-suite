@@ -15,6 +15,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Validate OPENAI_API_KEY before processing
+  if (!openaiKey) {
+    return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
   try {
     const { action = 'generate', text, id, table = 'knowledge_base', metadata = {} } = await req.json()
     const supabase = createClient(supabaseUrl, supabaseKey)
