@@ -198,6 +198,37 @@
   .pulse-glow {
     animation: pulseGlow 2s ease-in-out infinite;
   }
+
+  /* Dashboard Card */
+  .card-dashboard {
+    @apply relative overflow-hidden rounded-xl border bg-card/50 backdrop-blur-sm;
+    border-color: rgba(255, 255, 255, 0.06);
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .card-dashboard:hover {
+    @apply -translate-y-0.5;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-color: rgba(139, 92, 246, 0.15);
+  }
+
+  /* Focused Row Style (for keyboard navigation) */
+  tr.focused {
+    @apply bg-primary/10 outline outline-2 outline-primary/30;
+  }
+
+  /* Shadow Glow */
+  .shadow-glow-sm {
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  }
+
+  .shadow-glow-lg {
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.5);
+  }
 }
 
 @layer utilities {
@@ -322,4 +353,48 @@
 /* Skeleton Loading */
 .skeleton {
   @apply animate-pulse bg-muted/30 rounded;
+}
+
+/* Card lift on hover */
+.hover-lift {
+  @apply transition-all duration-200;
+}
+
+.hover-lift:hover {
+  @apply -translate-y-1;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Success celebration animation */
+@keyframes celebrate {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.1) rotate(-3deg); }
+  75% { transform: scale(1.1) rotate(3deg); }
+}
+
+.animate-celebrate {
+  animation: celebrate 0.5s ease-in-out;
+}
+
+/* Smooth number transition */
+.number-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Interactive row highlight */
+.interactive-row {
+  @apply transition-colors cursor-pointer;
+}
+
+.interactive-row:hover {
+  @apply bg-muted/30;
+}
+
+/* Chevron rotation */
+.chevron-rotate {
+  transition: transform 0.2s ease-out;
+}
+
+[data-state="open"] .chevron-rotate {
+  transform: rotate(180deg);
 }

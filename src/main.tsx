@@ -26,6 +26,7 @@ import CallTracking from "./pages/CallTracking";
 import NotFound from "./pages/NotFound";
 import UltimateCEO from "./pages/UltimateCEO";
 import StripeIntelligence from "./pages/StripeIntelligence";
+import AuditTrail from "./pages/AuditTrail";
 import "./index.css";
 
 // Start background learning on app init
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: "/sales-pipeline", element: <SalesPipeline /> },
       { path: "/stripe", element: <StripeIntelligence /> },
       { path: "/call-tracking", element: <CallTracking /> },
+      { path: "/audit-trail", element: <AuditTrail /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },

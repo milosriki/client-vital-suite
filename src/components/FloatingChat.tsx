@@ -423,8 +423,8 @@ export const FloatingChat = () => {
                 <p className="text-white/80 font-medium mb-1">PTD Super-Intelligence</p>
                 <p className="text-cyan-400/70 text-xs mb-4">Ask anything about your business data</p>
                 
-                {/* Quick Action Buttons */}
-                <div className="flex flex-wrap gap-2 justify-center mb-4">
+                {/* Quick Action Buttons - Row 1 */}
+                <div className="flex flex-wrap gap-2 justify-center mb-2">
                   <button 
                     onClick={() => { setInput("Show my Stripe balance and recent payments"); }}
                     className="px-3 py-1.5 text-xs bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-300 hover:bg-purple-500/30 transition-colors"
@@ -441,25 +441,51 @@ export const FloatingChat = () => {
                     onClick={() => { setInput("Show clients at risk of churning"); }}
                     className="px-3 py-1.5 text-xs bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-300 hover:bg-orange-500/30 transition-colors"
                   >
-                    ⚠️ At-Risk Clients
+                    ⚠️ At-Risk
                   </button>
+                </div>
+                
+                {/* Quick Action Buttons - Row 2 */}
+                <div className="flex flex-wrap gap-2 justify-center mb-2">
                   <button 
                     onClick={() => { setInput("Coach performance ranking"); }}
                     className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 rounded-full text-green-300 hover:bg-green-500/30 transition-colors"
                   >
-                    📊 Coach Ranking
+                    📊 Coaches
                   </button>
                   <button 
                     onClick={() => { setInput("Show sales pipeline summary"); }}
                     className="px-3 py-1.5 text-xs bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 hover:bg-blue-500/30 transition-colors"
                   >
-                    💰 Sales Pipeline
+                    💰 Pipeline
                   </button>
                   <button 
                     onClick={() => { setInput("Run business intelligence report"); }}
                     className="px-3 py-1.5 text-xs bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-300 hover:bg-cyan-500/30 transition-colors"
                   >
                     🧠 BI Report
+                  </button>
+                </div>
+                
+                {/* Quick Action Buttons - Row 3 */}
+                <div className="flex flex-wrap gap-2 justify-center mb-4">
+                  <button 
+                    onClick={() => { setInput("Check live calls status"); }}
+                    className="px-3 py-1.5 text-xs bg-teal-500/20 border border-teal-500/30 rounded-full text-teal-300 hover:bg-teal-500/30 transition-colors"
+                  >
+                    📞 Live Calls
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Run proactive system scan"); }}
+                    className="px-3 py-1.5 text-xs bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-300 hover:bg-yellow-500/30 transition-colors"
+                  >
+                    🔎 Proactive Scan
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Check system and data quality health"); }}
+                    className="px-3 py-1.5 text-xs bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-300 hover:bg-pink-500/30 transition-colors"
+                  >
+                    ❤️ System Health
                   </button>
                 </div>
                 
