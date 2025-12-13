@@ -72,15 +72,15 @@ const Analytics = () => {
   const isLoading = weeklyLoading || clientsLoading;
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Analytics</h1>
-            <p className="text-muted-foreground">Trends and insights across your client base</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Analytics</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Trends and insights across your client base</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="w-full sm:w-auto">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

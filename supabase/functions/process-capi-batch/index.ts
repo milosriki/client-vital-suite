@@ -120,7 +120,7 @@ serve(async (req) => {
         const payload: any = {
           event_name: event.event_name,
           event_time: Math.floor(new Date(event.event_time).getTime() / 1000),
-          event_source_url: event.event_source_url || 'https://ptdfitness.com',
+          event_source_url: event.event_source_url || 'https://www.personaltrainersdubai.com',
           action_source: event.action_source || 'website',
           user_data: userData,
           custom_data: {

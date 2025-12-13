@@ -129,7 +129,7 @@ serve(async (req) => {
         lifecycle_stage: lifecycleStage,
         lead_source: props.hs_analytics_source,
         original_source: props.hs_analytics_first_url,
-        event_source_url: props.hs_analytics_first_url || 'https://ptdfitness.com',
+        event_source_url: props.hs_analytics_first_url || 'https://www.personaltrainersdubai.com',
         action_source: 'website',
         currency: 'AED',
         batch_scheduled_for: batch_scheduled_for || null,

@@ -14,7 +14,7 @@ import { ExecutiveBriefing } from '@/components/dashboard/ExecutiveBriefing';
 import { LeakDetector } from '@/components/dashboard/LeakDetector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit, RefreshCw } from 'lucide-react';
+import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit, RefreshCw, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { SyncStatusBadge } from '@/components/dashboard/SyncStatusBadge';
 import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
@@ -206,14 +206,14 @@ export default function Dashboard() {
   ) as string[];
 
   return (
-    <div className="flex gap-6 p-6 min-h-screen">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 p-4 sm:p-6 min-h-screen">
       {/* Main Dashboard Content */}
-      <div className={`space-y-6 ${showAIPanel ? 'flex-1 max-w-[calc(100%-424px)]' : 'w-full'}`}>
+      <div className={`space-y-4 sm:space-y-6 flex-1 ${showAIPanel ? 'lg:max-w-[calc(100%-424px)]' : 'w-full'}`}>
         
         {/* Page Header - Clean alignment */}
         <div className="space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
               Client Health Intelligence Dashboard
             </h1>
             
@@ -224,10 +224,11 @@ export default function Dashboard() {
                 size="sm"
                 onClick={runBusinessIntelligence}
                 disabled={isRunningBI}
-                className="gap-2 h-9"
+                className="gap-2 h-9 text-xs sm:text-sm"
               >
                 <BrainCircuit className={`h-4 w-4 ${isRunningBI ? 'animate-spin' : ''}`} />
-                {isRunningBI ? "Running..." : "Run BI Agent"}
+                <span className="hidden sm:inline">{isRunningBI ? "Running..." : "Run BI Agent"}</span>
+                <span className="sm:hidden">{isRunningBI ? "..." : "BI"}</span>
               </Button>
               
               <SyncStatusBadge />
@@ -237,16 +238,17 @@ export default function Dashboard() {
                 variant={showAIPanel ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowAIPanel(!showAIPanel)}
-                className="gap-2 h-9"
+                className="gap-2 h-9 text-xs sm:text-sm"
               >
                 <Bot className="h-4 w-4" />
-                {showAIPanel ? "Hide AI" : "Show AI"}
+                <span className="hidden sm:inline">{showAIPanel ? "Hide AI" : "Show AI"}</span>
+                <span className="sm:hidden">AI</span>
               </Button>
             </div>
           </div>
           
           {/* Subtitle */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Predictive Analytics • Real-time Updates
           </p>
         </div>
@@ -281,54 +283,54 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <Button
                 variant="outline"
-                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
+                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/ptd-control')}
               >
                 <Command className="h-4 w-4" />
-                <span>Control Panel</span>
+                <span className="truncate">Control Panel</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
+                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/meta-dashboard')}
               >
                 <Activity className="h-4 w-4" />
-                <span>CAPI Events</span>
+                <span className="truncate">CAPI Events</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
+                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/analytics')}
               >
                 <TrendingUp className="h-4 w-4" />
-                <span>Analytics</span>
+                <span className="truncate">Analytics</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
+                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/hubspot-live')}
               >
                 <Zap className="h-4 w-4" />
-                <span>HubSpot Sync</span>
+                <span className="truncate">HubSpot Sync</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
+                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => navigate('/ptd-control?tab=settings')}
               >
                 <Settings className="h-4 w-4" />
-                <span>Settings</span>
+                <span className="truncate">Settings</span>
               </Button>
               <Button
                 variant="outline"
-                className="h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
+                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
                 onClick={() => window.open('https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds', '_blank')}
               >
                 <Database className="h-4 w-4" />
-                <span>Supabase</span>
+                <span className="truncate">Supabase</span>
               </Button>
             </div>
           </CardContent>
@@ -357,8 +359,29 @@ export default function Dashboard() {
 
       {/* AI Assistant Panel - Right Sidebar */}
       {showAIPanel && (
-        <div className="w-[400px] shrink-0 sticky top-6 h-[calc(100vh-48px)]">
+        <div className="hidden lg:block w-[400px] shrink-0 sticky top-6 h-[calc(100vh-48px)]">
           <AIAssistantPanel />
+        </div>
+      )}
+
+      {/* Mobile AI Panel as Sheet */}
+      {showAIPanel && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-background">
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">AI Assistant</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowAIPanel(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <AIAssistantPanel />
+            </div>
+          </div>
         </div>
       )}
 
