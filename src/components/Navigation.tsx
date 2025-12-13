@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CheckCircle, CreditCard, Settings, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { SystemStatusDropdown } from "@/components/dashboard/SystemStatusDropdown";
 
 export const Navigation = () => {
   const location = useLocation();
@@ -40,19 +42,34 @@ export const Navigation = () => {
   const NavLink = ({ item, onClick }: { item: typeof navItems[0]; onClick?: () => void }) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.path;
+    const shortcutKey = item.path === '/' ? 'g d' : `g ${item.label[0].toLowerCase()}`;
 
     return (
-      <Link
-        to={item.path}
-        onClick={onClick}
-        className={cn(
-          "nav-link",
-          isActive && "active"
-        )}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="font-medium whitespace-nowrap">{item.label}</span>
-      </Link>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              to={item.path}
+              onClick={onClick}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                window.open(item.path, '_blank');
+              }}
+              className={cn(
+                "nav-link",
+                isActive && "active"
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="font-medium whitespace-nowrap">{item.label}</span>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            <p>{item.label}</p>
+            <p className="text-muted-foreground">Shortcut: {shortcutKey}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
 
@@ -79,23 +96,29 @@ export const Navigation = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Sync Status */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
-              <CheckCircle className="h-3 w-3 text-success" />
-              <span className="text-xs text-success font-medium">Connected</span>
+            {/* System Status Dropdown */}
+            <div className="hidden sm:block">
+              <SystemStatusDropdown isSyncing={isSyncing} onSync={handleSync} />
             </div>
             
             {/* Sync Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="hidden sm:flex gap-2 text-xs"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
-              {isSyncing ? "Syncing..." : "Sync"}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="hidden sm:flex gap-2 text-xs"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+                    {isSyncing ? "Syncing..." : "Sync"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Click to sync all data</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             {/* Mobile Menu - Always show hamburger for more options */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>

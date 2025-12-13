@@ -5,9 +5,11 @@ import { TrendIndicator } from "./TrendIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowUpDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ClientContextMenu, PhoneContextMenu } from "@/components/ui/context-menu-custom";
+import { ArrowUpDown, Phone, Mail, ExternalLink } from "lucide-react";
 import type { ClientHealthScore } from "@/types/database";
-
+import { toast } from "@/hooks/use-toast";
 interface ClientTableProps {
   clients: ClientHealthScore[];
 }
@@ -130,48 +132,109 @@ export const ClientTable = ({ clients }: ClientTableProps) => {
           </TableHeader>
           <TableBody>
             {paginatedClients.map((client) => (
-              <TableRow 
-                key={client.id} 
-                className="hover:bg-muted/50 cursor-pointer"
-                onClick={() => navigate(`/clients/${encodeURIComponent(client.email || '')}`)}
+              <ClientContextMenu
+                key={client.id}
+                clientName={`${client.firstname || ''} ${client.lastname || ''}`.trim()}
+                email={client.email || undefined}
+                phone={undefined}
+                hubspotId={client.hubspot_contact_id || undefined}
+                onViewProfile={() => navigate(`/clients/${encodeURIComponent(client.email || '')}`)}
               >
-                <TableCell className="font-medium">
-                  {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{client.email}</TableCell>
-                <TableCell className="text-center">
-                  <div className="flex justify-center">
-                    <HealthScoreBadge 
-                      score={client.health_score || 0} 
-                      zone={client.health_zone as any} 
-                      size="sm"
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <Badge className={getZoneBadgeColor(client.health_zone)}>
-                    {client.health_zone}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex justify-center">
-                    <TrendIndicator trend={client.health_zone} />
-                  </div>
-                </TableCell>
-                <TableCell>{client.assigned_coach || 'Unassigned'}</TableCell>
-                <TableCell className="text-center">
-                  {client.days_since_last_session !== null ? client.days_since_last_session : 'N/A'}
-                </TableCell>
-                <TableCell className="text-center">
-                  {client.client_segment ? (
-                    <Badge className={getPriorityBadgeColor(client.client_segment)}>
-                      {client.client_segment}
+                <TableRow 
+                  className="hover:bg-muted/50 cursor-pointer group transition-colors"
+                  onClick={() => navigate(`/clients/${encodeURIComponent(client.email || '')}`)}
+                  tabIndex={0}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}</span>
+                      {/* Quick action icons on hover */}
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                        {client.email && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); window.open(`mailto:${client.email}`); }}
+                                  className="p-1 hover:bg-primary/10 rounded"
+                                >
+                                  <Mail className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Send email</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {client.hubspot_contact_id && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    window.open(`https://app.hubspot.com/contacts/27656685/contact/${client.hubspot_contact_id}`, '_blank'); 
+                                  }}
+                                  className="p-1 hover:bg-primary/10 rounded"
+                                >
+                                  <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>View in HubSpot</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{client.email}</TableCell>
+                  <TableCell className="text-center">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <div className="flex justify-center">
+                            <HealthScoreBadge 
+                              score={client.health_score || 0} 
+                              zone={client.health_zone as any} 
+                              size="sm"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Health score based on engagement, sessions, and retention metrics
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={getZoneBadgeColor(client.health_zone)}>
+                      {client.health_zone}
                     </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">-</span>
-                  )}
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      <TrendIndicator trend={client.health_zone} />
+                    </div>
+                  </TableCell>
+                  <TableCell 
+                    className="cursor-pointer hover:text-primary hover:underline"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/coaches?selected=${client.assigned_coach}`); }}
+                  >
+                    {client.assigned_coach || 'Unassigned'}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {client.days_since_last_session !== null ? client.days_since_last_session : 'N/A'}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {client.client_segment ? (
+                      <Badge className={getPriorityBadgeColor(client.client_segment)}>
+                        {client.client_segment}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              </ClientContextMenu>
             ))}
           </TableBody>
         </Table>
