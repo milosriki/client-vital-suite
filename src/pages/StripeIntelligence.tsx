@@ -87,9 +87,9 @@ export default function StripeIntelligence() {
   const [inputMessage, setInputMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 30), to: new Date() });
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedPreset, setSelectedPreset] = useState("Last 30 days");
+  const [selectedPreset, setSelectedPreset] = useState("All time");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch Stripe dashboard data with date range
