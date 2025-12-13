@@ -283,6 +283,38 @@ const tools = [
         required: ["coach_name"],
       },
     },
+  },
+  // TOOL 16: CallGear Control
+  {
+    type: "function",
+    function: {
+      name: "callgear_control",
+      description: "Get FULL call analytics from CallGear, including employee names, call durations, and recordings. Use this when user asks for 'who called', 'employee names', or detailed call reports.",
+      parameters: {
+        type: "object",
+        properties: {
+          date_from: { type: "string", description: "Start date (YYYY-MM-DD)" },
+          date_to: { type: "string", description: "End date (YYYY-MM-DD)" },
+          limit: { type: "number", description: "Max results (default 50)" }
+        }
+      }
+    }
+  },
+  // TOOL 17: Forensic Control
+  {
+    type: "function",
+    function: {
+      name: "forensic_control",
+      description: "AUDIT LOG & FORENSICS - Track WHO changed WHAT and WHEN in HubSpot. Use this to investigate changes to contacts, deals, or settings. Returns a timeline of property changes.",
+      parameters: {
+        type: "object",
+        properties: {
+          target_identity: { type: "string", description: "Email, Phone, or HubSpot ID to investigate" },
+          limit: { type: "number", description: "Max log entries (default 50)" }
+        },
+        required: ["target_identity"]
+      }
+    }
   }
 ];
 
@@ -943,6 +975,53 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
             intervention_success_rate: performance.intervention_success_rate
           } : null
         }, null, 2);
+      }
+
+      case "callgear_control": {
+        const { date_from, date_to, limit = 50 } = args;
+        try {
+          const { data, error } = await supabase.functions.invoke('fetch-callgear-data', {
+            body: { date_from, date_to, limit }
+          });
+
+          if (error) return `CallGear Error: ${error.message}`;
+          if (!data.success) return `CallGear API Error: ${data.error || 'Unknown error'}`;
+
+          return JSON.stringify({
+            count: data.count,
+            calls: data.data?.map((c: any) => ({
+              start_time: c.start_time,
+              duration: c.duration,
+              caller: c.calling_phone,
+              called: c.called_phone,
+              employee: c.employee_full_name || 'Unknown',
+              status: c.status,
+              outcome: c.finish_reason,
+              recording: c.record_url
+            }))
+          });
+        } catch (e) {
+          return `CallGear integration error: ${e}`;
+        }
+      }
+
+      case "forensic_control": {
+        const { target_identity, limit = 50 } = args;
+        try {
+          const { data, error } = await supabase.functions.invoke('fetch-forensic-data', {
+            body: { target_identity, limit }
+          });
+
+          if (error) return `Forensic Audit Error: ${error.message}`;
+          if (!data.success) return `Forensic Audit Failed: ${data.message || 'Unknown error'}`;
+
+          return JSON.stringify({
+            target: data.contact,
+            audit_log: data.audit_log
+          });
+        } catch (e) {
+          return `Forensic integration error: ${e}`;
+        }
       }
       
       default:
