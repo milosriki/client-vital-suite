@@ -11,12 +11,13 @@ export default function MetaDashboard() {
   const [results, setResults] = useState<Record<string, any>>({});
   
   // Form states
-  const [testEmail, setTestEmail] = useState('test@ptdfitness.com');
+  const [testEmail, setTestEmail] = useState('test@personaltrainersdubai.com');
   const [testValue, setTestValue] = useState('500');
   const [backfillUrl, setBackfillUrl] = useState('');
   const [healthWebhookUrl, setHealthWebhookUrl] = useState('');
   
-  const API_BASE = import.meta.env.VITE_META_CAPI_URL || 'http://localhost:3000';
+  // Use same domain as frontend for Vercel serverless functions
+  const API_BASE = import.meta.env.VITE_META_CAPI_URL || window.location.origin;
 
   const handleHealthCheck = async () => {
     setLoading('health');
@@ -140,8 +141,8 @@ export default function MetaDashboard() {
     if (!result) return null;
     
     return (
-      <div className="mt-4 p-4 bg-muted rounded-lg border">
-        <pre className="text-xs overflow-auto max-h-64">
+      <div className="mt-4 p-3 sm:p-4 bg-muted rounded-lg border overflow-hidden">
+        <pre className="text-xs overflow-x-auto max-h-64 whitespace-pre-wrap break-words">
           {JSON.stringify(result, null, 2)}
         </pre>
       </div>
@@ -149,23 +150,24 @@ export default function MetaDashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Meta CAPI Proxy Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl sm:text-3xl font-bold">Meta CAPI Proxy Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
           Timezone: Asia/Dubai | Currency: AED
         </p>
       </div>
 
       {/* Health Check */}
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Activity className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">Health Check</h2>
+          <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold">Health Check</h2>
         </div>
         <Button 
           onClick={handleHealthCheck} 
           disabled={loading === 'health'}
+          className="w-full sm:w-auto"
         >
           {loading === 'health' ? 'Checking...' : 'Run Health Check'}
         </Button>
@@ -173,35 +175,40 @@ export default function MetaDashboard() {
       </Card>
 
       {/* Test Purchase */}
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-4">
-          <ShoppingCart className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">Send Test Purchase</h2>
+          <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold">Send Test Purchase</h2>
         </div>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="test-email">Email</Label>
-            <Input 
-              id="test-email"
-              type="email"
-              value={testEmail}
-              onChange={(e) => setTestEmail(e.target.value)}
-              placeholder="test@ptdfitness.com"
-            />
-          </div>
-          <div>
-            <Label htmlFor="test-value">Value (AED)</Label>
-            <Input 
-              id="test-value"
-              type="number"
-              value={testValue}
-              onChange={(e) => setTestValue(e.target.value)}
-              placeholder="500"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="test-email">Email</Label>
+              <Input 
+                id="test-email"
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="test@personaltrainersdubai.com"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label htmlFor="test-value">Value (AED)</Label>
+              <Input 
+                id="test-value"
+                type="number"
+                value={testValue}
+                onChange={(e) => setTestValue(e.target.value)}
+                placeholder="500"
+                className="w-full"
+              />
+            </div>
           </div>
           <Button 
             onClick={handleTestPurchase} 
             disabled={loading === 'purchase'}
+            className="w-full sm:w-auto"
           >
             {loading === 'purchase' ? 'Sending...' : 'Send Test Purchase'}
           </Button>
@@ -210,10 +217,10 @@ export default function MetaDashboard() {
       </Card>
 
       {/* Backfill */}
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-4">
-          <RefreshCw className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">Trigger Backfill</h2>
+          <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold">Trigger Backfill</h2>
         </div>
         <div className="space-y-4">
           <div>
@@ -224,11 +231,13 @@ export default function MetaDashboard() {
               value={backfillUrl}
               onChange={(e) => setBackfillUrl(e.target.value)}
               placeholder="https://your-webhook.com/backfill"
+              className="w-full"
             />
           </div>
           <Button 
             onClick={handleTriggerBackfill} 
             disabled={loading === 'backfill'}
+            className="w-full sm:w-auto"
           >
             {loading === 'backfill' ? 'Triggering...' : 'Trigger Backfill'}
           </Button>
@@ -237,10 +246,10 @@ export default function MetaDashboard() {
       </Card>
 
       {/* Health Webhook */}
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Heart className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">Run Health Check</h2>
+          <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold">Run Health Check</h2>
         </div>
         <div className="space-y-4">
           <div>
@@ -251,11 +260,13 @@ export default function MetaDashboard() {
               value={healthWebhookUrl}
               onChange={(e) => setHealthWebhookUrl(e.target.value)}
               placeholder="https://your-webhook.com/health"
+              className="w-full"
             />
           </div>
           <Button 
             onClick={handleHealthWebhook} 
             disabled={loading === 'healthWebhook'}
+            className="w-full sm:w-auto"
           >
             {loading === 'healthWebhook' ? 'Running...' : 'Run Health Webhook'}
           </Button>

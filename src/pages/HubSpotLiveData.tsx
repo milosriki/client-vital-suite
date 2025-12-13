@@ -299,24 +299,24 @@ const HubSpotLiveData = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Activity className="h-8 w-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             HubSpot Live Dashboard
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Real-time metrics from your database • Formula-driven KPIs
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleRefresh} disabled={isLoading}>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button onClick={handleRefresh} disabled={isLoading} className="w-full sm:w-auto">
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="destructive" onClick={handleClearFakeData} disabled={isLoading}>
+          <Button variant="destructive" onClick={handleClearFakeData} disabled={isLoading} className="w-full sm:w-auto">
             <Trash2 className="h-4 w-4 mr-2" />
             Clear Fake & Sync
           </Button>
@@ -326,7 +326,7 @@ const HubSpotLiveData = () => {
       {/* Filters */}
       <div className="flex gap-4">
         <Select value={timeframe} onValueChange={setTimeframe}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -341,7 +341,7 @@ const HubSpotLiveData = () => {
       </div>
 
       {/* KPI Formula Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
@@ -401,7 +401,7 @@ const HubSpotLiveData = () => {
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -465,11 +465,11 @@ const HubSpotLiveData = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="leads">
-        <TabsList>
-          <TabsTrigger value="leads">📋 Leads ({kpis.totalLeads})</TabsTrigger>
-          <TabsTrigger value="calls">📞 Calls ({kpis.totalCalls})</TabsTrigger>
-          <TabsTrigger value="deals">💰 Deals ({kpis.totalDeals})</TabsTrigger>
-          <TabsTrigger value="formulas">📊 Formulas</TabsTrigger>
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full">
+          <TabsTrigger value="leads" className="text-xs sm:text-sm">📋 Leads ({kpis.totalLeads})</TabsTrigger>
+          <TabsTrigger value="calls" className="text-xs sm:text-sm">📞 Calls ({kpis.totalCalls})</TabsTrigger>
+          <TabsTrigger value="deals" className="text-xs sm:text-sm">💰 Deals ({kpis.totalDeals})</TabsTrigger>
+          <TabsTrigger value="formulas" className="text-xs sm:text-sm">📊 Formulas</TabsTrigger>
         </TabsList>
 
         {/* Leads Tab */}
@@ -485,18 +485,19 @@ const HubSpotLiveData = () => {
               {isLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading...</div>
               ) : allLeads.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Quality</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[120px]">Name</TableHead>
+                        <TableHead className="min-w-[180px]">Email</TableHead>
+                        <TableHead className="min-w-[120px]">Phone</TableHead>
+                        <TableHead className="min-w-[100px]">Source</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[80px]">Quality</TableHead>
+                        <TableHead className="min-w-[120px]">Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {allLeads.slice(0, 50).map((lead: any) => (
                       <TableRow key={lead.id}>
@@ -525,6 +526,7 @@ const HubSpotLiveData = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <Alert>
                   <AlertTitle>No Leads Found</AlertTitle>
@@ -548,18 +550,19 @@ const HubSpotLiveData = () => {
               {loadingCalls ? (
                 <div className="text-center py-8 text-muted-foreground">Loading...</div>
               ) : (callsData || []).length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Direction</TableHead>
-                      <TableHead>Caller</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Appointment</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[80px]">Time</TableHead>
+                        <TableHead className="min-w-[100px]">Direction</TableHead>
+                        <TableHead className="min-w-[120px]">Caller</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[100px]">Duration</TableHead>
+                        <TableHead className="min-w-[80px]">Score</TableHead>
+                        <TableHead className="min-w-[100px]">Appointment</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {(callsData || []).map((call: any) => (
                       <TableRow key={call.id}>
@@ -594,6 +597,7 @@ const HubSpotLiveData = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <Alert>
                   <AlertTitle>No Calls Found</AlertTitle>
@@ -617,17 +621,18 @@ const HubSpotLiveData = () => {
               {loadingDeals ? (
                 <div className="text-center py-8 text-muted-foreground">Loading...</div>
               ) : (dealsData || []).length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Deal</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Cash Collected</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Closer</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Deal</TableHead>
+                        <TableHead className="min-w-[120px]">Value</TableHead>
+                        <TableHead className="min-w-[120px]">Cash Collected</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[120px]">Closer</TableHead>
+                        <TableHead className="min-w-[120px]">Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {(dealsData || []).map((deal: any) => (
                       <TableRow key={deal.id}>
@@ -653,6 +658,7 @@ const HubSpotLiveData = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <Alert>
                   <AlertTitle>No Deals Found</AlertTitle>
@@ -671,7 +677,7 @@ const HubSpotLiveData = () => {
               <CardDescription>How metrics are calculated</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg border bg-muted/50">
                   <h4 className="font-semibold mb-2">Conversion Rate</h4>
                   <code className="text-sm bg-background px-2 py-1 rounded">

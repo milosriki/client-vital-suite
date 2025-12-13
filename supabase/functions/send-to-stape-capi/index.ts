@@ -65,7 +65,7 @@ serve(async (req) => {
       event_name: eventData.event_name || 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
       action_source: 'website',
-      event_source_url: 'https://ptdfitness.com',
+      event_source_url: 'https://www.personaltrainersdubai.com',
       user_data: {
         em: hashedEmail,  // SHA-256 hashed email
         ph: hashedPhone,  // SHA-256 hashed phone
