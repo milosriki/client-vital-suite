@@ -523,6 +523,36 @@ export type Database = {
         }
         Relationships: []
       }
+      business_calibration: {
+        Row: {
+          ai_recommendation: string | null
+          created_at: string
+          feedback_notes: string | null
+          id: string
+          scenario_description: string
+          was_ai_correct: boolean | null
+          your_decision: string | null
+        }
+        Insert: {
+          ai_recommendation?: string | null
+          created_at?: string
+          feedback_notes?: string | null
+          id?: string
+          scenario_description: string
+          was_ai_correct?: boolean | null
+          your_decision?: string | null
+        }
+        Update: {
+          ai_recommendation?: string | null
+          created_at?: string
+          feedback_notes?: string | null
+          id?: string
+          scenario_description?: string
+          was_ai_correct?: boolean | null
+          your_decision?: string | null
+        }
+        Relationships: []
+      }
       business_forecasts: {
         Row: {
           actual_value: number | null
@@ -556,6 +586,45 @@ export type Database = {
           period_month?: number
           period_year?: number
           predicted_value?: number
+        }
+        Relationships: []
+      }
+      business_goals: {
+        Row: {
+          baseline_value: number | null
+          created_at: string
+          current_value: number | null
+          deadline: string | null
+          goal_name: string
+          id: string
+          metric_name: string
+          status: string | null
+          target_value: number
+          updated_at: string
+        }
+        Insert: {
+          baseline_value?: number | null
+          created_at?: string
+          current_value?: number | null
+          deadline?: string | null
+          goal_name: string
+          id?: string
+          metric_name: string
+          status?: string | null
+          target_value: number
+          updated_at?: string
+        }
+        Update: {
+          baseline_value?: number | null
+          created_at?: string
+          current_value?: number | null
+          deadline?: string | null
+          goal_name?: string
+          id?: string
+          metric_name?: string
+          status?: string | null
+          target_value?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2993,6 +3062,63 @@ export type Database = {
           metric_type?: string
           metric_value?: number
           platform?: string
+        }
+        Relationships: []
+      }
+      prepared_actions: {
+        Row: {
+          action_description: string | null
+          action_title: string
+          action_type: string
+          confidence: number | null
+          created_at: string
+          executed_at: string | null
+          expected_impact: string | null
+          id: string
+          prepared_payload: Json | null
+          priority: number | null
+          reasoning: string | null
+          rejection_reason: string | null
+          risk_level: string | null
+          source_agent: string | null
+          status: string | null
+          supporting_data: Json | null
+        }
+        Insert: {
+          action_description?: string | null
+          action_title: string
+          action_type?: string
+          confidence?: number | null
+          created_at?: string
+          executed_at?: string | null
+          expected_impact?: string | null
+          id?: string
+          prepared_payload?: Json | null
+          priority?: number | null
+          reasoning?: string | null
+          rejection_reason?: string | null
+          risk_level?: string | null
+          source_agent?: string | null
+          status?: string | null
+          supporting_data?: Json | null
+        }
+        Update: {
+          action_description?: string | null
+          action_title?: string
+          action_type?: string
+          confidence?: number | null
+          created_at?: string
+          executed_at?: string | null
+          expected_impact?: string | null
+          id?: string
+          prepared_payload?: Json | null
+          priority?: number | null
+          reasoning?: string | null
+          rejection_reason?: string | null
+          risk_level?: string | null
+          source_agent?: string | null
+          status?: string | null
+          supporting_data?: Json | null
         }
         Relationships: []
       }
