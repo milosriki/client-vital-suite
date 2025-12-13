@@ -415,18 +415,57 @@ export const FloatingChat = () => {
           {/* Messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
             {messages.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-8">
                 <div className="relative inline-block mb-4">
-                  <Brain className="h-16 w-16 text-cyan-400/50 mx-auto" />
-                  <Sparkles className="h-6 w-6 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+                  <Brain className="h-14 w-14 text-cyan-400/50 mx-auto" />
+                  <Sparkles className="h-5 w-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
                 </div>
-                <p className="text-white/80 font-medium mb-2">PTD Super-Intelligence</p>
-                <p className="text-cyan-400/70 text-sm mb-4">I learn from every conversation</p>
-                <div className="space-y-2 text-xs text-white/50">
-                  <p>💡 "john@ptd.com full journey"</p>
-                  <p>🔍 "Scan for Stripe fraud"</p>
-                  <p>📊 "Coach performance ranking"</p>
-                  <p>📎 Attach files to teach me</p>
+                <p className="text-white/80 font-medium mb-1">PTD Super-Intelligence</p>
+                <p className="text-cyan-400/70 text-xs mb-4">Ask anything about your business data</p>
+                
+                {/* Quick Action Buttons */}
+                <div className="flex flex-wrap gap-2 justify-center mb-4">
+                  <button 
+                    onClick={() => { setInput("Show my Stripe balance and recent payments"); }}
+                    className="px-3 py-1.5 text-xs bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-300 hover:bg-purple-500/30 transition-colors"
+                  >
+                    💳 Stripe Balance
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Scan Stripe for fraud or suspicious activity"); }}
+                    className="px-3 py-1.5 text-xs bg-red-500/20 border border-red-500/30 rounded-full text-red-300 hover:bg-red-500/30 transition-colors"
+                  >
+                    🔍 Fraud Scan
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Show clients at risk of churning"); }}
+                    className="px-3 py-1.5 text-xs bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-300 hover:bg-orange-500/30 transition-colors"
+                  >
+                    ⚠️ At-Risk Clients
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Coach performance ranking"); }}
+                    className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 rounded-full text-green-300 hover:bg-green-500/30 transition-colors"
+                  >
+                    📊 Coach Ranking
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Show sales pipeline summary"); }}
+                    className="px-3 py-1.5 text-xs bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 hover:bg-blue-500/30 transition-colors"
+                  >
+                    💰 Sales Pipeline
+                  </button>
+                  <button 
+                    onClick={() => { setInput("Run business intelligence report"); }}
+                    className="px-3 py-1.5 text-xs bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-300 hover:bg-cyan-500/30 transition-colors"
+                  >
+                    🧠 BI Report
+                  </button>
+                </div>
+                
+                <div className="space-y-1 text-[10px] text-white/40">
+                  <p>💡 Search: "john@ptd.com" or "+971..."</p>
+                  <p>📎 Attach files to analyze</p>
                 </div>
               </div>
             ) : (
