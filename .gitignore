@@ -24,6 +24,19 @@ dist-ssr
 *.sw?
 .vercel
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# Secrets
+*.key
+*.pem
+secrets.json
+
 # Lovable protection
 .lovableignore
 .env.vercel
