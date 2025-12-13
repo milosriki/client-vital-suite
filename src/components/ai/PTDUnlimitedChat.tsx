@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database,
-  Shield, AlertTriangle, CheckCircle, XCircle, Activity, Zap, Users
+  Shield, AlertTriangle, CheckCircle, XCircle, Activity, Zap, Users,
+  Minimize2, Maximize2
 } from "lucide-react";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
@@ -40,6 +41,7 @@ export default function PTDUnlimitedChat() {
   const [pendingApprovals, setPendingApprovals] = useState<ExecutionRequest[]>([]);
   const [showApprovals, setShowApprovals] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -261,6 +263,19 @@ export default function PTDUnlimitedChat() {
     }
   };
 
+  if (minimized) {
+    return (
+      <button
+        onClick={() => setMinimized(false)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-slate-900 via-slate-800 to-black border border-cyan-500/30 rounded-full shadow-2xl flex items-center justify-center z-50 hover:scale-105 transition-transform"
+        title="Open PTD Chat"
+      >
+        <Brain className="w-6 h-6 text-cyan-400" />
+        <Zap className="w-3 h-3 text-yellow-400 absolute top-2 right-2 animate-pulse" />
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-6 right-6 w-[550px] h-[750px] bg-gradient-to-br from-slate-900 via-slate-800 to-black border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col z-50">
       {/* Enhanced Header */}
@@ -347,6 +362,14 @@ export default function PTDUnlimitedChat() {
                 <Upload className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
               )}
             </label>
+
+            <button
+              onClick={() => setMinimized(true)}
+              className="p-2 hover:bg-cyan-500/20 rounded-lg transition-all group"
+              title="Minimize chat"
+            >
+              <Minimize2 className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
+            </button>
           </div>
         </div>
         
