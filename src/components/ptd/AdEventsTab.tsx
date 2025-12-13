@@ -15,15 +15,15 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
   const { data: events, isLoading, refetch } = useQuery({
     queryKey: ["capi-events", mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("capi_events")
+      const { data, error } = await (supabase
+        .from("capi_events" as any)
         .select("*")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(500) as any);
       
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     refetchInterval: 10000, // Auto-refresh every 10s
   });

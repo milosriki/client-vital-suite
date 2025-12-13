@@ -40,14 +40,14 @@ export default function CAPITab({ mode }: CAPITabProps) {
   const { data: events, refetch } = useQuery({
     queryKey: ["capi-events", mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("capi_events")
+      const { data, error } = await (supabase
+        .from("capi_events" as any)
         .select("*")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(50) as any);
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -203,14 +203,14 @@ export default function CAPITab({ mode }: CAPITabProps) {
     
     // Log to automation_logs in Supabase
     try {
-      const { error } = await supabase
-        .from('automation_logs')
+      const { error } = await (supabase
+        .from('automation_logs' as any)
         .insert({
           action_type: 'capi_simulate',
           mode,
           payload,
           status: 'simulated',
-        });
+        }) as any);
 
       if (error) throw error;
 

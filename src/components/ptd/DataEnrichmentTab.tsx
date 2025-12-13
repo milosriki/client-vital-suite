@@ -20,10 +20,10 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const { data: queueStats } = useQuery({
     queryKey: ["queue-stats", mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("capi_events_enriched")
+      const { data, error } = await (supabase
+        .from("capi_events_enriched" as any)
         .select("send_status, count")
-        .eq("mode", mode);
+        .eq("mode", mode) as any);
       
       if (error) throw error;
       
@@ -44,15 +44,15 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const { data: batchJobs } = useQuery({
     queryKey: ["batch-jobs", mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("batch_jobs")
+      const { data, error } = await (supabase
+        .from("batch_jobs" as any)
         .select("*")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(10) as any);
       
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     refetchInterval: 10000,
   });
@@ -61,13 +61,13 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const { data: batchConfigs } = useQuery({
     queryKey: ["batch-config"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("batch_config")
+      const { data, error } = await (supabase
+        .from("batch_config" as any)
         .select("*")
-        .order("batch_time", { ascending: true });
+        .order("batch_time", { ascending: true }) as any);
       
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 

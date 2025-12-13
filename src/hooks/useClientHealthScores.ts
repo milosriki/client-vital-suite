@@ -45,7 +45,7 @@ export function useClientHealthScores(options: UseClientHealthScoresOptions = {}
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data as ClientHealthScore[]) || [];
+      return (data as unknown as ClientHealthScore[]) || [];
     },
     staleTime: 60000, // 1 minute
     refetchInterval: autoRefresh ? 300000 : false, // 5 minutes

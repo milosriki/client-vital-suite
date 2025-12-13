@@ -11,14 +11,14 @@ const Analytics = () => {
   const { data: weeklyData, isLoading: weeklyLoading, refetch } = useQuery({
     queryKey: ['weekly-analytics'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('weekly_patterns')
         .select('*')
-        .order('week_start_date', { ascending: true })
-        .limit(12);
+        .order('week_start', { ascending: true })
+        .limit(12) as any);
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as any[];
     },
     refetchInterval: 5 * 60 * 1000,
   });
@@ -39,13 +39,13 @@ const Analytics = () => {
   });
 
   // Prepare data for charts
-  const trendData = weeklyData?.map(week => ({
-    week: new Date(week.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    avgScore: week.avg_health_score,
-    red: week.red_clients,
-    yellow: week.yellow_clients,
-    green: week.green_clients,
-    purple: week.purple_clients,
+  const trendData = weeklyData?.map((week: any) => ({
+    week: new Date(week.week_start_date || week.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    avgScore: week.avg_health_score || 0,
+    red: week.red_clients || 0,
+    yellow: week.yellow_clients || 0,
+    green: week.green_clients || 0,
+    purple: week.purple_clients || 0,
   })) || [];
 
   // Zone distribution for pie chart
