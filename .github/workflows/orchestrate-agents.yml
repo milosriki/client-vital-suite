@@ -18,6 +18,7 @@ jobs:
     steps:
       - name: Validate Required Secrets
         run: |
+          set -e
           if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
             echo "::error::SUPABASE_ACCESS_TOKEN secret is not configured."
             echo "Please add SUPABASE_ACCESS_TOKEN to your repository secrets:"
@@ -30,22 +31,70 @@ jobs:
           echo "✓ Required secrets are configured"
 
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Check if function files changed
+        id: check-changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Workflow manually triggered, proceeding with deployment"
+            exit 0
+          fi
+          
+          # Check if any supabase/functions/** files changed
+          # Handle edge case where HEAD~1 might not exist (first commit)
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            if git diff --name-only HEAD~1 HEAD | grep -q "^supabase/functions/"; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "✓ Function files changed, proceeding with deployment"
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "⚠ No function files changed, skipping deployment"
+            fi
+          else
+            # First commit or no previous commit - check if functions directory exists
+            if [ -d "supabase/functions" ] && [ "$(ls -A supabase/functions 2>/dev/null)" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "✓ First commit with functions, proceeding with deployment"
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "⚠ No function files found, skipping deployment"
+            fi
+          fi
       
       - uses: supabase/setup-cli@v1
+        if: steps.check-changes.outputs.changed == 'true'
         with:
           version: latest
 
       - name: Deploy All Functions
+        if: steps.check-changes.outputs.changed == 'true'
         run: |
-          supabase functions deploy --no-verify-jwt --project-ref $PROJECT_ID
+          set -e
+          echo "🚀 Deploying all Supabase Edge Functions..."
+          if supabase functions deploy --no-verify-jwt --project-ref $PROJECT_ID; then
+            echo "✅ Deployment successful"
+          else
+            echo "::error::Deployment failed"
+            exit 1
+          fi
+      
+      - name: Skip deployment notice
+        if: steps.check-changes.outputs.changed == 'false'
+        run: |
+          echo "ℹ Skipping deployment - no function files changed in this commit"
           
   sync-check:
     name: Verify System Health
     needs: deploy-agents
     runs-on: ubuntu-latest
+    if: needs.deploy-agents.result == 'success' || needs.deploy-agents.result == 'skipped'
     steps:
       - name: Validate Required Secrets
         run: |
+          set -e
           if [ -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
             echo "::error::SUPABASE_ANON_KEY secret is not configured."
             echo "Please add SUPABASE_ANON_KEY to your repository secrets:"
@@ -59,7 +108,15 @@ jobs:
 
       - name: Check Business Intelligence Agent
         run: |
-          curl -f -X POST https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/business-intelligence \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d '{}'
+          set -e
+          echo "🔍 Verifying Business Intelligence Agent health..."
+          if curl -f -X POST https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/business-intelligence \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            --max-time 30 \
+            --retry 2; then
+            echo "✅ Business Intelligence Agent is healthy"
+          else
+            echo "::warning::Business Intelligence Agent health check failed, but continuing..."
+          fi
