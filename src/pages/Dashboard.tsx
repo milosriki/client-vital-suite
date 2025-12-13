@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
+import { useNotifications } from '@/hooks/useNotifications';
 import { HeroStatCard } from '@/components/dashboard/HeroStatCard';
 import { GreetingBar } from '@/components/dashboard/GreetingBar';
 import { LiveHealthDistribution } from '@/components/dashboard/LiveHealthDistribution';
@@ -13,6 +14,7 @@ import { TodaySnapshot } from '@/components/dashboard/TodaySnapshot';
 import { CoachLeaderboard } from '@/components/dashboard/CoachLeaderboard';
 import { AlertsBar } from '@/components/dashboard/AlertsBar';
 import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
+import { MetricDrilldownModal } from '@/components/dashboard/MetricDrilldownModal';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Users, DollarSign, AlertTriangle, TrendingUp } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -20,10 +22,12 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
+  useNotifications(); // Enable real-time notification monitoring
   const navigate = useNavigate();
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [isRunningBI, setIsRunningBI] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [drilldownMetric, setDrilldownMetric] = useState<{ title: string; value: string | number; type: "revenue" | "clients" | "pipeline" | "attention" } | null>(null);
 
   // Fetch clients
   const { data: clients, isLoading: clientsLoading } = useQuery({
@@ -224,6 +228,13 @@ export default function Dashboard() {
           <AIAssistantPanel />
         </SheetContent>
       </Sheet>
+
+      {/* Metric Drilldown Modal */}
+      <MetricDrilldownModal
+        open={!!drilldownMetric}
+        onClose={() => setDrilldownMetric(null)}
+        metric={drilldownMetric}
+      />
     </div>
   );
 }
