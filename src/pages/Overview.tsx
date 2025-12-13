@@ -458,8 +458,8 @@ const Overview = () => {
 
         {/* Interventions & Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <InterventionTracker interventions={interventions} />
-          <WeeklyAnalytics patterns={weeklyPatterns} />
+          <InterventionTracker interventions={interventions as any} />
+          <WeeklyAnalytics patterns={weeklyPatterns as any} />
         </div>
 
         {/* Coach Performance Table */}

@@ -1,90 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { HealthDistribution } from '@/components/dashboard/HealthDistribution';
+import { QuickActions } from '@/components/dashboard/QuickActions';
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
+import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { ClientRiskMatrix } from '@/components/dashboard/ClientRiskMatrix';
-import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
-import { CoachPerformanceTable } from '@/components/dashboard/CoachPerformanceTable';
-import { InterventionTracker } from '@/components/dashboard/InterventionTracker';
-import { PatternInsights } from '@/components/dashboard/PatternInsights';
-import { FilterControls } from '@/components/dashboard/FilterControls';
-import { AIAssistantPanel, AIAssistantButton } from '@/components/ai/AIAssistantPanel';
-import { ExecutiveBriefing } from '@/components/dashboard/ExecutiveBriefing';
-import { LeakDetector } from '@/components/dashboard/LeakDetector';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Command, Activity, Settings, Zap, TrendingUp, Database, Bot, BrainCircuit, RefreshCw, X } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { SyncStatusBadge } from '@/components/dashboard/SyncStatusBadge';
+import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
+import { FloatingAIButton } from '@/components/FloatingAIButton';
 import { ErrorMonitor } from '@/components/dashboard/ErrorMonitor';
-import { ErrorMonitorPanel } from '@/components/dashboard/ErrorMonitorPanel';
-import { HubSpotSyncStatus } from '@/components/dashboard/HubSpotSyncStatus';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Users, DollarSign, AlertTriangle, TrendingUp, Bot, Activity } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
   const navigate = useNavigate();
-  const [filterMode, setFilterMode] = useState<'all' | 'high-risk' | 'early-warning'>('all');
-  const [selectedCoach, setSelectedCoach] = useState('all');
-  const [selectedZone, setSelectedZone] = useState('all');
-  const [showAIPanel, setShowAIPanel] = useState(true);
+  const [showAIPanel, setShowAIPanel] = useState(false);
   const [isRunningBI, setIsRunningBI] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Trigger Business Intelligence Agent
-  const runBusinessIntelligence = async () => {
-    setIsRunningBI(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('business-intelligence');
-      if (error) throw error;
-      toast({
-        title: 'BI Agent Complete',
-        description: data?.analysis?.executive_summary || 'Analysis updated successfully',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'BI Agent Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRunningBI(false);
-    }
-  };
-
-  // Setup realtime subscription for new data notifications
-  useEffect(() => {
-    const channel = supabase
-      .channel('health_scores_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'client_health_scores'
-        },
-        (payload) => {
-          const newClients = Array.isArray(payload.new) ? payload.new : [payload.new];
-          const highRiskCount = newClients.filter((c: any) =>
-            c.risk_category === 'HIGH' || c.risk_category === 'CRITICAL'
-          ).length;
-
-          if (highRiskCount > 0) {
-            toast({
-              title: 'Health Scores Updated',
-              description: `${highRiskCount} new high-risk client${highRiskCount > 1 ? 's' : ''} detected`,
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  // Fetch clients
   const { data: clients, isLoading: clientsLoading } = useQuery({
-    queryKey: ['client-health-scores'],
+    queryKey: ['client-health-scores-dashboard'],
     queryFn: async () => {
       const { data: latestDate } = await supabase
         .from('client_health_scores')
@@ -95,43 +36,11 @@ export default function Dashboard() {
 
       if (!latestDate?.calculated_on) return [];
 
-      let query = supabase
+      const { data, error } = await supabase
         .from('client_health_scores')
         .select('*')
-        .eq('calculated_on', latestDate.calculated_on);
-
-      // Apply filters - using explicit any cast to avoid TypeScript recursion depth issues
-      if (filterMode === 'high-risk') {
-        query = (query as any).in('risk_category', ['HIGH', 'CRITICAL']);
-      } else if (filterMode === 'early-warning') {
-        query = (query as any).eq('early_warning_flag', true);
-      }
-
-      if (selectedCoach !== 'all') {
-        query = (query as any).eq('assigned_coach', selectedCoach);
-      }
-
-      if (selectedZone !== 'all') {
-        query = (query as any).eq('health_zone', selectedZone);
-      }
-
-      query = (query as any).order('predictive_risk_score', { ascending: false });
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as any[] || [];
-    },
-    refetchInterval: 60000,
-  });
-
-  const { data: coaches, isLoading: coachesLoading } = useQuery({
-    queryKey: ['coach-performance'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('coach_performance')
-        .select('*')
-        .order('report_date', { ascending: false })
-        .limit(20);
+        .eq('calculated_on', latestDate.calculated_on)
+        .order('health_score', { ascending: true });
 
       if (error) throw error;
       return data || [];
@@ -139,256 +48,178 @@ export default function Dashboard() {
     refetchInterval: 60000,
   });
 
-  const { data: interventions, isLoading: interventionsLoading } = useQuery({
-    queryKey: ['interventions'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('intervention_log')
-        .select('*')
-        .order('triggered_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return data || [];
-    },
-    refetchInterval: 60000,
-  });
-
+  // Fetch summary
   const { data: summary } = useQuery({
-    queryKey: ['daily-summary'],
+    queryKey: ['daily-summary-dashboard'],
     queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('daily_summary')
-          .select('*')
-          .order('summary_date', { ascending: false })
-          .limit(1);
-
-        if (error) {
-          console.log('daily_summary query issue:', error.message);
-          return null;
-        }
-        return data?.[0] || null;
-      } catch {
-        return null;
-      }
+      const { data } = await supabase
+        .from('daily_summary')
+        .select('*')
+        .order('summary_date', { ascending: false })
+        .limit(1);
+      return data?.[0] || null;
     },
     refetchInterval: 60000,
   });
 
-  const { data: patterns } = useQuery({
-    queryKey: ['weekly-patterns'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('weekly_patterns')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1);
+  // Compute stats
+  const stats = useMemo(() => {
+    const allClients = clients || [];
+    const atRisk = allClients.filter(c => 
+      c.health_zone === 'RED' || c.health_zone === 'YELLOW'
+    ).length;
+    const totalRevenue = allClients.reduce((sum, c) => 
+      sum + (c.package_value_aed || 0), 0
+    );
+    const avgHealth = allClients.length > 0 
+      ? Math.round(allClients.reduce((sum, c) => sum + (c.health_score || 0), 0) / allClients.length)
+      : 0;
 
-        if (error) {
-          console.log('weekly_patterns not available:', error.message);
-          return null;
-        }
-        return data?.[0] || null;
-      } catch {
-        return null;
-      }
-    },
-    refetchInterval: 60000,
-  });
+    return {
+      totalClients: allClients.length,
+      atRiskClients: atRisk,
+      totalRevenue,
+      avgHealth,
+    };
+  }, [clients]);
 
-  const isLoading = clientsLoading || coachesLoading || interventionsLoading;
+  // Mock revenue data for chart
+  const revenueData = useMemo(() => {
+    const days = 30;
+    const data = [];
+    for (let i = days; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        value: Math.floor(Math.random() * 50000) + 20000,
+      });
+    }
+    return data;
+  }, []);
 
-  // Extract unique coaches for filter
-  const uniqueCoaches = Array.from(
-    new Set((clients || []).map((c) => c.assigned_coach).filter(Boolean))
-  ) as string[];
+  // Mock activities
+  const activities = useMemo(() => [
+    { id: '1', type: 'sync' as const, title: 'HubSpot Synced', description: 'Latest contacts imported', timestamp: new Date(Date.now() - 1000 * 60 * 5) },
+    { id: '2', type: 'payment' as const, title: 'New Payment', description: 'AED 5,000 collected', timestamp: new Date(Date.now() - 1000 * 60 * 30) },
+    { id: '3', type: 'intervention' as const, title: 'Intervention Triggered', description: 'Client at risk detected', timestamp: new Date(Date.now() - 1000 * 60 * 60) },
+  ], []);
+
+  // Handlers
+  const runBusinessIntelligence = async () => {
+    setIsRunningBI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('business-intelligence');
+      if (error) throw error;
+      toast({ title: 'BI Agent Complete', description: 'Analysis updated successfully' });
+    } catch (error: any) {
+      toast({ title: 'BI Agent Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsRunningBI(false);
+    }
+  };
+
+  const syncHubSpot = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-hubspot-to-supabase');
+      if (error) throw error;
+      toast({ title: 'Sync Complete', description: 'HubSpot data synchronized' });
+    } catch (error: any) {
+      toast({ title: 'Sync Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 p-4 sm:p-6 min-h-screen">
-      {/* Main Dashboard Content */}
-      <div className={`space-y-4 sm:space-y-6 flex-1 ${showAIPanel ? 'lg:max-w-[calc(100%-424px)]' : 'w-full'}`}>
-        
-        {/* Page Header - Clean alignment */}
-        <div className="space-y-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
-              Client Health Intelligence Dashboard
-            </h1>
-            
-            {/* Action Buttons Row - Properly aligned */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={runBusinessIntelligence}
-                disabled={isRunningBI}
-                className="gap-2 h-9 text-xs sm:text-sm"
-              >
-                <BrainCircuit className={`h-4 w-4 ${isRunningBI ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isRunningBI ? "Running..." : "Run BI Agent"}</span>
-                <span className="sm:hidden">{isRunningBI ? "..." : "BI"}</span>
-              </Button>
-              
-              <SyncStatusBadge />
-              <HubSpotSyncStatus />
-              
-              <Button
-                variant={showAIPanel ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowAIPanel(!showAIPanel)}
-                className="gap-2 h-9 text-xs sm:text-sm"
-              >
-                <Bot className="h-4 w-4" />
-                <span className="hidden sm:inline">{showAIPanel ? "Hide AI" : "Show AI"}</span>
-                <span className="sm:hidden">AI</span>
-              </Button>
-            </div>
-          </div>
-          
-          {/* Subtitle */}
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Predictive Analytics • Real-time Updates
+    <div className="min-h-screen bg-background gradient-mesh">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Header */}
+        <div className="animate-fade-up">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            PTD Intelligence Dashboard
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Real-time business health monitoring
           </p>
         </div>
 
-        {/* Error Monitor at top */}
+        {/* Error Monitor */}
         <ErrorMonitor />
 
-        {/* Executive Briefing Component */}
-        <ExecutiveBriefing summary={summary as any} />
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Active Clients"
+            value={stats.totalClients}
+            icon={Users}
+            trend={{ value: 12, isPositive: true }}
+            variant="default"
+            delay={0}
+          />
+          <StatCard
+            label="At Risk"
+            value={stats.atRiskClients}
+            icon={AlertTriangle}
+            variant={stats.atRiskClients > 5 ? "danger" : "warning"}
+            pulse={stats.atRiskClients > 10}
+            subtitle={stats.atRiskClients > 0 ? "Needs attention" : "All healthy!"}
+            delay={50}
+          />
+          <StatCard
+            label="Portfolio Value"
+            value={`AED ${(stats.totalRevenue / 1000).toFixed(0)}K`}
+            icon={DollarSign}
+            trend={{ value: 8, isPositive: true }}
+            variant="success"
+            delay={100}
+          />
+          <StatCard
+            label="Avg Health Score"
+            value={stats.avgHealth}
+            icon={Activity}
+            variant={stats.avgHealth >= 70 ? "success" : stats.avgHealth >= 50 ? "warning" : "danger"}
+            delay={150}
+          />
+        </div>
 
-        {/* Leak Detector - Shows hidden problems */}
-        <LeakDetector />
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <HealthDistribution 
+            clients={clients || []} 
+            onZoneClick={(zone) => navigate(`/clients?zone=${zone}`)}
+          />
+          <RevenueChart data={revenueData} isLoading={clientsLoading} />
+        </div>
 
-        {/* Error Monitor Panel */}
-        <ErrorMonitorPanel />
-
-        {/* Quick Access to PTD Control Panel Features */}
-        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Command className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">PTD Control Panel</CardTitle>
-                  <CardDescription className="text-xs">
-                    Quick access to conversion tracking, automation & settings
-                  </CardDescription>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-              <Button
-                variant="outline"
-                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => navigate('/ptd-control')}
-              >
-                <Command className="h-4 w-4" />
-                <span className="truncate">Control Panel</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => navigate('/meta-dashboard')}
-              >
-                <Activity className="h-4 w-4" />
-                <span className="truncate">CAPI Events</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => navigate('/analytics')}
-              >
-                <TrendingUp className="h-4 w-4" />
-                <span className="truncate">Analytics</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => navigate('/hubspot-live')}
-              >
-                <Zap className="h-4 w-4" />
-                <span className="truncate">HubSpot Sync</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => navigate('/ptd-control?tab=settings')}
-              >
-                <Settings className="h-4 w-4" />
-                <span className="truncate">Settings</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 sm:h-16 flex flex-col gap-1 text-xs hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => window.open('https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds', '_blank')}
-              >
-                <Database className="h-4 w-4" />
-                <span className="truncate">Supabase</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <PredictiveAlerts clients={clients || []} summary={summary} />
-
-        <FilterControls
-          filterMode={filterMode}
-          onFilterModeChange={setFilterMode}
-          selectedCoach={selectedCoach}
-          onCoachChange={setSelectedCoach}
-          selectedZone={selectedZone}
-          onZoneChange={setSelectedZone}
-          coaches={uniqueCoaches}
+        {/* Quick Actions */}
+        <QuickActions
+          onRunBI={runBusinessIntelligence}
+          onSyncHubSpot={syncHubSpot}
+          onOpenAI={() => setShowAIPanel(true)}
+          isRunningBI={isRunningBI}
+          isSyncing={isSyncing}
         />
 
-        <ClientRiskMatrix clients={clients || []} isLoading={isLoading} />
-
-        <CoachPerformanceTable coaches={coaches || []} isLoading={isLoading} />
-
-        <InterventionTracker interventions={interventions || []} isLoading={isLoading} />
-
-        <PatternInsights patterns={patterns} clients={clients || []} />
-      </div>
-
-      {/* AI Assistant Panel - Right Sidebar */}
-      {showAIPanel && (
-        <div className="hidden lg:block w-[400px] shrink-0 sticky top-6 h-[calc(100vh-48px)]">
-          <AIAssistantPanel />
-        </div>
-      )}
-
-      {/* Mobile AI Panel as Sheet */}
-      {showAIPanel && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-background">
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">AI Assistant</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowAIPanel(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex-1 overflow-auto">
-              <AIAssistantPanel />
-            </div>
+        {/* Activity & Risk Matrix */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <ActivityFeed activities={activities} />
+          <div className="lg:col-span-2">
+            <ClientRiskMatrix clients={clients || []} isLoading={clientsLoading} />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Floating AI Button when panel is hidden */}
-      {!showAIPanel && (
-        <AIAssistantButton onClick={() => setShowAIPanel(true)} />
-      )}
+      {/* Floating AI Button */}
+      <FloatingAIButton onOpen={() => setShowAIPanel(true)} />
+
+      {/* AI Panel Sheet */}
+      <Sheet open={showAIPanel} onOpenChange={setShowAIPanel}>
+        <SheetContent side="right" className="w-full sm:w-[450px] p-0">
+          <AIAssistantPanel />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

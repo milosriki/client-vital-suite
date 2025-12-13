@@ -182,10 +182,10 @@ const HubSpotLiveData = () => {
 
     // Lead stats
     const totalLeads = leads.length;
-    const newLeads = leads.filter(l => l.status === 'new').length;
-    const appointmentSet = leads.filter(l => l.status === 'appointment_set').length;
-    const closedLeads = leads.filter(l => l.status === 'closed').length;
-    const highQualityLeads = leads.filter(l => l.lead_quality === 'high' || l.lead_quality === 'premium').length;
+    const newLeads = leads.filter((l: any) => l.status === 'new').length;
+    const appointmentSet = leads.filter((l: any) => l.status === 'appointment_set').length;
+    const closedLeads = leads.filter((l: any) => l.status === 'closed').length;
+    const highQualityLeads = leads.filter((l: any) => l.lead_quality === 'high' || l.lead_quality === 'premium').length;
 
     // Deal stats (for selected timeframe)
     const totalDeals = deals.length;

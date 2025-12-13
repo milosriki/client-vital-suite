@@ -47,23 +47,23 @@ export default function EventMappingTab({ mode }: EventMappingTabProps) {
   const { data: mappings, isLoading } = useQuery({
     queryKey: ["event-mappings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("event_mappings")
+      const { data, error } = await (supabase
+        .from("event_mappings" as any)
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any);
       
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
   // Toggle event active status
   const toggleMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase
-        .from("event_mappings")
+      const { error } = await (supabase
+        .from("event_mappings" as any)
         .update({ is_active })
-        .eq("id", id);
+        .eq("id", id) as any);
       
       if (error) throw error;
     },
@@ -86,14 +86,14 @@ export default function EventMappingTab({ mode }: EventMappingTabProps) {
   // Add new event mapping
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("event_mappings")
+      const { error } = await (supabase
+        .from("event_mappings" as any)
         .insert({
           hubspot_event_name: newHubSpotEvent.toLowerCase().replace(/\s+/g, ''),
           meta_event_name: newMetaEvent,
           is_active: true,
           event_parameters: { currency: "AED" },
-        });
+        }) as any);
       
       if (error) throw error;
     },
@@ -118,10 +118,10 @@ export default function EventMappingTab({ mode }: EventMappingTabProps) {
   // Delete event mapping
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("event_mappings")
+      const { error } = await (supabase
+        .from("event_mappings" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
       
       if (error) throw error;
     },

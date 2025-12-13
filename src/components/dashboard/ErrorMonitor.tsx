@@ -96,13 +96,13 @@ export function ErrorMonitor() {
                 </div>
             </AlertTitle>
             <div className="mt-2 space-y-1">
-                {errors.slice(0, 3).map((error) => (
+                {errors.slice(0, 3).map((error: any) => (
                     <AlertDescription 
                         key={error.id} 
                         className="flex items-center justify-between text-xs font-mono opacity-90"
                     >
                         <span>
-                            [{error.error_type?.toUpperCase() || 'ERROR'}] {error.platform}: {error.error_message}
+                            [{error.error_type?.toUpperCase() || 'ERROR'}] {error.platform || error.object_type || 'System'}: {error.error_message}
                             <span className="text-red-400/70 ml-2">
                                 ({new Date(error.created_at).toLocaleTimeString()})
                             </span>
