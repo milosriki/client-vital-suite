@@ -68,14 +68,21 @@ export default function CallTracking() {
 
   const callRecords = Array.isArray(callRecordsData) ? callRecordsData : [];
 
+// Duration values in DB appear to be in milliseconds, not seconds - convert
+  const getDurationInSeconds = (ms: number | null | undefined) => {
+    if (!ms) return 0;
+    // If value > 1000, assume it's milliseconds
+    return ms > 1000 ? Math.round(ms / 1000) : ms;
+  };
+
   const stats = {
     totalCalls: callRecords?.length || 0,
     completedCalls: callRecords?.filter(c => c.call_status === "completed").length || 0,
     avgDuration: callRecords?.length 
-      ? Math.round(callRecords.reduce((sum, c) => sum + (c.duration_seconds || 0), 0) / callRecords.length)
+      ? Math.round(callRecords.reduce((sum, c) => sum + getDurationInSeconds(c.duration_seconds), 0) / callRecords.length)
       : 0,
     avgScore: callRecords?.length
-      ? Math.round(callRecords.reduce((sum, c) => sum + (c.call_score || 0), 0) / callRecords.length)
+      ? Math.round(callRecords.filter(c => c.call_score !== null).reduce((sum, c) => sum + (c.call_score || 0), 0) / (callRecords.filter(c => c.call_score !== null).length || 1))
       : 0,
     appointmentsSet: callRecords?.filter(c => c.appointment_set).length || 0,
   };
@@ -226,9 +233,13 @@ export default function CallTracking() {
                     {/* Duration - Prominent Display */}
                     <div className="text-right hidden sm:block">
                       <div className="text-lg font-mono font-medium text-foreground">
-                        {call.duration_seconds 
-                          ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}`
-                          : "--:--"}
+                        {(() => {
+                          const secs = getDurationInSeconds(call.duration_seconds);
+                          if (!secs) return "--:--";
+                          const mins = Math.floor(secs / 60);
+                          const remSecs = secs % 60;
+                          return `${mins}:${String(remSecs).padStart(2, '0')}`;
+                        })()}
                       </div>
                       <div className="text-xs text-muted-foreground">duration</div>
                     </div>
