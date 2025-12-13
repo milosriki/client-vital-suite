@@ -2936,6 +2936,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          title: string
+          type: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          title: string
+          type: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       owner_performance: {
         Row: {
           bookings: number | null
@@ -3380,6 +3413,27 @@ export type Database = {
           next_attempt_at?: string | null
           payload?: Json | null
           status?: string | null
+        }
+        Relationships: []
+      }
+      system_preferences: {
+        Row: {
+          id: string
+          preference_key: string
+          preference_value: Json
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          preference_key: string
+          preference_value: Json
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          preference_key?: string
+          preference_value?: Json
+          updated_at?: string
         }
         Relationships: []
       }

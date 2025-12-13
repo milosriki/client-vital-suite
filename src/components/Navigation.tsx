@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { SystemStatusDropdown } from "@/components/dashboard/SystemStatusDropdown";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export const Navigation = () => {
   const location = useLocation();
@@ -129,11 +130,14 @@ export const Navigation = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Notification Center */}
+            <NotificationCenter />
+            
             {/* System Status Dropdown */}
             <div className="hidden sm:block">
               <SystemStatusDropdown isSyncing={isSyncing} onSync={handleSync} />
             </div>
-            
+
             {/* Sync Button */}
             <TooltipProvider>
               <Tooltip>

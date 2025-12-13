@@ -18,6 +18,8 @@ interface HeroStatCardProps {
   href?: string;
   emptyMessage?: string;
   isLoading?: boolean;
+  metricType?: "revenue" | "clients" | "pipeline" | "attention";
+  onDrilldown?: (type: string) => void;
 }
 
 function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: number }) {
@@ -56,10 +58,12 @@ export function HeroStatCard({
   pulse = false,
   href,
   emptyMessage,
-  isLoading = false
+  isLoading = false,
+  metricType,
+  onDrilldown
 }: HeroStatCardProps) {
   const navigate = useNavigate();
-  
+
   const variantStyles = {
     default: "border-primary/20 hover:border-primary/40",
     success: "border-success/20 hover:border-success/40",
@@ -79,7 +83,11 @@ export function HeroStatCard({
   const isEmpty = value === 0 || value === '0' || value === 'AED 0';
 
   const handleClick = () => {
-    if (href) navigate(href);
+    if (metricType && onDrilldown) {
+      onDrilldown(metricType);
+    } else if (href) {
+      navigate(href);
+    }
   };
 
   if (isLoading) {
