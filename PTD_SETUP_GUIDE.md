@@ -5,7 +5,7 @@
 This project integrates three core systems:
 1. **Lovable Frontend** (this repo) - React dashboard for monitoring and control
 2. **Stape CAPI Gateway** - Meta Conversions API proxy (https://ap.stape.info)
-3. **n8n Workflows** - Automation engine for data processing
+3. **Supabase Edge Functions** - Automation engine for data processing
 
 ## System Components
 
@@ -17,7 +17,7 @@ Located at: `/ptd-control`
 - **Health Intelligence** - Client health scoring and analytics
 - **CAPI** - Test Meta conversion events
 - **Event Mapping** - Configure HubSpot → Meta event mappings
-- **Automation** - Trigger n8n workflows
+- **Automation** - Trigger Supabase automation workflows
 - **Settings** - Configure all service connections
 
 ### 2. Stape CAPI Integration
@@ -62,22 +62,21 @@ Maps HubSpot lifecycle stages to Meta standard events:
 - Delete unused mappings
 - All changes stored in Supabase
 
-### 4. n8n Workflow Integration
+### 4. Supabase Automation Integration
 
-**Webhook Endpoints:**
-Configure these in Settings tab with your n8n base URL:
+**Automation Methods:**
+All automation is now handled through Supabase Edge Functions and RPC calls:
 
-```
-{n8n_base_url}/webhook/capi_ingest        # CSV backfill to CAPI
-{n8n_base_url}/webhook/ptd_daily_health   # Daily health score calculation
-{n8n_base_url}/webhook/ptd_monthly_review # Monthly coach performance review
-{n8n_base_url}/webhook/ptd_ai_analysis    # AI-powered client analysis
-```
+- **Daily Health Calculation** - `calculate_daily_health_scores()` RPC
+- **Monthly Coach Review** - `monthly_coach_review()` RPC
+- **CSV Backfill** - Custom edge function for historical data processing
+- **AI Analysis** - Claude AI integration via Supabase functions
 
-**Example n8n Base URL:**
-```
-https://personaltrainersdubai.app.n8n.cloud
-```
+**Benefits:**
+- No external dependencies (no n8n subscription needed)
+- Integrated with Supabase security model
+- Version controlled with the rest of the codebase
+- Easier debugging and testing
 
 ## Database Schema
 
@@ -118,7 +117,6 @@ https://personaltrainersdubai.app.n8n.cloud
 **app_settings** - System configuration (singleton)
 ```sql
 - supabase_url, supabase_anon_key
-- n8n_base_url
 - meta_pixel_id
 - test_event_code
 - telegram_bot_token, telegram_chat_id
@@ -184,18 +182,17 @@ https://personaltrainersdubai.app.n8n.cloud
 
 ### 3. Running Automation
 
-1. Configure n8n base URL in Settings
-2. Navigate to Automation tab
-3. Click workflow triggers:
-   - Daily Health Calculation
-   - Monthly Coach Review
-   - CSV Backfill
+1. Navigate to Automation tab in PTD Control
+2. Click workflow triggers:
+   - Daily Health Calculation (runs Supabase RPC)
+   - Monthly Coach Review (runs Supabase RPC)
+   - CSV Backfill (processes via edge function)
 
 ## Environment Variables
 
 **Supabase Secrets (configured):**
 - `STAPE_CAPIG_API_KEY` - Stape CAPI authentication
-- `N8N_API_KEY` - n8n workflow authentication (if needed)
+- `ANTHROPIC_API_KEY` - Claude AI for intelligent analysis
 - `FB_PIXEL_ID` - Meta Pixel ID
 - `TELEGRAM_BOT_TOKEN` - For notifications
 
@@ -219,20 +216,13 @@ https://personaltrainersdubai.app.n8n.cloud
 
 ## GitHub Repository Structure
 
-### CONVERSION-API Repo (Backend)
+### Backend Integration (Supabase)
 ```
-CONVERSION-API/
-├── server.js              # Express CAPI proxy
-├── package.json
-├── .env.example
-├── README.md
-├── scripts/
-│   └── test-events.js    # Test scripts
-├── supabase/
-│   └── schema.sql        # Database schema
-└── n8n/
-    ├── flows/            # Workflow JSONs
-    └── functions/        # Aggregator functions
+All backend logic is handled by Supabase:
+├── Edge Functions/       # serverless functions for automation
+├── Database/            # PostgreSQL with RPC functions
+├── Auth/                # Authentication layer
+└── Realtime/            # Live data updates
 ```
 
 ### client-vital-suite Repo (Frontend)
@@ -262,7 +252,7 @@ client-vital-suite/
 ```
 HubSpot Event
     ↓
-n8n Workflow (detects lifecycle change)
+Supabase Edge Function (detects lifecycle change)
     ↓
 Check event_mappings table
     ↓
@@ -282,7 +272,7 @@ Log to capi_events table
 ```
 HubSpot Contact Data
     ↓
-n8n Daily Health Workflow
+Supabase RPC: calculate_daily_health_scores
     ↓
 Calculate health scores (aggregator function)
     ↓
@@ -300,7 +290,7 @@ Trigger interventions if needed
 - [x] Edge function deployed (send-to-stape-capi)
 - [x] Event mappings table populated
 - [x] Settings configured in app_settings
-- [ ] n8n workflows imported and active
+- [x] Supabase RPC functions created and tested
 - [ ] Meta Pixel integrated on website
 - [ ] Test events validated in Meta Events Manager
 - [ ] Production credentials added to Supabase secrets
@@ -344,13 +334,13 @@ Trigger interventions if needed
 ### Event Mappings Not Working
 1. Ensure mapping is marked as `is_active = true`
 2. Check event_mappings table for correct HubSpot event name
-3. Verify n8n workflow is using the mapping table
+3. Verify Supabase edge function is using the mapping table
 
-### n8n Webhooks Failing
-1. Verify n8n base URL in Settings (no trailing slash)
-2. Check n8n workflow webhook paths
-3. Test webhook URL directly with curl/Postman
-4. Review n8n execution logs
+### Automation Not Running
+1. Check Supabase function logs for errors
+2. Verify RPC functions exist in database
+3. Test functions manually via Supabase dashboard
+4. Check database permissions for service role
 
 ## Support
 
@@ -362,9 +352,9 @@ For issues or questions:
 
 ## Next Steps
 
-1. Import n8n workflows from `/n8n/flows/`
-2. Configure n8n credentials (Supabase, HubSpot)
-3. Set up Meta Pixel on ptdfitness.com
-4. Test end-to-end: HubSpot → n8n → CAPI → Meta
-5. Monitor health scores and adjust thresholds
-6. Configure Telegram alerts for critical events
+1. Set up Meta Pixel on ptdfitness.com
+2. Test end-to-end: HubSpot → Supabase → CAPI → Meta
+3. Configure Claude AI integration for intelligent analysis
+4. Monitor health scores and adjust thresholds
+5. Configure Telegram alerts for critical events
+6. Set up automated cron schedules in Supabase
