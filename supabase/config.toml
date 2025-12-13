@@ -134,3 +134,27 @@ verify_jwt = false
 # Agent Execution Engine (write actions)
 [functions.ptd-execute-action]
 verify_jwt = false
+
+# Proactive Scanner Agent
+[functions.ptd-proactive-scanner]
+verify_jwt = false
+
+# Ultimate Intelligence Agent
+[functions.ptd-ultimate-intelligence]
+verify_jwt = false
+
+# AI CEO Master Agent
+[functions.ai-ceo-master]
+verify_jwt = false
+
+# AI Deployment Callback
+[functions.ai-deploy-callback]
+verify_jwt = false
+
+# AI Trigger Deploy
+[functions.ai-trigger-deploy]
+verify_jwt = false
+
+# Generate Lead Replies (batch)
+[functions.generate-lead-replies]
+verify_jwt = false
