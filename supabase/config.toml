@@ -134,3 +134,51 @@ verify_jwt = false
 # Agent Execution Engine (write actions)
 [functions.ptd-execute-action]
 verify_jwt = false
+
+# ============================================
+# ADDITIONAL EDGE FUNCTIONS (Previously Missing)
+# ============================================
+
+# AI CEO Master Agent
+[functions.ai-ceo-master]
+verify_jwt = false
+
+# Forensic Data Fetcher
+[functions.fetch-forensic-data]
+verify_jwt = false
+
+# Batch Lead Reply Generator
+[functions.generate-lead-replies]
+verify_jwt = false
+
+# AI Deployment Trigger
+[functions.ai-trigger-deploy]
+verify_jwt = false
+
+# AI Deployment Callback
+[functions.ai-deploy-callback]
+verify_jwt = false
+
+# Proactive Scanner Agent
+[functions.ptd-proactive-scanner]
+verify_jwt = false
+
+# CallGear Supervisor (Barge-in/Whisper)
+[functions.callgear-supervisor]
+verify_jwt = false
+
+# CallGear Live Monitor Dashboard
+[functions.callgear-live-monitor]
+verify_jwt = false
+
+# CallGear ICP Router
+[functions.callgear-icp-router]
+verify_jwt = false
+
+# PTD Ultimate Intelligence Agent
+[functions.ptd-ultimate-intelligence]
+verify_jwt = false
+
+# CallGear Data Fetcher
+[functions.fetch-callgear-data]
+verify_jwt = false
