@@ -1,36 +1,16 @@
-const express = require('express');
-const crypto = require('crypto');
-const axios = require('axios');
-const pino = require('pino');
-const rateLimit = require('express-rate-limit');
-const cors = require('cors');
-require('dotenv').config();
-
-const app = express();
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('dashboard'));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100,
-  message: 'Too many requests from this IP'
-});
-app.use('/api/', limiter);
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'crypto';
+import axios from 'axios';
 
 // SHA-256 hashing helper (never hash fbp/fbc)
-function hashPII(value) {
+function hashPII(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return crypto.createHash('sha256').update(value.toString().toLowerCase().trim()).digest('hex');
 }
 
 // Normalize user_data
-function normalizeUserData(userData = {}) {
-  const normalized = {};
+function normalizeUserData(userData: any = {}) {
+  const normalized: any = {};
   
   // Hash PII fields
   if (userData.email) normalized.em = hashPII(userData.email);
@@ -53,8 +33,8 @@ function normalizeUserData(userData = {}) {
 }
 
 // Prepare event for CAPI
-function prepareEvent(eventData) {
-  const event = {
+function prepareEvent(eventData: any) {
+  const event: any = {
     event_name: eventData.event_name || 'Purchase',
     event_time: eventData.event_time || Math.floor(Date.now() / 1000),
     event_source_url: eventData.event_source_url || process.env.EVENT_SOURCE_URL || 'https://www.personaltrainersdubai.com',
@@ -79,7 +59,7 @@ function prepareEvent(eventData) {
 }
 
 // Send to Meta CAPI
-async function sendToMeta(events) {
+async function sendToMeta(events: any) {
   const pixelId = process.env.FB_PIXEL_ID;
   const accessToken = process.env.FB_ACCESS_TOKEN;
   
@@ -94,44 +74,24 @@ async function sendToMeta(events) {
     test_event_code: process.env.FB_TEST_EVENT_CODE || undefined
   };
 
-  logger.info({ payload }, 'Sending to Meta CAPI');
-  
   const response = await axios.post(url, payload);
   return response.data;
 }
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    timezone: 'Asia/Dubai',
-    currency: 'AED'
-  });
-});
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-// Single event endpoint
-app.post('/api/events/:name', async (req, res) => {
-  try {
-    const eventName = req.params.name;
-    const eventData = {
-      ...req.body,
-      event_name: eventName
-    };
-
-    const event = prepareEvent(eventData);
-    const result = await sendToMeta(event);
-    
-    logger.info({ event_name: eventName, result }, 'Event sent successfully');
-    res.json({ success: true, result });
-  } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, 'Error sending event');
-    res.status(500).json({ success: false, error: error.message });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
-});
 
-// Batch events endpoint
-app.post('/api/events/batch', async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
     const { events } = req.body;
     
@@ -142,35 +102,10 @@ app.post('/api/events/batch', async (req, res) => {
     const preparedEvents = events.map(prepareEvent);
     const result = await sendToMeta(preparedEvents);
     
-    logger.info({ count: events.length, result }, 'Batch events sent successfully');
     res.json({ success: true, result, count: events.length });
-  } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, 'Error sending batch events');
+  } catch (error: any) {
+    console.error('Error sending batch events:', error);
     res.status(500).json({ success: false, error: error.message });
   }
-});
+}
 
-// Webhook endpoint for n8n backfill
-app.post('/api/webhook/backfill', async (req, res) => {
-  try {
-    logger.info({ body: req.body }, 'Received backfill webhook');
-    
-    const events = req.body.events || req.body;
-    const eventsArray = Array.isArray(events) ? events : [events];
-    
-    const preparedEvents = eventsArray.map(prepareEvent);
-    const result = await sendToMeta(preparedEvents);
-    
-    logger.info({ count: eventsArray.length, result }, 'Backfill events processed');
-    res.json({ success: true, result, count: eventsArray.length });
-  } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, 'Error processing backfill');
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  logger.info(`Meta CAPI Proxy server running on port ${PORT}`);
-  logger.info(`Timezone: Asia/Dubai, Currency: AED`);
-});

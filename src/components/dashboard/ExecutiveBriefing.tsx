@@ -36,10 +36,10 @@ export function ExecutiveBriefing({ summary }: ExecutiveBriefingProps) {
             </p>
             
             {/* Actionable Metrics - Equal height cards */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-card p-3 rounded-lg border">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Utilization</span>
-                <div className={`text-xl font-bold mt-1 ${isUnderCapacity ? 'text-amber-500' : 'text-green-500'}`}>
+                <div className={`text-lg sm:text-xl font-bold mt-1 ${isUnderCapacity ? 'text-amber-500' : 'text-green-500'}`}>
                   {utilizationRate}%
                 </div>
                 {isUnderCapacity && (
@@ -55,7 +55,7 @@ export function ExecutiveBriefing({ summary }: ExecutiveBriefingProps) {
                   ) : (
                     <CheckCircle className="text-green-500 h-4 w-4" />
                   )}
-                  <span className="font-bold text-sm">{hasErrors ? "Action Required" : "Stable"}</span>
+                  <span className="font-bold text-xs sm:text-sm">{hasErrors ? "Action Required" : "Stable"}</span>
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">{summary?.system_health_status || 'Checking...'}</div>
               </div>
@@ -64,7 +64,7 @@ export function ExecutiveBriefing({ summary }: ExecutiveBriefingProps) {
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wide">SLA Breaches</span>
                 <div className="flex items-center gap-1.5 mt-1">
                   <Clock className={`h-4 w-4 ${(summary?.sla_breach_count || 0) > 0 ? 'text-destructive' : 'text-green-500'}`} />
-                  <span className={`text-xl font-bold ${(summary?.sla_breach_count || 0) > 0 ? 'text-destructive' : 'text-foreground'}`}>
+                  <span className={`text-lg sm:text-xl font-bold ${(summary?.sla_breach_count || 0) > 0 ? 'text-destructive' : 'text-foreground'}`}>
                     {summary?.sla_breach_count || 0}
                   </span>
                 </div>

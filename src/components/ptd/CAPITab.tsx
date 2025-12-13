@@ -146,7 +146,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
       event_name: "Purchase",
       event_time: Math.floor(Date.now() / 1000),
       event_id: `TEST_${Date.now()}`,
-      event_source_url: "https://ptdfitness.com",
+      event_source_url: "https://www.personaltrainersdubai.com",
       action_source: "website",
       user_data: {
         em: await hashSHA256(email),
@@ -354,7 +354,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
         event_name: eventName,
         event_time: Math.floor(Date.now() / 1000),
         event_id: `${eventName}_${Date.now()}`,
-        event_source_url: "https://ptdfitness.com",
+        event_source_url: "https://www.personaltrainersdubai.com",
         action_source: "website",
         user_data: {
           email,

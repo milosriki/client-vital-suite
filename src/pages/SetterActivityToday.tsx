@@ -113,25 +113,25 @@ const SetterActivityToday = () => {
   const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.package_value_aed || 0), 0) || 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
       {/* Compact Header */}
-      <div className="flex items-center justify-between gap-4 pb-4 border-b border-border/50">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-border/50">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Activity className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold">
+            <h1 className="text-lg sm:text-xl font-semibold">
               {selectedOwner === "all" ? "Team Activity" : selectedOwner}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {format(new Date(), "EEE, MMM d")} · Auto-refreshes
             </p>
           </div>
         </div>
         
         <Select value={selectedOwner} onValueChange={setSelectedOwner}>
-          <SelectTrigger className="w-[160px] h-9">
+          <SelectTrigger className="w-full sm:w-[160px] h-9">
             <SelectValue placeholder="Filter by owner" />
           </SelectTrigger>
           <SelectContent>
@@ -146,7 +146,7 @@ const SetterActivityToday = () => {
       </div>
 
       {/* KPI Row - Compact Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -205,7 +205,7 @@ const SetterActivityToday = () => {
       </div>
 
       {/* Performance Summary - Inline */}
-      <div className="flex flex-wrap items-center gap-6 px-4 py-3 rounded-lg bg-muted/30 border border-border/30 text-sm">
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 px-4 py-3 rounded-lg bg-muted/30 border border-border/30 text-xs sm:text-sm">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Status:</span>
           <Badge variant={totalCalls > 0 ? "default" : "secondary"} className="text-xs">
@@ -220,7 +220,7 @@ const SetterActivityToday = () => {
           <span className="text-muted-foreground">Revenue Potential:</span>
           <span className="font-semibold text-emerald-500">{totalRevenue.toLocaleString()} AED</span>
         </div>
-        <div className="flex items-center gap-2 ml-auto text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 sm:ml-auto text-xs text-muted-foreground">
           <RefreshCw className="h-3 w-3" />
           Updated {format(new Date(), "HH:mm")}
         </div>
@@ -243,16 +243,17 @@ const SetterActivityToday = () => {
           {loadingCalls ? (
             <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
           ) : callsData && (callsData.interventions.length > 0 || callsData.clients.length > 0) ? (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs">Time</TableHead>
-                  <TableHead className="text-xs">Client</TableHead>
-                  <TableHead className="text-xs">Type</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs">Outcome</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-xs min-w-[80px]">Time</TableHead>
+                    <TableHead className="text-xs min-w-[150px]">Client</TableHead>
+                    <TableHead className="text-xs min-w-[100px]">Type</TableHead>
+                    <TableHead className="text-xs min-w-[100px]">Status</TableHead>
+                    <TableHead className="text-xs min-w-[120px]">Outcome</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {callsData.interventions.map((call) => (
                   <TableRow key={call.id}>
@@ -304,6 +305,7 @@ const SetterActivityToday = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -317,7 +319,7 @@ const SetterActivityToday = () => {
       <Card className="border-border/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               Booked Assessments
             </CardTitle>
@@ -328,16 +330,17 @@ const SetterActivityToday = () => {
           {loadingBookings ? (
             <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
           ) : bookingsData && bookingsData.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs">Client</TableHead>
-                  <TableHead className="text-xs">Segment</TableHead>
-                  <TableHead className="text-xs">Value</TableHead>
-                  <TableHead className="text-xs">Zone</TableHead>
-                  <TableHead className="text-xs">Time</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-xs min-w-[150px]">Client</TableHead>
+                    <TableHead className="text-xs min-w-[100px]">Segment</TableHead>
+                    <TableHead className="text-xs min-w-[100px]">Value</TableHead>
+                    <TableHead className="text-xs min-w-[80px]">Zone</TableHead>
+                    <TableHead className="text-xs min-w-[100px]">Time</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {bookingsData.map((booking) => (
                   <TableRow key={booking.id}>
@@ -374,6 +377,7 @@ const SetterActivityToday = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />

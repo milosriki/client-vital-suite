@@ -61,81 +61,83 @@ export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTa
         <CardTitle>Coach Performance</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('coach_name')}
-                  className="flex items-center gap-1"
-                >
-                  Coach Name <ArrowUpDown className="h-3 w-3" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('total_clients')}
-                  className="flex items-center gap-1"
-                >
-                  Total Clients <ArrowUpDown className="h-3 w-3" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('avg_client_health')}
-                  className="flex items-center gap-1"
-                >
-                  Avg Health <ArrowUpDown className="h-3 w-3" />
-                </Button>
-              </TableHead>
-              <TableHead className="text-center">RED</TableHead>
-              <TableHead className="text-center">YELLOW</TableHead>
-              <TableHead className="text-center">GREEN</TableHead>
-              <TableHead className="text-center">PURPLE</TableHead>
-              <TableHead className="text-center">Trend</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedCoaches.map((coach) => (
-              <TableRow key={coach.id}>
-                <TableCell className="font-medium">{coach.coach_name}</TableCell>
-                <TableCell>{coach.total_clients || 0}</TableCell>
-                <TableCell>
-                  <span className="font-semibold">
-                    {coach.avg_client_health?.toFixed(1) || '0.0'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-destructive/20 text-destructive font-semibold">
-                    {coach.clients_red || 0}
-                  </span>
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-700 font-semibold">
-                    {coach.clients_yellow || 0}
-                  </span>
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-700 font-semibold">
-                    {coach.clients_green || 0}
-                  </span>
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/20 text-purple-700 font-semibold">
-                    {coach.clients_purple || 0}
-                  </span>
-                </TableCell>
-                <TableCell className="text-center">{getTrendIcon(coach.health_trend)}</TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[120px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSort('coach_name')}
+                    className="flex items-center gap-1"
+                  >
+                    Coach Name <ArrowUpDown className="h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="min-w-[100px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSort('total_clients')}
+                    className="flex items-center gap-1"
+                  >
+                    Total Clients <ArrowUpDown className="h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="min-w-[100px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSort('avg_client_health')}
+                    className="flex items-center gap-1"
+                  >
+                    Avg Health <ArrowUpDown className="h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center min-w-[60px]">RED</TableHead>
+                <TableHead className="text-center min-w-[60px]">YELLOW</TableHead>
+                <TableHead className="text-center min-w-[60px]">GREEN</TableHead>
+                <TableHead className="text-center min-w-[60px]">PURPLE</TableHead>
+                <TableHead className="text-center min-w-[60px]">Trend</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {sortedCoaches.map((coach) => (
+                <TableRow key={coach.id}>
+                  <TableCell className="font-medium">{coach.coach_name}</TableCell>
+                  <TableCell>{coach.total_clients || 0}</TableCell>
+                  <TableCell>
+                    <span className="font-semibold">
+                      {coach.avg_client_health?.toFixed(1) || '0.0'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-destructive/20 text-destructive font-semibold">
+                      {coach.clients_red || 0}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-700 font-semibold">
+                      {coach.clients_yellow || 0}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-700 font-semibold">
+                      {coach.clients_green || 0}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/20 text-purple-700 font-semibold">
+                      {coach.clients_purple || 0}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">{getTrendIcon(coach.health_trend)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

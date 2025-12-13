@@ -257,22 +257,22 @@ export function UltimateAICEO() {
     // ========================================
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-4 sm:p-6">
+            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
 
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                            <Brain className="w-10 h-10 text-white" />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0">
+                            <Brain className="w-6 h-6 sm:w-10 sm:h-10 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">ULTIMATE AI CEO</h1>
-                            <p className="text-cyan-400">Self-Coding • Multi-Model • Human-Controlled</p>
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">ULTIMATE AI CEO</h1>
+                            <p className="text-xs sm:text-sm text-cyan-400">Self-Coding • Multi-Model • Human-Controlled</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Badge variant="outline" className="text-emerald-400 border-emerald-400/50">
+                        <Badge variant="outline" className="text-emerald-400 border-emerald-400/50 text-xs sm:text-sm">
                             <div className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse" />
                             System Active
                         </Badge>
@@ -280,7 +280,7 @@ export function UltimateAICEO() {
                 </div>
 
                 {/* Stats Row */}
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card className="bg-white/5 border-white/10">
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
@@ -288,8 +288,8 @@ export function UltimateAICEO() {
                                     <Clock className="w-6 h-6 text-purple-400" />
                                 </div>
                                 <div>
-                                    <p className="text-3xl font-bold text-white">{stats.total}</p>
-                                    <p className="text-sm text-white/60">Pending Actions</p>
+                                    <p className="text-2xl sm:text-3xl font-bold text-white">{stats.total}</p>
+                                    <p className="text-xs sm:text-sm text-white/60">Pending Actions</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -302,8 +302,8 @@ export function UltimateAICEO() {
                                     <AlertTriangle className="w-6 h-6 text-red-400" />
                                 </div>
                                 <div>
-                                    <p className="text-3xl font-bold text-white">{stats.critical + stats.high}</p>
-                                    <p className="text-sm text-white/60">Urgent</p>
+                                    <p className="text-2xl sm:text-3xl font-bold text-white">{stats.critical + stats.high}</p>
+                                    <p className="text-xs sm:text-sm text-white/60">Urgent</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -316,8 +316,8 @@ export function UltimateAICEO() {
                                     <Zap className="w-6 h-6 text-green-400" />
                                 </div>
                                 <div>
-                                    <p className="text-3xl font-bold text-white">{stats.autoApprovable}</p>
-                                    <p className="text-sm text-white/60">Auto-Approvable</p>
+                                    <p className="text-2xl sm:text-3xl font-bold text-white">{stats.autoApprovable}</p>
+                                    <p className="text-xs sm:text-sm text-white/60">Auto-Approvable</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -330,8 +330,8 @@ export function UltimateAICEO() {
                                     <Target className="w-6 h-6 text-cyan-400" />
                                 </div>
                                 <div>
-                                    <p className="text-3xl font-bold text-white">{goals?.length || 0}</p>
-                                    <p className="text-sm text-white/60">Active Goals</p>
+                                    <p className="text-2xl sm:text-3xl font-bold text-white">{goals?.length || 0}</p>
+                                    <p className="text-xs sm:text-sm text-white/60">Active Goals</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -340,10 +340,10 @@ export function UltimateAICEO() {
 
                 {/* Command Input */}
                 <Card className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
-                    <CardContent className="p-6">
-                        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                            <Rocket className="w-5 h-5 text-cyan-400" />
-                            Request New Feature / Solution
+                    <CardContent className="p-4 sm:p-6">
+                        <h2 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+                            <span className="text-sm sm:text-base lg:text-xl">Request New Feature / Solution</span>
                         </h2>
                         <Textarea
                             value={command}
@@ -353,12 +353,12 @@ export function UltimateAICEO() {
 • "Create WhatsApp booking integration"
 • "Fix the Stripe payment sync issue"
 • "Add automated follow-up for stale leads"'
-                            className="bg-white/5 border-white/20 text-white placeholder-white/40 min-h-[120px] mb-4 focus:border-cyan-500"
+                            className="bg-white/5 border-white/20 text-white placeholder-white/40 min-h-[120px] mb-4 focus:border-cyan-500 text-sm sm:text-base"
                         />
                         <Button
                             onClick={() => generateSolution.mutate(command)}
                             disabled={!command.trim() || generateSolution.isPending}
-                            className="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-700 hover:to-purple-700 h-12 text-lg"
+                            className="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-700 hover:to-purple-700 h-10 sm:h-12 text-sm sm:text-lg"
                         >
                             {generateSolution.isPending ? (
                                 <>
@@ -377,16 +377,16 @@ export function UltimateAICEO() {
 
                 {/* Main Content Tabs */}
                 <Tabs defaultValue="actions" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 bg-white/5 border-white/10">
-                        <TabsTrigger value="actions">Pending Actions ({stats.total})</TabsTrigger>
-                        <TabsTrigger value="insights">Proactive Insights</TabsTrigger>
-                        <TabsTrigger value="memory">AI Memory & Learning</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 bg-white/5 border-white/10">
+                        <TabsTrigger value="actions" className="text-xs sm:text-sm">Pending Actions ({stats.total})</TabsTrigger>
+                        <TabsTrigger value="insights" className="text-xs sm:text-sm">Proactive Insights</TabsTrigger>
+                        <TabsTrigger value="memory" className="text-xs sm:text-sm">AI Memory & Learning</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="actions" className="mt-6">
-                        <div className="grid grid-cols-3 gap-6">
+                    <TabsContent value="actions" className="mt-4 sm:mt-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                             {/* Pending Actions List */}
-                            <div className="col-span-2 space-y-4">
+                            <div className="lg:col-span-2 space-y-4">
                                 {loadingActions ? (
                                     <Card className="bg-white/5 border-white/10 p-8">
                                         <div className="flex items-center justify-center gap-3">
@@ -591,7 +591,7 @@ export function UltimateAICEO() {
                                                         {item.was_ai_correct ? "AI Correct" : "AI Wrong"}
                                                     </Badge>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                                     <div>
                                                         <p className="text-white/40 mb-1">AI Recommendation:</p>
                                                         <p className="text-white/80">{item.ai_recommendation}</p>

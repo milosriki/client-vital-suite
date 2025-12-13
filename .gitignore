@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# Lovable protection
+.lovableignore
+.env.vercel
