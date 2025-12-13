@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -29,6 +29,7 @@ export const Navigation = () => {
   ];
 
   const moreItems = [
+    { path: "/war-room", label: "CEO War Room", icon: Crown },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/ptd-control", label: "PTD Control", icon: Settings },
     { path: "/ultimate-ceo", label: "AI CEO", icon: Bot },
