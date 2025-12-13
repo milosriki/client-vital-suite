@@ -16,13 +16,16 @@ git rm --cached .env
 git commit -m "Remove .env from tracking"
 
 # Step 4: Remove from history (WARNING: This rewrites history)
-# Option A: Using git filter-repo (recommended)
-git filter-repo --path .env --invert-paths
-
-# Option B: Using BFG Repo-Cleaner (safer)
+# Option A: Using BFG Repo-Cleaner (RECOMMENDED - safer)
 # Download BFG from https://rtyley.github.io/bfg-repo-cleaner/
+# Then run:
 java -jar bfg.jar --delete-files .env
 git reflog expire --expire=now --all && git gc --prune=now --aggressive
+
+# Option B: Using git filter-repo (requires installation)
+# Install first: pip install git-filter-repo
+# Then run:
+git filter-repo --path .env --invert-paths
 
 # Step 5: Force push (coordinate with team first!)
 git push origin --force --all
@@ -173,7 +176,7 @@ case "universal_search": {
   }
   
   // Sanitize input - remove potentially dangerous characters
-  const sanitized = q.replace(/[^\w\s@.\-+]/g, '');
+  const sanitized = q.replace(/[^\w\s@.+\-]/g, '');
   if (sanitized !== q) {
     return JSON.stringify({ 
       error: "Search query contains invalid characters" 

@@ -97,7 +97,7 @@ function validateEmail(email: string): boolean {
 
 function sanitizeSearchQuery(query: string): string {
   // Remove all non-alphanumeric except common search chars
-  return query.replace(/[^\w\s@.\-+]/g, '').slice(0, 100);
+  return query.replace(/[^\w\s@.+\-]/g, '').slice(0, 100);
 }
 
 // Usage
@@ -326,8 +326,8 @@ export const securityHeaders = {
   // Control referrer
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   
-  // Content Security Policy
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+  // Content Security Policy (use nonces in production, avoid 'unsafe-inline')
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
   
   // Permissions Policy
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',

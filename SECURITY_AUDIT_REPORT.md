@@ -321,12 +321,13 @@ NPM audit revealed 2 moderate vulnerabilities in development dependencies.
    - Issue: Enables any website to send requests to dev server
    - Affected: vite dependency
    
-2. **vite** (0.11.0 - 6.1.6)
+2. **vite** (affected range)
    - Severity: Moderate
    - Affected by esbuild vulnerability
+   - Vulnerable versions use esbuild <=0.24.2
 
 **Current Versions**:
-- vite: 5.4.19 (vulnerable)
+- vite: 5.4.19 (contains vulnerable esbuild)
 - esbuild: 0.24.2 or lower (via vite)
 
 **Fix Available**:
