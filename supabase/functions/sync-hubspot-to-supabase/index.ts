@@ -81,6 +81,12 @@ serve(async (req) => {
       // Also clear enhanced_leads test data
       await supabase.from('enhanced_leads').delete().ilike('email', '%@email.com');
       await supabase.from('enhanced_leads').delete().ilike('email', '%@example.com');
+      
+      // Clear fake deals (test/fake names or no HubSpot ID)
+      await supabase.from('deals').delete().ilike('deal_name', '%test%');
+      await supabase.from('deals').delete().ilike('deal_name', '%fake%');
+      await supabase.from('deals').delete().is('hubspot_deal_id', null);
+      
       console.log('Fake data cleared');
     }
 

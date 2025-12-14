@@ -41,16 +41,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "@vite_supabase_publishable_key"
-  },
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "nodejs20.x",
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  }
+  ]
 }
