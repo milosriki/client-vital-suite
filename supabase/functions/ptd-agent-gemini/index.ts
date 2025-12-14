@@ -1370,14 +1370,22 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 
 // ============= MAIN AGENT WITH GEMINI 2.5 PRO =============
 async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default'): Promise<string> {
-  // Try GEMINI_API_KEY first (direct Google API), fallback to LOVABLE_API_KEY
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+  // Try both Google API keys - some users have GEMINI_API_KEY, others have GOOGLE_API_KEY
+  const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+  const GOOGLE_KEY = Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
-  const useDirectGemini = !!GEMINI_API_KEY;
-  if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-    throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+
+  // We'll try keys in order: GEMINI_API_KEY -> GOOGLE_API_KEY -> LOVABLE_API_KEY
+  const googleApiKeys = [GEMINI_KEY, GOOGLE_KEY].filter(Boolean) as string[];
+  const useDirectGemini = googleApiKeys.length > 0;
+
+  if (googleApiKeys.length === 0 && !LOVABLE_API_KEY) {
+    throw new Error("No AI API key configured. Set GEMINI_API_KEY, GOOGLE_API_KEY, or LOVABLE_API_KEY");
   }
+
+  // Track which key we're using (for retry on 403)
+  let currentKeyIndex = 0;
+  let GEMINI_API_KEY = googleApiKeys[0] || '';
 
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
   const [relevantMemory, ragKnowledge, knowledgeBase, learnedPatterns, dynamicKnowledge] = await Promise.all([
@@ -1602,6 +1610,14 @@ ${learnedPatterns || 'No patterns learned yet.'}
       const errorText = await response.text();
       console.error("Gemini error:", response.status, errorText);
 
+      // On 403, try the next API key if available
+      if (response.status === 403 && useDirectGemini && currentKeyIndex < googleApiKeys.length - 1) {
+        currentKeyIndex++;
+        GEMINI_API_KEY = googleApiKeys[currentKeyIndex];
+        console.log(`🔄 Key ${currentKeyIndex} failed with 403, trying key ${currentKeyIndex + 1}...`);
+        continue; // Retry with next key
+      }
+
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please try again in a moment.");
       }
@@ -1695,18 +1711,23 @@ serve(async (req) => {
       });
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-    if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-      console.error("❌ Missing AI API key (GEMINI_API_KEY or LOVABLE_API_KEY)");
+    const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GOOGLE_KEY = Deno.env.get("GOOGLE_API_KEY");
+    const hasGoogleKey = !!GEMINI_KEY || !!GOOGLE_KEY;
+
+    if (!hasGoogleKey && !LOVABLE_API_KEY) {
+      console.error("❌ Missing AI API key (GEMINI_API_KEY, GOOGLE_API_KEY, or LOVABLE_API_KEY)");
       return new Response(JSON.stringify({
         error: "AI Gateway not configured",
-        response: "AI service is not configured. Please set GEMINI_API_KEY or LOVABLE_API_KEY."
+        response: "AI service is not configured. Please set GEMINI_API_KEY, GOOGLE_API_KEY, or LOVABLE_API_KEY."
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log(`🤖 Using ${GEMINI_API_KEY ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+
+    console.log(`🔑 Available keys: GEMINI=${!!GEMINI_KEY}, GOOGLE=${!!GOOGLE_KEY}, LOVABLE=${!!LOVABLE_API_KEY}`);
+    console.log(`🤖 Using ${hasGoogleKey ? 'Direct Gemini API (will try both keys)' : 'Lovable Gateway'}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

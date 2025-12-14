@@ -1042,17 +1042,24 @@ serve(async (req) => {
   try {
     const { messages, stream = false } = await req.json();
     
-    // Try direct Gemini API first, fallback to Lovable
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+    // Try both Google API keys - some users have GEMINI_API_KEY, others have GOOGLE_API_KEY
+    const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GOOGLE_KEY = Deno.env.get("GOOGLE_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    const useDirectGemini = !!GEMINI_API_KEY;
-    if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-      throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+
+    // We'll try keys in order: GEMINI_API_KEY -> GOOGLE_API_KEY -> LOVABLE_API_KEY
+    const googleApiKeys = [GEMINI_KEY, GOOGLE_KEY].filter(Boolean) as string[];
+    const useDirectGemini = googleApiKeys.length > 0;
+    let currentKeyIndex = 0;
+    let GEMINI_API_KEY = googleApiKeys[0] || '';
+
+    if (googleApiKeys.length === 0 && !LOVABLE_API_KEY) {
+      throw new Error("No AI API key configured. Set GEMINI_API_KEY, GOOGLE_API_KEY, or LOVABLE_API_KEY");
     }
-    console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+    console.log(`🔑 Available keys: GEMINI=${!!GEMINI_KEY}, GOOGLE=${!!GOOGLE_KEY}, LOVABLE=${!!LOVABLE_API_KEY}`);
+    console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API (will try both keys)' : 'Lovable Gateway'}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -1104,57 +1111,71 @@ IMPORTANT:
       ...messages
     ];
 
-    // Call AI API - Direct Gemini or Lovable fallback
+    // Call AI API - Direct Gemini or Lovable fallback (with key retry on 403)
     let response: Response;
-    if (useDirectGemini) {
-      response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.0-flash",
-          messages: currentMessages,
-          tools,
-          tool_choice: "auto",
-          stream: false
-        }),
-      });
-    } else {
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: currentMessages,
-          tools,
-          tool_choice: "auto",
-          stream: false
-        }),
-      });
-    }
+    let apiCallSuccess = false;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    while (!apiCallSuccess) {
+      if (useDirectGemini && GEMINI_API_KEY) {
+        response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${GEMINI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gemini-2.0-flash",
+            messages: currentMessages,
+            tools,
+            tool_choice: "auto",
+            stream: false
+          }),
+        });
+      } else {
+        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: currentMessages,
+            tools,
+            tool_choice: "auto",
+            stream: false
+          }),
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("AI Gateway error:", response.status, errorText);
+
+        // On 403, try the next API key if available
+        if (response.status === 403 && useDirectGemini && currentKeyIndex < googleApiKeys.length - 1) {
+          currentKeyIndex++;
+          GEMINI_API_KEY = googleApiKeys[currentKeyIndex];
+          console.log(`🔄 Key ${currentKeyIndex} failed with 403, trying key ${currentKeyIndex + 1}...`);
+          continue; // Retry with next key
+        }
+
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`AI Gateway error: ${response.status}`);
       }
-      throw new Error(`AI Gateway error: ${response.status}`);
+
+      apiCallSuccess = true;
     }
 
     let result = await response.json();
