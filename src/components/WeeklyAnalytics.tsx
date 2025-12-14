@@ -5,17 +5,20 @@ import { format } from "date-fns";
 
 interface WeeklyPattern {
   id: number;
-  week_start_date: string;
-  week_end_date: string;
-  avg_health_score: number | null;
-  total_clients: number | null;
-  green_clients: number | null;
-  yellow_clients: number | null;
-  red_clients: number | null;
-  purple_clients: number | null;
-  clients_improving: number | null;
-  clients_declining: number | null;
-  pattern_insights: string | null;
+  week_start: string;
+  pattern_summary: string | null;
+  ai_insights: string | null;
+  client_id?: string | null;
+  created_at?: string | null;
+  // Computed fields for UI
+  avg_health_score?: number | null;
+  total_clients?: number | null;
+  green_clients?: number | null;
+  yellow_clients?: number | null;
+  red_clients?: number | null;
+  purple_clients?: number | null;
+  clients_improving?: number | null;
+  clients_declining?: number | null;
 }
 
 interface WeeklyAnalyticsProps {
@@ -63,7 +66,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
         <CardTitle className="flex items-center justify-between">
           <span>Weekly Patterns</span>
           <Badge variant="outline">
-            {format(new Date(latestWeek.week_start_date), 'MMM dd')} - {format(new Date(latestWeek.week_end_date), 'MMM dd')}
+            {format(new Date(latestWeek.week_start), 'MMM dd')}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -147,10 +150,10 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
           </div>
 
           {/* Insights */}
-          {latestWeek.pattern_insights && (
+          {latestWeek.ai_insights && (
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
               <p className="text-xs font-medium text-primary mb-2">Pattern Insights</p>
-              <p className="text-sm text-muted-foreground">{latestWeek.pattern_insights}</p>
+              <p className="text-sm text-muted-foreground">{latestWeek.ai_insights}</p>
             </div>
           )}
         </div>

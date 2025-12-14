@@ -29,7 +29,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
       const { data, error } = await (supabase as any)
         .from('sync_errors')
         .select('id')
-        .eq('resolved', false)
+        .is('resolved_at', null)
         .limit(5);
       
       if (error) return [];
