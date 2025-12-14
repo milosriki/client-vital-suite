@@ -206,7 +206,10 @@ const errorHandlerNode: NodeFunction = async (state, supabase) => {
 const synthesizerNode: NodeFunction = async (state, supabase) => {
   console.log("[Orchestrator] Running: synthesizer");
   
+  // Try direct Gemini API first, fallback to Lovable
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const useDirectGemini = !!GEMINI_API_KEY;
   
   // Build synthesis prompt
   const synthesisContext = `
@@ -220,16 +223,24 @@ const synthesizerNode: NodeFunction = async (state, supabase) => {
 
   let finalSummary = "";
   
-  if (LOVABLE_API_KEY) {
+  if (GEMINI_API_KEY || LOVABLE_API_KEY) {
     try {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiUrl = useDirectGemini 
+        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        : "https://ai.gateway.lovable.dev/v1/chat/completions";
+      const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
+      const aiModel = useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash";
+      
+      console.log(`🤖 Synthesizer using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+      
+      const response = await fetch(aiUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${aiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: aiModel,
           messages: [
             { role: "system", content: "You are an AI orchestration summarizer. Create a brief executive summary of the agent run results. Be concise - max 3 sentences." },
             { role: "user", content: synthesisContext }
