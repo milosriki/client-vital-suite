@@ -54,7 +54,7 @@
 |-----------|--------|---------|
 | **Supabase Project** | ✅ 100% | Linked to ztjndilxurtsfqdsvfds |
 | **Supabase Secrets** | ✅ 100% | All 35+ secrets set |
-| **Supabase Functions** | ✅ 100% | 80+ functions deployed |
+| **Supabase Functions** | ✅ 100% | 53 functions ready for deployment |
 | **Vercel Connection** | ✅ 100% | Logged in and linked |
 | **Vercel Frontend Env** | ✅ 100% | Set in vercel.json + VITE_GEMINI_API_KEY |
 | **Vercel Backend Env** | ✅ 100% | FB_PIXEL_ID & FB_ACCESS_TOKEN set |
