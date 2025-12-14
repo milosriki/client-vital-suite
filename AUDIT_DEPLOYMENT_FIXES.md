@@ -46,7 +46,6 @@ git rm --cached .env
 
 # Environment variables and secrets
 .env
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -55,7 +54,7 @@ git rm --cached .env
 secrets.json
 ```
 
-**Status:** ✅ All sensitive file patterns now excluded
+**Status:** ✅ All sensitive file patterns now excluded (removed redundant `.env.local` as it's covered by `.env*.local`)
 
 ---
 
@@ -142,9 +141,11 @@ $ git ls-files | grep -E "^\.env$"
 
 ## 📝 Notes
 
-- The `.env.example` file contains the Supabase URL and project ID, which is acceptable as these are public values used in the frontend
-- The anonymous key is also public-facing and meant to be used in client-side code
+- The `.env.example` file contains the Supabase URL and project ID, which is acceptable as these values are used in the frontend
+- The Supabase anonymous key is designed for client-side use and can be safely exposed in frontend code
+- **Important:** While the anon key is safe for client-side use, security relies on proper Row Level Security (RLS) policies in the database
 - Sensitive keys (service role key, API keys) are stored in Supabase Edge Function Secrets, not in `.env` files
+- The service role key must NEVER be exposed in client-side code or `.env` files
 
 ---
 
