@@ -1465,6 +1465,20 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -2455,6 +2469,7 @@ export type Database = {
           date: string
           id: string
           impressions: number | null
+          leads: number | null
           reach: number | null
           spend: number | null
           updated_at: string | null
@@ -2474,6 +2489,7 @@ export type Database = {
           date: string
           id?: string
           impressions?: number | null
+          leads?: number | null
           reach?: number | null
           spend?: number | null
           updated_at?: string | null
@@ -2493,6 +2509,7 @@ export type Database = {
           date?: string
           id?: string
           impressions?: number | null
+          leads?: number | null
           reach?: number | null
           spend?: number | null
           updated_at?: string | null
@@ -3561,6 +3578,20 @@ export type Database = {
             foreignKeyName: "proactive_insights_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -3776,6 +3807,51 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_invoices: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number | null
+          created_at: string | null
+          currency: string | null
+          customer_id: string | null
+          id: string
+          metadata: Json | null
+          paid: boolean | null
+          status: string | null
+          stripe_id: string
+          subscription_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount_due?: number | null
+          amount_paid?: number | null
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          id?: string
+          metadata?: Json | null
+          paid?: boolean | null
+          status?: string | null
+          stripe_id: string
+          subscription_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount_due?: number | null
+          amount_paid?: number | null
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          id?: string
+          metadata?: Json | null
+          paid?: boolean | null
+          status?: string | null
+          stripe_id?: string
+          subscription_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       stripe_refunds: {
         Row: {
           amount: number
@@ -3819,6 +3895,87 @@ export type Database = {
           reason?: string | null
           receipt_number?: string | null
           status?: string
+          stripe_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      stripe_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          customer_id: string | null
+          id: string
+          metadata: Json | null
+          status: string | null
+          stripe_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          customer_id?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          stripe_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          customer_id?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          stripe_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      stripe_transactions: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          currency: string | null
+          customer_id: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          payment_method: string | null
+          status: string | null
+          stripe_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          status?: string | null
+          stripe_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          status?: string | null
           stripe_id?: string
           updated_at?: string | null
         }
@@ -4384,6 +4541,135 @@ export type Database = {
       }
     }
     Views: {
+      campaign_intelligence: {
+        Row: {
+          avg_call_attempts_per_lead: number | null
+          avg_call_quality_score: number | null
+          avg_days_since_last_call: number | null
+          avg_deal_value: number | null
+          avg_email_opens: number | null
+          avg_emails_sent: number | null
+          avg_lead_age_days: number | null
+          avg_lead_score: number | null
+          avg_setter_call_score: number | null
+          campaign_decision: string | null
+          campaign_health_score: number | null
+          campaign_name: string | null
+          cold_leads_detected: number | null
+          completed_calls: number | null
+          converted_leads: number | null
+          hot_leads_detected: number | null
+          leads_with_deals: number | null
+          missed_calls: number | null
+          qualified_calls: number | null
+          setters_assigned: number | null
+          total_appointments_set: number | null
+          total_call_attempts: number | null
+          total_leads: number | null
+          total_revenue: number | null
+          unworked_leads: number | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Relationships: []
+      }
+      campaign_lead_attribution: {
+        Row: {
+          analytics_score: number | null
+          call_attempt_count: number | null
+          company_name: string | null
+          contact_created_at: string | null
+          contact_id: string | null
+          contact_unworked: boolean | null
+          email: string | null
+          first_conversion_date: string | null
+          first_name: string | null
+          first_touch_source: string | null
+          last_activity_date: string | null
+          last_name: string | null
+          last_touch_source: string | null
+          latest_traffic_source: string | null
+          lead_status: string | null
+          lifecycle_stage: string | null
+          num_associated_deals: number | null
+          num_emails_clicked: number | null
+          num_emails_opened: number | null
+          num_emails_sent: number | null
+          num_form_submissions: number | null
+          phone: string | null
+          recent_conversion: string | null
+          setter_name: string | null
+          total_deal_value: number | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          analytics_score?: number | null
+          call_attempt_count?: number | null
+          company_name?: string | null
+          contact_created_at?: string | null
+          contact_id?: string | null
+          contact_unworked?: boolean | null
+          email?: string | null
+          first_conversion_date?: string | null
+          first_name?: string | null
+          first_touch_source?: string | null
+          last_activity_date?: string | null
+          last_name?: string | null
+          last_touch_source?: string | null
+          latest_traffic_source?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
+          num_associated_deals?: number | null
+          num_emails_clicked?: number | null
+          num_emails_opened?: number | null
+          num_emails_sent?: number | null
+          num_form_submissions?: number | null
+          phone?: string | null
+          recent_conversion?: string | null
+          setter_name?: string | null
+          total_deal_value?: number | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          analytics_score?: number | null
+          call_attempt_count?: number | null
+          company_name?: string | null
+          contact_created_at?: string | null
+          contact_id?: string | null
+          contact_unworked?: boolean | null
+          email?: string | null
+          first_conversion_date?: string | null
+          first_name?: string | null
+          first_touch_source?: string | null
+          last_activity_date?: string | null
+          last_name?: string | null
+          last_touch_source?: string | null
+          latest_traffic_source?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
+          num_associated_deals?: number | null
+          num_emails_clicked?: number | null
+          num_emails_opened?: number | null
+          num_emails_sent?: number | null
+          num_form_submissions?: number | null
+          phone?: string | null
+          recent_conversion?: string | null
+          setter_name?: string | null
+          total_deal_value?: number | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
       campaign_performance: {
         Row: {
           avg_value: number | null
@@ -4399,6 +4685,58 @@ export type Database = {
           total_events: number | null
           total_value: number | null
           unique_leads: number | null
+        }
+        Relationships: []
+      }
+      contact_call_performance: {
+        Row: {
+          appointments_set: number | null
+          avg_call_duration: number | null
+          avg_call_score: number | null
+          avg_sentiment: number | null
+          best_call_score: number | null
+          cold_leads: number | null
+          completed_calls: number | null
+          contact_id: string | null
+          days_since_last_call: number | null
+          email: string | null
+          first_call_date: string | null
+          hot_leads: number | null
+          inbound_calls: number | null
+          last_call_date: string | null
+          missed_calls: number | null
+          not_interested: number | null
+          outbound_calls: number | null
+          phone: string | null
+          qualified_calls: number | null
+          setter_name: string | null
+          total_calls: number | null
+          utm_campaign: string | null
+          utm_source: string | null
+          warm_leads: number | null
+        }
+        Relationships: []
+      }
+      creative_performance: {
+        Row: {
+          ad_id: string | null
+          adset_id: string | null
+          appointments_set: number | null
+          avg_call_score: number | null
+          campaign_id: string | null
+          cold_leads: number | null
+          completed_calls: number | null
+          creative_decision: string | null
+          form_id: string | null
+          hot_leads: number | null
+          lead_status: string | null
+          lifecycle_stage: string | null
+          qualified_calls: number | null
+          setter_name: string | null
+          total_calls: number | null
+          total_deal_value: number | null
+          utm_campaign: string | null
+          utm_content: string | null
         }
         Relationships: []
       }
@@ -4439,6 +4777,75 @@ export type Database = {
           total_events: number | null
           total_value: number | null
           unique_users: number | null
+        }
+        Relationships: []
+      }
+      facebook_campaign_performance: {
+        Row: {
+          avg_cpc: number | null
+          avg_cpm: number | null
+          avg_ctr: number | null
+          campaign_id: string | null
+          campaign_name: string | null
+          daily_budget: number | null
+          fb_leads_count: number | null
+          first_date: string | null
+          last_date: string | null
+          last_synced_at: string | null
+          lifetime_budget: number | null
+          objective: string | null
+          status: string | null
+          total_clicks: number | null
+          total_impressions: number | null
+          total_reach: number | null
+          total_spend: number | null
+        }
+        Relationships: []
+      }
+      facebook_hubspot_crosscheck: {
+        Row: {
+          avg_deal_value: number | null
+          avg_lead_score: number | null
+          campaign_name: string | null
+          converted_leads: number | null
+          fb_campaign_id: string | null
+          fb_clicks: number | null
+          fb_cost_per_lead: number | null
+          fb_cpc: number | null
+          fb_ctr: number | null
+          fb_impressions: number | null
+          fb_last_synced: string | null
+          fb_leads_count: number | null
+          fb_objective: string | null
+          fb_spend: number | null
+          fb_status: string | null
+          hubspot_conversion_rate: number | null
+          hubspot_last_updated: string | null
+          hubspot_leads_count: number | null
+          lead_count_difference: number | null
+          match_status: string | null
+          total_revenue: number | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Relationships: []
+      }
+      hubspot_campaign_performance: {
+        Row: {
+          avg_call_attempts: number | null
+          avg_deal_value: number | null
+          avg_emails_sent: number | null
+          avg_lead_score: number | null
+          campaign_name: string | null
+          converted_leads: number | null
+          first_lead_date: string | null
+          hubspot_leads_count: number | null
+          last_lead_date: string | null
+          total_revenue: number | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
         }
         Relationships: []
       }
@@ -4709,6 +5116,7 @@ export type Database = {
           thread_id: string
         }[]
       }
+      normalize_phone: { Args: { phone: string }; Returns: string }
       process_hubspot_webhook: {
         Args: { webhook_payload: Json }
         Returns: Json

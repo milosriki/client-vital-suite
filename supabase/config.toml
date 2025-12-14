@@ -233,3 +233,7 @@ verify_jwt = false
 # API Key Verification Tool
 [functions.verify-all-keys]
 verify_jwt = false
+
+# PTD Self-Developer Agent (AI Code Generation)
+[functions.ptd-self-developer]
+verify_jwt = false
