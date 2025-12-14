@@ -13,7 +13,10 @@ import {
 } from "../_shared/unified-prompts.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY'); // Used for Gemini API
+// Try both Google API keys - some users have GEMINI_API_KEY, others have GOOGLE_API_KEY
+const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
+const GOOGLE_KEY = Deno.env.get('GOOGLE_API_KEY');
+const googleApiKeys = [GEMINI_KEY, GOOGLE_KEY].filter(Boolean) as string[];
 
 // ============================================
 // PERSONA DEFINITIONS
@@ -475,24 +478,42 @@ async function generateWithClaude(query: string, persona: any, context: any) {
 }
 
 async function generateWithGemini(query: string, persona: any, context: any) {
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 4000
-                }
-            })
+    if (googleApiKeys.length === 0) {
+        throw new Error('No Google API key configured. Set GEMINI_API_KEY or GOOGLE_API_KEY');
+    }
+
+    const requestBody = JSON.stringify({
+        contents: [{
+            parts: [{
+                text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
+            }]
+        }],
+        generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 4000
         }
-    );
+    });
+
+    // Try each Google API key until one works
+    let response: Response | null = null;
+    let lastError: string = '';
+    for (const apiKey of googleApiKeys) {
+        response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: requestBody
+            }
+        );
+        if (response.status !== 403) break;
+        console.log('🔄 API key failed with 403, trying next...');
+        lastError = `403 Forbidden`;
+    }
+
+    if (!response || response.status === 403) {
+        throw new Error(`All Google API keys failed: ${lastError}`);
+    }
 
     const result = await response.json();
     if (result.error) throw new Error(result.error.message);

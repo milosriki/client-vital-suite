@@ -3,7 +3,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const GEMINI_API_KEY = Deno.env.get('GOOGLE_API_KEY');
+// Try both Google API keys - some users have GEMINI_API_KEY, others have GOOGLE_API_KEY
+const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
+const GOOGLE_KEY = Deno.env.get('GOOGLE_API_KEY');
+const googleApiKeys = [GEMINI_KEY, GOOGLE_KEY].filter(Boolean) as string[];
 
 // ============================================
 // PERSONA DEFINITIONS (The Brains)
@@ -178,7 +181,7 @@ RESPOND WITH VALID JSON ONLY:
 
 async function generateWithGemini(command: string, context: string, persona: any) {
     const systemPrompt = `${persona.systemPrompt}
-    
+
 ${context}
 
 You are generating a JSON analysis/action.
@@ -194,17 +197,35 @@ RESPOND WITH VALID JSON ONLY:
   "payload": { "findings": [] }
 }`;
 
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: `${systemPrompt}\n\nQUERY: ${command}` }] }]
-            })
-        }
-    );
+    if (googleApiKeys.length === 0) {
+        throw new Error('No Google API key configured. Set GEMINI_API_KEY or GOOGLE_API_KEY');
+    }
+
+    // Try each Google API key until one works
+    let response: Response | null = null;
+    let lastError: string = '';
+    for (const apiKey of googleApiKeys) {
+        response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `${systemPrompt}\n\nQUERY: ${command}` }] }]
+                })
+            }
+        );
+        if (response.status !== 403) break;
+        console.log('🔄 API key failed with 403, trying next...');
+        lastError = `403 Forbidden`;
+    }
+
+    if (!response || response.status === 403) {
+        throw new Error(`All Google API keys failed: ${lastError}`);
+    }
+
     const result = await response.json();
+    if (result.error) throw new Error(result.error.message);
     const text = result.candidates[0].content.parts[0].text;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     return JSON.parse(jsonMatch ? jsonMatch[0] : text);
