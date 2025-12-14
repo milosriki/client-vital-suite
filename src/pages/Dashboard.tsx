@@ -13,16 +13,19 @@ import { LiveRevenueChart } from '@/components/dashboard/LiveRevenueChart';
 import { TodaySnapshot } from '@/components/dashboard/TodaySnapshot';
 import { CoachLeaderboard } from '@/components/dashboard/CoachLeaderboard';
 import { AlertsBar } from '@/components/dashboard/AlertsBar';
+import { ExecutiveBriefing } from '@/components/dashboard/ExecutiveBriefing';
+import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
+import { PatternInsights } from '@/components/dashboard/PatternInsights';
 import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
 import { MetricDrilldownModal } from '@/components/dashboard/MetricDrilldownModal';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Users, DollarSign, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Users, DollarSign, AlertTriangle, TrendingUp, Phone, Calendar, Target } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function Dashboard() {
   useRealtimeHealthScores();
-  useNotifications(); // Enable real-time notification monitoring
+  useNotifications();
   const navigate = useNavigate();
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [isRunningBI, setIsRunningBI] = useState(false);
@@ -52,6 +55,39 @@ export default function Dashboard() {
       return data || [];
     },
     refetchInterval: 60000,
+  });
+
+  // Fetch daily summary for Executive Briefing
+  const { data: dailySummary } = useQuery({
+    queryKey: ['daily-summary-briefing'],
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { data, error } = await supabase
+        .from('daily_summary')
+        .select('*')
+        .eq('summary_date', today)
+        .single();
+
+      if (error) return null;
+      return data;
+    },
+    refetchInterval: 300000,
+  });
+
+  // Fetch weekly patterns
+  const { data: weeklyPatterns } = useQuery({
+    queryKey: ['weekly-patterns'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('weekly_patterns')
+        .select('*')
+        .order('week_end_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) return null;
+      return data;
+    },
   });
 
   // Fetch revenue this month
@@ -103,6 +139,36 @@ export default function Dashboard() {
     },
   });
 
+  // Fetch today's leads count
+  const { data: leadsToday } = useQuery({
+    queryKey: ['leads-today'],
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { count, error } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today);
+
+      if (error) return 0;
+      return count || 0;
+    },
+  });
+
+  // Fetch today's calls count
+  const { data: callsToday } = useQuery({
+    queryKey: ['calls-today'],
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { count, error } = await supabase
+        .from('call_records')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today);
+
+      if (error) return 0;
+      return count || 0;
+    },
+  });
+
   // Compute stats
   const stats = useMemo(() => {
     const allClients = clients || [];
@@ -115,6 +181,27 @@ export default function Dashboard() {
       atRiskClients: atRisk,
     };
   }, [clients]);
+
+  // Build executive summary object
+  const executiveSummary = useMemo(() => {
+    const atRiskRevenue = (clients || [])
+      .filter(c => c.health_zone === 'RED' || c.health_zone === 'YELLOW')
+      .reduce((sum, c) => sum + (c.package_value_aed || 0), 0);
+
+    return {
+      executive_briefing: dailySummary?.patterns_detected 
+        ? `${stats.totalClients} active clients tracked. ${stats.atRiskClients} require immediate attention with AED ${atRiskRevenue.toLocaleString()} at risk.`
+        : `Monitoring ${stats.totalClients} clients. ${stats.atRiskClients} in warning/critical zones.`,
+      max_utilization_rate: stats.totalClients > 0 
+        ? Math.round(((stats.totalClients - stats.atRiskClients) / stats.totalClients) * 100) 
+        : 0,
+      system_health_status: stats.atRiskClients > 10 ? 'Attention Required' : 'Healthy',
+      action_plan: stats.atRiskClients > 0 
+        ? [`Review ${stats.atRiskClients} at-risk clients`, 'Schedule intervention calls', 'Update client engagement scores']
+        : [],
+      sla_breach_count: dailySummary?.critical_interventions || 0,
+    };
+  }, [clients, dailySummary, stats]);
 
   // Handlers
   const runBusinessIntelligence = async () => {
@@ -148,6 +235,9 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Greeting Bar */}
         <GreetingBar />
+
+        {/* Executive Briefing - AI Summary */}
+        <ExecutiveBriefing summary={executiveSummary} />
 
         {/* Hero Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -195,12 +285,52 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* Secondary Stats Row - Today's Activity */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <HeroStatCard
+            label="Leads Today"
+            value={leadsToday || 0}
+            icon={Target}
+            variant="default"
+            delay={200}
+            href="/clients"
+          />
+          <HeroStatCard
+            label="Calls Today"
+            value={callsToday || 0}
+            icon={Phone}
+            variant="default"
+            delay={250}
+            href="/call-tracking"
+          />
+          <HeroStatCard
+            label="Appointments Set"
+            value={dailySummary?.interventions_recommended || 0}
+            icon={Calendar}
+            variant="success"
+            delay={300}
+            href="/interventions"
+          />
+          <HeroStatCard
+            label="Critical Alerts"
+            value={dailySummary?.critical_interventions || 0}
+            icon={AlertTriangle}
+            variant={(dailySummary?.critical_interventions || 0) > 0 ? "danger" : "default"}
+            delay={350}
+            href="/interventions"
+          />
+        </div>
+
+        {/* Predictive Alerts */}
+        <PredictiveAlerts clients={clients || []} summary={dailySummary} />
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - 2/3 */}
           <div className="lg:col-span-2 space-y-6">
             <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
             <LiveRevenueChart />
+            <PatternInsights patterns={weeklyPatterns} clients={clients || []} />
             <LiveActivityFeed />
           </div>
 
