@@ -39,11 +39,32 @@ export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdown
         .select('id')
         .gte('created_at', new Date(Date.now() - 3600000).toISOString());
 
+      // Check HubSpot - look for recent successful sync logs
+      const { data: hubspotSync } = await supabase
+        .from('sync_logs')
+        .select('status, started_at')
+        .eq('platform', 'hubspot')
+        .order('started_at', { ascending: false })
+        .limit(1);
+      
+      // HubSpot is connected if last sync was successful and within 24 hours
+      const hubspotConnected = hubspotSync?.[0]?.status === 'success' && 
+        hubspotSync?.[0]?.started_at &&
+        (Date.now() - new Date(hubspotSync[0].started_at).getTime()) < 86400000;
+
+      // Check Stripe - look for recent data in deals or stripe_events
+      const { data: stripeData } = await supabase
+        .from('deals')
+        .select('id')
+        .limit(1);
+      
+      const stripeConnected = (stripeData?.length || 0) > 0;
+
       return {
         supabase: supabaseConnected,
-        hubspot: true, // Assume connected if we have data
-        stripe: true,
-        lastSync: syncData?.[0]?.created_at,
+        hubspot: hubspotConnected,
+        stripe: stripeConnected,
+        lastSync: syncData?.[0]?.created_at || hubspotSync?.[0]?.started_at,
         recentErrors: errors?.length || 0,
       };
     },
