@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ============================================
 // DAILY REPORT AGENT
 // Generates daily summary and sends notifications
-// Replaces n8n Daily Summary Email workflow
+// Daily summary email report generation
 // ============================================
 
 const corsHeaders = {

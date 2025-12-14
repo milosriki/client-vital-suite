@@ -287,21 +287,23 @@ serve(async (req) => {
         const dealsToUpsert = deals.map((deal: any) => {
           const props = deal.properties;
           return {
-            hubspot_deal_id: deal.id,
+            hubspot_id: deal.id, // Use hubspot_id to match deals table schema
             deal_name: props.dealname,
-            deal_value: parseFloat(props.amount) || 0,
+            amount: parseFloat(props.amount) || 0, // Use amount to match deals table schema
             stage: props.dealstage,
             pipeline: props.pipeline,
-            status: mapDealStageToStatus(props.dealstage),
-            close_date: props.closedate,
-            created_at: props.createdate
+            close_date: props.closedate ? new Date(props.closedate).toISOString().split('T')[0] : null,
+            hubspot_owner_id: props.hubspot_owner_id,
+            source: 'hubspot',
+            created_at: props.createdate ? new Date(props.createdate).toISOString() : new Date().toISOString(),
+            updated_at: props.lastmodifieddate ? new Date(props.lastmodifieddate).toISOString() : new Date().toISOString()
           };
         });
 
         if (dealsToUpsert.length > 0) {
           const { error } = await supabase
             .from('deals')
-            .upsert(dealsToUpsert, { onConflict: 'hubspot_deal_id', ignoreDuplicates: false });
+            .upsert(dealsToUpsert, { onConflict: 'hubspot_id', ignoreDuplicates: false });
 
           if (error) {
             results.errors.push(`Deals batch: ${error.message}`);

@@ -150,7 +150,7 @@ app.post('/api/events/batch', async (req, res) => {
   }
 });
 
-// Webhook endpoint for n8n backfill
+// Webhook endpoint for AI agent orchestration (backfill events)
 app.post('/api/webhook/backfill', async (req, res) => {
   try {
     logger.info({ body: req.body }, 'Received backfill webhook');

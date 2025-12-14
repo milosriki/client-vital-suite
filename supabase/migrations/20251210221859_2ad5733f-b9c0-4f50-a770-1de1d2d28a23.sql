@@ -79,7 +79,7 @@ INSERT INTO public.knowledge_base (content, metadata, source, category) VALUES
 ('PTD Fitness is Dubai''s premier mobile personal training company serving executives and professionals 40+. Founded in 2012, scaled from $0 to $15M in 4.5 years with 12,000+ transformations delivered.', '{"importance": "high"}', 'company-info', 'about'),
 ('PTD packages range from 3,520-41,616 AED with personalized training programs. We employ 55+ Masters certified coaches and have 600+ five-star reviews.', '{"importance": "high"}', 'pricing', 'services'),
 ('Client health scores calculate daily at 9:30 PM Dubai time based on engagement patterns, session attendance, response rates, and risk indicators.', '{"importance": "high"}', 'intelligence-hub', 'system'),
-('The PTD Intelligence Hub integrates HubSpot CRM, n8n workflows, Supabase database, and AI agents for comprehensive business automation.', '{"importance": "high"}', 'intelligence-hub', 'system'),
+('The PTD Intelligence Hub integrates HubSpot CRM, Supabase Edge Functions, Supabase database, and AI agents for comprehensive business automation.', '{"importance": "high"}', 'intelligence-hub', 'system'),
 ('We focus on sustainable fitness transformations for busy professionals through mobile training, eliminating gym commute time.', '{"importance": "medium"}', 'company-info', 'services'),
 ('Our coaches are Masters certified with specialized training in executive wellness, injury prevention, and results-driven programming.', '{"importance": "medium"}', 'company-info', 'team'),
 ('PTD uses advanced health scoring to predict client churn risk and trigger automated interventions when engagement drops.', '{"importance": "high"}', 'intelligence-hub', 'features'),

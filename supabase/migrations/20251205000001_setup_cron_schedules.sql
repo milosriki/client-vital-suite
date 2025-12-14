@@ -1,5 +1,5 @@
 -- ============================================
--- CRON SCHEDULING (Replaces n8n)
+-- CRON SCHEDULING
 -- ============================================
 
 -- Enable pg_cron extension

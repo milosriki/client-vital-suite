@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database,
   Shield, AlertTriangle, CheckCircle, XCircle, Activity, Zap, Users,
-  Minimize2, Maximize2
+  Minimize2, Maximize2, Mic, MicOff, Volume2, VolumeX
 } from "lucide-react";
+import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { 
@@ -42,7 +43,32 @@ export default function PTDUnlimitedChat() {
   const [showApprovals, setShowApprovals] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Voice chat hooks
+  const {
+    isListening,
+    isSupported: voiceInputSupported,
+    transcript,
+    toggleListening,
+    clearTranscript,
+  } = useVoiceChat({
+    onTranscript: (text) => {
+      setInput(text);
+      clearTranscript();
+    },
+    onError: (error) => {
+      toast.error(error);
+    },
+  });
+
+  const {
+    isSpeaking,
+    isSupported: voiceOutputSupported,
+    speak,
+    stop: stopSpeaking,
+  } = useTextToSpeech();
 
   useEffect(() => {
     const tid = getThreadId();
@@ -249,8 +275,17 @@ export default function PTDUnlimitedChat() {
       if (error) {
         setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message}` }]);
       } else if (data?.response) {
-        setMessages(prev => [...prev, { role: "ai", content: data.response }]);
-        await learnFromInteraction(input, data.response);
+        const aiResponse = data.response;
+        setMessages(prev => [...prev, { role: "ai", content: aiResponse }]);
+        
+        // Speak the AI response if voice is enabled
+        if (voiceEnabled && voiceOutputSupported) {
+          // Extract text from markdown if present
+          const textToSpeak = aiResponse.replace(/[#*`_]/g, '').substring(0, 500);
+          speak(textToSpeak);
+        }
+        
+        await learnFromInteraction(input, aiResponse);
         loadStats();
         loadPendingApprovals();
       } else if (data?.error) {
@@ -487,6 +522,14 @@ export default function PTDUnlimitedChat() {
 
       {/* Input */}
       <div className="p-4 border-t border-cyan-500/20 bg-gradient-to-r from-slate-900 to-slate-800 rounded-b-2xl">
+        {/* Voice transcript indicator */}
+        {isListening && (
+          <div className="mb-2 flex items-center gap-2 text-xs text-cyan-400 animate-pulse">
+            <Mic className="w-4 h-4" />
+            <span>Listening... {transcript && `"${transcript}"`}</span>
+          </div>
+        )}
+        
         <div className="flex gap-2">
           <input
             value={input}
@@ -496,6 +539,51 @@ export default function PTDUnlimitedChat() {
             className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
             disabled={loading}
           />
+          
+          {/* Voice input button */}
+          {voiceInputSupported && (
+            <button
+              onClick={toggleListening}
+              disabled={loading}
+              className={`p-3 rounded-lg transition-all ${
+                isListening
+                  ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
+                  : 'bg-white/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
+              }`}
+              title={isListening ? 'Stop recording' : 'Start voice input'}
+            >
+              {isListening ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
+          )}
+          
+          {/* Voice output toggle */}
+          {voiceOutputSupported && (
+            <button
+              onClick={() => {
+                setVoiceEnabled(!voiceEnabled);
+                if (!voiceEnabled && isSpeaking) {
+                  stopSpeaking();
+                }
+              }}
+              className={`p-3 rounded-lg transition-all ${
+                voiceEnabled
+                  ? 'bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30'
+                  : 'bg-white/10 border border-cyan-500/30 text-white/40 hover:bg-white/20'
+              }`}
+              title={voiceEnabled ? 'Disable voice output' : 'Enable voice output'}
+            >
+              {voiceEnabled ? (
+                <Volume2 className="w-5 h-5" />
+              ) : (
+                <VolumeX className="w-5 h-5" />
+              )}
+            </button>
+          )}
+          
           <button
             onClick={handleAsk}
             disabled={loading || !input.trim()}

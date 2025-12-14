@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ============================================
 // COACH ANALYZER AGENT
 // Analyzes coach performance and generates insights
-// Replaces n8n AI Monthly Coach Review workflow
+// Monthly coach performance analysis
 // ============================================
 
 const corsHeaders = {

@@ -123,6 +123,10 @@ verify_jwt = false
 [functions.generate-embeddings]
 verify_jwt = false
 
+# CallGear Sentinel - Real-time Impersonation Detection
+[functions.callgear-sentinel]
+verify_jwt = false
+
 # ============================================
 # UNLIMITED POWER AGENT SYSTEM
 # ============================================
@@ -181,4 +185,12 @@ verify_jwt = false
 
 # CallGear Data Fetcher
 [functions.fetch-callgear-data]
+verify_jwt = false
+
+# Stripe Webhook Handler
+[functions.stripe-webhook]
+verify_jwt = false
+
+# Agent Analyst - Business Intelligence Analyst
+[functions.agent-analyst]
 verify_jwt = false

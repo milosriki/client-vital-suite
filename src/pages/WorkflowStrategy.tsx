@@ -72,7 +72,7 @@ const WorkflowStrategy = () => {
       steps: [
         {
           title: "Understand Project Goals",
-          description: "Review the PTD Workflow Fixer & n8n Management System objectives",
+          description: "Review the PTD Edge Functions & Automation System objectives",
           checklist: [
             "Daily health score calculations",
             "AI-powered risk analysis",
@@ -83,8 +83,8 @@ const WorkflowStrategy = () => {
         },
         {
           title: "Identify All Workflows",
-          description: "List and categorize all n8n workflows",
-          action: "Review the 5 main workflows listed above"
+          description: "List and categorize all Supabase Edge Functions",
+          action: "Review the Edge Functions listed above (replaced n8n workflows)"
         },
         {
           title: "Prioritize Based on Errors",
@@ -99,12 +99,12 @@ const WorkflowStrategy = () => {
       steps: [
         {
           title: "Visual Inspection",
-          description: "Examine the workflow structure in n8n",
+          description: "Examine the Edge Function code structure",
           checklist: [
-            "Open workflow in n8n editor",
-            "Map the flow from start to finish",
-            "Identify all node types and connections",
-            "Note any disconnected or orphaned nodes"
+            "Review Edge Function code in supabase/functions/",
+            "Map the execution flow from start to finish",
+            "Identify all function calls and dependencies",
+            "Note any error handling or edge cases"
           ]
         },
         {
@@ -187,7 +187,7 @@ const WorkflowStrategy = () => {
         {
           title: "Individual Node Testing",
           description: "Test each node in isolation",
-          method: "Use 'Execute Step' button in n8n to run one node at a time"
+          method: "Use Supabase Functions local testing: supabase functions serve"
         },
         {
           title: "Error Analysis",
@@ -286,9 +286,9 @@ const WorkflowStrategy = () => {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-4xl font-bold mb-2">PTD n8n Workflow Strategy</h1>
+          <h1 className="text-4xl font-bold mb-2">PTD Edge Functions Strategy</h1>
           <p className="text-muted-foreground text-lg">
-            Step-by-step guide to review, fix, and optimize every n8n workflow
+            Step-by-step guide to review, fix, and optimize Supabase Edge Functions
           </p>
         </div>
 
@@ -542,9 +542,8 @@ const WorkflowStrategy = () => {
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Next Steps:</strong> Start with the Daily Calculator workflow (highest priority).
-            Use the Workflow Fixer page to automatically apply these fixes, then manually verify each
-            node configuration in n8n. Test thoroughly before moving to the next workflow.
+            <strong>Next Steps:</strong> Start with the health-calculator Edge Function (highest priority).
+            Use Supabase Functions local testing to verify fixes, then deploy and test thoroughly before moving to the next function.
           </AlertDescription>
         </Alert>
       </div>

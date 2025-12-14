@@ -6,6 +6,8 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
+import { testAllFunctions } from "@/utils/testFunctions";
+import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
 import Dashboard from "./pages/Dashboard";
 import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
@@ -32,6 +34,15 @@ import "./index.css";
 
 // Start background learning on app init
 startBackgroundLearning();
+
+// Make testing utilities available in browser console (development only)
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as any).testAllFunctions = testAllFunctions;
+  (window as any).verifyConnections = verifyAllConnections;
+  console.log('🧪 Browser utilities loaded:');
+  console.log('   - testAllFunctions() - Test all functions');
+  console.log('   - verifyConnections() - Verify all connections');
+}
 
 const router = createBrowserRouter([
   {

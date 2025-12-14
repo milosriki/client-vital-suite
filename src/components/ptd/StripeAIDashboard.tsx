@@ -82,11 +82,20 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
     setIsStreaming(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-payouts-ai`, {
+      // Use supabase client for proper connection (works standalone, not Lovable-dependent)
+      // Note: Using fetch for streaming support, but using supabase client's URL/key
+      const supabaseUrl = supabase.supabaseUrl;
+      const supabaseKey = supabase.supabaseKey;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Supabase client not properly initialized");
+      }
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/stripe-payouts-ai`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "Authorization": `Bearer ${supabaseKey}`,
         },
         body: JSON.stringify({
           mode,

@@ -3,9 +3,9 @@
 ## Architecture Overview
 
 This project integrates three core systems:
-1. **Lovable Frontend** (this repo) - React dashboard for monitoring and control
+1. **Frontend Dashboard** (this repo) - React dashboard for monitoring and control
 2. **Stape CAPI Gateway** - Meta Conversions API proxy (https://ap.stape.info)
-3. **n8n Workflows** - Automation engine for data processing
+3. **Supabase Edge Functions** - Automation engine for data processing
 
 ## System Components
 
@@ -17,7 +17,7 @@ Located at: `/ptd-control`
 - **Health Intelligence** - Client health scoring and analytics
 - **CAPI** - Test Meta conversion events
 - **Event Mapping** - Configure HubSpot → Meta event mappings
-- **Automation** - Trigger n8n workflows
+- **Automation** - Trigger Supabase Edge Functions
 - **Settings** - Configure all service connections
 
 ### 2. Stape CAPI Integration
@@ -62,22 +62,18 @@ Maps HubSpot lifecycle stages to Meta standard events:
 - Delete unused mappings
 - All changes stored in Supabase
 
-### 4. n8n Workflow Integration
+### 4. Supabase Edge Functions Automation
 
-**Webhook Endpoints:**
-Configure these in Settings tab with your n8n base URL:
+**Scheduled Functions (via pg_cron):**
+All automation is handled by Supabase Edge Functions scheduled via PostgreSQL cron:
 
-```
-{n8n_base_url}/webhook/capi_ingest        # CSV backfill to CAPI
-{n8n_base_url}/webhook/ptd_daily_health   # Daily health score calculation
-{n8n_base_url}/webhook/ptd_monthly_review # Monthly coach performance review
-{n8n_base_url}/webhook/ptd_ai_analysis    # AI-powered client analysis
-```
+- `health-calculator` - Daily health score calculation (runs daily at 9 AM)
+- `churn-predictor` - AI-powered risk analysis (runs daily)
+- `daily-report` - Daily summary email generation (runs daily at 6 PM)
+- `coach-analyzer` - Monthly coach performance review (runs monthly)
 
-**Example n8n Base URL:**
-```
-https://personaltrainersdubai.app.n8n.cloud
-```
+**Manual Invocation:**
+Edge Functions can be invoked directly via Supabase Functions API or through the dashboard UI.
 
 ## Database Schema
 
@@ -118,7 +114,7 @@ https://personaltrainersdubai.app.n8n.cloud
 **app_settings** - System configuration (singleton)
 ```sql
 - supabase_url, supabase_anon_key
-- n8n_base_url
+- capi_base_url
 - meta_pixel_id
 - test_event_code
 - telegram_bot_token, telegram_chat_id
@@ -184,18 +180,20 @@ https://personaltrainersdubai.app.n8n.cloud
 
 ### 3. Running Automation
 
-1. Configure n8n base URL in Settings
-2. Navigate to Automation tab
-3. Click workflow triggers:
-   - Daily Health Calculation
-   - Monthly Coach Review
-   - CSV Backfill
+1. Navigate to Automation tab
+2. Edge Functions run automatically via scheduled cron jobs
+3. Manual triggers available for:
+   - Daily Health Calculation (health-calculator)
+   - Monthly Coach Review (coach-analyzer)
+   - CSV Backfill (via API endpoint)
 
 ## Environment Variables
 
 **Supabase Secrets (configured):**
 - `STAPE_CAPIG_API_KEY` - Stape CAPI authentication
-- `N8N_API_KEY` - n8n workflow authentication (if needed)
+- `ANTHROPIC_API_KEY` - Claude AI for agent functions
+- `HUBSPOT_API_KEY` - HubSpot CRM integration
+- `STRIPE_SECRET_KEY` - Stripe payment processing
 - `FB_PIXEL_ID` - Meta Pixel ID
 - `TELEGRAM_BOT_TOKEN` - For notifications
 
@@ -231,8 +229,7 @@ CONVERSION-API/
 ├── supabase/
 │   └── schema.sql        # Database schema
 └── n8n/
-    ├── flows/            # Workflow JSONs
-    └── functions/        # Aggregator functions
+    └── functions/        # Edge Functions
 ```
 
 ### client-vital-suite Repo (Frontend)
@@ -262,7 +259,7 @@ client-vital-suite/
 ```
 HubSpot Event
     ↓
-n8n Workflow (detects lifecycle change)
+Supabase Edge Function (sync-hubspot-to-supabase)
     ↓
 Check event_mappings table
     ↓
@@ -282,9 +279,9 @@ Log to capi_events table
 ```
 HubSpot Contact Data
     ↓
-n8n Daily Health Workflow
+Supabase Edge Function (health-calculator)
     ↓
-Calculate health scores (aggregator function)
+Calculate health scores
     ↓
 Store in client_health_scores table
     ↓
@@ -297,10 +294,10 @@ Trigger interventions if needed
 
 - [x] Supabase project created and configured
 - [x] Stape CAPI gateway active
-- [x] Edge function deployed (send-to-stape-capi)
+- [x] Edge functions deployed (send-to-stape-capi, health-calculator, etc.)
 - [x] Event mappings table populated
 - [x] Settings configured in app_settings
-- [ ] n8n workflows imported and active
+- [x] Cron jobs scheduled for automated Edge Functions
 - [ ] Meta Pixel integrated on website
 - [ ] Test events validated in Meta Events Manager
 - [ ] Production credentials added to Supabase secrets
@@ -344,27 +341,27 @@ Trigger interventions if needed
 ### Event Mappings Not Working
 1. Ensure mapping is marked as `is_active = true`
 2. Check event_mappings table for correct HubSpot event name
-3. Verify n8n workflow is using the mapping table
+3. Verify Edge Function (sync-hubspot-to-supabase) is using the mapping table
 
-### n8n Webhooks Failing
-1. Verify n8n base URL in Settings (no trailing slash)
-2. Check n8n workflow webhook paths
-3. Test webhook URL directly with curl/Postman
-4. Review n8n execution logs
+### Edge Functions Not Running
+1. Check Supabase cron job schedules (pg_cron)
+2. Verify Edge Function logs in Supabase Dashboard
+3. Test Edge Functions manually via Supabase Functions API
+4. Review function error logs for debugging
 
 ## Support
 
 For issues or questions:
 1. Check Supabase logs (Database, Edge Functions)
 2. Review Meta Events Manager diagnostics
-3. Check n8n workflow execution history
+3. Check Edge Function execution logs in Supabase Dashboard
 4. Review this guide and verify all steps completed
 
 ## Next Steps
 
-1. Import n8n workflows from `/n8n/flows/`
-2. Configure n8n credentials (Supabase, HubSpot)
+1. Verify all Edge Functions are deployed and scheduled
+2. Configure Supabase secrets (API keys, tokens)
 3. Set up Meta Pixel on ptdfitness.com
-4. Test end-to-end: HubSpot → n8n → CAPI → Meta
+4. Test end-to-end: HubSpot → Supabase Edge Functions → CAPI → Meta
 5. Monitor health scores and adjust thresholds
 6. Configure Telegram alerts for critical events

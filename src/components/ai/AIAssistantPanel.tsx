@@ -21,8 +21,13 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX
 } from "lucide-react";
+import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 
 interface Message {
   id: string;
@@ -47,7 +52,36 @@ export function AIAssistantPanel() {
   const [query, setQuery] = useState("");
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Voice chat hooks
+  const {
+    isListening,
+    isSupported: voiceInputSupported,
+    transcript,
+    toggleListening,
+    clearTranscript,
+  } = useVoiceChat({
+    onTranscript: (text) => {
+      setQuery(text);
+      clearTranscript();
+    },
+    onError: (error) => {
+      toast({
+        title: "Voice Input Error",
+        description: error,
+        variant: "destructive"
+      });
+    },
+  });
+
+  const {
+    isSpeaking,
+    isSupported: voiceOutputSupported,
+    speak,
+    stop: stopSpeaking,
+  } = useTextToSpeech();
 
   // Fetch proactive insights (gracefully handles missing table)
   const { data: insights, refetch: refetchInsights } = useQuery({
@@ -126,8 +160,14 @@ export function AIAssistantPanel() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       refetchMessages();
+      
+      // Speak the AI response if voice is enabled
+      if (voiceEnabled && voiceOutputSupported && data?.response) {
+        const textToSpeak = data.response.replace(/[#*`_]/g, '').substring(0, 500);
+        speak(textToSpeak);
+      }
     },
     onError: (error: any) => {
       console.error("Error sending message:", error);
@@ -373,6 +413,14 @@ export function AIAssistantPanel() {
 
           {/* Input */}
           <div className="p-3 flex gap-2">
+            {/* Voice transcript indicator */}
+            {isListening && (
+              <div className="absolute bottom-full left-3 mb-1 text-xs text-primary animate-pulse flex items-center gap-1">
+                <Mic className="h-3 w-3" />
+                <span>Listening... {transcript && `"${transcript}"`}</span>
+              </div>
+            )}
+            
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -381,6 +429,45 @@ export function AIAssistantPanel() {
               onKeyDown={handleKeyDown}
               disabled={sendMessage.isPending}
             />
+            
+            {/* Voice input button */}
+            {voiceInputSupported && (
+              <Button
+                size="icon"
+                variant={isListening ? "destructive" : "outline"}
+                onClick={toggleListening}
+                disabled={sendMessage.isPending}
+                title={isListening ? 'Stop recording' : 'Start voice input'}
+              >
+                {isListening ? (
+                  <MicOff className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+            
+            {/* Voice output toggle */}
+            {voiceOutputSupported && (
+              <Button
+                size="icon"
+                variant={voiceEnabled ? "default" : "outline"}
+                onClick={() => {
+                  setVoiceEnabled(!voiceEnabled);
+                  if (!voiceEnabled && isSpeaking) {
+                    stopSpeaking();
+                  }
+                }}
+                title={voiceEnabled ? 'Disable voice output' : 'Enable voice output'}
+              >
+                {voiceEnabled ? (
+                  <Volume2 className="h-4 w-4" />
+                ) : (
+                  <VolumeX className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+            
             <Button
               size="icon"
               onClick={handleSend}

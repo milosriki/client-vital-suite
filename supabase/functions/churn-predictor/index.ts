@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ============================================
 // CHURN PREDICTOR AGENT
 // AI-powered churn prediction with explanations
-// Replaces n8n AI Daily Risk Analysis workflow
+// Daily AI-powered churn risk analysis
 // ============================================
 
 const corsHeaders = {

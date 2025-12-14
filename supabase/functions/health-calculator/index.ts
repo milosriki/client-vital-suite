@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ============================================
 // HEALTH CALCULATOR AGENT
 // Recalculates all client health scores
-// Replaces n8n Daily Calculator workflow
+// Daily health score calculation for all clients
 // ============================================
 
 const corsHeaders = {

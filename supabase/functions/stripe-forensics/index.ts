@@ -42,7 +42,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
-    const { action, days = 30 } = await req.json();
+    const { action, days = 30, includeSetupIntents = true } = await req.json();
 
     console.log("[STRIPE-FORENSICS] Action:", action);
 
@@ -785,6 +785,8 @@ serve(async (req) => {
         const totalRedirected = chargesWithTransfer.reduce((sum: number, c: any) =>
           sum + (c.transfer_data?.amount || c.amount), 0
         );
+        const totalCharged = chargesWithTransfer.reduce((sum: number, c: any) => sum + c.amount, 0);
+        
         // Group by destination
         const destinationGroups: Record<string, { count: number; amount: number }> = {};
         chargesWithTransfer.forEach((c: any) => {
@@ -794,9 +796,12 @@ serve(async (req) => {
           destinationGroups[dest].amount += (c.transfer_data?.amount || c.amount);
         });
 
+        // Calculate skimming percentage
+        const skimPercentage = totalCharged > 0 ? ((totalCharged - totalRedirected) / totalCharged * 100).toFixed(2) : '0';
+        
         anomalies.push({
           type: "TRANSFER_MONEY_REDIRECT",
-          severity: "high",
+          severity: skimPercentage > '5' ? "critical" : "high",
           message: `${chargesWithTransfer.length} charges have funds routed to connected accounts (${(totalRedirected / 100).toFixed(2)} total)`,
           details: {
             totalRedirected: totalRedirected / 100,
@@ -813,6 +818,192 @@ serve(async (req) => {
               transferAmount: (c.transfer_data?.amount || c.amount) / 100,
               created: c.created
             }))
+          }
+        });
+      }
+
+      // ====== FORENSIC CHECK 5: PAYOUT DESTINATION VALIDATION ======
+      // Check if payouts go to unauthorized bank accounts (Mule accounts)
+      const accountInfo = await stripe.accounts.retrieve().catch(() => null);
+      const authorizedBankAccounts = accountInfo?.external_accounts?.data?.map((ea: any) => ea.id) || [];
+      
+      const suspiciousPayouts = (payouts.data || []).filter((p: any) => {
+        // Check if payout destination matches authorized accounts
+        if (p.destination && !authorizedBankAccounts.includes(p.destination)) {
+          return true;
+        }
+        // Check for card payouts (debit card transfers - high risk)
+        if (p.type === 'card') {
+          return true;
+        }
+        return false;
+      });
+
+      if (suspiciousPayouts.length > 0) {
+        const totalSuspicious = suspiciousPayouts.reduce((sum: number, p: any) => sum + p.amount, 0);
+        anomalies.push({
+          type: "UNAUTHORIZED_PAYOUT_DESTINATION",
+          severity: "critical",
+          message: `${suspiciousPayouts.length} payouts to unauthorized destinations! Total: ${(totalSuspicious / 100).toFixed(2)}`,
+          details: {
+            totalAmount: totalSuspicious / 100,
+            payoutCount: suspiciousPayouts.length,
+            authorizedAccounts: authorizedBankAccounts,
+            suspiciousPayouts: suspiciousPayouts.slice(0, 10).map((p: any) => ({
+              payoutId: p.id,
+              amount: p.amount / 100,
+              destination: p.destination,
+              destinationType: p.type,
+              status: p.status,
+              created: p.created,
+              arrivalDate: p.arrival_date
+            }))
+          }
+        });
+      }
+
+      // ====== FORENSIC CHECK 6: CARD TESTING ATTACKS (SetupIntents) ======
+      // Detect $0.00 or $1.00 authorizations used to test stolen cards
+      const setupIntents = await fetchAllStripe(stripe.setupIntents, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] }));
+      const suspiciousSetupIntents = (setupIntents.data || []).filter((si: any) => {
+        // Look for multiple setup intents from same customer or card
+        return si.status === 'succeeded' && si.payment_method;
+      });
+
+      if (suspiciousSetupIntents.length > 10) {
+        // Group by customer or payment method
+        const groupedByCustomer: Record<string, number> = {};
+        suspiciousSetupIntents.forEach((si: any) => {
+          const key = si.customer || si.payment_method || 'unknown';
+          groupedByCustomer[key] = (groupedByCustomer[key] || 0) + 1;
+        });
+
+        const highFrequencyCustomers = Object.entries(groupedByCustomer)
+          .filter(([_, count]) => count > 5)
+          .map(([customer, count]) => ({ customer, count }));
+
+        if (highFrequencyCustomers.length > 0) {
+          anomalies.push({
+            type: "CARD_TESTING_ATTACK",
+            severity: "high",
+            message: `Potential card testing attack: ${highFrequencyCustomers.length} customers with >5 setup intents`,
+            details: {
+              totalSetupIntents: suspiciousSetupIntents.length,
+              suspiciousCustomers: highFrequencyCustomers,
+              samples: suspiciousSetupIntents.slice(0, 10).map((si: any) => ({
+                setupIntentId: si.id,
+                customer: si.customer,
+                paymentMethod: si.payment_method,
+                status: si.status,
+                created: si.created
+              }))
+            }
+          });
+        }
+      }
+
+      // ====== FORENSIC CHECK 7: IP ADDRESS EXTRACTION FROM EVENTS ======
+      // Extract IP addresses from account.updated and capability.updated events
+      const accountUpdateEvents = (events.data || []).filter((e: any) =>
+        e.type === 'account.updated' || e.type === 'capability.updated'
+      );
+
+      const ipAddresses: Record<string, { count: number; events: any[] }> = {};
+      accountUpdateEvents.forEach((event: any) => {
+        // Extract IP from request object if available
+        const ip = event.request?.ip_address || event.request?.ip || null;
+        const userId = event.request?.user_id || null;
+        const adminApp = event.request?.admin_app_name || null;
+
+        if (ip) {
+          if (!ipAddresses[ip]) {
+            ipAddresses[ip] = { count: 0, events: [] };
+          }
+          ipAddresses[ip].count++;
+          ipAddresses[ip].events.push({
+            eventId: event.id,
+            eventType: event.type,
+            userId,
+            adminApp,
+            timestamp: event.created,
+            requestId: event.request?.id
+          });
+        }
+      });
+
+      // Check for unknown IPs (not from your known whitelist)
+      const knownIPs = (Deno.env.get('AUTHORIZED_IP_ADDRESSES') || '').split(',').filter(Boolean);
+      const unknownIPs = Object.entries(ipAddresses).filter(([ip]) => !knownIPs.includes(ip));
+
+      if (unknownIPs.length > 0) {
+        anomalies.push({
+          type: "UNAUTHORIZED_IP_ACCESS",
+          severity: "critical",
+          message: `${unknownIPs.length} unknown IP addresses made account changes!`,
+          details: {
+            unknownIPs: unknownIPs.map(([ip, data]) => ({
+              ipAddress: ip,
+              eventCount: data.count,
+              events: data.events.slice(0, 5),
+              userIds: [...new Set(data.events.map((e: any) => e.userId).filter(Boolean))],
+              adminApps: [...new Set(data.events.map((e: any) => e.adminApp).filter(Boolean))]
+            })),
+            knownIPs: knownIPs,
+            note: "Set AUTHORIZED_IP_ADDRESSES env var with comma-separated IPs to whitelist"
+          }
+        });
+      }
+
+      // ====== FORENSIC CHECK 7: IP ADDRESS EXTRACTION FROM EVENTS ======
+      // Extract IP addresses from account.updated and capability.updated events
+      const accountUpdateEvents = (events.data || []).filter((e: any) =>
+        e.type === 'account.updated' || e.type === 'capability.updated' || e.type === 'payout.created'
+      );
+
+      const ipAddresses: Record<string, { count: number; events: any[]; userIds: Set<string>; adminApps: Set<string> }> = {};
+      accountUpdateEvents.forEach((event: any) => {
+        // Extract IP from request object if available
+        const ip = event.request?.ip_address || event.request?.ip || null;
+        const userId = event.request?.user_id || null;
+        const adminApp = event.request?.admin_app_name || null;
+
+        if (ip) {
+          if (!ipAddresses[ip]) {
+            ipAddresses[ip] = { count: 0, events: [], userIds: new Set(), adminApps: new Set() };
+          }
+          ipAddresses[ip].count++;
+          if (userId) ipAddresses[ip].userIds.add(userId);
+          if (adminApp) ipAddresses[ip].adminApps.add(adminApp);
+          ipAddresses[ip].events.push({
+            eventId: event.id,
+            eventType: event.type,
+            userId,
+            adminApp,
+            timestamp: event.created,
+            requestId: event.request?.id
+          });
+        }
+      });
+
+      // Check for unknown IPs (not from your known whitelist)
+      const knownIPs = (Deno.env.get('AUTHORIZED_IP_ADDRESSES') || '').split(',').filter(Boolean);
+      const unknownIPs = Object.entries(ipAddresses).filter(([ip]) => knownIPs.length > 0 && !knownIPs.includes(ip));
+
+      if (unknownIPs.length > 0) {
+        anomalies.push({
+          type: "UNAUTHORIZED_IP_ACCESS",
+          severity: "critical",
+          message: `${unknownIPs.length} unknown IP addresses made account changes!`,
+          details: {
+            unknownIPs: unknownIPs.map(([ip, data]) => ({
+              ipAddress: ip,
+              eventCount: data.count,
+              events: data.events.slice(0, 5),
+              userIds: Array.from(data.userIds),
+              adminApps: Array.from(data.adminApps)
+            })),
+            knownIPs: knownIPs,
+            note: "Set AUTHORIZED_IP_ADDRESSES env var with comma-separated IPs to whitelist"
           }
         });
       }
@@ -997,7 +1188,7 @@ serve(async (req) => {
 
     // ==================== FULL AUDIT ====================
     if (action === "full-audit") {
-      const [balance, payouts, balanceTransactions, payments, refunds, charges, transfers, events, webhookEndpoints, account, customers, disputes] = await Promise.all([
+      const [balance, payouts, balanceTransactions, payments, refunds, charges, transfers, events, webhookEndpoints, account, customers, disputes, setupIntents] = await Promise.all([
         stripe.balance.retrieve().catch(() => null),
         fetchAllStripe(stripe.payouts, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
         fetchAllStripe(stripe.balanceTransactions, { created: { gte: thirtyDaysAgo } }).catch(() => ({ data: [] })),
@@ -1009,7 +1200,8 @@ serve(async (req) => {
         stripe.webhookEndpoints.list({ limit: 100 }).catch(() => ({ data: [] })),
         stripe.accounts.retrieve().catch(() => null),
         fetchAllStripe(stripe.customers, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] })),
-        fetchAllStripe(stripe.disputes, {}).catch(() => ({ data: [] }))
+        fetchAllStripe(stripe.disputes, {}).catch(() => ({ data: [] })),
+        includeSetupIntents ? fetchAllStripe(stripe.setupIntents, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
       ]);
 
       const anomalies: AnomalyResult[] = [];
@@ -1046,6 +1238,14 @@ serve(async (req) => {
           payments: payments.data, refunds: refunds.data, charges: charges.data,
           transfers: transfers.data, events: events.data, webhookEndpoints: webhookEndpoints.data,
           disputes: disputes.data, recentCustomers: customers.data, account,
+          setupIntents: setupIntents.data || [],
+          ipAddresses: Object.entries(ipAddresses).map(([ip, data]) => ({
+            ip,
+            eventCount: data.count,
+            userIds: Array.from(data.userIds),
+            adminApps: Array.from(data.adminApps),
+            isKnown: knownIPs.includes(ip)
+          })),
           anomalies, securityScore: Math.max(0, securityScore), auditTimestamp: new Date().toISOString()
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

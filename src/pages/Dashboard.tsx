@@ -18,6 +18,7 @@ import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
 import { PatternInsights } from '@/components/dashboard/PatternInsights';
 import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
 import { MetricDrilldownModal } from '@/components/dashboard/MetricDrilldownModal';
+import { FunctionStatusChecker } from '@/components/FunctionStatusChecker';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Users, DollarSign, AlertTriangle, TrendingUp, Phone, Calendar, Target } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -350,6 +351,11 @@ export default function Dashboard() {
 
         {/* Alerts Bar */}
         <AlertsBar />
+
+        {/* Function Status Checker - Debug Tool (Development Only) */}
+        {import.meta.env.DEV && (
+          <FunctionStatusChecker />
+        )}
       </div>
 
       {/* AI Panel Sheet */}
