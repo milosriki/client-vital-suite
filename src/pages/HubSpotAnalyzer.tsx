@@ -1,30 +1,157 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingDown, DollarSign, Users, Workflow, Database, AlertCircle, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { AlertTriangle, TrendingDown, DollarSign, Users, Workflow, Database, AlertCircle, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 
 const HubSpotAnalyzer = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Critical metrics from the analysis
+  // Fetch real property definitions from HubSpot
+  const { data: propertyStats, isLoading: propsLoading } = useQuery({
+    queryKey: ["hubspot-property-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hubspot_property_definitions")
+        .select("object_type");
+
+      if (error) throw error;
+
+      // Count by object type
+      const counts = {
+        contact: 0,
+        deal: 0,
+        company: 0,
+        other: 0,
+        total: data?.length || 0,
+      };
+
+      data?.forEach((prop) => {
+        if (prop.object_type === "contact" || prop.object_type === "contacts") {
+          counts.contact++;
+        } else if (prop.object_type === "deal" || prop.object_type === "deals") {
+          counts.deal++;
+        } else if (prop.object_type === "company" || prop.object_type === "companies") {
+          counts.company++;
+        } else {
+          counts.other++;
+        }
+      });
+
+      return counts;
+    },
+    staleTime: 300000, // 5 min cache
+  });
+
+  // Fetch workflow/sync stats
+  const { data: syncStats } = useQuery({
+    queryKey: ["hubspot-sync-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("status, platform, sync_type")
+        .eq("platform", "hubspot");
+
+      if (error) throw error;
+
+      const total = data?.length || 0;
+      const failed = data?.filter((s) => s.status === "failed" || s.status === "error").length || 0;
+      const active = data?.filter((s) => s.status === "completed" || s.status === "success").length || 0;
+
+      return {
+        totalWorkflows: total,
+        activeWorkflows: active,
+        inactiveWorkflows: failed,
+        failureRate: total > 0 ? Math.round((failed / total) * 100) : 0,
+      };
+    },
+    staleTime: 60000,
+  });
+
+  // Fetch revenue data from deals
+  const { data: revenueStats } = useQuery({
+    queryKey: ["hubspot-revenue-stats"],
+    queryFn: async () => {
+      // Get all deals to calculate revenue metrics
+      const { data: deals, error } = await supabase
+        .from("deals")
+        .select("deal_value, status, stage, created_at, updated_at");
+
+      if (error) throw error;
+
+      const openDeals = deals?.filter((d) => d.status !== "closed" && d.status !== "lost") || [];
+      const lostDeals = deals?.filter((d) => d.status === "lost") || [];
+      const closedDeals = deals?.filter((d) => d.status === "closed") || [];
+
+      // Calculate revenue at risk (open deals not contacted recently)
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const staleDeals = openDeals.filter((d) => {
+        const updated = new Date(d.updated_at || d.created_at || "");
+        return updated < thirtyDaysAgo;
+      });
+
+      const revenueAtRisk = staleDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
+      const monthlyLoss = lostDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0) / 12;
+      const potentialRecovery = openDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
+
+      return {
+        revenueAtRisk,
+        monthlyRevenueLoss: Math.round(monthlyLoss),
+        buriedPremiumLeads: Math.round(revenueAtRisk * 0.5),
+        potentialRecovery,
+      };
+    },
+    staleTime: 60000,
+  });
+
+  // Fetch contact quality stats
+  const { data: contactStats } = useQuery({
+    queryKey: ["hubspot-contact-stats"],
+    queryFn: async () => {
+      const { data: contacts, error } = await supabase
+        .from("contacts")
+        .select("email, phone, first_name, last_name");
+
+      if (error) throw error;
+
+      const total = contacts?.length || 0;
+      const blankContacts = contacts?.filter(
+        (c) => !c.email && !c.phone
+      ).length || 0;
+
+      return {
+        total,
+        blankPercentage: total > 0 ? Math.round((blankContacts / total) * 100) : 0,
+        slaBreachRate: syncStats?.failureRate || 0,
+      };
+    },
+    staleTime: 60000,
+  });
+
+  // Build critical metrics from real data
   const criticalMetrics = {
-    totalWorkflows: 201,
-    activeWorkflows: 52,
-    inactiveWorkflows: 149,
-    totalProperties: 1990,
-    contactProperties: 729,
-    dealProperties: 505,
-    revenueAtRisk: 575000,
-    monthlyRevenueLoss: 634070,
-    buriedPremiumLeads: 275000,
-    potentialRecovery: 1200000,
-    slaBreachRate: 100,
-    blankLeadPercentage: 20
+    totalWorkflows: syncStats?.totalWorkflows || 0,
+    activeWorkflows: syncStats?.activeWorkflows || 0,
+    inactiveWorkflows: syncStats?.inactiveWorkflows || 0,
+    totalProperties: propertyStats?.total || 0,
+    contactProperties: propertyStats?.contact || 0,
+    dealProperties: propertyStats?.deal || 0,
+    revenueAtRisk: revenueStats?.revenueAtRisk || 0,
+    monthlyRevenueLoss: revenueStats?.monthlyRevenueLoss || 0,
+    buriedPremiumLeads: revenueStats?.buriedPremiumLeads || 0,
+    potentialRecovery: revenueStats?.potentialRecovery || 0,
+    slaBreachRate: contactStats?.slaBreachRate || 0,
+    blankLeadPercentage: contactStats?.blankPercentage || 0,
   };
+
+  const isLoading = propsLoading;
 
   const criticalIssues = [
     {
@@ -220,21 +347,36 @@ const HubSpotAnalyzer = () => {
     <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">HubSpot System Analyzer</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            HubSpot System Analyzer
+            {isLoading && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+          </h1>
           <p className="text-muted-foreground">
-            Complete reverse engineering of your 201 workflows, 1,990 properties, and lead flow logic
+            Complete analysis of your {criticalMetrics.totalWorkflows || "..."} sync operations, {criticalMetrics.totalProperties || "..."} properties, and lead flow logic
           </p>
         </div>
 
-        {/* Critical Alert Banner */}
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>CRITICAL: 634K+ AED Monthly Revenue Loss Detected</AlertTitle>
-          <AlertDescription>
-            Infinite loop in reassignment workflow (ID: 1655409725) causing 100% SLA breach rate. 
-            575K+ AED revenue at risk from buried leads. Immediate action required.
-          </AlertDescription>
-        </Alert>
+        {/* Critical Alert Banner - Dynamic based on real data */}
+        {criticalMetrics.revenueAtRisk > 0 || criticalMetrics.monthlyRevenueLoss > 0 ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>CRITICAL: {(criticalMetrics.monthlyRevenueLoss / 1000).toFixed(0)}K+ AED Monthly Revenue Loss Detected</AlertTitle>
+            <AlertDescription>
+              {criticalMetrics.slaBreachRate > 0 && `${criticalMetrics.slaBreachRate}% sync failure rate. `}
+              {(criticalMetrics.revenueAtRisk / 1000).toFixed(0)}K+ AED revenue at risk from stale deals.
+              {criticalMetrics.blankLeadPercentage > 0 && ` ${criticalMetrics.blankLeadPercentage}% of contacts missing key data.`}
+              {" "}Immediate action required.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="border-green-500">
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+            <AlertTitle>System Health: Good</AlertTitle>
+            <AlertDescription>
+              No critical revenue risks detected. {criticalMetrics.totalProperties} properties and {criticalMetrics.totalWorkflows} sync operations monitored.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Key Metrics Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

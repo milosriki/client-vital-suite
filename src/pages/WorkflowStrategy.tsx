@@ -1,13 +1,70 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2, AlertTriangle, Info, ArrowRight } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Info, ArrowRight, Loader2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { supabase } from "@/integrations/supabase/client";
 
 const WorkflowStrategy = () => {
+  // Fetch actual workflow execution stats from sync_logs
+  const { data: workflowStats, isLoading: statsLoading } = useQuery({
+    queryKey: ["workflow-stats"],
+    queryFn: async () => {
+      const { data: logs, error } = await supabase
+        .from("sync_logs")
+        .select("sync_type, status, platform, records_processed, records_failed")
+        .order("started_at", { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+
+      // Aggregate stats by sync_type (workflow name)
+      const stats: Record<string, { total: number; failed: number; successRate: number }> = {};
+
+      logs?.forEach((log) => {
+        const key = log.sync_type || "unknown";
+        if (!stats[key]) {
+          stats[key] = { total: 0, failed: 0, successRate: 0 };
+        }
+        stats[key].total++;
+        if (log.status === "failed" || log.status === "error") {
+          stats[key].failed++;
+        }
+      });
+
+      // Calculate success rates
+      Object.keys(stats).forEach((key) => {
+        const s = stats[key];
+        s.successRate = s.total > 0 ? Math.round(((s.total - s.failed) / s.total) * 100) : 0;
+      });
+
+      return stats;
+    },
+    staleTime: 60000,
+  });
+
+  // Get critical issues from recent failed syncs
+  const { data: criticalIssues } = useQuery({
+    queryKey: ["workflow-critical-issues"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("*")
+        .eq("status", "failed")
+        .order("started_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
+  // Build workflows list with real stats
   const workflows = [
     {
-      id: "eSzjByOJHo3Si03y",
+      id: "daily-calculator",
       name: "Daily Calculator",
       priority: "HIGH",
       description: "Calculates daily health scores for all clients",
@@ -16,10 +73,15 @@ const WorkflowStrategy = () => {
         "Calculate Health Score",
         "Zone Classification",
         "Upsert to client_health_scores"
-      ]
+      ],
+      failureRate: workflowStats?.["daily_calculator"]
+        ? 100 - workflowStats["daily_calculator"].successRate
+        : workflowStats?.["health_score"]
+        ? 100 - workflowStats["health_score"].successRate
+        : null
     },
     {
-      id: "BdVKbuQH6f5nYkvV",
+      id: "ai-risk-analysis",
       name: "AI Risk Analysis",
       priority: "HIGH",
       description: "AI-powered risk assessment and intervention recommendations",
@@ -28,10 +90,13 @@ const WorkflowStrategy = () => {
         "AI Analysis",
         "Generate Recommendations",
         "Insert to intervention_log"
-      ]
+      ],
+      failureRate: workflowStats?.["ai_analysis"]
+        ? 100 - workflowStats["ai_analysis"].successRate
+        : null
     },
     {
-      id: "oWCnjPfErKrjUXG",
+      id: "weekly-pattern",
       name: "Weekly Pattern Detection",
       priority: "MEDIUM",
       description: "Analyzes weekly trends and patterns",
@@ -39,10 +104,13 @@ const WorkflowStrategy = () => {
         "Aggregate Weekly Data",
         "Pattern Analysis",
         "Upsert to weekly_patterns"
-      ]
+      ],
+      failureRate: workflowStats?.["weekly_pattern"]
+        ? 100 - workflowStats["weekly_pattern"].successRate
+        : null
     },
     {
-      id: "S2BCDEjVrUGRzQM0",
+      id: "monthly-coach",
       name: "Monthly Coach Review",
       priority: "MEDIUM",
       description: "Monthly performance review for coaches",
@@ -50,10 +118,13 @@ const WorkflowStrategy = () => {
         "Fetch Coach Data",
         "Performance Calculation",
         "Upsert to coach_performance"
-      ]
+      ],
+      failureRate: workflowStats?.["coach_review"]
+        ? 100 - workflowStats["coach_review"].successRate
+        : null
     },
     {
-      id: "DSj6s8POqhl40SOo",
+      id: "intervention-logger",
       name: "Intervention Logger",
       priority: "HIGH",
       description: "Logs and tracks client interventions",
@@ -61,7 +132,10 @@ const WorkflowStrategy = () => {
         "Get Trigger Events",
         "Create Intervention Record",
         "Insert to intervention_log"
-      ]
+      ],
+      failureRate: workflowStats?.["intervention"]
+        ? 100 - workflowStats["intervention"].successRate
+        : null
     }
   ];
 
@@ -292,18 +366,31 @@ const WorkflowStrategy = () => {
           </p>
         </div>
 
-        {/* Current Issues Alert */}
-        <Alert className="border-destructive">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
-          <AlertDescription className="text-lg">
-            <strong>Critical Issues Detected:</strong>
-            <ul className="mt-2 space-y-1">
-              <li>• Daily Calculator: 87.5% failure rate (35 of 40 executions failed)</li>
-              <li>• Authorization errors in "GET: Overall Avg (Today)" node</li>
-              <li>• Data flow interruptions causing incomplete calculations</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
+        {/* Current Issues Alert - Real Data */}
+        {criticalIssues && criticalIssues.length > 0 ? (
+          <Alert className="border-destructive">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertDescription className="text-lg">
+              <strong>Critical Issues Detected ({criticalIssues.length} recent failures):</strong>
+              <ul className="mt-2 space-y-1">
+                {criticalIssues.slice(0, 5).map((issue, idx) => (
+                  <li key={idx}>
+                    • {issue.sync_type || issue.platform}: Failed at{" "}
+                    {issue.started_at ? new Date(issue.started_at).toLocaleString() : "unknown time"}
+                    {issue.error_details ? ` - ${JSON.stringify(issue.error_details).slice(0, 100)}...` : ""}
+                  </li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="border-green-500">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <AlertDescription className="text-lg">
+              <strong>All Systems Operational:</strong> No recent workflow failures detected.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Workflow Priority List */}
         <Card>
@@ -324,6 +411,12 @@ const WorkflowStrategy = () => {
                       <Badge variant={workflow.priority === "HIGH" ? "destructive" : "secondary"}>
                         {workflow.priority}
                       </Badge>
+                      {workflow.failureRate !== null && (
+                        <Badge variant={workflow.failureRate > 50 ? "destructive" : workflow.failureRate > 20 ? "secondary" : "outline"}>
+                          {workflow.failureRate}% failure rate
+                        </Badge>
+                      )}
+                      {statsLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">{workflow.description}</p>
                     <div className="text-xs text-muted-foreground">
