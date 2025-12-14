@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Brain, BookOpen, Search, Filter, TrendingUp, ArrowLeft } from "lucide-react";
+import { Brain, BookOpen, Search, TrendingUp, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 
@@ -22,12 +22,12 @@ export default function AIKnowledge() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // Fetch knowledge base entries
+  // Fetch knowledge base entries from knowledge_base table
   const { data: knowledgeEntries, isLoading } = useQuery({
     queryKey: ["ai-knowledge", categoryFilter],
     queryFn: async () => {
       let query = supabase
-        .from("agent_knowledge")
+        .from("knowledge_base")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(100);
@@ -37,8 +37,11 @@ export default function AIKnowledge() {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.warn("Knowledge base query error:", error);
+        return [];
+      }
+      return data || [];
     },
   });
 
@@ -47,14 +50,18 @@ export default function AIKnowledge() {
     queryKey: ["ai-knowledge-stats"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("agent_knowledge")
+        .from("knowledge_base")
         .select("category");
 
-      if (error) throw error;
+      if (error) {
+        console.warn("Knowledge stats error:", error);
+        return {};
+      }
 
       const counts: Record<string, number> = {};
-      data.forEach((entry: any) => {
-        counts[entry.category] = (counts[entry.category] || 0) + 1;
+      (data || []).forEach((entry) => {
+        const cat = entry.category || "other";
+        counts[cat] = (counts[cat] || 0) + 1;
       });
 
       return counts;
@@ -64,8 +71,8 @@ export default function AIKnowledge() {
   // Filter entries by search term
   const filteredEntries = knowledgeEntries?.filter((entry) =>
     searchTerm
-      ? entry.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.content?.toLowerCase().includes(searchTerm.toLowerCase())
+      ? entry.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.source?.toLowerCase().includes(searchTerm.toLowerCase())
       : true
   );
 
@@ -76,6 +83,7 @@ export default function AIKnowledge() {
       client_insight: "bg-green-500",
       coach_tip: "bg-amber-500",
       health_scoring: "bg-red-500",
+      business: "bg-indigo-500",
     };
     return colors[category] || "bg-gray-500";
   };
@@ -152,12 +160,12 @@ export default function AIKnowledge() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">
-              Client Insights
+              Business
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {categoryCounts?.client_insight || 0}
+              {categoryCounts?.business || 0}
             </div>
           </CardContent>
         </Card>
@@ -175,7 +183,7 @@ export default function AIKnowledge() {
           <div className="flex gap-4">
             <div className="flex-1">
               <Input
-                placeholder="Search by title or content..."
+                placeholder="Search by content or source..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full"
@@ -189,7 +197,7 @@ export default function AIKnowledge() {
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="intervention">Interventions</SelectItem>
                 <SelectItem value="pattern">Patterns</SelectItem>
-                <SelectItem value="client_insight">Client Insights</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
                 <SelectItem value="coach_tip">Coach Tips</SelectItem>
                 <SelectItem value="health_scoring">Health Scoring</SelectItem>
               </SelectContent>
@@ -214,16 +222,14 @@ export default function AIKnowledge() {
                   <div className="flex-1">
                     <CardTitle className="flex items-center gap-2">
                       <BookOpen className="h-5 w-5" />
-                      {entry.title || "Untitled"}
+                      {entry.source || "Knowledge Entry"}
                     </CardTitle>
-                    {entry.subcategory && (
-                      <CardDescription className="mt-1">
-                        {entry.subcategory}
-                      </CardDescription>
-                    )}
+                    <CardDescription className="mt-1">
+                      {entry.category || "General"}
+                    </CardDescription>
                   </div>
-                  <Badge className={getCategoryColor(entry.category)}>
-                    {entry.category}
+                  <Badge className={getCategoryColor(entry.category || "other")}>
+                    {entry.category || "other"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -231,18 +237,18 @@ export default function AIKnowledge() {
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {entry.content}
                 </p>
-                {entry.structured_data && Object.keys(entry.structured_data).length > 0 && (
+                {entry.metadata && Object.keys(entry.metadata).length > 0 && (
                   <div className="mt-4 p-3 bg-muted rounded-lg">
-                    <p className="text-xs font-medium mb-2">Additional Data:</p>
+                    <p className="text-xs font-medium mb-2">Metadata:</p>
                     <pre className="text-xs overflow-auto">
-                      {JSON.stringify(entry.structured_data, null, 2)}
+                      {JSON.stringify(entry.metadata, null, 2)}
                     </pre>
                   </div>
                 )}
                 <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Confidence: {Math.round((entry.confidence_score || 0) * 100)}%</span>
+                  <span>Source: {entry.source || "Unknown"}</span>
                   <span>
-                    Created {format(new Date(entry.created_at), "PPp")}
+                    Created {entry.created_at ? format(new Date(entry.created_at), "PPp") : "N/A"}
                   </span>
                 </div>
               </CardContent>

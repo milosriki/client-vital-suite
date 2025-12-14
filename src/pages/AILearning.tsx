@@ -38,23 +38,29 @@ export default function AILearning() {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.warn("Decisions query error:", error);
+        return [];
+      }
+      return data || [];
     },
   });
 
-  // Fetch AI metrics
-  const { data: metrics } = useQuery({
-    queryKey: ["ai-metrics"],
+  // Fetch agent patterns for metrics
+  const { data: patterns } = useQuery({
+    queryKey: ["ai-patterns"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("agent_metrics")
+        .from("agent_patterns")
         .select("*")
-        .order("recorded_at", { ascending: false })
+        .order("last_used_at", { ascending: false })
         .limit(30);
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.warn("Patterns query error:", error);
+        return [];
+      }
+      return data || [];
     },
   });
 
@@ -68,17 +74,17 @@ export default function AILearning() {
 
   const successRate = stats.total > 0 ? Math.round((stats.successful / stats.total) * 100) : 0;
 
-  // Prepare chart data
-  const chartData = metrics
+  // Prepare chart data from patterns
+  const chartData = patterns
     ?.slice(0, 10)
     .reverse()
-    .map((m) => ({
-      date: format(new Date(m.recorded_at), "MM/dd"),
-      accuracy: m.decision_accuracy || 0,
-      responseTime: m.avg_response_time || 0,
+    .map((p) => ({
+      name: p.pattern_name?.substring(0, 15) || "Pattern",
+      confidence: Math.round((p.confidence || 0) * 100),
+      usage: p.usage_count || 0,
     })) || [];
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case "pending":
         return "bg-amber-500";
@@ -93,7 +99,7 @@ export default function AILearning() {
     }
   };
 
-  const getOutcomeIcon = (outcome: string) => {
+  const getOutcomeIcon = (outcome: string | null) => {
     switch (outcome) {
       case "successful":
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
@@ -180,10 +186,10 @@ export default function AILearning() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            AI Performance Trends
+            AI Pattern Performance
           </CardTitle>
           <CardDescription>
-            Decision accuracy and response time over the last 30 days
+            Pattern confidence and usage metrics
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -191,31 +197,31 @@ export default function AILearning() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis yAxisId="left" label={{ value: "Accuracy (%)", angle: -90, position: "insideLeft" }} />
-                <YAxis yAxisId="right" orientation="right" label={{ value: "Response Time (ms)", angle: 90, position: "insideRight" }} />
+                <XAxis dataKey="name" />
+                <YAxis yAxisId="left" label={{ value: "Confidence (%)", angle: -90, position: "insideLeft" }} />
+                <YAxis yAxisId="right" orientation="right" label={{ value: "Usage Count", angle: 90, position: "insideRight" }} />
                 <Tooltip />
                 <Line
                   yAxisId="left"
                   type="monotone"
-                  dataKey="accuracy"
+                  dataKey="confidence"
                   stroke="#22c55e"
                   strokeWidth={2}
-                  name="Accuracy (%)"
+                  name="Confidence (%)"
                 />
                 <Line
                   yAxisId="right"
                   type="monotone"
-                  dataKey="responseTime"
+                  dataKey="usage"
                   stroke="#3b82f6"
                   strokeWidth={2}
-                  name="Response Time (ms)"
+                  name="Usage Count"
                 />
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[300px]">
-              <p className="text-muted-foreground">No performance data available yet</p>
+              <p className="text-muted-foreground">No pattern data available yet</p>
             </div>
           )}
         </CardContent>
@@ -262,40 +268,38 @@ export default function AILearning() {
                           {decision.decision_type || "AI Decision"}
                         </h3>
                       </div>
-                      {decision.context && (
+                      {decision.input_context && (
                         <p className="text-sm text-muted-foreground">
-                          Context: {typeof decision.context === "string" ? decision.context : JSON.stringify(decision.context)}
+                          Context: {typeof decision.input_context === "string" 
+                            ? decision.input_context 
+                            : JSON.stringify(decision.input_context).substring(0, 100)}
                         </p>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <Badge className={getStatusColor(decision.status)}>
-                        {decision.status}
+                        {decision.status || "unknown"}
                       </Badge>
                       {decision.confidence_score !== null && (
                         <span className="text-xs text-muted-foreground">
-                          Confidence: {Math.round(decision.confidence_score * 100)}%
+                          Confidence: {Math.round((decision.confidence_score || 0) * 100)}%
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {decision.reasoning && (
-                    <p className="text-sm mb-2">{decision.reasoning}</p>
-                  )}
-
-                  {decision.outcome_data && Object.keys(decision.outcome_data).length > 0 && (
+                  {decision.decision_output && Object.keys(decision.decision_output).length > 0 && (
                     <div className="mt-2 p-2 bg-muted rounded text-xs">
-                      <p className="font-medium mb-1">Outcome Data:</p>
+                      <p className="font-medium mb-1">Output:</p>
                       <pre className="overflow-auto">
-                        {JSON.stringify(decision.outcome_data, null, 2)}
+                        {JSON.stringify(decision.decision_output, null, 2)}
                       </pre>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
                     <span>
-                      Created {format(new Date(decision.created_at), "PPp")}
+                      Created {decision.created_at ? format(new Date(decision.created_at), "PPp") : "N/A"}
                     </span>
                     {decision.outcome && (
                       <span className={decision.outcome === "successful" ? "text-green-600" : "text-red-600"}>
