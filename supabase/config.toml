@@ -182,3 +182,10 @@ verify_jwt = false
 # CallGear Data Fetcher
 [functions.fetch-callgear-data]
 verify_jwt = false
+
+# HubSpot Owner Reassignment Functions
+[functions.reassign-owner]
+verify_jwt = false
+
+[functions.auto-reassign-leads]
+verify_jwt = false

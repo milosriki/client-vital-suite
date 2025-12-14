@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { 
   MessageCircle, X, Send, Loader2, Minimize2, Paperclip, 
   FileText, FileSpreadsheet, Brain, Sparkles, RefreshCw, 
-  Zap, Database, ChevronDown 
+  Zap, Database, ChevronDown, Mic
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
+import { VoiceChat } from "@/components/ai/VoiceChat";
 
 interface Message {
   id: string;
@@ -39,6 +40,7 @@ export const FloatingChat = () => {
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "connecting" | "error">("connected");
   const [memoryCount, setMemoryCount] = useState(0);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
+  const [showVoiceChat, setShowVoiceChat] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -376,6 +378,15 @@ export const FloatingChat = () => {
           <Button
             variant="ghost"
             size="icon"
+            className="h-7 w-7 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
+            onClick={() => setShowVoiceChat(!showVoiceChat)}
+            title="Voice Chat"
+          >
+            <Mic className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-7 w-7 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20"
             onClick={handleNewThread}
             title="New conversation"
@@ -615,6 +626,15 @@ export const FloatingChat = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* Voice Chat Overlay */}
+      {showVoiceChat && (
+        <VoiceChat
+          agentFunction="ptd-agent-gemini"
+          threadId={threadId}
+          onClose={() => setShowVoiceChat(false)}
+        />
       )}
     </div>
   );

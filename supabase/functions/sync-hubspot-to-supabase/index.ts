@@ -165,7 +165,29 @@ serve(async (req) => {
               'recent_conversion_event_name', 'recent_conversion_date',
               'hubspot_team_id', 'hs_sa_first_engagement_descr',
               'hs_date_entered_lead', 'contact_unworked', 'hs_is_unworked',
-              'hs_last_sales_activity_date', 'hs_email_domain'
+              'hs_last_sales_activity_date', 'hs_email_domain',
+              // Company Information
+              'company', 'company_name', 'company_size', 'industry', 'website', 'domain',
+              // Deal & Revenue
+              'num_associated_deals', 'total_revenue', 'hs_analytics_num_visits',
+              'hs_analytics_num_page_views', 'hs_analytics_num_event_completions',
+              // Custom Properties (PTD-specific)
+              'assigned_coach', 'assessment_scheduled', 'assessment_date',
+              'package_type', 'sessions_purchased', 'outstanding_sessions',
+              'coach_notes', 'preferred_location', 'fitness_goals',
+              // Engagement Scores
+              'hs_analytics_score', 'hs_social_facebook_clicks', 'hs_social_twitter_clicks',
+              'hs_social_linkedin_clicks', 'num_notes', 'num_meetings', 'num_emails',
+              'num_emails_sent', 'num_emails_opened', 'num_emails_clicked',
+              'notes_last_contacted', 'notes_last_contacted_date',
+              'hs_last_meeting_booked_date', 'hs_next_activity_date',
+              // Communication Preferences
+              'hs_email_opt_out', 'hs_marketing_opt_out', 'preferred_contact_method',
+              'timezone', 'language',
+              // Social Media
+              'twitterhandle', 'linkedinbio', 'linkedinconnections', 'twitterfollowers',
+              // Analytics
+              'hs_analytics_first_visit', 'hs_analytics_last_visit'
             ],
             currentCursor || undefined,
             incremental ? lastSyncTime || undefined : undefined
@@ -179,6 +201,9 @@ serve(async (req) => {
             .map((contact: any) => {
               const props = contact.properties;
               const ownerName = props.hubspot_owner_id ? ownerMap[props.hubspot_owner_id] || null : null;
+              
+              // Get associated deal IDs from associations
+              const dealIds = contact.associations?.deals?.results?.map((d: any) => d.id) || [];
               
               return {
                 hubspot_contact_id: contact.id,
@@ -210,6 +235,58 @@ serve(async (req) => {
                 contact_unworked: props.hs_is_unworked === 'true' || props.contact_unworked === 'true',
                 last_activity_date: props.hs_last_sales_activity_date || null,
                 email_domain: props.hs_email_domain,
+                // Company Information
+                company_name: props.company || props.company_name || null,
+                company_id: props.company_id || null,
+                company_size: props.company_size || null,
+                industry: props.industry || null,
+                website: props.website || null,
+                company_domain: props.domain || null,
+                // Deal & Revenue
+                associated_deal_ids: dealIds.length > 0 ? dealIds : null,
+                total_deal_value: parseFloat(props.total_revenue) || 0,
+                num_associated_deals: parseInt(props.num_associated_deals) || dealIds.length,
+                // Custom Properties (PTD-specific)
+                assigned_coach: props.assigned_coach || null,
+                assessment_scheduled: props.assessment_scheduled === 'true' || props.assessment_scheduled === true || false,
+                assessment_date: props.assessment_date || null,
+                package_type: props.package_type || null,
+                sessions_purchased: parseInt(props.sessions_purchased) || 0,
+                outstanding_sessions: parseInt(props.outstanding_sessions) || 0,
+                coach_notes: props.coach_notes || null,
+                preferred_location: props.preferred_location || null,
+                fitness_goals: props.fitness_goals || null,
+                // Engagement Scores
+                analytics_score: parseInt(props.hs_analytics_score) || 0,
+                facebook_clicks: parseInt(props.hs_social_facebook_clicks) || 0,
+                twitter_clicks: parseInt(props.hs_social_twitter_clicks) || 0,
+                linkedin_clicks: parseInt(props.hs_social_linkedin_clicks) || 0,
+                num_notes: parseInt(props.num_notes) || 0,
+                num_meetings: parseInt(props.num_meetings) || 0,
+                num_emails: parseInt(props.num_emails) || 0,
+                num_emails_sent: parseInt(props.num_emails_sent) || 0,
+                num_emails_opened: parseInt(props.num_emails_opened) || 0,
+                num_emails_clicked: parseInt(props.num_emails_clicked) || 0,
+                last_email_sent_date: props.notes_last_contacted_date || null,
+                last_meeting_date: props.hs_last_meeting_booked_date || null,
+                next_meeting_date: props.hs_next_activity_date || null,
+                // Communication Preferences
+                email_opt_out: props.hs_email_opt_out === 'true' || props.hs_email_opt_out === true || false,
+                marketing_opt_out: props.hs_marketing_opt_out === 'true' || props.hs_marketing_opt_out === true || false,
+                preferred_contact_method: props.preferred_contact_method || null,
+                timezone: props.timezone || null,
+                language: props.language || null,
+                // Social Media
+                twitter_handle: props.twitterhandle || null,
+                linkedin_bio: props.linkedinbio || null,
+                linkedin_connections: parseInt(props.linkedinconnections) || null,
+                twitter_followers: parseInt(props.twitterfollowers) || null,
+                // Analytics
+                num_visits: parseInt(props.hs_analytics_num_visits) || 0,
+                num_page_views: parseInt(props.hs_analytics_num_page_views) || 0,
+                num_event_completions: parseInt(props.hs_analytics_num_event_completions) || 0,
+                first_visit_date: props.hs_analytics_first_visit || null,
+                last_visit_date: props.hs_analytics_last_visit || null,
                 created_at: props.createdate,
                 updated_at: props.lastmodifieddate || new Date().toISOString()
               };
