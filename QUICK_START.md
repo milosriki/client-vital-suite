@@ -83,7 +83,7 @@ All endpoints are now serverless functions in `/api`:
 - `GET /api/health` - Health check
 - `POST /api/events/:name` - Send single event (e.g., `/api/events/Purchase`)
 - `POST /api/events/batch` - Send batch events
-- `POST /api/webhook/backfill` - n8n webhook endpoint
+- `POST /api/webhook/backfill` - AI agent webhook endpoint
 
 ## ✅ What's Working Now
 

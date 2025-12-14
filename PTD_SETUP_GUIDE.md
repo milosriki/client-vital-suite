@@ -227,9 +227,8 @@ CONVERSION-API/
 ├── scripts/
 │   └── test-events.js    # Test scripts
 ├── supabase/
-│   └── schema.sql        # Database schema
-└── n8n/
-    └── functions/        # Edge Functions
+│   ├── schema.sql        # Database schema
+│   └── functions/        # Edge Functions
 ```
 
 ### client-vital-suite Repo (Frontend)

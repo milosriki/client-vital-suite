@@ -84,7 +84,7 @@ const WorkflowStrategy = () => {
         {
           title: "Identify All Workflows",
           description: "List and categorize all Supabase Edge Functions",
-          action: "Review the Edge Functions listed above (replaced n8n workflows)"
+          action: "Review the Edge Functions listed above"
         },
         {
           title: "Prioritize Based on Errors",

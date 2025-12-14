@@ -102,10 +102,8 @@ Set in **Vercel Dashboard → Project Settings → Environment Variables**
 
 ## 🚫 Removed/Deprecated
 
-### n8n References
-- ❌ `backend/n8n/AGGREGATOR_FUNCTION.js` - Outdated, replaced by AI agents
-- ❌ n8n webhook endpoints - Replaced by Supabase Edge Functions
-- ✅ All AI agents now run directly in Supabase (no n8n dependency)
+### Legacy Systems
+- ✅ All AI agents now run directly in Supabase Edge Functions
 
 ### Old URLs
 - ❌ `https://ptdfitness.com` - Replaced everywhere
