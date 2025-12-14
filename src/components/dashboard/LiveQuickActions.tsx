@@ -4,10 +4,10 @@ import {
   RefreshCw, 
   AlertTriangle, 
   Command,
-  Bot,
-  ExternalLink
+  ExternalLink,
+  Phone,
+  Sparkles
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface LiveQuickActionsProps {
@@ -30,6 +30,7 @@ export function LiveQuickActions({
   const actions = [
     {
       label: "Run BI Agent",
+      description: "Analyze data",
       icon: BrainCircuit,
       onClick: onRunBI,
       loading: isRunningBI,
@@ -37,71 +38,120 @@ export function LiveQuickActions({
     },
     {
       label: "Sync HubSpot",
+      description: "Pull latest",
       icon: RefreshCw,
       onClick: onSyncHubSpot,
       loading: isSyncing,
       variant: "default" as const,
     },
     {
-      label: "View At-Risk",
+      label: "At-Risk Clients",
+      description: "View critical",
       icon: AlertTriangle,
       onClick: () => navigate('/clients?zone=RED'),
       variant: "danger" as const,
     },
     {
       label: "Today's Calls",
-      icon: RefreshCw,
+      description: "Activity feed",
+      icon: Phone,
       onClick: () => navigate('/setter-activity-today'),
       variant: "default" as const,
     },
     {
       label: "PTD Control",
+      description: "Command center",
       icon: Command,
       onClick: () => navigate('/ptd-control'),
       variant: "default" as const,
     },
     {
       label: "Open HubSpot",
+      description: "External CRM",
       icon: ExternalLink,
       onClick: () => window.open('https://app.hubspot.com', '_blank', 'noopener,noreferrer'),
       variant: "default" as const,
     },
   ];
 
-  const getVariantClass = (variant: string) => {
+  const getVariantStyles = (variant: string) => {
     switch (variant) {
       case "primary":
-        return "bg-primary/10 border-primary/30 hover:bg-primary/20 hover:border-primary/50 text-primary";
+        return {
+          bg: "bg-gradient-to-br from-primary/20 to-primary/5",
+          border: "border-primary/30 hover:border-primary/60",
+          text: "text-primary",
+          glow: "hover:shadow-[0_0_25px_hsl(var(--primary)/0.4)]",
+        };
       case "danger":
-        return "bg-destructive/10 border-destructive/30 hover:bg-destructive/20 hover:border-destructive/50 text-destructive";
+        return {
+          bg: "bg-gradient-to-br from-destructive/20 to-destructive/5",
+          border: "border-destructive/30 hover:border-destructive/60",
+          text: "text-destructive",
+          glow: "hover:shadow-[0_0_25px_hsl(var(--destructive)/0.4)]",
+        };
       default:
-        return "bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/30 text-foreground";
+        return {
+          bg: "bg-gradient-to-br from-muted/50 to-muted/20",
+          border: "border-border hover:border-primary/40",
+          text: "text-foreground",
+          glow: "hover:shadow-[0_0_25px_hsl(var(--primary)/0.2)]",
+        };
     }
   };
 
   return (
     <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '300ms' }}>
-      <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">
-        Quick Actions
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          Quick Actions
+        </h3>
+        <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+      </div>
+      
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {actions.map((action) => (
-          <Button
-            key={action.label}
-            variant="outline"
-            onClick={action.onClick}
-            disabled={action.loading}
-            className={cn(
-              "h-16 flex flex-col items-center justify-center gap-1.5 border transition-all duration-200",
-              getVariantClass(action.variant)
-            )}
-          >
-            <action.icon className={cn("h-4 w-4", action.loading && "animate-spin")} />
-            <span className="text-xs font-medium text-center leading-tight">
-              {action.loading ? "Running..." : action.label}
-            </span>
-          </Button>
-        ))}
+        {actions.map((action) => {
+          const styles = getVariantStyles(action.variant);
+          
+          return (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              disabled={action.loading}
+              className={cn(
+                "group relative overflow-hidden h-20 flex flex-col items-center justify-center gap-1.5 rounded-xl border transition-all duration-300",
+                styles.bg,
+                styles.border,
+                styles.glow,
+                "hover:-translate-y-1 hover:scale-[1.02]",
+                "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:scale-100"
+              )}
+            >
+              {/* Shine effect */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </div>
+              
+              <action.icon className={cn(
+                "relative h-5 w-5 transition-transform duration-300 group-hover:scale-110",
+                styles.text,
+                action.loading && "animate-spin"
+              )} />
+              
+              <div className="relative text-center">
+                <span className={cn(
+                  "text-xs font-semibold block",
+                  styles.text
+                )}>
+                  {action.loading ? "Running..." : action.label}
+                </span>
+                <span className="text-[10px] text-muted-foreground hidden sm:block">
+                  {action.description}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
