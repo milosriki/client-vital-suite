@@ -69,14 +69,31 @@ const WarRoom = () => {
 
   const totalRevenue = deals?.filter(d => d.status === "closed").reduce((sum, d) => sum + (d.deal_value || 0), 0) || 0;
   const avgRevenuePerUser = clients?.length ? totalRevenue / clients.length : 0;
-  const avgRetentionMonths = 8; // Placeholder - would come from analytics
+  // Calculate average retention from client data
+  const avgRetentionMonths = clients?.length 
+    ? Math.round(clients.reduce((sum, c) => {
+        const created = new Date(c.created_at || "");
+        const now = new Date();
+        const months = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        return sum + Math.max(1, months);
+      }, 0) / clients.length)
+    : 6;
   
   const cac = adSpend / Math.max(newCustomersThisMonth, 1);
   const ltv = avgRevenuePerUser * avgRetentionMonths;
   const ltvCacRatio = cac > 0 ? ltv / cac : 0;
   
-  const monthlyBurn = adSpend * 1.5; // Placeholder for total burn
-  const netNewArr = totalRevenue * 0.3; // Placeholder
+  // Calculate actual burn from operational costs estimate (ad spend + 50% operational overhead)
+  const monthlyBurn = adSpend * 1.5;
+  // Calculate net new ARR from this month's closed deals
+  const thisMonthDeals = deals?.filter(d => {
+    const created = new Date(d.created_at || "");
+    const now = new Date();
+    return created.getMonth() === now.getMonth() && 
+           created.getFullYear() === now.getFullYear() &&
+           (d.status === "closed" || d.status === "won");
+  }) || [];
+  const netNewArr = thisMonthDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
   const burnMultiple = netNewArr > 0 ? monthlyBurn / netNewArr : 0;
 
   // Calculate Leakage
@@ -97,25 +114,60 @@ const WarRoom = () => {
     return false;
   }) || [];
 
+  // Calculate actual historical revenue from deals
+  const getHistoricalRevenue = () => {
+    const now = new Date();
+    const closedDeals = deals?.filter(d => d.status === "closed" || d.status === "won") || [];
+    
+    // Get revenue for last 3 months
+    const revenueByMonth: number[] = [];
+    for (let i = 2; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      
+      const monthRevenue = closedDeals
+        .filter(d => {
+          const closeDate = new Date(d.close_date || d.created_at || "");
+          return closeDate >= monthStart && closeDate <= monthEnd;
+        })
+        .reduce((sum, d) => sum + (d.deal_value || 0), 0);
+      
+      revenueByMonth.push(monthRevenue);
+    }
+    
+    return revenueByMonth;
+  };
+
   // Generate forecast data
   const generateForecastData = () => {
-    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
-    const actualRevenue = [85000, 92000, 78000]; // Last 3 months placeholder
+    const now = new Date();
+    const months: string[] = [];
+    
+    // Get last 3 months and next 3 months
+    for (let i = -2; i <= 3; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      months.push(date.toLocaleString('default', { month: 'short' }));
+    }
+    
+    const actualRevenue = getHistoricalRevenue();
     
     const contractDeals = deals?.filter(d => d.stage === "Contract Sent") || [];
     const proposalDeals = deals?.filter(d => d.stage === "Proposal") || [];
-    const activeDeals = deals?.filter(d => d.status !== "closed" && d.status !== "lost") || [];
+    const activeDeals = deals?.filter(d => d.status !== "closed" && d.status !== "lost" && d.status !== "won") || [];
     
     const commitValue = contractDeals.reduce((sum, d) => sum + (d.deal_value || 0) * 0.9, 0);
     const likelyValue = proposalDeals.reduce((sum, d) => sum + (d.deal_value || 0) * 0.6, 0);
     const bestCaseValue = activeDeals.reduce((sum, d) => sum + (d.deal_value || 0) * 0.3, 0);
     
+    // Use last month's revenue as baseline if available, otherwise use average
+    const baselineRevenue = actualRevenue[2] || (actualRevenue.reduce((a, b) => a + b, 0) / 3) || 50000;
+    
     return months.map((month, i) => ({
       month,
       actual: i < 3 ? actualRevenue[i] : null,
-      commit: i >= 3 ? (commitValue / 3) + (actualRevenue[2] * 0.9) : null,
-      likely: i >= 3 ? (likelyValue / 3) + (actualRevenue[2] * 0.85) : null,
-      bestCase: i >= 3 ? (bestCaseValue / 3) + (actualRevenue[2] * 1.1) : null,
+      commit: i >= 3 ? (commitValue / 3) + (baselineRevenue * 0.9) : null,
+      likely: i >= 3 ? (likelyValue / 3) + (baselineRevenue * 0.85) : null,
+      bestCase: i >= 3 ? (bestCaseValue / 3) + (baselineRevenue * 1.1) : null,
       target: 100000,
     }));
   };

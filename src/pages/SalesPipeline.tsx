@@ -237,12 +237,12 @@ export default function SalesPipeline() {
     };
   }, [queryClient]);
 
-  // Fetch lead funnel data
+  // Fetch lead funnel data (HubSpot stores leads as contacts)
   const { data: funnelData } = useQuery({
     queryKey: ['lead-funnel', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from('leads').select('*');
+      let query = supabase.from('contacts').select('*');
       if (dateFilter) {
         query = query.gte('created_at', dateFilter);
       }
@@ -250,17 +250,38 @@ export default function SalesPipeline() {
       
       if (error) throw error;
       
+      // Map HubSpot lifecycle stages to funnel statuses
+      const mapLifecycleToStatus = (contact: any): string => {
+        const lifecycle = contact.lifecycle_stage?.toLowerCase();
+        const leadStatus = contact.lead_status?.toLowerCase();
+        
+        if (lifecycle === 'customer' || leadStatus === 'closed_won') return 'closed';
+        if (leadStatus === 'appointment_scheduled' || leadStatus === 'appointment_set') return 'appointment_set';
+        if (leadStatus === 'no_show') return 'no_show';
+        if (lifecycle === 'opportunity' || lifecycle === 'salesqualifiedlead') return 'pitch_given';
+        if (leadStatus === 'in_progress' || leadStatus === 'contacted') return 'follow_up';
+        return 'new';
+      };
+      
       const statusCounts: Record<string, number> = {};
       const sourceCounts: Record<string, number> = {};
       
-      data?.forEach(lead => {
+      const leadsWithStatus = data?.map(contact => ({
+        ...contact,
+        status: mapLifecycleToStatus(contact),
+        source: contact.latest_traffic_source || contact.first_touch_source || 'direct',
+        firstname: contact.first_name,
+        lastname: contact.last_name
+      })) || [];
+      
+      leadsWithStatus.forEach(lead => {
         statusCounts[lead.status] = (statusCounts[lead.status] || 0) + 1;
         if (lead.source) {
           sourceCounts[lead.source] = (sourceCounts[lead.source] || 0) + 1;
         }
       });
       
-      return { leads: data || [], statusCounts, sourceCounts, total: data?.length || 0 };
+      return { leads: leadsWithStatus, statusCounts, sourceCounts, total: leadsWithStatus.length };
     },
     refetchInterval: 30000,
   });
