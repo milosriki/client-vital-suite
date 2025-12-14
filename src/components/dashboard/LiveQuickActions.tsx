@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   BrainCircuit, 
@@ -6,9 +7,14 @@ import {
   Command,
   ExternalLink,
   Phone,
-  Sparkles
+  Sparkles,
+  Activity,
+  FileText,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface LiveQuickActionsProps {
   onRunBI: () => void;
@@ -26,6 +32,34 @@ export function LiveQuickActions({
   isSyncing = false
 }: LiveQuickActionsProps) {
   const navigate = useNavigate();
+  const [isRunningChurn, setIsRunningChurn] = useState(false);
+  const [isRunningReport, setIsRunningReport] = useState(false);
+
+  const runChurnPredictor = async () => {
+    setIsRunningChurn(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('churn-predictor');
+      if (error) throw error;
+      toast({ title: 'Churn Analysis Complete', description: `Analyzed ${data?.clients_analyzed || 0} clients` });
+    } catch (error: any) {
+      toast({ title: 'Churn Analysis Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsRunningChurn(false);
+    }
+  };
+
+  const generateDailyReport = async () => {
+    setIsRunningReport(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('daily-report');
+      if (error) throw error;
+      toast({ title: 'Report Generated', description: 'Daily report is ready' });
+    } catch (error: any) {
+      toast({ title: 'Report Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsRunningReport(false);
+    }
+  };
 
   const actions = [
     {
@@ -45,17 +79,19 @@ export function LiveQuickActions({
       variant: "default" as const,
     },
     {
-      label: "At-Risk Clients",
-      description: "View critical",
-      icon: AlertTriangle,
-      onClick: () => navigate('/clients?zone=RED'),
+      label: "Churn Predictor",
+      description: "Predict risk",
+      icon: Activity,
+      onClick: runChurnPredictor,
+      loading: isRunningChurn,
       variant: "danger" as const,
     },
     {
-      label: "Today's Calls",
-      description: "Activity feed",
-      icon: Phone,
-      onClick: () => navigate('/setter-activity-today'),
+      label: "Daily Report",
+      description: "Generate now",
+      icon: FileText,
+      onClick: generateDailyReport,
+      loading: isRunningReport,
       variant: "default" as const,
     },
     {
@@ -66,11 +102,11 @@ export function LiveQuickActions({
       variant: "default" as const,
     },
     {
-      label: "Open HubSpot",
-      description: "External CRM",
-      icon: ExternalLink,
-      onClick: () => window.open('https://app.hubspot.com', '_blank', 'noopener,noreferrer'),
-      variant: "default" as const,
+      label: "At-Risk Clients",
+      description: "View critical",
+      icon: AlertTriangle,
+      onClick: () => navigate('/clients?zone=RED'),
+      variant: "danger" as const,
     },
   ];
 
@@ -113,7 +149,7 @@ export function LiveQuickActions({
           </h3>
         </div>
         <span className="text-[10px] text-muted-foreground bg-muted/40 px-2 py-1 rounded-full border border-border/50">
-          6 actions
+          {actions.length} actions
         </span>
       </div>
       
