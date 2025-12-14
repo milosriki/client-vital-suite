@@ -331,7 +331,10 @@ serve(async (req) => {
                 ignoreDuplicates: false
               });
 
-            if (!leadsError) {
+            if (leadsError) {
+              console.error('Leads sync error:', leadsError.message);
+              results.errors.push(`Leads batch: ${leadsError.message}`);
+            } else {
               results.leads_synced += leadsToUpsert.length;
             }
           }
@@ -507,12 +510,16 @@ serve(async (req) => {
   }
 });
 
-function mapHubspotStatusToLead(lifecycle: string, leadStatus: string): string {
+function mapHubspotStatusToLead(lifecycle: string | null, leadStatus: string | null): 'new' | 'appointment_set' | 'appointment_held' | 'pitch_given' | 'closed' | 'no_show' | 'follow_up' | 'rescheduled' {
+  // Map to valid lead_status enum values
   if (leadStatus === 'CLOSED_WON' || lifecycle === 'customer') return 'closed';
-  if (leadStatus === 'APPOINTMENT_SCHEDULED') return 'appointment_set';
-  if (leadStatus === 'IN_PROGRESS' || leadStatus === 'CONTACTED') return 'follow_up';
+  if (leadStatus === 'APPOINTMENT_SCHEDULED' || leadStatus === 'MEETING_BOOKED') return 'appointment_set';
+  if (leadStatus === 'APPOINTMENT_HELD' || leadStatus === 'MEETING_COMPLETED') return 'appointment_held';
+  if (leadStatus === 'IN_PROGRESS' || leadStatus === 'CONTACTED' || leadStatus === 'OPEN') return 'follow_up';
   if (leadStatus === 'NO_SHOW') return 'no_show';
+  if (leadStatus === 'RESCHEDULED') return 'rescheduled';
   if (lifecycle === 'salesqualifiedlead' || lifecycle === 'opportunity') return 'pitch_given';
+  if (lifecycle === 'lead' || lifecycle === 'subscriber' || lifecycle === 'marketingqualifiedlead') return 'new';
   return 'new';
 }
 
