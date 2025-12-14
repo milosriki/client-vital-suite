@@ -1471,6 +1471,7 @@ export type Database = {
           first_conversion_date: string | null
           first_name: string | null
           first_outbound_call_time: string | null
+          first_page_seen: string | null
           first_touch_source: string | null
           first_touch_time: string | null
           first_visit_date: string | null
@@ -1490,6 +1491,7 @@ export type Database = {
           last_email_sent_date: string | null
           last_meeting_date: string | null
           last_name: string | null
+          last_page_seen: string | null
           last_touch_source: string | null
           last_touch_time: string | null
           last_visit_date: string | null
@@ -1542,6 +1544,11 @@ export type Database = {
           twitter_followers: number | null
           twitter_handle: string | null
           updated_at: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           website: string | null
         }
         Insert: {
@@ -1572,6 +1579,7 @@ export type Database = {
           first_conversion_date?: string | null
           first_name?: string | null
           first_outbound_call_time?: string | null
+          first_page_seen?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           first_visit_date?: string | null
@@ -1591,6 +1599,7 @@ export type Database = {
           last_email_sent_date?: string | null
           last_meeting_date?: string | null
           last_name?: string | null
+          last_page_seen?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
           last_visit_date?: string | null
@@ -1643,6 +1652,11 @@ export type Database = {
           twitter_followers?: number | null
           twitter_handle?: string | null
           updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           website?: string | null
         }
         Update: {
@@ -1673,6 +1687,7 @@ export type Database = {
           first_conversion_date?: string | null
           first_name?: string | null
           first_outbound_call_time?: string | null
+          first_page_seen?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           first_visit_date?: string | null
@@ -1692,6 +1707,7 @@ export type Database = {
           last_email_sent_date?: string | null
           last_meeting_date?: string | null
           last_name?: string | null
+          last_page_seen?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
           last_visit_date?: string | null
@@ -1744,6 +1760,11 @@ export type Database = {
           twitter_followers?: number | null
           twitter_handle?: string | null
           updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           website?: string | null
         }
         Relationships: []
@@ -4079,6 +4100,93 @@ export type Database = {
         }
         Relationships: []
       }
+      ultimate_truth_events: {
+        Row: {
+          aligned_at: string | null
+          alignment_notes: string | null
+          attribution_campaign: string | null
+          attribution_medium: string | null
+          attribution_source: string | null
+          closed_at: string | null
+          confidence_score: number | null
+          conversion_value: number | null
+          created_at: string | null
+          currency: string | null
+          email: string | null
+          event_name: string
+          event_time: string
+          fb_ad_id: string | null
+          fb_adset_id: string | null
+          fb_campaign_id: string | null
+          first_name: string | null
+          has_anytrack: boolean | null
+          has_facebook_capi: boolean | null
+          has_hubspot: boolean | null
+          hubspot_contact_id: string | null
+          hubspot_deal_id: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aligned_at?: string | null
+          alignment_notes?: string | null
+          attribution_campaign?: string | null
+          attribution_medium?: string | null
+          attribution_source?: string | null
+          closed_at?: string | null
+          confidence_score?: number | null
+          conversion_value?: number | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          event_name: string
+          event_time: string
+          fb_ad_id?: string | null
+          fb_adset_id?: string | null
+          fb_campaign_id?: string | null
+          first_name?: string | null
+          has_anytrack?: boolean | null
+          has_facebook_capi?: boolean | null
+          has_hubspot?: boolean | null
+          hubspot_contact_id?: string | null
+          hubspot_deal_id?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aligned_at?: string | null
+          alignment_notes?: string | null
+          attribution_campaign?: string | null
+          attribution_medium?: string | null
+          attribution_source?: string | null
+          closed_at?: string | null
+          confidence_score?: number | null
+          conversion_value?: number | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          event_name?: string
+          event_time?: string
+          fb_ad_id?: string | null
+          fb_adset_id?: string | null
+          fb_campaign_id?: string | null
+          first_name?: string | null
+          has_anytrack?: boolean | null
+          has_facebook_capi?: boolean | null
+          has_hubspot?: boolean | null
+          hubspot_contact_id?: string | null
+          hubspot_deal_id?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           analytics_enabled: boolean | null
@@ -4305,6 +4413,34 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_lifecycle_view: {
+        Row: {
+          churn_risk_score: number | null
+          current_lifecycle_stage: string | null
+          current_lifecycle_stage_name: string | null
+          days_since_update: number | null
+          email: string | null
+          first_name: string | null
+          first_touch_source: string | null
+          health_score: number | null
+          health_zone: string | null
+          hubspot_contact_id: string | null
+          journey_stage_number: number | null
+          last_name: string | null
+          last_touch_source: string | null
+          last_updated_at: string | null
+          latest_traffic_source: string | null
+          lead_created_at: string | null
+          lead_status: string | null
+          owner_id: string | null
+          owner_name: string | null
+          phone: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Relationships: []
+      }
       long_cycle_protection: {
         Row: {
           anytrack_events: number | null
@@ -4325,6 +4461,20 @@ export type Database = {
         }
         Relationships: []
       }
+      ultimate_truth_dashboard: {
+        Row: {
+          anytrack_events: number | null
+          attribution_source: string | null
+          avg_confidence: number | null
+          date: string | null
+          event_count: number | null
+          event_name: string | null
+          facebook_events: number | null
+          hubspot_events: number | null
+          total_value: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_attribution_weights: {
@@ -4333,6 +4483,17 @@ export type Database = {
           touchpoint_id: string
           weight: number
         }[]
+      }
+      calculate_confidence_score: {
+        Args: {
+          p_email: string
+          p_external_id: string
+          p_fbc: string
+          p_fbp: string
+          p_phone: string
+          p_sources_agree: boolean
+        }
+        Returns: number
       }
       calculate_lead_score: {
         Args: {
