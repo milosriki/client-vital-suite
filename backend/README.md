@@ -102,7 +102,7 @@ Content-Type: application/json
 }
 ```
 
-### Webhook (for n8n)
+### Webhook (AI Agent Orchestration)
 ```bash
 POST /api/webhook/backfill
 Content-Type: application/json
@@ -117,8 +117,7 @@ Content-Type: application/json
 Open `http://localhost:3000/` in your browser to access the HTML dashboard with buttons for:
 - Health Check
 - Send Test Purchase
-- Trigger n8n Backfill
-- Run n8n Health Webhook
+- Trigger AI Agent Backfill (Supabase Edge Functions)
 
 ## Testing
 
