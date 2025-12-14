@@ -56,12 +56,21 @@ export function CoachLeaderboard() {
   ];
 
   return (
-    <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '400ms' }}>
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Top Performers
-        </h3>
-        <Trophy className="h-4 w-4 text-yellow-400 animate-pulse" />
+    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-yellow-500/5 p-6 animate-fade-up shadow-sm hover:shadow-md transition-shadow duration-300" style={{ animationDelay: '400ms' }}>
+      {/* Decorative trophy glow */}
+      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-yellow-400/10 to-transparent rounded-full blur-2xl" />
+      
+      <div className="relative flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-yellow-400" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Top Performers
+          </h3>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Leaderboard</span>
+        </div>
       </div>
       
       {isLoading ? (

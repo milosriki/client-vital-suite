@@ -101,12 +101,20 @@ export function LiveQuickActions({
   };
 
   return (
-    <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '300ms' }}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Quick Actions
-        </h3>
-        <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 p-6 animate-fade-up shadow-sm hover:shadow-md transition-shadow duration-300" style={{ animationDelay: '300ms' }}>
+      {/* Decorative sparkle glow */}
+      <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-primary/10 to-transparent rounded-full blur-2xl" />
+      
+      <div className="relative flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Quick Actions
+          </h3>
+        </div>
+        <span className="text-[10px] text-muted-foreground bg-muted/40 px-2 py-1 rounded-full border border-border/50">
+          6 actions
+        </span>
       </div>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
