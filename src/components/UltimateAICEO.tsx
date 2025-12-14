@@ -12,7 +12,9 @@ import { Progress } from "@/components/ui/progress";
 import {
     Brain, Zap, AlertTriangle, CheckCircle, XCircle, Code,
     TrendingUp, Target, Clock, Rocket, Eye,
-    ThumbsUp, ThumbsDown, Loader2, Lightbulb, BookOpen
+    ThumbsUp, ThumbsDown, Loader2, Lightbulb, BookOpen,
+    DollarSign, Users, Activity, Shield, RefreshCw,
+    BarChart3, AlertCircle, Wifi, WifiOff, Heart, TrendingDown
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -62,6 +64,13 @@ interface ProactiveInsight {
     description: string;
     priority: string;
     created_at: string;
+}
+
+interface BIAnalysis {
+    executive_summary?: string;
+    system_status?: string;
+    action_plan?: string[];
+    data_freshness?: string;
 }
 
 export function UltimateAICEO() {
@@ -137,7 +146,6 @@ export function UltimateAICEO() {
                 .order('created_at', { ascending: false })
                 .limit(10);
             if (error) throw error;
-            // Map to add missing fields from existing columns
             return (data || []).map((item: any) => ({
                 ...item,
                 title: item.insight_type || 'Insight',
@@ -145,6 +153,124 @@ export function UltimateAICEO() {
             })) as ProactiveInsight[];
         },
         refetchInterval: 60000
+    });
+
+    // NEW: Business Intelligence Data
+    const { data: biData, isLoading: loadingBI, refetch: refetchBI } = useQuery({
+        queryKey: ['business-intelligence'],
+        queryFn: async () => {
+            const { data, error } = await supabase.functions.invoke('business-intelligence');
+            if (error) throw error;
+            return data as { success: boolean; analysis: BIAnalysis; dataFreshness: string; staleWarning: string | null };
+        },
+        refetchInterval: 300000 // 5 minutes
+    });
+
+    // NEW: Revenue Metrics
+    const { data: revenueData } = useQuery({
+        queryKey: ['ceo-revenue-metrics'],
+        queryFn: async () => {
+            const { data: deals, error } = await supabase
+                .from('deals')
+                .select('deal_value, status, close_date')
+                .gte('close_date', new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString());
+            
+            if (error) throw error;
+            
+            const closedDeals = deals?.filter(d => d.status === 'closed') || [];
+            const totalRevenue = closedDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
+            const avgDealValue = closedDeals.length > 0 ? totalRevenue / closedDeals.length : 0;
+            
+            return {
+                totalRevenue,
+                avgDealValue,
+                dealsCount: closedDeals.length,
+                pipelineValue: deals?.filter(d => d.status !== 'closed').reduce((sum, d) => sum + (d.deal_value || 0), 0) || 0
+            };
+        }
+    });
+
+    // NEW: Client Health
+    const { data: clientHealth } = useQuery({
+        queryKey: ['ceo-client-health'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('client_health_scores')
+                .select('health_zone, health_score, churn_risk_score, package_value_aed');
+            
+            if (error) throw error;
+            
+            const zones = { green: 0, yellow: 0, red: 0, purple: 0 };
+            let atRiskRevenue = 0;
+            let totalScore = 0;
+            
+            data?.forEach(c => {
+                const zone = (c.health_zone || 'yellow').toLowerCase();
+                if (zone in zones) zones[zone as keyof typeof zones]++;
+                if (zone === 'red' || zone === 'yellow') {
+                    atRiskRevenue += c.package_value_aed || 0;
+                }
+                totalScore += c.health_score || 0;
+            });
+            
+            return {
+                ...zones,
+                total: data?.length || 0,
+                atRiskRevenue,
+                avgHealth: data?.length ? Math.round(totalScore / data.length) : 0
+            };
+        }
+    });
+
+    // NEW: Integration Status
+    const { data: integrationStatus } = useQuery({
+        queryKey: ['ceo-integration-status'],
+        queryFn: async () => {
+            const { data: syncLogs } = await supabase
+                .from('sync_logs')
+                .select('platform, status, started_at')
+                .order('started_at', { ascending: false })
+                .limit(50);
+            
+            const { data: syncErrors } = await supabase
+                .from('sync_errors')
+                .select('source, error_type, resolved_at')
+                .is('resolved_at', null);
+            
+            const platforms = ['hubspot', 'stripe', 'callgear', 'facebook'];
+            const status: Record<string, { connected: boolean; lastSync: string | null; errors: number }> = {};
+            
+            platforms.forEach(p => {
+                const logs = syncLogs?.filter((l: any) => l.platform === p) || [];
+                const errors = syncErrors?.filter((e: any) => e.source === p) || [];
+                const lastLog = logs[0] as any;
+                
+                status[p] = {
+                    connected: logs.some((l: any) => l.status === 'success'),
+                    lastSync: lastLog?.started_at || null,
+                    errors: errors.length
+                };
+            });
+            
+            return status;
+        },
+        refetchInterval: 60000
+    });
+
+    // NEW: Churn Alerts
+    const { data: churnAlerts } = useQuery({
+        queryKey: ['ceo-churn-alerts'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('client_health_scores')
+                .select('firstname, lastname, email, churn_risk_score, health_zone, package_value_aed')
+                .or('health_zone.eq.red,churn_risk_score.gt.70')
+                .order('churn_risk_score', { ascending: false })
+                .limit(5);
+            
+            if (error) throw error;
+            return data || [];
+        }
     });
 
     // ========================================
@@ -212,6 +338,18 @@ export function UltimateAICEO() {
         }
     });
 
+    const runMonitor = useMutation({
+        mutationFn: async () => {
+            const { data, error } = await supabase.functions.invoke('ptd-24x7-monitor');
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            toast.success("Monitor scan complete");
+            queryClient.invalidateQueries({ queryKey: ['proactive-insights'] });
+        }
+    });
+
     // ========================================
     // COMPUTED VALUES
     // ========================================
@@ -252,6 +390,15 @@ export function UltimateAICEO() {
         }
     };
 
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('en-AE', {
+            style: 'currency',
+            currency: 'AED',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value);
+    };
+
     // ========================================
     // RENDER
     // ========================================
@@ -271,7 +418,17 @@ export function UltimateAICEO() {
                             <p className="text-xs sm:text-sm text-cyan-400">Self-Coding • Multi-Model • Human-Controlled</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => runMonitor.mutate()}
+                            disabled={runMonitor.isPending}
+                            className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
+                        >
+                            {runMonitor.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            <span className="ml-2 hidden sm:inline">Run Monitor</span>
+                        </Button>
                         <Badge variant="outline" className="text-emerald-400 border-emerald-400/50 text-xs sm:text-sm">
                             <div className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse" />
                             System Active
@@ -279,64 +436,273 @@ export function UltimateAICEO() {
                     </div>
                 </div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="bg-white/5 border-white/10">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                                    <Clock className="w-6 h-6 text-purple-400" />
+                {/* Executive Summary Banner */}
+                {biData?.analysis && (
+                    <Card className="bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-indigo-500/10 border-cyan-500/30">
+                        <CardContent className="p-4 sm:p-6">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center shrink-0">
+                                    <BarChart3 className="w-6 h-6 text-cyan-400" />
                                 </div>
-                                <div>
-                                    <p className="text-2xl sm:text-3xl font-bold text-white">{stats.total}</p>
-                                    <p className="text-xs sm:text-sm text-white/60">Pending Actions</p>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <h2 className="text-lg font-bold text-white">Executive Briefing</h2>
+                                        <Badge variant={biData.dataFreshness === 'FRESH' ? 'default' : 'destructive'} className="text-xs">
+                                            {biData.dataFreshness === 'FRESH' ? 'Live Data' : 'Stale Data'}
+                                        </Badge>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => refetchBI()}
+                                            className="ml-auto text-cyan-400 hover:text-cyan-300"
+                                        >
+                                            <RefreshCw className={`w-4 h-4 ${loadingBI ? 'animate-spin' : ''}`} />
+                                        </Button>
+                                    </div>
+                                    <p className="text-white/80 text-sm leading-relaxed">
+                                        {biData.analysis.executive_summary || "Analyzing business vitals..."}
+                                    </p>
+                                    {biData.staleWarning && (
+                                        <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" />
+                                            {biData.staleWarning}
+                                        </p>
+                                    )}
+                                    {biData.analysis.action_plan && biData.analysis.action_plan.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {biData.analysis.action_plan.slice(0, 3).map((action, i) => (
+                                                <Badge key={i} variant="outline" className="text-cyan-400 border-cyan-400/30">
+                                                    {action}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Revenue & Business Metrics Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                    {/* Revenue This Month */}
+                    <Card className="bg-emerald-500/10 border-emerald-500/30 col-span-1">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <DollarSign className="w-4 h-4 text-emerald-400" />
+                                <span className="text-xs text-white/60 uppercase">Revenue</span>
+                            </div>
+                            <p className="text-xl sm:text-2xl font-bold text-white">
+                                {formatCurrency(revenueData?.totalRevenue || 0)}
+                            </p>
+                            <p className="text-xs text-emerald-400">This month</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Active Clients */}
+                    <Card className="bg-blue-500/10 border-blue-500/30 col-span-1">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Users className="w-4 h-4 text-blue-400" />
+                                <span className="text-xs text-white/60 uppercase">Clients</span>
+                            </div>
+                            <p className="text-xl sm:text-2xl font-bold text-white">
+                                {clientHealth?.total || 0}
+                            </p>
+                            <p className="text-xs text-blue-400">Active total</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Avg Deal Value */}
+                    <Card className="bg-purple-500/10 border-purple-500/30 col-span-1">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="w-4 h-4 text-purple-400" />
+                                <span className="text-xs text-white/60 uppercase">Avg Deal</span>
+                            </div>
+                            <p className="text-xl sm:text-2xl font-bold text-white">
+                                {formatCurrency(revenueData?.avgDealValue || 0)}
+                            </p>
+                            <p className="text-xs text-purple-400">{revenueData?.dealsCount || 0} deals</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* At-Risk Revenue */}
+                    <Card className="bg-red-500/10 border-red-500/30 col-span-1">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <AlertTriangle className="w-4 h-4 text-red-400" />
+                                <span className="text-xs text-white/60 uppercase">At Risk</span>
+                            </div>
+                            <p className="text-xl sm:text-2xl font-bold text-white">
+                                {formatCurrency(clientHealth?.atRiskRevenue || 0)}
+                            </p>
+                            <p className="text-xs text-red-400">{(clientHealth?.red || 0) + (clientHealth?.yellow || 0)} clients</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Pending Actions */}
+                    <Card className="bg-orange-500/10 border-orange-500/30 col-span-1">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Clock className="w-4 h-4 text-orange-400" />
+                                <span className="text-xs text-white/60 uppercase">Pending</span>
+                            </div>
+                            <p className="text-xl sm:text-2xl font-bold text-white">{stats.total}</p>
+                            <p className="text-xs text-orange-400">{stats.critical + stats.high} urgent</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Active Goals */}
+                    <Card className="bg-cyan-500/10 border-cyan-500/30 col-span-1">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Target className="w-4 h-4 text-cyan-400" />
+                                <span className="text-xs text-white/60 uppercase">Goals</span>
+                            </div>
+                            <p className="text-xl sm:text-2xl font-bold text-white">{goals?.length || 0}</p>
+                            <p className="text-xs text-cyan-400">Active targets</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Client Health & Integration Status Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Client Health Distribution */}
+                    <Card className="bg-white/5 border-white/10">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg text-white flex items-center gap-2">
+                                <Heart className="w-5 h-5 text-pink-400" />
+                                Client Health Distribution
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="flex-1 h-4 bg-white/5 rounded-full overflow-hidden flex">
+                                    {clientHealth && clientHealth.total > 0 && (
+                                        <>
+                                            <div
+                                                className="h-full bg-green-500"
+                                                style={{ width: `${(clientHealth.green / clientHealth.total) * 100}%` }}
+                                            />
+                                            <div
+                                                className="h-full bg-yellow-500"
+                                                style={{ width: `${(clientHealth.yellow / clientHealth.total) * 100}%` }}
+                                            />
+                                            <div
+                                                className="h-full bg-red-500"
+                                                style={{ width: `${(clientHealth.red / clientHealth.total) * 100}%` }}
+                                            />
+                                            <div
+                                                className="h-full bg-purple-500"
+                                                style={{ width: `${(clientHealth.purple / clientHealth.total) * 100}%` }}
+                                            />
+                                        </>
+                                    )}
+                                </div>
+                                <span className="text-sm text-white/60">{clientHealth?.avgHealth || 0} avg</span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2 text-center">
+                                <div className="p-2 bg-green-500/10 rounded-lg">
+                                    <p className="text-lg font-bold text-green-400">{clientHealth?.green || 0}</p>
+                                    <p className="text-xs text-white/40">Green</p>
+                                </div>
+                                <div className="p-2 bg-yellow-500/10 rounded-lg">
+                                    <p className="text-lg font-bold text-yellow-400">{clientHealth?.yellow || 0}</p>
+                                    <p className="text-xs text-white/40">Yellow</p>
+                                </div>
+                                <div className="p-2 bg-red-500/10 rounded-lg">
+                                    <p className="text-lg font-bold text-red-400">{clientHealth?.red || 0}</p>
+                                    <p className="text-xs text-white/40">Red</p>
+                                </div>
+                                <div className="p-2 bg-purple-500/10 rounded-lg">
+                                    <p className="text-lg font-bold text-purple-400">{clientHealth?.purple || 0}</p>
+                                    <p className="text-xs text-white/40">Purple</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
+                    {/* Integration Status */}
                     <Card className="bg-white/5 border-white/10">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                                    <AlertTriangle className="w-6 h-6 text-red-400" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl sm:text-3xl font-bold text-white">{stats.critical + stats.high}</p>
-                                    <p className="text-xs sm:text-sm text-white/60">Urgent</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-white/5 border-white/10">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                                    <Zap className="w-6 h-6 text-green-400" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl sm:text-3xl font-bold text-white">{stats.autoApprovable}</p>
-                                    <p className="text-xs sm:text-sm text-white/60">Auto-Approvable</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-white/5 border-white/10">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                                    <Target className="w-6 h-6 text-cyan-400" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl sm:text-3xl font-bold text-white">{goals?.length || 0}</p>
-                                    <p className="text-xs sm:text-sm text-white/60">Active Goals</p>
-                                </div>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg text-white flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-cyan-400" />
+                                Integration Status
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-3">
+                                {Object.entries(integrationStatus || {}).map(([platform, status]) => (
+                                    <div
+                                        key={platform}
+                                        className={`p-3 rounded-lg border ${
+                                            status.connected && status.errors === 0
+                                                ? 'bg-green-500/10 border-green-500/30'
+                                                : status.errors > 0
+                                                    ? 'bg-red-500/10 border-red-500/30'
+                                                    : 'bg-yellow-500/10 border-yellow-500/30'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-sm font-medium text-white capitalize">{platform}</span>
+                                            {status.connected ? (
+                                                <Wifi className="w-4 h-4 text-green-400" />
+                                            ) : (
+                                                <WifiOff className="w-4 h-4 text-red-400" />
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {status.errors > 0 && (
+                                                <Badge variant="destructive" className="text-xs">
+                                                    {status.errors} errors
+                                                </Badge>
+                                            )}
+                                            {status.lastSync && (
+                                                <span className="text-xs text-white/40">
+                                                    {new Date(status.lastSync).toLocaleTimeString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Churn Alerts (if any) */}
+                {churnAlerts && churnAlerts.length > 0 && (
+                    <Card className="bg-red-500/5 border-red-500/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg text-white flex items-center gap-2">
+                                <TrendingDown className="w-5 h-5 text-red-400" />
+                                Churn Risk Alerts
+                                <Badge variant="destructive" className="ml-2">{churnAlerts.length}</Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                                {churnAlerts.map((client: any, i) => (
+                                    <div key={i} className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                                        <p className="text-sm font-medium text-white truncate">
+                                            {client.firstname} {client.lastname}
+                                        </p>
+                                        <div className="flex items-center justify-between mt-1">
+                                            <Badge variant="outline" className={`text-xs ${
+                                                client.health_zone === 'red' ? 'text-red-400 border-red-400/50' : 'text-yellow-400 border-yellow-400/50'
+                                            }`}>
+                                                {client.health_zone}
+                                            </Badge>
+                                            <span className="text-xs text-red-400">{client.churn_risk_score}% risk</span>
+                                        </div>
+                                        <p className="text-xs text-white/40 mt-1">{formatCurrency(client.package_value_aed || 0)}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Command Input */}
                 <Card className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
@@ -353,7 +719,7 @@ export function UltimateAICEO() {
 • "Create WhatsApp booking integration"
 • "Fix the Stripe payment sync issue"
 • "Add automated follow-up for stale leads"'
-                            className="bg-white/5 border-white/20 text-white placeholder-white/40 min-h-[120px] mb-4 focus:border-cyan-500 text-sm sm:text-base"
+                            className="bg-white/5 border-white/20 text-white placeholder-white/40 min-h-[100px] mb-4 focus:border-cyan-500 text-sm sm:text-base"
                         />
                         <Button
                             onClick={() => generateSolution.mutate(command)}
@@ -377,7 +743,7 @@ export function UltimateAICEO() {
 
                 {/* Main Content Tabs */}
                 <Tabs defaultValue="actions" className="w-full">
-                    <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 bg-white/5 border-white/10">
+                    <TabsList className="grid w-full grid-cols-3 bg-white/5 border-white/10">
                         <TabsTrigger value="actions" className="text-xs sm:text-sm">Pending Actions ({stats.total})</TabsTrigger>
                         <TabsTrigger value="insights" className="text-xs sm:text-sm">Proactive Insights</TabsTrigger>
                         <TabsTrigger value="memory" className="text-xs sm:text-sm">AI Memory & Learning</TabsTrigger>
@@ -413,7 +779,7 @@ export function UltimateAICEO() {
                                                 <CardContent className="p-4">
                                                     <div className="flex items-start justify-between">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-2">
+                                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                                 {getActionIcon(action.action_type)}
                                                                 <h3 className="font-semibold text-white">{action.action_title}</h3>
                                                                 <Badge className={getRiskColor(action.risk_level)}>
@@ -428,15 +794,8 @@ export function UltimateAICEO() {
                                                                         Deploying...
                                                                     </Badge>
                                                                 )}
-                                                                {action.action_type === 'code_deploy' && (
-                                                                    <Badge variant="outline" className="text-purple-400 border-purple-400/50">
-                                                                        <Code className="w-3 h-3 mr-1" />
-                                                                        {action.prepared_payload?.files?.length || 0} files
-                                                                    </Badge>
-                                                                )}
                                                             </div>
                                                             <p className="text-sm text-white/70 line-clamp-2">{action.action_description}</p>
-                                                            <p className="text-xs text-cyan-400/70 mt-2 italic">{action.reasoning}</p>
                                                         </div>
                                                         <div className="flex gap-2 ml-4">
                                                             {action.status !== 'executing' && (
@@ -500,6 +859,9 @@ export function UltimateAICEO() {
                                                 </div>
                                             );
                                         })}
+                                        {(!goals || goals.length === 0) && (
+                                            <p className="text-sm text-white/40 text-center py-4">No active goals set</p>
+                                        )}
                                     </CardContent>
                                 </Card>
 
@@ -530,6 +892,9 @@ export function UltimateAICEO() {
                                                 </div>
                                             </div>
                                         ))}
+                                        {(!executedActions || executedActions.length === 0) && (
+                                            <p className="text-sm text-white/40 text-center py-4">No recent executions</p>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
@@ -545,7 +910,7 @@ export function UltimateAICEO() {
                                             <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center shrink-0">
                                                 <Lightbulb className="w-5 h-5 text-cyan-400" />
                                             </div>
-                                            <div>
+                                            <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <h3 className="font-semibold text-white">{insight.title}</h3>
                                                     <Badge variant="outline" className="text-cyan-400 border-cyan-400/50">
@@ -566,7 +931,7 @@ export function UltimateAICEO() {
                             {(!insights || insights.length === 0) && (
                                 <div className="text-center py-12 text-white/40">
                                     <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                    <p>No proactive insights yet. The scanner runs every 15 minutes.</p>
+                                    <p>No proactive insights yet. Click "Run Monitor" to generate.</p>
                                 </div>
                             )}
                         </div>
@@ -615,11 +980,11 @@ export function UltimateAICEO() {
 
                 {/* Detail Modal */}
                 {selectedAction && (
-                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50">
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50">
                         <Card className="w-full max-w-3xl bg-slate-900 border-cyan-500/30 max-h-[90vh] overflow-auto">
                             <CardHeader>
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 flex-wrap">
                                         {getActionIcon(selectedAction.action_type)}
                                         <CardTitle className="text-white">{selectedAction.action_title}</CardTitle>
                                         <Badge className={getRiskColor(selectedAction.risk_level)}>
@@ -649,91 +1014,57 @@ export function UltimateAICEO() {
 
                                 <div>
                                     <h4 className="text-sm font-medium text-white/60 mb-1">Expected Impact</h4>
-                                    <p className="text-green-400">{selectedAction.expected_impact}</p>
+                                    <p className="text-white">{selectedAction.expected_impact}</p>
                                 </div>
 
-                                {selectedAction.action_type === 'code_deploy' && selectedAction.prepared_payload?.files && (
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <h4 className="text-sm font-medium text-white/60 mb-2">Files to Deploy</h4>
-                                        <div className="space-y-2 max-h-60 overflow-auto">
-                                            {selectedAction.prepared_payload.files.map((file: any, i: number) => (
-                                                <div key={i} className="bg-black/50 rounded-lg p-3">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Code className="w-4 h-4 text-purple-400" />
-                                                        <span className="text-sm text-white/80">{file.path}</span>
-                                                    </div>
-                                                    <pre className="text-xs text-white/60 overflow-x-auto max-h-32">
-                                                        {file.content?.substring(0, 500)}
-                                                        {file.content?.length > 500 && '...'}
-                                                    </pre>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <h4 className="text-sm font-medium text-white/60 mb-1">Confidence</h4>
+                                        <Progress value={selectedAction.confidence * 100} className="h-2" />
+                                        <p className="text-xs text-white/40 mt-1">{Math.round(selectedAction.confidence * 100)}%</p>
                                     </div>
-                                )}
-
-                                <div className="pt-4 border-t border-white/10">
-                                    <h4 className="text-sm font-medium text-white/60 mb-2">Rejection Reason (if rejecting)</h4>
-                                    <Textarea
-                                        value={rejectionReason}
-                                        onChange={(e) => setRejectionReason(e.target.value)}
-                                        placeholder="Tell the AI why you're rejecting this (helps it learn)..."
-                                        className="bg-white/5 border-white/20 text-white placeholder-white/40 min-h-[80px]"
-                                    />
+                                    <div>
+                                        <h4 className="text-sm font-medium text-white/60 mb-1">Source Agent</h4>
+                                        <p className="text-white">{selectedAction.source_agent || 'AI CEO'}</p>
+                                    </div>
                                 </div>
 
-                                {(selectedAction.status === 'executed' || selectedAction.status === 'failed') && (
-                                    <div className={`p-4 rounded-lg border ${selectedAction.status === 'executed' ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                                        <h4 className={`text-sm font-medium mb-1 ${selectedAction.status === 'executed' ? 'text-green-400' : 'text-red-400'}`}>
-                                            {selectedAction.status === 'executed' ? 'Execution Successful' : 'Execution Failed'}
-                                        </h4>
-                                        {selectedAction.status === 'executed' && (
-                                            <p className="text-white/80 text-sm">
-                                                Completed at: {new Date(selectedAction.executed_at || '').toLocaleString()}
-                                            </p>
-                                        )}
-                                        {selectedAction.status === 'failed' && (
-                                            <p className="text-white/80 text-sm">
-                                                Reason: {selectedAction.rejection_reason || 'Unknown error'}
-                                            </p>
-                                        )}
+                                {selectedAction.prepared_payload && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-white/60 mb-1">Prepared Payload</h4>
+                                        <pre className="text-xs text-white/70 bg-black/40 p-3 rounded-lg overflow-auto max-h-40">
+                                            {JSON.stringify(selectedAction.prepared_payload, null, 2)}
+                                        </pre>
                                     </div>
                                 )}
 
                                 {selectedAction.status === 'prepared' && (
-                                    <div className="flex gap-3 pt-4">
-                                        <Button
-                                            onClick={() => approveAction.mutate(selectedAction.id)}
-                                            disabled={approveAction.isPending}
-                                            className="flex-1 bg-green-600 hover:bg-green-700 h-12"
-                                        >
-                                            {approveAction.isPending ? (
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <ThumbsUp className="w-5 h-5 mr-2" />
-                                                    Approve & Deploy
-                                                </>
-                                            )}
-                                        </Button>
-                                        <Button
-                                            onClick={() => rejectAction.mutate({
-                                                actionId: selectedAction.id,
-                                                reason: rejectionReason
-                                            })}
-                                            disabled={rejectAction.isPending}
-                                            variant="outline"
-                                            className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10 h-12"
-                                        >
-                                            {rejectAction.isPending ? (
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <ThumbsDown className="w-5 h-5 mr-2" />
-                                                    Reject (AI Learns)
-                                                </>
-                                            )}
-                                        </Button>
+                                    <div className="pt-4 border-t border-white/10">
+                                        <Textarea
+                                            value={rejectionReason}
+                                            onChange={(e) => setRejectionReason(e.target.value)}
+                                            placeholder="Reason for rejection (optional but helps AI learn)"
+                                            className="bg-white/5 border-white/20 text-white mb-4"
+                                        />
+                                        <div className="flex gap-3">
+                                            <Button
+                                                onClick={() => approveAction.mutate(selectedAction.id)}
+                                                disabled={approveAction.isPending}
+                                                className="flex-1 bg-green-600 hover:bg-green-700"
+                                            >
+                                                <ThumbsUp className="w-4 h-4 mr-2" />
+                                                Approve & Execute
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => rejectAction.mutate({ actionId: selectedAction.id, reason: rejectionReason })}
+                                                disabled={rejectAction.isPending}
+                                                className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/20"
+                                            >
+                                                <ThumbsDown className="w-4 h-4 mr-2" />
+                                                Reject
+                                            </Button>
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>
@@ -741,6 +1072,6 @@ export function UltimateAICEO() {
                     </div>
                 )}
             </div>
-        </div >
+        </div>
     );
 }
