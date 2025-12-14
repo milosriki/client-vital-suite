@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { QUERY_INTERVALS } from '@/config/queryConfig';
 
 /**
@@ -19,9 +19,9 @@ export function useLatestCalculationDate() {
     queryKey: ['latest-calculation-date'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('daily_summary')
-        .select('calculation_date')
-        .order('calculation_date', { ascending: false })
+        .from('client_health_scores')
+        .select('calculated_at')
+        .order('calculated_at', { ascending: false })
         .limit(1)
         .single();
 
@@ -30,7 +30,7 @@ export function useLatestCalculationDate() {
         return null;
       }
 
-      return data?.calculation_date || null;
+      return data?.calculated_at || null;
     },
     refetchInterval: QUERY_INTERVALS.STANDARD,
     staleTime: 60000, // Consider data fresh for 1 minute
