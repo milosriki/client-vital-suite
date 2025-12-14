@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow, Crown } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow, Crown, AlertTriangle, Activity, Command, Brain, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -27,6 +27,9 @@ export const Navigation = () => {
     { path: "/audit-trail", label: "Audit", icon: History },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
+    { path: "/interventions", label: "Interventions", icon: AlertTriangle },
+    { path: "/ai-knowledge", label: "AI Knowledge", icon: Brain },
+    { path: "/ai-learning", label: "AI Learning", icon: Lightbulb },
   ];
 
   const moreItems = [
