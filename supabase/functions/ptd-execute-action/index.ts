@@ -164,11 +164,12 @@ async function executeAction(
       }
 
       case 'update_lead_status': {
+        // Using unified schema: contacts table
         const { email, status, notes } = params;
         const { data, error } = await supabase
-          .from('enhanced_leads')
+          .from('contacts')
           .update({ 
-            conversion_status: status,
+            lead_status: status,
             updated_at: new Date().toISOString()
           })
           .eq('email', email)
@@ -226,12 +227,12 @@ async function executeAction(
       }
 
       case 'mark_lead_contacted': {
+        // Using unified schema: contacts table
         const { email, contact_method, notes } = params;
         const { error } = await supabase
-          .from('enhanced_leads')
+          .from('contacts')
           .update({ 
-            first_contact_at: new Date().toISOString(),
-            follow_up_status: 'contacted',
+            lead_status: 'contacted',
             updated_at: new Date().toISOString()
           })
           .eq('email', email);

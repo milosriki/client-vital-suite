@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.26.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,7 @@ TABLES (58):
 - client_health_scores: email, health_score, health_zone (purple/green/yellow/red), calculated_at, churn_risk_score
 - contacts: email, first_name, last_name, phone, lifecycle_stage, owner_name, lead_status
 - deals: deal_name, deal_value, stage, status, close_date, pipeline
-- enhanced_leads: email, first_name, last_name, lead_score, lead_quality, conversion_status, campaign_name
+- contacts: email, first_name, last_name, lifecycle_stage, lead_status, owner_name (unified schema - use this instead of enhanced_leads)
 - call_records: caller_number, transcription, call_outcome, duration_seconds, call_score
 - coach_performance: coach_name, avg_client_health, clients_at_risk, performance_score
 - intervention_log: status, action_type, recommended_action, outcome
@@ -458,25 +459,26 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         const { action, query, status, limit = 20 } = input;
         
         if (action === "get_all") {
-          const { data } = await supabase.from('enhanced_leads').select('*').order('created_at', { ascending: false }).limit(limit);
+          const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
         
         if (action === "search" && query) {
           const searchTerm = `%${query}%`;
-          const { data } = await supabase.from('enhanced_leads').select('*')
+          const { data } = await supabase.from('contacts').select('*')
             .or(`email.ilike.${searchTerm},first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`)
             .limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
         
         if (action === "get_enhanced") {
-          const { data } = await supabase.from('enhanced_leads').select('*').order('lead_score', { ascending: false }).limit(limit);
+          // Use contacts table with lead_status for scoring
+          const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify(data || []);
         }
         
         if (action === "get_by_status") {
-          const { data } = await supabase.from('enhanced_leads').select('*').eq('conversion_status', status || 'new').limit(limit);
+          const { data } = await supabase.from('contacts').select('*').eq('lead_status', status || 'new').limit(limit);
           return JSON.stringify(data || []);
         }
         
@@ -715,24 +717,21 @@ async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 
-  const systemPrompt = `You are PTD SUPER-INTELLIGENCE AGENT - an AI that controls the ENTIRE PTD Fitness business system.
-
-=== CRITICAL: ALWAYS USE LIVE DATA ===
-⚠️ NEVER use cached data or past learnings for data queries
-⚠️ ALWAYS call the appropriate tool to fetch FRESH data from the database
-⚠️ Use uploaded knowledge documents for FORMULAS, RULES, and BUSINESS LOGIC only
-
-=== UPLOADED KNOWLEDGE DOCUMENTS (RAG) ===
-${ragKnowledge || 'No relevant uploaded documents found.'}
+  // Build unified prompt with all components
+  const systemPrompt = buildUnifiedPromptForEdgeFunction({
+    includeLifecycle: true,
+    includeUltimateTruth: true,
+    includeWorkflows: true,
+    includeROI: true,
+    knowledge: ragKnowledge || '',
+    memory: relevantMemory || '',
+  }) + `
 
 === SYSTEM KNOWLEDGE BASE ===
 ${PTD_SYSTEM_KNOWLEDGE}
 
 === LEARNED PATTERNS ===
 ${learnedPatterns || 'No patterns learned yet.'}
-
-=== MEMORY FROM PAST CONVERSATIONS ===
-${relevantMemory || 'No relevant past conversations found.'}
 
 === CAPABILITIES ===
 ✅ Client data (health scores, calls, deals, activities)
@@ -744,13 +743,10 @@ ${relevantMemory || 'No relevant past conversations found.'}
 ✅ Dashboards (health, revenue, coaches)
 ✅ AI functions (churn predictor, anomaly detector)
 
-=== MANDATORY INSTRUCTIONS ===
-1. ALWAYS call tools to get LIVE database data - NEVER use old values from learnings
-2. For ANY data question, MUST fetch fresh data using appropriate tool
-3. Provide specific numbers, names, actionable insights from CURRENT data
-4. For fraud scans, run stripe_control with fraud_scan
-5. For at-risk clients, use get_at_risk_clients
-6. Be concise but thorough - data must be REAL-TIME`;
+=== ADDITIONAL MANDATORY INSTRUCTIONS ===
+1. For fraud scans, run stripe_control with fraud_scan
+2. For at-risk clients, use get_at_risk_clients
+3. Be concise but thorough - data must be REAL-TIME`;
 
   let iterations = 0;
   const maxIterations = 8;

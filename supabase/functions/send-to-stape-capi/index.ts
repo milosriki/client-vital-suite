@@ -44,8 +44,22 @@ serve(async (req) => {
     const STAPE_URL = 'https://ap.stape.info';
     const CAPIG_IDENTIFIER = 'ecxdsmmg';
     
+    // Stape is optional - if no key, return success but don't send
     if (!STAPE_CAPIG_API_KEY) {
-      throw new Error('STAPE_CAPIG_API_KEY not configured');
+      console.log('⚠️  STAPE_CAPIG_API_KEY not configured - event stored but not sent to Meta CAPI');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          mode,
+          event_id: `evt_${Date.now()}`,
+          message: 'Stape API key not configured - event stored but not sent',
+          stored_only: true
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log('Sending event to Stape CAPI:', {

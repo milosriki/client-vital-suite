@@ -38,8 +38,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    if (!STAPE_CAPIG_API_KEY || !supabaseUrl || !supabaseKey) {
-      throw new Error('Missing required environment variables');
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing required Supabase environment variables');
+    }
+    
+    // Stape is optional - if no key, skip sending but still process events
+    const useStape = !!STAPE_CAPIG_API_KEY;
+    if (!useStape) {
+      console.log('⚠️  STAPE_CAPIG_API_KEY not configured - events will be stored but not sent to Meta CAPI');
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -134,27 +140,47 @@ serve(async (req) => {
         if (event.content_ids) payload.custom_data.content_ids = event.content_ids;
         if (event.num_items) payload.custom_data.num_items = event.num_items;
 
-        // Send to Stape CAPI
-        const stapeResponse = await fetch(`${STAPE_URL}/stape-api/${CAPIG_IDENTIFIER}/v1/event`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${STAPE_CAPIG_API_KEY}`,
-          },
-          body: JSON.stringify(payload),
-        });
+        // Send to Stape CAPI (only if key is configured)
+        if (useStape) {
+          const stapeResponse = await fetch(`${STAPE_URL}/stape-api/${CAPIG_IDENTIFIER}/v1/event`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${STAPE_CAPIG_API_KEY}`,
+            },
+            body: JSON.stringify(payload),
+          });
 
-        const responseData = await stapeResponse.json();
+          const responseData = await stapeResponse.json();
 
-        if (stapeResponse.ok) {
-          // Update event as sent
+          if (stapeResponse.ok) {
+            // Update event as sent
+            const { error: updateError } = await supabase
+              .from('capi_events_enriched')
+              .update({
+                send_status: 'sent',
+                sent_at: new Date().toISOString(),
+                meta_event_id: responseData.event_id || null,
+                meta_response: responseData,
+              })
+              .eq('id', event.id);
+
+            if (updateError) {
+              console.error(`Failed to update event ${event.id}:`, updateError);
+            }
+
+            sentCount++;
+            console.log('Sent event to Stape CAPI:', event.event_id);
+          } else {
+            throw new Error(`Stape API error: ${JSON.stringify(responseData)}`);
+          }
+        } else {
+          // Stape not configured - mark as stored but not sent
           const { error: updateError } = await supabase
             .from('capi_events_enriched')
             .update({
-              send_status: 'sent',
-              sent_at: new Date().toISOString(),
-              meta_event_id: responseData.event_id || null,
-              meta_response: responseData,
+              send_status: 'stored',
+              meta_response: { message: 'Stape API key not configured - event stored but not sent' },
             })
             .eq('id', event.id);
 
@@ -162,10 +188,8 @@ serve(async (req) => {
             console.error(`Failed to update event ${event.id}:`, updateError);
           }
 
-          sentCount++;
-          console.log('Sent event:', event.event_id);
-        } else {
-          throw new Error(`Stape API error: ${JSON.stringify(responseData)}`);
+          sentCount++; // Count as "processed" even though not sent
+          console.log('Stored event (Stape not configured):', event.event_id);
         }
       } catch (err) {
         console.error('Error sending event:', event.event_id, err);

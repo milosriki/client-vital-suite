@@ -3,6 +3,14 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { 
+  LEAD_LIFECYCLE_PROMPT, 
+  UNIFIED_SCHEMA_PROMPT, 
+  AGENT_ALIGNMENT_PROMPT,
+  ULTIMATE_TRUTH_PROMPT,
+  ROI_MANAGERIAL_PROMPT,
+  HUBSPOT_WORKFLOWS_PROMPT 
+} from "../_shared/unified-prompts.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY'); // Used for Gemini API
@@ -267,16 +275,16 @@ async function buildBusinessContext(supabase: any) {
         };
     }
 
-    // 2. Lead Pipeline
+    // 2. Lead Pipeline (using unified schema - contacts table)
     const { data: leadData } = await supabase
-        .from('enhanced_leads')
-        .select('lead_score, status, created_at')
+        .from('contacts')
+        .select('lifecycle_stage, lead_status, created_at')
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
     if (leadData) {
-        const hotLeads = leadData.filter((l: any) => l.lead_score >= 70).length;
-        const warmLeads = leadData.filter((l: any) => l.lead_score >= 40 && l.lead_score < 70).length;
-        const coldLeads = leadData.filter((l: any) => l.lead_score < 40).length;
+        const hotLeads = leadData.filter((l: any) => l.lifecycle_stage === 'marketingqualifiedlead' || l.lifecycle_stage === 'salesqualifiedlead').length;
+        const warmLeads = leadData.filter((l: any) => l.lifecycle_stage === 'lead').length;
+        const coldLeads = leadData.filter((l: any) => l.lead_status === 'closed' || l.lead_status === 'lost').length;
         context.metrics.leads = {
             total30Days: leadData.length,
             hot: hotLeads,
@@ -453,7 +461,7 @@ async function generateWithClaude(query: string, persona: any, context: any) {
         body: JSON.stringify({
             model: 'claude-3-sonnet-20240229',
             max_tokens: 4000,
-            system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
+            system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
             messages: [{
                 role: 'user',
                 content: query
@@ -475,7 +483,7 @@ async function generateWithGemini(query: string, persona: any, context: any) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
+                        text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
                     }]
                 }],
                 generationConfig: {
