@@ -28,8 +28,8 @@ export default function MetaDashboard() {
   });
 
   // Calculate aggregates
-  const totals = insights?.reduce(
-    (acc, row) => ({
+  const totals = (insights as any[] | undefined)?.reduce(
+    (acc: { spend: number; impressions: number; clicks: number }, row: any) => ({
       spend: acc.spend + (Number(row.spend) || 0),
       impressions: acc.impressions + (Number(row.impressions) || 0),
       clicks: acc.clicks + (Number(row.clicks) || 0),

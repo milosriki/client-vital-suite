@@ -908,19 +908,20 @@ serve(async (req) => {
         e.type === 'account.updated' || e.type === 'capability.updated'
       );
 
-      const ipAddresses: Record<string, { count: number; events: any[] }> = {};
+      const forensicIpAddresses: Record<string, { count: number; events: any[]; userIds: Set<string>; adminApps: Set<string> }> = {};
       accountUpdateEvents.forEach((event: any) => {
-        // Extract IP from request object if available
         const ip = event.request?.ip_address || event.request?.ip || null;
         const userId = event.request?.user_id || null;
         const adminApp = event.request?.admin_app_name || null;
 
         if (ip) {
-          if (!ipAddresses[ip]) {
-            ipAddresses[ip] = { count: 0, events: [] };
+          if (!forensicIpAddresses[ip]) {
+            forensicIpAddresses[ip] = { count: 0, events: [], userIds: new Set(), adminApps: new Set() };
           }
-          ipAddresses[ip].count++;
-          ipAddresses[ip].events.push({
+          forensicIpAddresses[ip].count++;
+          if (userId) forensicIpAddresses[ip].userIds.add(userId);
+          if (adminApp) forensicIpAddresses[ip].adminApps.add(adminApp);
+          forensicIpAddresses[ip].events.push({
             eventId: event.id,
             eventType: event.type,
             userId,
@@ -931,82 +932,29 @@ serve(async (req) => {
         }
       });
 
-      // Check for unknown IPs (not from your known whitelist)
-      const knownIPs = (Deno.env.get('AUTHORIZED_IP_ADDRESSES') || '').split(',').filter(Boolean);
-      const unknownIPs = Object.entries(ipAddresses).filter(([ip]) => !knownIPs.includes(ip));
+      const forensicKnownIPs = (Deno.env.get('AUTHORIZED_IP_ADDRESSES') || '').split(',').filter(Boolean);
+      const forensicUnknownIPs = Object.entries(forensicIpAddresses).filter(([ip]) => forensicKnownIPs.length > 0 && !forensicKnownIPs.includes(ip));
 
-      if (unknownIPs.length > 0) {
+      if (forensicUnknownIPs.length > 0) {
         anomalies.push({
           type: "UNAUTHORIZED_IP_ACCESS",
           severity: "critical",
-          message: `${unknownIPs.length} unknown IP addresses made account changes!`,
+          message: `${forensicUnknownIPs.length} unknown IP addresses made account changes!`,
           details: {
-            unknownIPs: unknownIPs.map(([ip, data]) => ({
-              ipAddress: ip,
-              eventCount: data.count,
-              events: data.events.slice(0, 5),
-              userIds: [...new Set(data.events.map((e: any) => e.userId).filter(Boolean))],
-              adminApps: [...new Set(data.events.map((e: any) => e.adminApp).filter(Boolean))]
-            })),
-            knownIPs: knownIPs,
-            note: "Set AUTHORIZED_IP_ADDRESSES env var with comma-separated IPs to whitelist"
-          }
-        });
-      }
-
-      // ====== FORENSIC CHECK 7: IP ADDRESS EXTRACTION FROM EVENTS ======
-      // Extract IP addresses from account.updated and capability.updated events
-      const accountUpdateEvents = (events.data || []).filter((e: any) =>
-        e.type === 'account.updated' || e.type === 'capability.updated' || e.type === 'payout.created'
-      );
-
-      const ipAddresses: Record<string, { count: number; events: any[]; userIds: Set<string>; adminApps: Set<string> }> = {};
-      accountUpdateEvents.forEach((event: any) => {
-        // Extract IP from request object if available
-        const ip = event.request?.ip_address || event.request?.ip || null;
-        const userId = event.request?.user_id || null;
-        const adminApp = event.request?.admin_app_name || null;
-
-        if (ip) {
-          if (!ipAddresses[ip]) {
-            ipAddresses[ip] = { count: 0, events: [], userIds: new Set(), adminApps: new Set() };
-          }
-          ipAddresses[ip].count++;
-          if (userId) ipAddresses[ip].userIds.add(userId);
-          if (adminApp) ipAddresses[ip].adminApps.add(adminApp);
-          ipAddresses[ip].events.push({
-            eventId: event.id,
-            eventType: event.type,
-            userId,
-            adminApp,
-            timestamp: event.created,
-            requestId: event.request?.id
-          });
-        }
-      });
-
-      // Check for unknown IPs (not from your known whitelist)
-      const knownIPs = (Deno.env.get('AUTHORIZED_IP_ADDRESSES') || '').split(',').filter(Boolean);
-      const unknownIPs = Object.entries(ipAddresses).filter(([ip]) => knownIPs.length > 0 && !knownIPs.includes(ip));
-
-      if (unknownIPs.length > 0) {
-        anomalies.push({
-          type: "UNAUTHORIZED_IP_ACCESS",
-          severity: "critical",
-          message: `${unknownIPs.length} unknown IP addresses made account changes!`,
-          details: {
-            unknownIPs: unknownIPs.map(([ip, data]) => ({
+            unknownIPs: forensicUnknownIPs.map(([ip, data]) => ({
               ipAddress: ip,
               eventCount: data.count,
               events: data.events.slice(0, 5),
               userIds: Array.from(data.userIds),
               adminApps: Array.from(data.adminApps)
             })),
-            knownIPs: knownIPs,
+            knownIPs: forensicKnownIPs,
             note: "Set AUTHORIZED_IP_ADDRESSES env var with comma-separated IPs to whitelist"
           }
         });
       }
+
+      // (Duplicate check removed - already handled above)
 
       // Calculate security score
       let securityScore = 100;
@@ -1206,6 +1154,25 @@ serve(async (req) => {
 
       const anomalies: AnomalyResult[] = [];
 
+      // Extract IP addresses from events for this audit
+      const accountUpdateEventsAudit = (events.data || []).filter((e: any) =>
+        e.type === 'account.updated' || e.type === 'capability.updated'
+      );
+      const auditIpAddresses: Record<string, { count: number; events: any[]; userIds: Set<string>; adminApps: Set<string> }> = {};
+      accountUpdateEventsAudit.forEach((event: any) => {
+        const ip = event.request?.ip_address || event.request?.ip || null;
+        const userId = event.request?.user_id || null;
+        const adminApp = event.request?.admin_app_name || null;
+        if (ip) {
+          if (!auditIpAddresses[ip]) auditIpAddresses[ip] = { count: 0, events: [], userIds: new Set(), adminApps: new Set() };
+          auditIpAddresses[ip].count++;
+          if (userId) auditIpAddresses[ip].userIds.add(userId);
+          if (adminApp) auditIpAddresses[ip].adminApps.add(adminApp);
+          auditIpAddresses[ip].events.push({ eventId: event.id, eventType: event.type, userId, adminApp, timestamp: event.created });
+        }
+      });
+      const auditKnownIPs = (Deno.env.get('AUTHORIZED_IP_ADDRESSES') || '').split(',').filter(Boolean);
+
       // Analyze for anomalies
       const totalRevenue = (payments.data || []).reduce((sum: number, p: any) => p.status === 'succeeded' ? sum + p.amount : sum, 0);
       const totalPayouts = (payouts.data || []).reduce((sum: number, p: any) => p.status === 'paid' ? sum + p.amount : sum, 0);
@@ -1239,12 +1206,12 @@ serve(async (req) => {
           transfers: transfers.data, events: events.data, webhookEndpoints: webhookEndpoints.data,
           disputes: disputes.data, recentCustomers: customers.data, account,
           setupIntents: setupIntents.data || [],
-          ipAddresses: Object.entries(ipAddresses).map(([ip, data]) => ({
+          ipAddresses: Object.entries(auditIpAddresses).map(([ip, data]: [string, { count: number; events: any[]; userIds: Set<string>; adminApps: Set<string> }]) => ({
             ip,
             eventCount: data.count,
             userIds: Array.from(data.userIds),
             adminApps: Array.from(data.adminApps),
-            isKnown: knownIPs.includes(ip)
+            isKnown: auditKnownIPs.includes(ip)
           })),
           anomalies, securityScore: Math.max(0, securityScore), auditTimestamp: new Date().toISOString()
         }),

@@ -82,14 +82,9 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
     setIsStreaming(true);
 
     try {
-      // Use supabase client for proper connection (works standalone, not Lovable-dependent)
-      // Note: Using fetch for streaming support, but using supabase client's URL/key
-      const supabaseUrl = supabase.supabaseUrl;
-      const supabaseKey = supabase.supabaseKey;
-      
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Supabase client not properly initialized");
-      }
+      // Use hardcoded values for standalone operation
+      const supabaseUrl = "https://ztjndilxurtsfqdsvfds.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo";
       
       const response = await fetch(`${supabaseUrl}/functions/v1/stripe-payouts-ai`, {
         method: "POST",
