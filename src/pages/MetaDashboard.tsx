@@ -1,277 +1,208 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Activity, ShoppingCart, RefreshCw, Heart } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, TrendingUp, DollarSign, MousePointer, Eye, Activity } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 export default function MetaDashboard() {
-  const [loading, setLoading] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, any>>({});
-  
-  // Form states
-  const [testEmail, setTestEmail] = useState('test@personaltrainersdubai.com');
-  const [testValue, setTestValue] = useState('500');
-  const [backfillUrl, setBackfillUrl] = useState('');
-  const [healthWebhookUrl, setHealthWebhookUrl] = useState('');
-  
-  // Use same domain as frontend for Vercel serverless functions
-  const API_BASE = import.meta.env.VITE_META_CAPI_URL || window.location.origin;
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleHealthCheck = async () => {
-    setLoading('health');
-    try {
-      const response = await fetch(`${API_BASE}/health`);
-      const data = await response.json();
-      setResults({ ...results, health: data });
-      toast.success('Health check completed');
-    } catch (error: any) {
-      toast.error(`Health check failed: ${error.message}`);
-      setResults({ ...results, health: { error: error.message } });
-    } finally {
-      setLoading(null);
-    }
-  };
+  // Fetch Facebook Ads Insights from Supabase
+  const { data: insights, isLoading, refetch } = useQuery({
+    queryKey: ['facebook-ads-insights'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('facebook_ads_insights' as any) // Type assertion until types are regenerated
+        .select('*')
+        .order('date', { ascending: false })
+        .order('spend', { ascending: false });
 
-  const handleTestPurchase = async () => {
-    setLoading('purchase');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Calculate aggregates
+  const totals = insights?.reduce(
+    (acc, row) => ({
+      spend: acc.spend + (Number(row.spend) || 0),
+      impressions: acc.impressions + (Number(row.impressions) || 0),
+      clicks: acc.clicks + (Number(row.clicks) || 0),
+    }),
+    { spend: 0, impressions: 0, clicks: 0 }
+  );
+
+  const cpc = totals && totals.clicks > 0 ? totals.spend / totals.clicks : 0;
+  const ctr = totals && totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+
+  const handleSync = async () => {
+    setIsSyncing(true);
     try {
-      const response = await fetch(`${API_BASE}/api/events/Purchase`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_time: Math.floor(Date.now() / 1000),
-          event_id: `test_${Date.now()}`,
-          user_data: {
-            email: testEmail,
-            external_id: `test_client_${Date.now()}`
-          },
-          custom_data: {
-            currency: 'AED',
-            value: parseFloat(testValue),
-            content_name: 'Test Purchase from Dashboard'
-          }
-        })
+      const { data, error } = await supabase.functions.invoke('fetch-facebook-insights', {
+        body: { date_preset: 'today' } // Or 'maximum' for historical
       });
-      
-      const data = await response.json();
-      setResults({ ...results, purchase: data });
-      
-      if (response.ok) {
-        toast.success('Test purchase sent successfully');
-      } else {
-        toast.error('Test purchase failed');
-      }
-    } catch (error: any) {
-      toast.error(`Purchase failed: ${error.message}`);
-      setResults({ ...results, purchase: { error: error.message } });
-    } finally {
-      setLoading(null);
-    }
-  };
 
-  const handleTriggerBackfill = async () => {
-    if (!backfillUrl) {
-      toast.error('Please enter backfill webhook URL');
-      return;
-    }
-    
-    setLoading('backfill');
-    try {
-      const response = await fetch(backfillUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          trigger: 'backfill', 
-          timestamp: Date.now() 
-        })
-      });
-      
-      const data = await response.json();
-      setResults({ ...results, backfill: data });
-      
-      if (response.ok) {
-        toast.success('Backfill triggered successfully');
-      } else {
-        toast.error('Backfill trigger failed');
-      }
-    } catch (error: any) {
-      toast.error(`Backfill failed: ${error.message}`);
-      setResults({ ...results, backfill: { error: error.message } });
-    } finally {
-      setLoading(null);
-    }
-  };
+      if (error) throw error;
 
-  const handleHealthWebhook = async () => {
-    if (!healthWebhookUrl) {
-      toast.error('Please enter health webhook URL');
-      return;
-    }
-    
-    setLoading('healthWebhook');
-    try {
-      const response = await fetch(healthWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          trigger: 'health_check', 
-          timestamp: Date.now() 
-        })
-      });
-      
-      const data = await response.json();
-      setResults({ ...results, healthWebhook: data });
-      
-      if (response.ok) {
-        toast.success('Health webhook triggered successfully');
-      } else {
-        toast.error('Health webhook failed');
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to sync');
       }
-    } catch (error: any) {
-      toast.error(`Health webhook failed: ${error.message}`);
-      setResults({ ...results, healthWebhook: { error: error.message } });
-    } finally {
-      setLoading(null);
-    }
-  };
 
-  const ResultDisplay = ({ result }: { result: any }) => {
-    if (!result) return null;
-    
-    return (
-      <div className="mt-4 p-3 sm:p-4 bg-muted rounded-lg border overflow-hidden">
-        <pre className="text-xs overflow-x-auto max-h-64 whitespace-pre-wrap break-words">
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      </div>
-    );
+      toast.success(`Synced ${data.count} ad insights from Facebook`);
+      refetch();
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast.error(`Sync failed: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Meta CAPI Proxy Dashboard</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-2">
-          Timezone: Asia/Dubai | Currency: AED
-        </p>
+    <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Facebook Ads Performance</h1>
+          <p className="text-muted-foreground">Live insights from your active campaigns</p>
+        </div>
+        <Button onClick={handleSync} disabled={isSyncing}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Syncing...' : 'Sync Live Data'}
+        </Button>
       </div>
 
-      {/* Health Check */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-          <h2 className="text-lg sm:text-xl font-semibold">Health Check</h2>
-        </div>
-        <Button 
-          onClick={handleHealthCheck} 
-          disabled={loading === 'health'}
-          className="w-full sm:w-auto"
-        >
-          {loading === 'health' ? 'Checking...' : 'Run Health Check'}
-        </Button>
-        <ResultDisplay result={results.health} />
-      </Card>
-
-      {/* Test Purchase */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-          <h2 className="text-lg sm:text-xl font-semibold">Send Test Purchase</h2>
-        </div>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="test-email">Email</Label>
-              <Input 
-                id="test-email"
-                type="email"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-                placeholder="test@personaltrainersdubai.com"
-                className="w-full"
-              />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">Total Spend</span>
+              <DollarSign className="h-4 w-4 text-green-500" />
             </div>
-            <div>
-              <Label htmlFor="test-value">Value (AED)</Label>
-              <Input 
-                id="test-value"
-                type="number"
-                value={testValue}
-                onChange={(e) => setTestValue(e.target.value)}
-                placeholder="500"
-                className="w-full"
-              />
+            <div className="text-2xl font-bold">
+              AED {(totals?.spend || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-          </div>
-          <Button 
-            onClick={handleTestPurchase} 
-            disabled={loading === 'purchase'}
-            className="w-full sm:w-auto"
-          >
-            {loading === 'purchase' ? 'Sending...' : 'Send Test Purchase'}
-          </Button>
-        </div>
-        <ResultDisplay result={results.purchase} />
-      </Card>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">Impressions</span>
+              <Eye className="h-4 w-4 text-blue-500" />
+            </div>
+            <div className="text-2xl font-bold">
+              {(totals?.impressions || 0).toLocaleString()}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Backfill */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-          <h2 className="text-lg sm:text-xl font-semibold">Trigger Backfill</h2>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="backfill-url">Backfill Webhook URL</Label>
-            <Input 
-              id="backfill-url"
-              type="url"
-              value={backfillUrl}
-              onChange={(e) => setBackfillUrl(e.target.value)}
-              placeholder="https://your-webhook.com/backfill"
-              className="w-full"
-            />
-          </div>
-          <Button 
-            onClick={handleTriggerBackfill} 
-            disabled={loading === 'backfill'}
-            className="w-full sm:w-auto"
-          >
-            {loading === 'backfill' ? 'Triggering...' : 'Trigger Backfill'}
-          </Button>
-        </div>
-        <ResultDisplay result={results.backfill} />
-      </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">Clicks</span>
+              <MousePointer className="h-4 w-4 text-purple-500" />
+            </div>
+            <div className="text-2xl font-bold">
+              {(totals?.clicks || 0).toLocaleString()}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Health Webhook */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-          <h2 className="text-lg sm:text-xl font-semibold">Run Health Check</h2>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="health-webhook-url">Health Webhook URL</Label>
-            <Input 
-              id="health-webhook-url"
-              type="url"
-              value={healthWebhookUrl}
-              onChange={(e) => setHealthWebhookUrl(e.target.value)}
-              placeholder="https://your-webhook.com/health"
-              className="w-full"
-            />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">CTR / CPC</span>
+              <Activity className="h-4 w-4 text-orange-500" />
+            </div>
+            <div className="flex gap-4">
+              <div>
+                <div className="text-2xl font-bold">{ctr.toFixed(2)}%</div>
+                <div className="text-xs text-muted-foreground">CTR</div>
+              </div>
+              <div className="h-10 w-px bg-border"></div>
+              <div>
+                <div className="text-2xl font-bold">AED {cpc.toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground">CPC</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Insights Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Ad Performance (Live)</CardTitle>
+          <CardDescription>Breakdown by ad creative</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Ad Name</TableHead>
+                  <TableHead className="text-right">Spend</TableHead>
+                  <TableHead className="text-right">Impr.</TableHead>
+                  <TableHead className="text-right">Clicks</TableHead>
+                  <TableHead className="text-right">CTR</TableHead>
+                  <TableHead className="text-right">CPC</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center h-24">
+                      Loading live insights...
+                    </TableCell>
+                  </TableRow>
+                ) : insights && insights.length > 0 ? (
+                  insights.map((row: any) => (
+                    <TableRow key={`${row.date}-${row.ad_id}`}>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(row.date), 'MMM d')}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={row.campaign_name}>
+                        {row.campaign_name}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={row.ad_name}>
+                        {row.ad_name}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        AED {Number(row.spend).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {Number(row.impressions).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {Number(row.clicks).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {(Number(row.ctr) || 0).toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {(Number(row.cpc) || 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                      No data found. Click "Sync Live Data" to fetch from Facebook.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
-          <Button 
-            onClick={handleHealthWebhook} 
-            disabled={loading === 'healthWebhook'}
-            className="w-full sm:w-auto"
-          >
-            {loading === 'healthWebhook' ? 'Running...' : 'Run Health Webhook'}
-          </Button>
-        </div>
-        <ResultDisplay result={results.healthWebhook} />
+        </CardContent>
       </Card>
     </div>
   );

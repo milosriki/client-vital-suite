@@ -1,177 +1,83 @@
-# Supabase CLI
+# Client Vital Suite - Agentic Intelligence Platform
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+This project is a comprehensive **Agentic AI Platform** for Personal Trainers Dubai (PTD), designed to automate business intelligence, client health tracking, and sales operations.
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+It has been migrated from a legacy n8n-based architecture to a fully serverless **Supabase Edge Functions** architecture.
 
-This repository contains all the functionality for Supabase CLI.
+## 🚀 Key Features
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+-   **Agentic Core**: 53+ specialized AI agents running on Supabase Edge Functions.
+-   **Live Dashboards**: Real-time React frontend for monitoring business health.
+-   **Facebook Ads Integration**: Live ad spend, ROAS, and performance tracking (Direct Marketing API).
+-   **HubSpot Sync**: Two-way sync for contacts, deals, and activities.
+-   **Stripe Intelligence**: Fraud detection and payout analysis.
+-   **Voice Chat**: Talk directly to your business data using Web Speech API.
 
-## Getting started
+## 🏗 Architecture
 
-### Install the CLI
+### Frontend
+-   **Framework**: React + Vite + TypeScript
+-   **UI Library**: Shadcn/ui + Tailwind CSS
+-   **Hosting**: Vercel (recommended) or any static host
 
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+### Backend (Supabase)
+-   **Database**: PostgreSQL with pgvector for AI memory.
+-   **Edge Functions**: Deno/TypeScript serverless functions replacing all n8n workflows.
+-   **Automation**: `pg_cron` handles all scheduled tasks (daily health scores, syncs, reports).
 
-```bash
-npm i supabase --save-dev
-```
+## 🤖 Active Agents & Functions
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+| Function | Purpose | Schedule |
+| :--- | :--- | :--- |
+| `health-calculator` | Calculates client health scores (0-100) | Daily 9 AM |
+| `fetch-facebook-insights` | Syncs ad spend & ROAS from Meta | Daily 2 AM |
+| `business-intelligence` | Aggregates daily KPIs | Daily 3 AM |
+| `daily-report` | Generates & sends executive summary | Daily 6 PM |
+| `agent-analyst` | On-demand business analyst (Claude 3.5 Sonnet) | On Request |
+| `stripe-forensics` | Detects payout anomalies & fraud | On Request |
+| `callgear-sentinel` | Real-time call monitoring & anti-fraud | Webhook |
 
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
+## 🛠 Setup & Deployment
 
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+### 1. Prerequisites
+-   Supabase Project
+-   Facebook Marketing API Token
+-   HubSpot API Key
+-   Stripe Secret Key
+-   Anthropic API Key (for Claude agents)
 
-<details>
-  <summary><b>macOS</b></summary>
-
-  Available via [Homebrew](https://brew.sh). To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Windows</b></summary>
-
-  Available via [Scoop](https://scoop.sh). To install:
-
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
-
-  To upgrade:
-
-  ```powershell
-  scoop update supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Linux</b></summary>
-
-  Available via [Homebrew](https://brew.sh) and Linux packages.
-
-  #### via Homebrew
-
-  To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-
-  #### via Linux packages
-
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
-
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
-
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
-
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
-
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
-
-<details>
-  <summary><b>Other Platforms</b></summary>
-
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
-
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
-
-  Add a symlink to the binary in `$PATH` for easier access:
-
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
-
-  This works on other non-standard Linux distros.
-</details>
-
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
-
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
-
-  ```bash
-  pkgx install supabase
-  ```
-
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
-
-### Run the CLI
+### 2. Environment Variables (Supabase Secrets)
+Set these in your Supabase Dashboard > Edge Functions > Secrets:
 
 ```bash
-supabase bootstrap
+FB_ACCESS_TOKEN=...
+FB_AD_ACCOUNT_ID=...
+HUBSPOT_API_KEY=...
+STRIPE_SECRET_KEY=...
+ANTHROPIC_API_KEY=...
 ```
 
-Or using npx:
-
+### 3. Deploy Functions
 ```bash
-npx supabase bootstrap
+supabase functions deploy --no-verify-jwt
 ```
 
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
-
-## Docs
-
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
-
-## Breaking changes
-
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
-
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
-
-## Developing
-
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
+### 4. Deploy Database
+```bash
+supabase db push
 ```
+
+## 📊 Dashboards
+
+-   **/dashboard**: Main Executive View (Health, Revenue, Alerts)
+-   **/meta-dashboard**: Live Facebook Ads Performance (Spend vs ROAS)
+-   **/sales-pipeline**: HubSpot Funnel & Call Tracking
+-   **/stripe-intelligence**: Financial Forensics & Payouts
+
+## 🔄 Legacy Migration Note
+**n8n has been completely removed.** All workflows (Daily Calculator, Monthly Coach Review, etc.) now run natively on Supabase.
+-   **Old**: n8n Webhook -> Postgres
+-   **New**: pg_cron -> Edge Function -> Postgres
+
+## 🤝 Support
+For issues with the AI agents, check the `function_logs` in Supabase.
