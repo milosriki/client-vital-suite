@@ -28,6 +28,7 @@ import UltimateCEO from "./pages/UltimateCEO";
 import StripeIntelligence from "./pages/StripeIntelligence";
 import AuditTrail from "./pages/AuditTrail";
 import WarRoom from "./pages/WarRoom";
+import MarketingStressTest from "./pages/MarketingStressTest";
 import "./index.css";
 
 // Start background learning on app init
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       { path: "/yesterday-bookings", element: <YesterdayBookings /> },
       { path: "/hubspot-live", element: <HubSpotLiveData /> },
       { path: "/ultimate-ceo", element: <UltimateCEO /> },
+      { path: "/marketing-stress-test", element: <MarketingStressTest /> },
       { path: "*", element: <NotFound /> },
     ],
   },
