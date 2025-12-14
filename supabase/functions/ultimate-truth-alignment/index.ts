@@ -180,7 +180,7 @@ serve(async (req) => {
         p_time_aligned: true, // Simplified - could check time windows
       });
 
-      alignedEvent.confidence_score = confidenceScore || 0;
+      (alignedEvent as any).confidence_score = confidenceScore || 0;
       alignedEvents.push(alignedEvent);
     }
 
@@ -219,11 +219,11 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Ultimate Truth] Error:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         success: false 
       }),
       {

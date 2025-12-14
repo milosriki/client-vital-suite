@@ -442,11 +442,7 @@ async function lookupClientsByEmail(emails: string[]) {
       .in("email", emails);
     results.leads = leadsData || [];
 
-    // Using unified schema: contacts table instead of enhanced_leads
-    const { data: contactsData } = await supabase
-      .from("contacts")
-      .select("*")
-      .in("email", emails);
+    // Add contacts to leads as well for unified view
     if (contactsData?.length) {
       results.leads = [...results.leads, ...contactsData];
     }
