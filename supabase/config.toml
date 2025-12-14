@@ -213,3 +213,23 @@ verify_jwt = false
 
 [functions.auto-reassign-leads]
 verify_jwt = false
+
+# ============================================
+# RECENTLY ADDED FUNCTIONS (Dec 14, 2025)
+# ============================================
+
+# Marketing Stress Test - 20 Questions System
+[functions.marketing-stress-test]
+verify_jwt = false
+
+# Lightweight HubSpot Data Sync
+[functions.sync-hubspot-data]
+verify_jwt = false
+
+# Ultimate Truth Alignment Checker
+[functions.ultimate-truth-alignment]
+verify_jwt = false
+
+# API Key Verification Tool
+[functions.verify-all-keys]
+verify_jwt = false
