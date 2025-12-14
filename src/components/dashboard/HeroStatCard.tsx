@@ -69,32 +69,36 @@ export function HeroStatCard({
 
   const variantStyles = {
     default: {
-      border: "border-primary/10 hover:border-primary/30",
+      border: "border-border/50 hover:border-primary/40",
       gradient: "from-primary/5 via-transparent to-transparent",
-      iconBg: "bg-primary/10",
+      iconBg: "bg-primary/10 ring-1 ring-primary/20",
       iconColor: "text-primary",
-      glow: "hover:shadow-glow-sm",
+      glow: "hover:shadow-lg hover:shadow-primary/5",
+      cardBg: "bg-card/80",
     },
     success: {
-      border: "border-success/10 hover:border-success/30",
-      gradient: "from-success/5 via-transparent to-transparent",
-      iconBg: "bg-success/10",
+      border: "border-success/20 hover:border-success/50",
+      gradient: "from-success/8 via-success/3 to-transparent",
+      iconBg: "bg-success/15 ring-1 ring-success/30",
       iconColor: "text-success",
-      glow: "hover:shadow-glow-success",
+      glow: "hover:shadow-lg hover:shadow-success/10",
+      cardBg: "bg-gradient-to-br from-success/5 to-card/80",
     },
     warning: {
-      border: "border-warning/10 hover:border-warning/30",
-      gradient: "from-warning/5 via-transparent to-transparent",
-      iconBg: "bg-warning/10",
+      border: "border-warning/20 hover:border-warning/50",
+      gradient: "from-warning/8 via-warning/3 to-transparent",
+      iconBg: "bg-warning/15 ring-1 ring-warning/30",
       iconColor: "text-warning",
-      glow: "hover:shadow-glow-warning",
+      glow: "hover:shadow-lg hover:shadow-warning/10",
+      cardBg: "bg-gradient-to-br from-warning/5 to-card/80",
     },
     danger: {
-      border: "border-destructive/10 hover:border-destructive/30",
-      gradient: "from-destructive/5 via-transparent to-transparent",
-      iconBg: "bg-destructive/10",
+      border: "border-destructive/20 hover:border-destructive/50",
+      gradient: "from-destructive/8 via-destructive/3 to-transparent",
+      iconBg: "bg-destructive/15 ring-1 ring-destructive/30",
       iconColor: "text-destructive",
-      glow: "hover:shadow-glow-danger",
+      glow: "hover:shadow-lg hover:shadow-destructive/10",
+      cardBg: "bg-gradient-to-br from-destructive/5 to-card/80",
     },
   };
 
@@ -140,11 +144,12 @@ export function HeroStatCard({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "group relative overflow-hidden rounded-xl border bg-card/50 backdrop-blur-sm p-5 cursor-pointer transition-all duration-300 animate-fade-up",
+        "group relative overflow-hidden rounded-2xl border backdrop-blur-sm p-5 sm:p-6 cursor-pointer transition-all duration-300 animate-fade-up",
+        styles.cardBg,
         styles.border,
         styles.glow,
         pulse && "animate-glow-pulse",
-        "hover:-translate-y-1"
+        "hover:-translate-y-1.5 hover:scale-[1.02]"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >

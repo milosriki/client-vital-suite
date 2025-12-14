@@ -67,36 +67,44 @@ export function TodaySnapshot() {
   ];
 
   return (
-    <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '350ms' }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-muted/20 p-6 animate-fade-up shadow-sm hover:shadow-md transition-shadow duration-300" style={{ animationDelay: '350ms' }}>
+      {/* Decorative gradient */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-2xl" />
+      
+      <div className="relative flex items-center justify-between mb-5">
         <button 
           onClick={() => navigate('/analytics')}
-          className="text-sm font-medium uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 group"
+          className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 group"
         >
+          <Activity className="h-4 w-4 text-primary" />
           Today's Activity
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+          <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
         </button>
-        <Activity className="h-4 w-4 text-primary animate-pulse" />
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Live</span>
+        </div>
       </div>
       
-      <div className="space-y-2">
+      <div className="relative space-y-1">
         {snapshotStats.map((stat, index) => (
           <TooltipProvider key={stat.label}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button 
                   onClick={() => navigate(stat.href)}
-                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted/30 transition-all duration-200 group border border-transparent hover:border-primary/10"
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-gradient-to-r hover:from-muted/40 hover:to-muted/20 transition-all duration-300 group border border-transparent hover:border-border/50"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
                     <div className={cn(
-                      "p-2.5 rounded-xl transition-all duration-200 group-hover:scale-110",
-                      stat.bgColor
+                      "p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 ring-1",
+                      stat.bgColor,
+                      stat.color.replace('text-', 'ring-') + '/20'
                     )}>
                       <stat.icon className={cn("h-4 w-4", stat.color)} />
                     </div>
-                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                    <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                       {stat.label}
                     </span>
                   </div>
@@ -106,8 +114,9 @@ export function TodaySnapshot() {
                       <div className="skeleton h-7 w-10 rounded" />
                     ) : (
                       <span className={cn(
-                        "stat-number text-xl font-bold transition-colors",
-                        stat.value > 0 ? stat.color : "text-muted-foreground"
+                        "stat-number text-xl font-bold transition-all duration-300",
+                        stat.value > 0 ? stat.color : "text-muted-foreground",
+                        "group-hover:scale-110"
                       )}>
                         {stat.value}
                       </span>

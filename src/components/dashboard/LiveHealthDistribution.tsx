@@ -119,17 +119,22 @@ export function LiveHealthDistribution({ clients, isLoading }: LiveHealthDistrib
   }
 
   return (
-    <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '200ms' }}>
-      <div className="flex items-center justify-between mb-6">
+    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-muted/10 p-6 animate-fade-up shadow-sm hover:shadow-md transition-shadow duration-300" style={{ animationDelay: '200ms' }}>
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-health-purple/5 to-transparent rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-health-green/5 to-transparent rounded-full blur-2xl" />
+      
+      <div className="relative flex items-center justify-between mb-6">
         <div>
           <button 
             onClick={() => navigate('/clients')}
-            className="text-sm font-medium uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 group"
+            className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 group"
           >
+            <Users className="h-4 w-4 text-primary" />
             Client Health Distribution
             <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">→</span>
           </button>
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
             {distribution.total} active clients tracked
           </p>
@@ -137,7 +142,7 @@ export function LiveHealthDistribution({ clients, isLoading }: LiveHealthDistrib
       </div>
 
       {/* Stacked Bar */}
-      <div className="relative h-5 rounded-full overflow-hidden flex mb-8 bg-muted/20 border border-border/50">
+      <div className="relative h-6 rounded-full overflow-hidden flex mb-8 bg-muted/30 border border-border/30 shadow-inner">
         {zoneConfig.map((zone, index) => {
           const percent = distribution.percentages[zone.key as keyof typeof distribution.percentages];
           const count = distribution.zones[zone.key as keyof typeof distribution.zones];

@@ -20,15 +20,14 @@ export function ExecutiveBriefing({ summary }: ExecutiveBriefingProps) {
   const slaBreaches = summary?.sla_breach_count || 0;
   
   return (
-    <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-card to-card animate-fade-up" style={{ animationDelay: '50ms' }}>
+    <Card className="relative overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card rounded-2xl animate-fade-up shadow-sm hover:shadow-lg transition-shadow duration-300" style={{ animationDelay: '50ms' }}>
       {/* Gradient Border Effect */}
-      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent p-[1px]">
-        <div className="h-full w-full rounded-xl bg-card" />
-      </div>
+      <div className="absolute inset-[0] rounded-2xl bg-gradient-to-br from-primary/20 via-primary/5 to-transparent opacity-50" />
       
       {/* Decorative Elements */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 to-transparent rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-success/5 to-transparent rounded-full blur-2xl" />
+      <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-radial from-primary/10 via-primary/5 to-transparent rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-success/8 to-transparent rounded-full blur-2xl" />
+      <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-gradient-to-bl from-warning/5 to-transparent rounded-full blur-xl" />
       
       <CardContent className="relative p-6">
         <div className="flex items-start gap-5">
