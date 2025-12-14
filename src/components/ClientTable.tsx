@@ -212,7 +212,7 @@ export const ClientTable = ({ clients }: ClientTableProps) => {
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex justify-center">
-                      <TrendIndicator trend={client.health_zone} />
+                      <TrendIndicator trend={client.health_trend || null} />
                     </div>
                   </TableCell>
                   <TableCell 

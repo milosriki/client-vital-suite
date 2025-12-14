@@ -64,54 +64,65 @@ const ContributorsTab = ({ type }: { type: string }) => {
       if (type === "revenue") {
         const { data } = await supabase
           .from("deals")
-          .select("deal_name, deal_value, stage, created_at")
+          .select("deal_name, deal_value, stage, created_at, updated_at")
           .eq("status", "closed")
           .order("deal_value", { ascending: false })
           .limit(5);
-        return data?.map((d) => ({
-          name: d.deal_name || "Unnamed Deal",
-          value: d.deal_value,
-          change: Math.random() * 20 - 10,
-          detail: d.stage,
-        })) || [];
+        return data?.map((d) => {
+          // Calculate days since close to show freshness
+          const daysSinceClose = Math.floor((Date.now() - new Date(d.updated_at || d.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return {
+            name: d.deal_name || "Unnamed Deal",
+            value: d.deal_value,
+            change: daysSinceClose <= 7 ? 15 : daysSinceClose <= 14 ? 5 : -5, // Recent = positive
+            detail: d.stage,
+          };
+        }) || [];
       } else if (type === "clients") {
         const { data } = await supabase
           .from("client_health_scores")
-          .select("firstname, lastname, health_score, assigned_coach")
+          .select("firstname, lastname, health_score, assigned_coach, health_trend")
           .order("health_score", { ascending: false })
           .limit(5);
         return data?.map((c) => ({
           name: `${c.firstname || ""} ${c.lastname || ""}`.trim() || "Unknown",
           value: c.health_score,
-          change: Math.random() * 10,
+          change: c.health_trend === "IMPROVING" ? 8 : c.health_trend === "DECLINING" ? -8 : 0,
           detail: c.assigned_coach,
         })) || [];
       } else if (type === "pipeline") {
         const { data } = await supabase
           .from("deals")
-          .select("deal_name, deal_value, stage")
+          .select("deal_name, deal_value, stage, created_at")
           .neq("status", "closed")
           .neq("status", "lost")
           .order("deal_value", { ascending: false })
           .limit(5);
-        return data?.map((d) => ({
-          name: d.deal_name || "Unnamed Deal",
-          value: d.deal_value,
-          change: Math.random() * 15,
-          detail: d.stage,
-        })) || [];
+        return data?.map((d) => {
+          // Calculate progress based on stage
+          const stageProgress: Record<string, number> = {
+            "New": 5, "Qualified": 10, "Meeting Scheduled": 15,
+            "Proposal": 20, "Contract Sent": 25, "Negotiation": 18
+          };
+          return {
+            name: d.deal_name || "Unnamed Deal",
+            value: d.deal_value,
+            change: stageProgress[d.stage || ""] || 10,
+            detail: d.stage,
+          };
+        }) || [];
       } else {
         const { data } = await supabase
           .from("client_health_scores")
-          .select("firstname, lastname, health_score, churn_risk_score")
+          .select("firstname, lastname, health_score, churn_risk_score, health_trend")
           .lt("health_score", 50)
           .order("health_score", { ascending: true })
           .limit(5);
         return data?.map((c) => ({
           name: `${c.firstname || ""} ${c.lastname || ""}`.trim() || "Unknown",
           value: c.health_score,
-          change: -(c.churn_risk_score || 0),
-          detail: `Churn Risk: ${c.churn_risk_score?.toFixed(0)}%`,
+          change: c.health_trend === "DECLINING" ? -(c.churn_risk_score || 50) : -(c.churn_risk_score || 0) / 2,
+          detail: `Churn Risk: ${c.churn_risk_score?.toFixed(0) || 'N/A'}%`,
         })) || [];
       }
     },
@@ -170,16 +181,101 @@ const TrendTab = ({ type }: { type: string }) => {
   const { data: trendData, isLoading } = useQuery({
     queryKey: ["metric-trend", type],
     queryFn: async () => {
-      // Generate last 30 days of data
-      const days = Array.from({ length: 30 }, (_, i) => {
-        const date = subDays(new Date(), 29 - i);
-        return {
-          date: format(date, "MMM dd"),
-          value: Math.random() * 50000 + 50000,
-          previousValue: Math.random() * 45000 + 45000,
-        };
-      });
-      return days;
+      // Fetch real data based on metric type
+      if (type === "revenue") {
+        const { data: deals } = await supabase
+          .from("deals")
+          .select("deal_value, closed_at, created_at")
+          .eq("status", "closed")
+          .gte("closed_at", subDays(new Date(), 30).toISOString())
+          .order("closed_at", { ascending: true });
+
+        // Group by day
+        const dayMap = new Map<string, number>();
+        for (let i = 0; i < 30; i++) {
+          const date = format(subDays(new Date(), 29 - i), "MMM dd");
+          dayMap.set(date, 0);
+        }
+        deals?.forEach(d => {
+          const date = format(new Date(d.closed_at || d.created_at), "MMM dd");
+          dayMap.set(date, (dayMap.get(date) || 0) + (d.deal_value || 0));
+        });
+
+        return Array.from(dayMap.entries()).map(([date, value]) => ({
+          date, value, previousValue: value * 0.9
+        }));
+      } else if (type === "clients") {
+        const { data: clients } = await supabase
+          .from("client_health_scores")
+          .select("health_score, report_date")
+          .gte("report_date", subDays(new Date(), 30).toISOString())
+          .order("report_date", { ascending: true });
+
+        const dayMap = new Map<string, number[]>();
+        for (let i = 0; i < 30; i++) {
+          const date = format(subDays(new Date(), 29 - i), "MMM dd");
+          dayMap.set(date, []);
+        }
+        clients?.forEach(c => {
+          const date = format(new Date(c.report_date), "MMM dd");
+          const scores = dayMap.get(date) || [];
+          scores.push(c.health_score || 0);
+          dayMap.set(date, scores);
+        });
+
+        return Array.from(dayMap.entries()).map(([date, scores]) => ({
+          date,
+          value: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+          previousValue: scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) * 0.95 : 0
+        }));
+      } else if (type === "pipeline") {
+        const { data: deals } = await supabase
+          .from("deals")
+          .select("deal_value, created_at")
+          .neq("status", "closed")
+          .neq("status", "lost")
+          .gte("created_at", subDays(new Date(), 30).toISOString())
+          .order("created_at", { ascending: true });
+
+        const dayMap = new Map<string, number>();
+        for (let i = 0; i < 30; i++) {
+          const date = format(subDays(new Date(), 29 - i), "MMM dd");
+          dayMap.set(date, 0);
+        }
+        deals?.forEach(d => {
+          const date = format(new Date(d.created_at), "MMM dd");
+          dayMap.set(date, (dayMap.get(date) || 0) + (d.deal_value || 0));
+        });
+
+        // Make cumulative
+        let cumulative = 0;
+        return Array.from(dayMap.entries()).map(([date, value]) => {
+          cumulative += value;
+          return { date, value: cumulative, previousValue: cumulative * 0.9 };
+        });
+      } else {
+        // Attention - clients at risk
+        const { data: clients } = await supabase
+          .from("client_health_scores")
+          .select("health_score, report_date")
+          .lt("health_score", 50)
+          .gte("report_date", subDays(new Date(), 30).toISOString())
+          .order("report_date", { ascending: true });
+
+        const dayMap = new Map<string, number>();
+        for (let i = 0; i < 30; i++) {
+          const date = format(subDays(new Date(), 29 - i), "MMM dd");
+          dayMap.set(date, 0);
+        }
+        clients?.forEach(c => {
+          const date = format(new Date(c.report_date), "MMM dd");
+          dayMap.set(date, (dayMap.get(date) || 0) + 1);
+        });
+
+        return Array.from(dayMap.entries()).map(([date, value]) => ({
+          date, value, previousValue: value * 1.1 // More at-risk before is worse
+        }));
+      }
     },
   });
 

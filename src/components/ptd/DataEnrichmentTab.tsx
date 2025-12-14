@@ -16,17 +16,19 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch pending events queue
+  // Fetch pending events queue with proper aggregation
   const { data: queueStats } = useQuery({
     queryKey: ["queue-stats", mode],
     queryFn: async () => {
+      // Fetch all events and aggregate by status
       const { data, error } = await (supabase
         .from("capi_events_enriched" as any)
-        .select("send_status, count")
+        .select("send_status")
         .eq("mode", mode) as any);
-      
+
       if (error) throw error;
-      
+
+      // Aggregate counts by status
       const stats = {
         pending: 0,
         enriched: 0,
@@ -34,7 +36,21 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
         failed: 0,
       };
 
-      // TODO: Aggregate counts properly
+      if (data && Array.isArray(data)) {
+        data.forEach((event: { send_status: string }) => {
+          const status = event.send_status?.toLowerCase() || 'pending';
+          if (status === 'pending' || status === 'new') {
+            stats.pending++;
+          } else if (status === 'enriched' || status === 'ready') {
+            stats.enriched++;
+          } else if (status === 'sent' || status === 'success' || status === 'completed') {
+            stats.sent++;
+          } else if (status === 'failed' || status === 'error') {
+            stats.failed++;
+          }
+        });
+      }
+
       return stats;
     },
     refetchInterval: 10000, // Refresh every 10 seconds

@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import DashboardTab from "@/components/ptd/DashboardTab";
 import HealthIntelligenceTab from "@/components/ptd/HealthIntelligenceTab";
 import CAPITab from "@/components/ptd/CAPITab";
@@ -23,16 +24,74 @@ export default function PTDControl() {
     const saved = localStorage.getItem("ptd-mode");
     return (saved === "test" || saved === "live") ? saved : "live";
   });
-  
+
   // Save mode changes to localStorage
   useEffect(() => {
     localStorage.setItem("ptd-mode", mode);
   }, [mode]);
-  
-  // Connection status states
-  const [supabaseStatus, setSupabaseStatus] = useState("connected");
-  const [n8nStatus, setN8nStatus] = useState("warning");
-  const [capiStatus, setCapiStatus] = useState("connected");
+
+  // Connection status states - initialized as checking
+  const [supabaseStatus, setSupabaseStatus] = useState("checking");
+  const [n8nStatus, setN8nStatus] = useState("checking");
+  const [capiStatus, setCapiStatus] = useState("checking");
+
+  // Check connection statuses on mount and periodically
+  useEffect(() => {
+    const checkConnections = async () => {
+      // Check Supabase connection
+      try {
+        const { error } = await supabase.from("client_health_scores").select("id").limit(1);
+        setSupabaseStatus(error ? "error" : "connected");
+      } catch {
+        setSupabaseStatus("error");
+      }
+
+      // Check n8n connection via sync_logs (if recent successful syncs exist)
+      try {
+        const { data, error } = await supabase
+          .from("sync_logs")
+          .select("status, created_at")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) {
+          setN8nStatus("warning");
+        } else if (data && data.length > 0) {
+          const lastSync = new Date(data[0].created_at);
+          const hoursSinceSync = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
+          setN8nStatus(hoursSinceSync < 24 ? "connected" : "warning");
+        } else {
+          setN8nStatus("warning");
+        }
+      } catch {
+        setN8nStatus("warning");
+      }
+
+      // Check CAPI connection via recent capi_events
+      try {
+        const { data, error } = await supabase
+          .from("capi_events")
+          .select("created_at, status")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) {
+          setCapiStatus("warning");
+        } else if (data && data.length > 0) {
+          const lastEvent = new Date(data[0].created_at);
+          const hoursSinceEvent = (Date.now() - lastEvent.getTime()) / (1000 * 60 * 60);
+          setCapiStatus(hoursSinceEvent < 24 ? "connected" : "warning");
+        } else {
+          setCapiStatus("warning");
+        }
+      } catch {
+        setCapiStatus("warning");
+      }
+    };
+
+    checkConnections();
+    // Recheck every 60 seconds
+    const interval = setInterval(checkConnections, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -40,6 +99,8 @@ export default function PTDControl() {
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "warning":
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case "checking":
+        return <AlertCircle className="h-4 w-4 text-blue-500 animate-pulse" />;
       default:
         return <XCircle className="h-4 w-4 text-red-500" />;
     }
@@ -51,6 +112,8 @@ export default function PTDControl() {
         return "bg-green-500/10 text-green-500 border-green-500/20";
       case "warning":
         return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      case "checking":
+        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       default:
         return "bg-red-500/10 text-red-500 border-red-500/20";
     }

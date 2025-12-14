@@ -79,19 +79,65 @@ export default function SettingsTab() {
   };
 
   const recheckServices = async () => {
-    // Ping all services to check connectivity
     toast({
       title: "Rechecking",
       description: "Validating all service connections...",
     });
 
-    // This would trigger actual health checks
-    setTimeout(() => {
-      toast({
-        title: "Recheck Complete",
-        description: "Service status updated",
-      });
-    }, 2000);
+    const results: string[] = [];
+
+    // Check Supabase connection
+    try {
+      const { error } = await supabase.from("client_health_scores").select("id").limit(1);
+      results.push(error ? "❌ Supabase: Connection failed" : "✅ Supabase: Connected");
+    } catch {
+      results.push("❌ Supabase: Connection failed");
+    }
+
+    // Check n8n by looking at recent sync logs
+    try {
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) {
+        results.push("⚠️ n8n: Unable to verify");
+      } else if (data && data.length > 0) {
+        const lastSync = new Date(data[0].created_at);
+        const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
+        results.push(hoursSince < 24 ? "✅ n8n: Active (synced recently)" : "⚠️ n8n: No recent activity");
+      } else {
+        results.push("⚠️ n8n: No sync history");
+      }
+    } catch {
+      results.push("⚠️ n8n: Unable to verify");
+    }
+
+    // Check CAPI by looking at recent events
+    try {
+      const { data, error } = await supabase
+        .from("capi_events")
+        .select("created_at")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) {
+        results.push("⚠️ CAPI: Unable to verify");
+      } else if (data && data.length > 0) {
+        const lastEvent = new Date(data[0].created_at);
+        const hoursSince = (Date.now() - lastEvent.getTime()) / (1000 * 60 * 60);
+        results.push(hoursSince < 24 ? "✅ CAPI: Active (events sent recently)" : "⚠️ CAPI: No recent events");
+      } else {
+        results.push("⚠️ CAPI: No events recorded");
+      }
+    } catch {
+      results.push("⚠️ CAPI: Unable to verify");
+    }
+
+    toast({
+      title: "Recheck Complete",
+      description: results.join("\n"),
+    });
   };
 
   return (
