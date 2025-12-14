@@ -376,6 +376,48 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          capi_base_url: string | null
+          created_at: string | null
+          id: string
+          meta_access_token: string | null
+          meta_pixel_id: string | null
+          supabase_anon_key: string | null
+          supabase_url: string | null
+          telegram_bot_token: string | null
+          telegram_chat_id: string | null
+          test_event_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          capi_base_url?: string | null
+          created_at?: string | null
+          id?: string
+          meta_access_token?: string | null
+          meta_pixel_id?: string | null
+          supabase_anon_key?: string | null
+          supabase_url?: string | null
+          telegram_bot_token?: string | null
+          telegram_chat_id?: string | null
+          test_event_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          capi_base_url?: string | null
+          created_at?: string | null
+          id?: string
+          meta_access_token?: string | null
+          meta_pixel_id?: string | null
+          supabase_anon_key?: string | null
+          supabase_url?: string | null
+          telegram_bot_token?: string | null
+          telegram_chat_id?: string | null
+          test_event_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           created_at: string | null
