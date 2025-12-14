@@ -47,6 +47,10 @@ verify_jwt = false
 [functions.fetch-hubspot-live]
 verify_jwt = false
 
+# Facebook Insights Fetcher
+[functions.fetch-facebook-insights]
+verify_jwt = false
+
 [functions.hubspot-command-center]
 verify_jwt = false
 
