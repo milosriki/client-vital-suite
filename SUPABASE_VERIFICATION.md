@@ -51,8 +51,6 @@
 ### Other Secrets ✅
 - ✅ `CRON_SECRET` - For scheduled jobs
 - ✅ `GTM_SERVER_URL` - Google Tag Manager
-- ✅ `N8N_API_KEY` - n8n integration (legacy)
-- ✅ `N8N_API_TOKEN` - n8n integration (legacy)
 
 ---
 

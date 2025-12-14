@@ -191,7 +191,7 @@ A comprehensive client health monitoring and business intelligence platform for 
 
 ### 7. AUTOMATION & WORKFLOW MANAGEMENT
 
-#### N8N Integration
+#### Supabase Edge Functions
 - **Workflow Orchestration**: Connects HubSpot, Meta, Supabase, Stripe
 - **Event-Driven Actions**: Triggers on deal stages, form submissions, booking changes
 - **Data Enrichment Pipelines**: Append Stripe data to HubSpot contacts
@@ -244,7 +244,7 @@ A comprehensive client health monitoring and business intelligence platform for 
 - HubSpot API keys
 - Meta Pixel ID and Access Tokens
 - Stripe keys (test and production)
-- N8N authentication
+- Supabase Edge Function secrets
 - Supabase connection strings
 - Telegram bot tokens for notifications
 
