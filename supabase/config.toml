@@ -187,10 +187,18 @@ verify_jwt = false
 [functions.fetch-callgear-data]
 verify_jwt = false
 
+<<<<<<< HEAD
 # Stripe Webhook Handler
 [functions.stripe-webhook]
 verify_jwt = false
 
 # Agent Analyst - Business Intelligence Analyst
 [functions.agent-analyst]
+=======
+# HubSpot Owner Reassignment Functions
+[functions.reassign-owner]
+verify_jwt = false
+
+[functions.auto-reassign-leads]
+>>>>>>> origin/sync-all-fixes
 verify_jwt = false

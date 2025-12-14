@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +29,19 @@ const calculateAvgDealValue = (totalValue: number, dealCount: number) =>
 
 const calculateRevenuePerLead = (revenue: number, leads: number) =>
   leads > 0 ? (revenue / leads).toFixed(0) : "0";
+
+// Map HubSpot contact lifecycle to lead status
+const mapContactToLeadStatus = (contact: any): string => {
+  const lifecycle = contact.lifecycle_stage?.toLowerCase();
+  const leadStatus = contact.lead_status?.toLowerCase();
+  
+  if (lifecycle === 'customer' || leadStatus === 'closed_won') return 'closed';
+  if (leadStatus === 'appointment_scheduled' || leadStatus === 'appointment_set') return 'appointment_set';
+  if (leadStatus === 'no_show') return 'no_show';
+  if (lifecycle === 'opportunity' || lifecycle === 'salesqualifiedlead') return 'pitch_given';
+  if (leadStatus === 'in_progress' || leadStatus === 'contacted') return 'follow_up';
+  return 'new';
+};
 
 const HubSpotLiveData = () => {
   const [timeframe, setTimeframe] = useState("all_time");
@@ -65,19 +78,27 @@ const HubSpotLiveData = () => {
     return { start, end };
   }, [timeframe]);
 
-  // Fetch leads from Supabase
+  // Fetch leads from Supabase (HubSpot stores leads as contacts)
   const { data: leadsData, isLoading: loadingLeads, refetch: refetchLeads } = useQuery({
     queryKey: ["db-leads", timeframe],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("leads")
+        .from("contacts")
         .select("*")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      
+      // Map contacts to lead format for consistency
+      return (data || []).map(contact => ({
+        ...contact,
+        name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+        status: mapContactToLeadStatus(contact),
+        source: contact.latest_traffic_source || contact.first_touch_source || 'direct',
+        score: contact.total_value ? Math.min(100, Math.round(contact.total_value / 100)) : 50
+      }));
     },
   });
 

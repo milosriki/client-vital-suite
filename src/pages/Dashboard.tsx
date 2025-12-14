@@ -82,7 +82,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from('weekly_patterns')
         .select('*')
-        .order('week_end_date', { ascending: false })
+        .order('week_start', { ascending: false })
         .limit(1)
         .single();
 
@@ -105,13 +105,13 @@ export default function Dashboard() {
         (supabase as any)
           .from('deals')
           .select('deal_value')
-          .eq('status', 'won')
+          .eq('status', 'closed')
           .gte('close_date', thisMonthStart)
           .lte('close_date', thisMonthEnd),
         (supabase as any)
           .from('deals')
           .select('deal_value')
-          .eq('status', 'won')
+          .eq('status', 'closed')
           .gte('close_date', lastMonthStart)
           .lte('close_date', lastMonthEnd),
       ]);
@@ -132,7 +132,7 @@ export default function Dashboard() {
       const { data, error } = await (supabase as any)
         .from('deals')
         .select('deal_value')
-        .not('status', 'in', '("won","lost")');
+        .not('status', 'in', '("closed","lost")');
 
       if (error) return { total: 0, count: 0 };
       const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
@@ -140,13 +140,13 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch today's leads count
+  // Fetch today's leads count (HubSpot stores leads as contacts)
   const { data: leadsToday } = useQuery({
     queryKey: ['leads-today'],
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { count, error } = await supabase
-        .from('leads')
+        .from('contacts')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today);
 
@@ -233,121 +233,145 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background gradient-mesh">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         {/* Greeting Bar */}
         <GreetingBar />
 
         {/* Executive Briefing - AI Summary */}
         <ExecutiveBriefing summary={executiveSummary} />
 
-        {/* Hero Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <HeroStatCard
-            label="Revenue This Month"
-            value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
-            icon={DollarSign}
-            trend={revenueData?.total ? { value: Math.abs(revenueData.trend), isPositive: revenueData.isPositive } : undefined}
-            variant="success"
-            delay={0}
-            href="/analytics"
-            emptyMessage="No revenue yet"
-            isLoading={revenueLoading}
-          />
-          <HeroStatCard
-            label="Active Clients"
-            value={stats.totalClients}
-            icon={Users}
-            variant="default"
-            delay={50}
-            href="/clients"
-            emptyMessage="No clients yet"
-            isLoading={clientsLoading}
-          />
-          <HeroStatCard
-            label="Needs Attention"
-            value={stats.atRiskClients}
-            icon={AlertTriangle}
-            variant={stats.atRiskClients > 5 ? "danger" : "warning"}
-            pulse={stats.atRiskClients > 10}
-            delay={100}
-            href="/clients?zone=RED"
-            subtitle={stats.atRiskClients === 0 ? "All healthy! 🎉" : undefined}
-            isLoading={clientsLoading}
-          />
-          <HeroStatCard
-            label="Pipeline Value"
-            value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
-            icon={TrendingUp}
-            variant="default"
-            delay={150}
-            href="/sales-pipeline"
-            subtitle={pipelineData?.count ? `from ${pipelineData.count} deals` : undefined}
-            emptyMessage="No active deals"
-          />
-        </div>
+        {/* Key Metrics Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Key Metrics</span>
+            <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
+          </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+            <HeroStatCard
+              label="Revenue This Month"
+              value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
+              icon={DollarSign}
+              trend={revenueData?.total ? { value: Math.abs(revenueData.trend), isPositive: revenueData.isPositive } : undefined}
+              variant="success"
+              delay={0}
+              href="/analytics"
+              emptyMessage="No revenue yet"
+              isLoading={revenueLoading}
+            />
+            <HeroStatCard
+              label="Active Clients"
+              value={stats.totalClients}
+              icon={Users}
+              variant="default"
+              delay={50}
+              href="/clients"
+              emptyMessage="No clients yet"
+              isLoading={clientsLoading}
+            />
+            <HeroStatCard
+              label="Needs Attention"
+              value={stats.atRiskClients}
+              icon={AlertTriangle}
+              variant={stats.atRiskClients > 5 ? "danger" : "warning"}
+              pulse={stats.atRiskClients > 10}
+              delay={100}
+              href="/clients?zone=RED"
+              subtitle={stats.atRiskClients === 0 ? "All healthy! 🎉" : undefined}
+              isLoading={clientsLoading}
+            />
+            <HeroStatCard
+              label="Pipeline Value"
+              value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
+              icon={TrendingUp}
+              variant="default"
+              delay={150}
+              href="/sales-pipeline"
+              subtitle={pipelineData?.count ? `from ${pipelineData.count} deals` : undefined}
+              emptyMessage="No active deals"
+            />
+          </div>
+        </section>
 
-        {/* Secondary Stats Row - Today's Activity */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <HeroStatCard
-            label="Leads Today"
-            value={leadsToday || 0}
-            icon={Target}
-            variant="default"
-            delay={200}
-            href="/clients"
-          />
-          <HeroStatCard
-            label="Calls Today"
-            value={callsToday || 0}
-            icon={Phone}
-            variant="default"
-            delay={250}
-            href="/call-tracking"
-          />
-          <HeroStatCard
-            label="Appointments Set"
-            value={dailySummary?.interventions_recommended || 0}
-            icon={Calendar}
-            variant="success"
-            delay={300}
-            href="/interventions"
-          />
-          <HeroStatCard
-            label="Critical Alerts"
-            value={dailySummary?.critical_interventions || 0}
-            icon={AlertTriangle}
-            variant={(dailySummary?.critical_interventions || 0) > 0 ? "danger" : "default"}
-            delay={350}
-            href="/interventions"
-          />
-        </div>
+        {/* Today's Activity Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Today's Activity</span>
+            <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
+          </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+            <HeroStatCard
+              label="Leads Today"
+              value={leadsToday || 0}
+              icon={Target}
+              variant="default"
+              delay={200}
+              href="/clients"
+            />
+            <HeroStatCard
+              label="Calls Today"
+              value={callsToday || 0}
+              icon={Phone}
+              variant="default"
+              delay={250}
+              href="/call-tracking"
+            />
+            <HeroStatCard
+              label="Appointments Set"
+              value={dailySummary?.interventions_recommended || 0}
+              icon={Calendar}
+              variant="success"
+              delay={300}
+              href="/interventions"
+            />
+            <HeroStatCard
+              label="Critical Alerts"
+              value={dailySummary?.critical_interventions || 0}
+              icon={AlertTriangle}
+              variant={(dailySummary?.critical_interventions || 0) > 0 ? "danger" : "default"}
+              delay={350}
+              href="/interventions"
+            />
+          </div>
+        </section>
 
         {/* Predictive Alerts */}
         <PredictiveAlerts clients={clients || []} summary={dailySummary} />
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - 2/3 */}
-          <div className="lg:col-span-2 space-y-6">
-            <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
-            <LiveRevenueChart />
-            <PatternInsights patterns={weeklyPatterns} clients={clients || []} />
-            <LiveActivityFeed />
+        {/* Analytics Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Analytics & Insights</span>
+            <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
           </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - 2/3 */}
+            <div className="lg:col-span-2 space-y-6">
+              <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
+              <LiveRevenueChart />
+              <PatternInsights patterns={weeklyPatterns} clients={clients || []} />
+              <LiveActivityFeed />
+            </div>
 
-          {/* Right Column - 1/3 */}
-          <div className="space-y-6">
-            <LiveQuickActions
-              onRunBI={runBusinessIntelligence}
-              onSyncHubSpot={syncHubSpot}
-              onOpenAI={() => setShowAIPanel(true)}
-              isRunningBI={isRunningBI}
-              isSyncing={isSyncing}
-            />
-            <TodaySnapshot />
-            <CoachLeaderboard />
+            {/* Right Column - 1/3 */}
+            <div className="space-y-6">
+              <LiveQuickActions
+                onRunBI={runBusinessIntelligence}
+                onSyncHubSpot={syncHubSpot}
+                onOpenAI={() => setShowAIPanel(true)}
+                isRunningBI={isRunningBI}
+                isSyncing={isSyncing}
+              />
+              <TodaySnapshot />
+              <CoachLeaderboard />
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* Alerts Bar */}
         <AlertsBar />

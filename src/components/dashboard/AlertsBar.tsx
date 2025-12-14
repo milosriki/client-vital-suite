@@ -44,7 +44,7 @@ export function AlertsBar() {
       const { count: syncCount } = await (supabase as any)
         .from('sync_errors')
         .select('id', { count: 'exact', head: true })
-        .eq('resolved', false);
+        .is('resolved_at', null);
 
       if (syncCount && syncCount > 0) {
         alertsList.push({
