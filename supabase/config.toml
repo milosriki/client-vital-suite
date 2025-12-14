@@ -213,3 +213,27 @@ verify_jwt = false
 
 [functions.auto-reassign-leads]
 verify_jwt = false
+
+# ============================================
+# AGENT 6: LEAD UTILIZATION SYSTEM
+# ============================================
+
+# Get Leads Needing Action - AI-powered lead prioritization
+[functions.get-leads-needing-action]
+verify_jwt = false
+
+# Marketing Stress Test Function
+[functions.marketing-stress-test]
+verify_jwt = false
+
+# HubSpot Data Sync
+[functions.sync-hubspot-data]
+verify_jwt = false
+
+# Ultimate Truth Alignment Agent
+[functions.ultimate-truth-alignment]
+verify_jwt = false
+
+# API Keys Verification
+[functions.verify-all-keys]
+verify_jwt = false
