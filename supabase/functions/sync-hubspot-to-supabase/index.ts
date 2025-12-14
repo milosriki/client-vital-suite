@@ -76,7 +76,7 @@ serve(async (req) => {
     // Clear fake/test data if requested
     if (clear_fake_data && !cursor) {
       console.log('Clearing fake data...');
-      await supabase.from('leads').delete().or('email.ilike.%@example.com,phone.ilike.%555-0%');
+      // Only clear contacts table (HubSpot primary source)
       await supabase.from('contacts').delete().ilike('email', '%@example.com');
       // Also clear enhanced_leads test data
       await supabase.from('enhanced_leads').delete().ilike('email', '%@email.com');
@@ -318,39 +318,13 @@ serve(async (req) => {
               results.errors.push(`Contacts batch: ${contactError.message}`);
             } else {
               results.contacts_synced += contactsToUpsert.length;
+              // HubSpot stores everything as contacts, so leads_synced equals contacts_synced
+              results.leads_synced += contactsToUpsert.length;
             }
 
-            // Also sync to leads table (batch)
-            const leadsToUpsert = contacts
-              .filter((c: any) => c.properties?.email)
-              .map((contact: any) => {
-                const props = contact.properties;
-                return {
-                  hubspot_id: contact.id,
-                  email: props.email,
-                  first_name: props.firstname,
-                  last_name: props.lastname,
-                  phone: props.phone || props.mobilephone,
-                  source: 'hubspot',
-                  status: mapHubspotStatusToLead(props.lifecyclestage, props.hs_lead_status),
-                  owner_id: props.hubspot_owner_id,
-                  created_at: props.createdate
-                };
-              });
-
-            const { error: leadsError } = await supabase
-              .from('leads')
-              .upsert(leadsToUpsert, {
-                onConflict: 'hubspot_id',
-                ignoreDuplicates: false
-              });
-
-            if (leadsError) {
-              console.error('Leads sync error:', leadsError.message);
-              results.errors.push(`Leads batch: ${leadsError.message}`);
-            } else {
-              results.leads_synced += leadsToUpsert.length;
-            }
+            // Note: No longer syncing to separate 'leads' table
+            // HubSpot uses 'contacts' as the primary entity - all leads are contacts
+            // Frontend now queries 'contacts' table directly
           }
 
           processedCount += contacts.length;

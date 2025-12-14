@@ -131,24 +131,53 @@ async function checkHubSpot(): Promise<IntegrationStatus> {
       });
     }
 
-    // Check data freshness
+    // Check data freshness - check contacts table and recent sync activity
     try {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      const { count: recentUpdates, error } = await supabase
-        .from("client_health_scores")
+      
+      // Check if there was a recent successful sync
+      const { data: recentSync, error: syncError } = await supabase
+        .from("sync_logs")
+        .select("completed_at, records_processed")
+        .eq("platform", "hubspot")
+        .eq("status", "completed")
+        .gte("completed_at", hourAgo)
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (syncError && syncError.code !== "42P01") {
+        throw syncError;
+      }
+
+      // Also check contacts table for recent updates
+      const { count: recentContacts, error: contactsError } = await supabase
+        .from("contacts")
         .select("*", { count: "exact", head: true })
         .gte("updated_at", hourAgo);
 
-      if (error) {
-        throw error;
+      if (contactsError) {
+        throw contactsError;
       }
+
+      const hasRecentSync = !!recentSync;
+      const hasRecentContacts = (recentContacts || 0) > 0;
+      const passed = hasRecentSync || hasRecentContacts;
 
       checks.push({
         check_name: "Data Freshness",
-        passed: (recentUpdates || 0) > 0,
-        message: `${recentUpdates || 0} records updated in last hour`,
+        passed,
+        message: hasRecentSync 
+          ? `Recent sync: ${recentSync.records_processed} records processed ${Math.round((Date.now() - new Date(recentSync.completed_at).getTime()) / 60000)} min ago`
+          : hasRecentContacts
+          ? `${recentContacts} contacts updated in last hour`
+          : "No recent sync activity or contact updates",
         timestamp: new Date().toISOString()
       });
+
+      if (!passed) {
+        recommendations.push("Run sync-hubspot-to-supabase to refresh data");
+      }
     } catch (freshnessError) {
       console.error("Error checking data freshness:", freshnessError);
       checks.push({
