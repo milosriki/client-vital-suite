@@ -139,13 +139,13 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch today's leads count
+  // Fetch today's leads count (HubSpot stores leads as contacts)
   const { data: leadsToday } = useQuery({
     queryKey: ['leads-today'],
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { count, error } = await supabase
-        .from('leads')
+        .from('contacts')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today);
 
