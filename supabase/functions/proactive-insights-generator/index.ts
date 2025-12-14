@@ -55,7 +55,8 @@ serve(async (req) => {
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('call_records').select('*').order('created_at', { ascending: false }).limit(100),
       supabase.from('client_health_scores').select('*').order('health_score', { ascending: true }).limit(50),
-      supabase.from('enhanced_leads').select('*').order('created_at', { ascending: false }).limit(50),
+      // Using unified schema: contacts table instead of enhanced_leads
+      supabase.from('contacts').select('*').eq('lifecycle_stage', 'lead').order('created_at', { ascending: false }).limit(50),
       supabase.from('deals').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('coach_performance').select('*').order('report_date', { ascending: false }).limit(10)
     ]);

@@ -102,7 +102,7 @@ Content-Type: application/json
 }
 ```
 
-### Webhook (for AI Agents)
+### Webhook (AI Agent Orchestration)
 ```bash
 POST /api/webhook/backfill
 Content-Type: application/json
@@ -117,7 +117,7 @@ Content-Type: application/json
 Open `http://localhost:3000/` in your browser to access the HTML dashboard with buttons for:
 - Health Check
 - Send Test Purchase
-- Trigger AI Agent Backfill
+- Trigger AI Agent Backfill (Supabase Edge Functions)
 
 ## Testing
 

@@ -43,7 +43,14 @@
     }
   ],
   "env": {
-    "VITE_SUPABASE_URL": "https://ztjndilxurtsfqdsvfds.supabase.co",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0NjUyMjIsImV4cCI6MjA2NTA0MTIyMn0.LkGFjn0sKMjKYQWBvvXxwWv3GZCqoVocpGmeI_JUDQM"
+    "VITE_SUPABASE_URL": "@vite_supabase_url",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "@vite_supabase_publishable_key"
+  },
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs20.x",
+      "memory": 1024,
+      "maxDuration": 60
+    }
   }
 }
