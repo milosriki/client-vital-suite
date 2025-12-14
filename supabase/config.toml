@@ -87,8 +87,16 @@ verify_jwt = false
 [functions.business-intelligence]
 verify_jwt = false
 
-# AnyTrack Webhook
+# AnyTrack Webhook (direct from AnyTrack)
 [functions.anytrack-webhook]
+verify_jwt = false
+
+# HubSpot Native AnyTrack Webhook (HubSpot sends when AnyTrack events occur)
+[functions.hubspot-anytrack-webhook]
+verify_jwt = false
+
+# Calendly Webhook (Appointment scheduling)
+[functions.calendly-webhook]
 verify_jwt = false
 
 # AI Lead Reply

@@ -66,12 +66,12 @@ serve(async (req) => {
       });
     }
 
-    // ============= STALE LEADS DETECTION =============
+    // ============= STALE LEADS DETECTION (Using unified schema: contacts) =============
     const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
     const { count: staleLeadCount } = await supabase
-      .from('enhanced_leads')
+      .from('contacts')
       .select('id', { count: 'exact', head: true })
-      .is('first_contact_at', null)
+      .eq('lifecycle_stage', 'lead')
       .lt('created_at', twoDaysAgo);
 
     if (staleLeadCount && staleLeadCount > 5) {
