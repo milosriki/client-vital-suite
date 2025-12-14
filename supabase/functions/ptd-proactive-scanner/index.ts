@@ -32,12 +32,12 @@ serve(async (req) => {
             }
         }
 
-        // 2. Check for Stale Leads (Hunter)
+        // 2. Check for Stale Leads (Hunter) - Using unified schema: contacts table
         const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
         const { data: staleLeads } = await supabase
-            .from('enhanced_leads')
+            .from('contacts')
             .select('*')
-            .is('first_contact_at', null)
+            .eq('lifecycle_stage', 'lead')
             .lt('created_at', twoDaysAgo)
             .limit(5);
 

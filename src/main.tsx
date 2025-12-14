@@ -15,7 +15,6 @@ import ClientDetail from "./pages/ClientDetail";
 import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
 import AnalyticsPage from "./pages/Analytics";
-import WorkflowStrategy from "./pages/WorkflowStrategy";
 import MetaDashboard from "./pages/MetaDashboard";
 import PTDControl from "./pages/PTDControl";
 import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
@@ -25,11 +24,14 @@ import YesterdayBookings from "./pages/YesterdayBookings";
 import HubSpotLiveData from "./pages/HubSpotLiveData";
 import SalesPipeline from "./pages/SalesPipeline";
 import CallTracking from "./pages/CallTracking";
+import AIKnowledge from "./pages/AIKnowledge";
+import AILearning from "./pages/AILearning";
 import NotFound from "./pages/NotFound";
 import UltimateCEO from "./pages/UltimateCEO";
 import StripeIntelligence from "./pages/StripeIntelligence";
 import AuditTrail from "./pages/AuditTrail";
 import WarRoom from "./pages/WarRoom";
+import MarketingStressTest from "./pages/MarketingStressTest";
 import "./index.css";
 
 // Start background learning on app init
@@ -55,14 +57,14 @@ const router = createBrowserRouter([
       { path: "/call-tracking", element: <CallTracking /> },
       { path: "/audit-trail", element: <AuditTrail /> },
       { path: "/war-room", element: <WarRoom /> },
+      { path: "/ai-knowledge", element: <AIKnowledge /> },
+      { path: "/ai-learning", element: <AILearning /> },
       { path: "/overview", element: <Overview /> },
       { path: "/clients", element: <Clients /> },
       { path: "/clients/:email", element: <ClientDetail /> },
       { path: "/coaches", element: <Coaches /> },
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <AnalyticsPage /> },
-      { path: "/workflow-strategy", element: <WorkflowStrategy /> },
-      { path: "/fix-workflows", element: <WorkflowStrategy /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
       { path: "/ptd-control", element: <PTDControl /> },
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
@@ -71,6 +73,7 @@ const router = createBrowserRouter([
       { path: "/yesterday-bookings", element: <YesterdayBookings /> },
       { path: "/hubspot-live", element: <HubSpotLiveData /> },
       { path: "/ultimate-ceo", element: <UltimateCEO /> },
+      { path: "/marketing-stress-test", element: <MarketingStressTest /> },
       { path: "*", element: <NotFound /> },
     ],
   },

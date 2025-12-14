@@ -340,11 +340,11 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         return "Unknown client_control action";
       }
       
-      // TOOL 2: Lead Control
+      // TOOL 2: Lead Control (Using unified schema: contacts table)
       case "lead_control": {
         if (args.action === "get_all") {
           const { data } = await supabase
-            .from('enhanced_leads')
+            .from('contacts')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(args.limit || 20);
@@ -354,7 +354,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         if (args.action === "search" && args.query) {
           const searchTerm = `%${args.query}%`;
           const { data } = await supabase
-            .from('enhanced_leads')
+            .from('contacts')
             .select('*')
             .or(`email.ilike.${searchTerm},first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`)
             .limit(args.limit || 10);
@@ -363,18 +363,18 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         
         if (args.action === "get_enhanced") {
           const { data } = await supabase
-            .from('enhanced_leads')
+            .from('contacts')
             .select('*')
-            .order('lead_score', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(args.limit || 20);
           return JSON.stringify(data || []);
         }
         
         if (args.action === "get_by_status") {
           const { data } = await supabase
-            .from('enhanced_leads')
+            .from('contacts')
             .select('*')
-            .eq('conversion_status', args.status || 'new')
+            .eq('lead_status', args.status || 'new')
             .limit(args.limit || 20);
           return JSON.stringify(data || []);
         }
@@ -767,13 +767,14 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         // Search across all relevant tables
         const [contacts, leads, calls, deals, healthScores, activities] = await Promise.all([
           // Contacts search
+          // Primary search: contacts table (unified schema)
           supabase.from('contacts').select('*').or(
             `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike},owner_name.ilike.${searchLike}`
           ).limit(10),
           
-          // Enhanced leads search
-          supabase.from('enhanced_leads').select('*').or(
-            `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},campaign_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike}`
+          // Attribution events search (for campaign data)
+          supabase.from('attribution_events').select('*').or(
+            `email.ilike.${searchLike},campaign.ilike.${searchLike}`
           ).limit(10),
           
           // Call records - search by phone number

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,7 +54,7 @@ KEY TABLES:
 - client_health_scores: email, health_score, health_zone (purple/green/yellow/red), calculated_at, churn_risk_score
 - contacts: email, first_name, last_name, phone, lifecycle_stage, owner_name, lead_status
 - deals: deal_name, deal_value, stage, status, close_date, pipeline
-- enhanced_leads: email, first_name, last_name, lead_score, lead_quality, conversion_status, campaign_name
+- contacts: email, first_name, last_name, lifecycle_stage, lead_status, owner_name (unified schema - use this instead of enhanced_leads)
 - call_records: caller_number, transcription, call_outcome, duration_seconds, call_score
 - coach_performance: coach_name, avg_client_health, clients_at_risk, performance_score
 - intervention_log: status, action_type, recommended_action, outcome
@@ -733,25 +734,29 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         const { action, query, status, limit = 20 } = input;
 
         if (action === "get_all") {
-          const { data } = await supabase.from('enhanced_leads').select('*').order('created_at', { ascending: false }).limit(limit);
+          // Using unified schema: contacts table instead of enhanced_leads
+          const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
 
         if (action === "search" && query) {
           const searchTerm = `%${query}%`;
-          const { data } = await supabase.from('enhanced_leads').select('*')
+          // Using unified schema: contacts table
+          const { data } = await supabase.from('contacts').select('*')
             .or(`email.ilike.${searchTerm},first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`)
             .limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
 
         if (action === "get_enhanced") {
-          const { data } = await supabase.from('enhanced_leads').select('*').order('lead_score', { ascending: false }).limit(limit);
+          // Using unified schema: contacts table with lifecycle_stage ordering
+          const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify(data || []);
         }
 
         if (action === "get_by_status") {
-          const { data } = await supabase.from('enhanced_leads').select('*').eq('conversion_status', status || 'new').limit(limit);
+          // Using unified schema: contacts.lead_status instead of conversion_status
+          const { data } = await supabase.from('contacts').select('*').eq('lead_status', status || 'new').limit(limit);
           return JSON.stringify(data || []);
         }
 
@@ -1002,16 +1007,16 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         const phoneCleaned = q.replace(/\D/g, '');
         const searchLike = `%${q}%`;
 
-        // Search across all relevant tables
+        // Search across all relevant tables (Using unified schema)
         const [contacts, leads, calls, deals, healthScores, activities] = await Promise.all([
-          // Contacts search
+          // Contacts search (primary - unified schema)
           supabase.from('contacts').select('*').or(
             `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike},owner_name.ilike.${searchLike}`
           ).limit(10),
 
-          // Enhanced leads search
-          supabase.from('enhanced_leads').select('*').or(
-            `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},campaign_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike}`
+          // Attribution events search (for campaign data - replaces enhanced_leads)
+          supabase.from('attribution_events').select('*').or(
+            `email.ilike.${searchLike},campaign.ilike.${searchLike}`
           ).limit(10),
 
           // Call records - search by phone number
@@ -1384,10 +1389,19 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   ]);
   console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Knowledge: ${knowledgeBase.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}`);
 
-  const systemPrompt = `# PTD FITNESS SUPER-INTELLIGENCE AGENT v4.0 (Chain-of-Thought + RAG)
+  // Build unified prompt with all components
+  const unifiedPrompt = buildUnifiedPromptForEdgeFunction({
+    includeLifecycle: true,
+    includeUltimateTruth: true,
+    includeWorkflows: true,
+    includeROI: true,
+    knowledge: ragKnowledge || '',
+    memory: relevantMemory || '',
+  });
 
-## MISSION
-You are the CENTRAL NERVOUS SYSTEM of PTD Fitness. You observe, analyze, predict, and control the entire business.
+  const systemPrompt = `# PTD FITNESS SUPER-INTELLIGENCE AGENT v5.0 (Unified Prompt System)
+
+${unifiedPrompt}
 
 ## 🧠 CHAIN-OF-THOUGHT REASONING (MANDATORY)
 
@@ -1477,29 +1491,6 @@ When the user provides ANY identifier:
 - If one tool fails, try another
 - Always provide SOME answer even if data is limited
 
-## HUBSPOT DATA MAPPINGS (CRITICAL - Use these to translate IDs!)
-
-### Deal Stages (HubSpot Pipeline IDs → PTD Sales Process)
-- 122178070 = New Lead (Incoming)
-- 122237508 = Assessment Booked
-- 122237276 = Assessment Completed
-- 122221229 = Booking Process
-- qualifiedtobuy = Qualified to Buy
-- decisionmakerboughtin = Decision Maker Bought In
-- contractsent = Contract Sent
-- 2900542 = Payment Pending
-- 987633705 = Onboarding
-- closedwon = Closed Won ✅
-- 1063991961 = Closed Lost ❌
-- 1064059180 = On Hold
-
-### Lifecycle Stages
-- lead = New Lead
-- marketingqualifiedlead = MQL (Marketing Qualified)
-- salesqualifiedlead = SQL (Sales Qualified)
-- opportunity = Opportunity
-- customer = Customer ✅
-
 ### Call Status
 - completed = Call Completed
 - missed = Missed Call
@@ -1507,22 +1498,11 @@ When the user provides ANY identifier:
 - voicemail = Left Voicemail
 - initiated = Call Started
 
-=== CRITICAL: ALWAYS USE LIVE DATA ===
-⚠️ NEVER use cached data - ALWAYS call tools for fresh database data
-⚠️ Translate HubSpot IDs to human-readable names in responses
-⚠️ NEVER ask user for more info - JUST TRY with what they gave you
-
 === PTD KNOWLEDGE BASE (RAG-ENHANCED) ===
 ${knowledgeBase || 'No relevant knowledge found.'}
 
-=== UPLOADED KNOWLEDGE DOCUMENTS ===
-${ragKnowledge || 'No relevant uploaded documents found.'}
-
 === LEARNED PATTERNS ===
 ${learnedPatterns || 'No patterns learned yet.'}
-
-=== MEMORY FROM PAST CONVERSATIONS ===
-${relevantMemory || 'No relevant past conversations found.'}
 
 === RESPONSE FORMAT (CHAIN-OF-THOUGHT VISIBLE) ===
 
@@ -1538,11 +1518,11 @@ ${relevantMemory || 'No relevant past conversations found.'}
 **🎯 Recommended Actions:**
 [Concrete next steps if applicable]
 
-=== MANDATORY INSTRUCTIONS ===
+=== ADDITIONAL MANDATORY INSTRUCTIONS ===
 1. **THINK BEFORE ACTING** - Always use chain-of-thought reasoning
 2. **NEVER ASK FOR CLARIFICATION** - use tools with whatever info you have
 3. FOR ANY LOOKUP → use universal_search or get_coach_clients FIRST
-4. TRANSLATE stage IDs to readable names
+4. TRANSLATE stage IDs to readable names using formatDealStage()
 5. If search returns nothing, say "No results found for X" - don't ask for more info
 6. **USE MULTIPLE TOOLS** - Cross-reference data for accuracy
 7. **SHOW YOUR REASONING** - Users trust answers they can understand
