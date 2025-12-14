@@ -252,7 +252,7 @@ export const FloatingChat = () => {
 
       console.log("📤 Sending to agent:", userMessage.slice(0, 50));
       
-      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
+      const { data, error } = await supabase.functions.invoke("ptd-agent-claude", {
         body: {
           message: messageWithFiles,
           thread_id: threadId,
@@ -631,7 +631,7 @@ export const FloatingChat = () => {
       {/* Voice Chat Overlay */}
       {showVoiceChat && (
         <VoiceChat
-          agentFunction="ptd-agent-gemini"
+          agentFunction="ptd-agent-claude"
           threadId={threadId}
           onClose={() => setShowVoiceChat(false)}
         />

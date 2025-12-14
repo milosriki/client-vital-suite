@@ -149,7 +149,7 @@ export function AIAssistantPanel() {
   // Send message to agent
   const sendMessage = useMutation({
     mutationFn: async (message: string) => {
-      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
+      const { data, error } = await supabase.functions.invoke("ptd-agent-claude", {
         body: {
           message: message,
           thread_id: sessionId

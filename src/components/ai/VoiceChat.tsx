@@ -17,7 +17,7 @@ interface VoiceChatProps {
 }
 
 export function VoiceChat({ 
-  agentFunction = "ptd-agent-gemini",
+  agentFunction = "ptd-agent-claude",
   threadId: providedThreadId,
   onClose,
   minimized = false,

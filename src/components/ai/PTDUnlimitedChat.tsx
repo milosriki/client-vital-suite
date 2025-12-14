@@ -265,7 +265,7 @@ export default function PTDUnlimitedChat() {
     setInput("");
 
     try {
-      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
+      const { data, error } = await supabase.functions.invoke("ptd-agent-claude", {
         body: { 
           message: input,
           thread_id: threadId
