@@ -33,7 +33,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 function calculateEngagementScore(client: any): number {
   let score = 50;
 
-  // Recent activity bonus
+  // Recent activity bonus (using sessions or meetings count if available)
+  // Fallback to 0 if data missing
   const sessions7d = client.sessions_last_7d || 0;
   if (sessions7d >= 3) score += 30;
   else if (sessions7d >= 2) score += 20;
@@ -45,7 +46,17 @@ function calculateEngagementScore(client: any): number {
   else if (sessions30d >= 8) score += 10;
 
   // Recency penalty
-  const daysSince = client.days_since_last_session || 999;
+  // Calculate days since last activity if we have a date
+  let daysSince = 999;
+  if (client.last_activity_date) {
+    const lastDate = new Date(client.last_activity_date);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - lastDate.getTime());
+    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  } else if (client.days_since_last_session) {
+    daysSince = client.days_since_last_session;
+  }
+
   if (daysSince > 30) score -= 30;
   else if (daysSince > 14) score -= 15;
   else if (daysSince > 7) score -= 5;
@@ -126,7 +137,17 @@ function calculatePredictiveRisk(client: any, healthZone: string, momentum: stri
   else if (sessions7d >= 2) risk -= 10;
 
   // Gap impact
-  const daysSince = client.days_since_last_session || 999;
+  // Calculate days since last activity if we have a date
+  let daysSince = 999;
+  if (client.last_activity_date) {
+    const lastDate = new Date(client.last_activity_date);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - lastDate.getTime());
+    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  } else if (client.days_since_last_session) {
+    daysSince = client.days_since_last_session;
+  }
+
   if (daysSince > 30) risk += 25;
   else if (daysSince > 14) risk += 15;
   else if (daysSince <= 7) risk -= 10;
@@ -169,33 +190,24 @@ serve(async (req) => {
 
     console.log(`[Health Calculator] Starting ${mode} calculation...`);
 
-    // Fetch clients from HubSpot data or existing records
+    // Fetch clients from CONTACTS table (Source of Truth)
     let query = supabase
-      .from("client_health_scores")
-      .select("*")
-      .order("calculated_at", { ascending: false });
+      .from("contacts")
+      .select("*");
 
     if (client_emails.length > 0) {
       query = query.in("email", client_emails);
     }
 
-    const { data: existingClients, error: fetchError } = await query;
+    const { data: contacts, error: fetchError } = await query;
 
     if (fetchError) {
-      console.error("Error fetching clients:", fetchError);
+      console.error("Error fetching contacts:", fetchError);
       throw fetchError;
     }
 
-    // Get unique clients by email (latest record)
-    const clientMap = new Map<string, any>();
-    for (const client of existingClients || []) {
-      if (!clientMap.has(client.email)) {
-        clientMap.set(client.email, client);
-      }
-    }
-
-    const clients = Array.from(clientMap.values());
-    console.log(`[Health Calculator] Processing ${clients.length} clients`);
+    // Process all contacts
+    console.log(`[Health Calculator] Processing ${contacts?.length || 0} clients from contacts table`);
 
     const results = {
       processed: 0,
@@ -208,8 +220,12 @@ serve(async (req) => {
 
     let totalScore = 0;
 
-    for (const client of clients) {
+    for (const client of contacts || []) {
       try {
+        // Skip invalid records
+        if (!client.email) continue;
+
+        // Calculate scores
         const engagement = calculateEngagementScore(client);
         const packageHealth = calculatePackageHealthScore(client);
         const momentumScore = calculateMomentumScore(client);
@@ -219,31 +235,33 @@ serve(async (req) => {
         const predictiveRisk = calculatePredictiveRisk(client, healthZone, momentum);
         const interventionPriority = getInterventionPriority(healthZone, predictiveRisk, momentum);
 
-        // Update or insert new record
+        // Update or insert new record in client_health_scores
+        // Mapped to match database schema
         const { error: upsertError } = await supabase
           .from("client_health_scores")
           .upsert({
             email: client.email,
-            firstname: client.firstname,
-            lastname: client.lastname,
+            firstname: client.first_name,
+            lastname: client.last_name,
             hubspot_contact_id: client.hubspot_contact_id,
             health_score: healthScore,
             health_zone: healthZone,
             engagement_score: engagement,
             package_health_score: packageHealth,
             momentum_score: momentumScore,
-            momentum_indicator: momentum,
-            predictive_risk_score: predictiveRisk,
+            health_trend: momentum, // Mapped from momentum_indicator
+            churn_risk_score: predictiveRisk, // Mapped from predictive_risk_score
             intervention_priority: interventionPriority,
-            sessions_last_7d: client.sessions_last_7d,
-            sessions_last_30d: client.sessions_last_30d,
-            outstanding_sessions: client.outstanding_sessions,
-            sessions_purchased: client.sessions_purchased,
-            days_since_last_session: client.days_since_last_session,
+            // Use defaults if columns missing in contacts
+            sessions_last_7d: client.sessions_last_7d || 0,
+            sessions_last_30d: client.sessions_last_30d || 0,
+            outstanding_sessions: client.outstanding_sessions || 0,
+            sessions_purchased: client.sessions_purchased || 0,
+            days_since_last_session: client.days_since_last_session || 0,
             assigned_coach: client.assigned_coach,
             calculated_at: new Date().toISOString(),
             calculated_on: new Date().toISOString().split("T")[0],
-            calculation_version: "AGENT_v1"
+            calculation_version: "AGENT_v2"
           }, {
             onConflict: "email"
           });
@@ -259,13 +277,9 @@ serve(async (req) => {
           results.criticalInterventions++;
         }
 
-        // Log successful processing
-        console.log(`Processed client ${client.email}: Health=${healthScore} Zone=${healthZone} Priority=${interventionPriority}`);
-
       } catch (clientError) {
         console.error(`Error processing client ${client.email}:`, clientError);
         results.errors++;
-        // Continue with next client instead of failing entire batch
         continue;
       }
     }
@@ -287,26 +301,6 @@ serve(async (req) => {
       critical_interventions: results.criticalInterventions,
       generated_at: new Date().toISOString()
     }, { onConflict: "summary_date" });
-
-    // TRIGGER NEXT AGENT: Churn Predictor
-    // Only trigger if we processed a full batch (mode='full')
-    if (mode === 'full' && results.processed > 0) {
-      console.log("[Health Calculator] Triggering Churn Predictor...");
-
-      // We don't await this to avoid timeout, just fire and forget
-      fetch(`${SUPABASE_URL}/functions/v1/churn-predictor`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          min_risk: 40,
-          save_to_db: true,
-          include_ai_insights: true
-        })
-      }).catch(err => console.error("Failed to trigger Churn Predictor:", err));
-    }
 
     const duration = Date.now() - startTime;
     console.log(`[Health Calculator] Complete in ${duration}ms:`, results);
