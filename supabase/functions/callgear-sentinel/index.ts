@@ -194,17 +194,23 @@ serve(async (req) => {
 
     // ====== STORE ALERTS IN DATABASE ======
     if (alerts.length > 0) {
-      await supabase.from("security_alerts").insert({
-        source: "callgear_sentinel",
-        alert_type: alerts[0].type,
-        severity: alerts[0].severity,
-        message: alerts[0].message,
-        details: alerts[0].details,
-        call_session_id: webhook.call_session_id,
-        caller_number: webhook.caller_number,
-        called_number: webhook.called_number,
-        created_at: new Date().toISOString()
-      }).catch(err => console.error("Failed to store alert:", err));
+      try {
+        const { error: insertError } = await supabase.from("security_alerts").insert({
+          source: "callgear_sentinel",
+          alert_type: alerts[0].type,
+          severity: alerts[0].severity,
+          message: alerts[0].message,
+          details: alerts[0].details,
+          call_session_id: webhook.call_session_id,
+          caller_number: webhook.caller_number,
+          called_number: webhook.called_number,
+          created_at: new Date().toISOString()
+        });
+        if (insertError) console.error("Failed to store alert:", insertError);
+        else console.log("Alert stored successfully");
+      } catch (err) {
+        console.error("Failed to store alert:", err);
+      }
     }
 
     return new Response(

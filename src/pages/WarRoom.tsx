@@ -91,7 +91,7 @@ const WarRoom = () => {
     const now = new Date();
     return created.getMonth() === now.getMonth() && 
            created.getFullYear() === now.getFullYear() &&
-           (d.status === "closed" || d.status === "won");
+           (d.status === "closed" || (d.status as string) === "won");
   }) || [];
   const netNewArr = thisMonthDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
   const burnMultiple = netNewArr > 0 ? monthlyBurn / netNewArr : 0;
@@ -117,7 +117,7 @@ const WarRoom = () => {
   // Calculate actual historical revenue from deals
   const getHistoricalRevenue = () => {
     const now = new Date();
-    const closedDeals = deals?.filter(d => d.status === "closed" || d.status === "won") || [];
+    const closedDeals = deals?.filter(d => d.status === "closed" || (d.status as string) === "won") || [];
     
     // Get revenue for last 3 months
     const revenueByMonth: number[] = [];
@@ -153,7 +153,7 @@ const WarRoom = () => {
     
     const contractDeals = deals?.filter(d => d.stage === "Contract Sent") || [];
     const proposalDeals = deals?.filter(d => d.stage === "Proposal") || [];
-    const activeDeals = deals?.filter(d => d.status !== "closed" && d.status !== "lost" && d.status !== "won") || [];
+    const activeDeals = deals?.filter(d => d.status !== "closed" && d.status !== "lost" && (d.status as string) !== "won") || [];
     
     const commitValue = contractDeals.reduce((sum, d) => sum + (d.deal_value || 0) * 0.9, 0);
     const likelyValue = proposalDeals.reduce((sum, d) => sum + (d.deal_value || 0) * 0.6, 0);
