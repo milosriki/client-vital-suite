@@ -37,21 +37,26 @@ export default function Dashboard() {
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['client-health-scores-dashboard'],
     queryFn: async () => {
-      const { data: latestDate } = await supabase
+      // Get latest calculated_on date - use maybeSingle to avoid error when no rows
+      const { data: latestDateRows } = await supabase
         .from('client_health_scores')
         .select('calculated_on')
         .order('calculated_on', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (!latestDate?.calculated_on) return [];
-
-      const { data, error } = await supabase
+      const latestDate = latestDateRows?.[0]?.calculated_on;
+      
+      // If no calculated_on, just get all clients
+      let query = supabase
         .from('client_health_scores')
         .select('*')
-        .eq('calculated_on', latestDate.calculated_on)
         .order('health_score', { ascending: true });
 
+      if (latestDate) {
+        query = query.eq('calculated_on', latestDate);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
