@@ -28,3 +28,13 @@ dist-ssr
 .lovableignore
 .env.vercel
 .env*.local
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+*.pem
+secrets.json
