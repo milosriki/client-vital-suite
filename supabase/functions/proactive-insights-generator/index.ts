@@ -9,10 +9,12 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-// Try direct Gemini API first, fallback to Lovable
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
+// Try both Google API keys - GEMINI_API_KEY and GOOGLE_API_KEY
+const geminiKey = Deno.env.get('GEMINI_API_KEY');
+const googleKey = Deno.env.get('GOOGLE_API_KEY');
 const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-const useDirectGemini = !!geminiApiKey;
+const googleApiKeys = [geminiKey, googleKey].filter(Boolean) as string[];
+const useDirectGemini = googleApiKeys.length > 0;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -193,26 +195,15 @@ serve(async (req) => {
           `Pattern: ${JSON.stringify(r.condition_pattern)} → ${JSON.stringify(r.action_pattern)} (confidence: ${r.confidence_score})`
         ).join('\n') || 'No learned patterns yet';
 
-        // Use direct Gemini API or Lovable fallback
-        const aiUrl = useDirectGemini 
-          ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
-          : 'https://ai.gateway.lovable.dev/v1/chat/completions';
-        const aiKey = useDirectGemini ? geminiApiKey : lovableApiKey;
+        // Use direct Gemini API or Lovable fallback - try both Google keys on 403
         const aiModel = useDirectGemini ? 'gemini-2.0-flash' : 'google/gemini-2.5-flash';
+        const requestBody = JSON.stringify({
+          model: aiModel,
+          messages: [
+            {
+              role: 'system',
+              content: `You are a PTD Fitness sales intelligence assistant. Enhance insights with specific, actionable call scripts.
 
-        const response = await fetch(aiUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${aiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: aiModel,
-            messages: [
-              {
-                role: 'system',
-                content: `You are a PTD Fitness sales intelligence assistant. Enhance insights with specific, actionable call scripts.
-                
 LEARNED PATTERNS FROM FEEDBACK:
 ${learningContext}
 
@@ -223,16 +214,35 @@ BUSINESS RULES:
 - Task minimization: Only high-value tasks
 
 Return a JSON array of enhanced insights with improved call_script and recommended_action fields.`
-              },
-              {
-                role: 'user',
-                content: `Enhance these ${insights.length} insights with better call scripts and actions:\n${JSON.stringify(insights, null, 2)}`
-              }
-            ],
-          }),
+            },
+            {
+              role: 'user',
+              content: `Enhance these ${insights.length} insights with better call scripts and actions:\n${JSON.stringify(insights, null, 2)}`
+            }
+          ],
         });
 
-        if (response.ok) {
+        let response: Response | null = null;
+        if (useDirectGemini) {
+          // Try each Google API key until one works
+          for (const apiKey of googleApiKeys) {
+            response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+              body: requestBody,
+            });
+            if (response.status !== 403) break;
+            console.log('Key failed with 403, trying next...');
+          }
+        } else {
+          response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+            body: requestBody,
+          });
+        }
+
+        if (response?.ok) {
           const aiData = await response.json();
           const content = aiData.choices?.[0]?.message?.content || '';
           try {

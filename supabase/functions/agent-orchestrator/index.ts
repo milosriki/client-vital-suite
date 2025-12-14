@@ -206,10 +206,12 @@ const errorHandlerNode: NodeFunction = async (state, supabase) => {
 const synthesizerNode: NodeFunction = async (state, supabase) => {
   console.log("[Orchestrator] Running: synthesizer");
   
-  // Try direct Gemini API first, fallback to Lovable
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+  // Try both Google API keys - GEMINI_API_KEY and GOOGLE_API_KEY
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  const googleKey = Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const useDirectGemini = !!GEMINI_API_KEY;
+  const googleApiKeys = [geminiKey, googleKey].filter(Boolean) as string[];
+  const useDirectGemini = googleApiKeys.length > 0;
   
   // Build synthesis prompt
   const synthesisContext = `

@@ -65,15 +65,17 @@ serve(async (req) => {
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
 
-      // Try direct Gemini API first, fallback to Lovable
-      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+      // Try both Google API keys - GEMINI_API_KEY and GOOGLE_API_KEY
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
+      const googleKey = Deno.env.get("GOOGLE_API_KEY");
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      const useDirectGemini = !!GEMINI_API_KEY;
-      
-      if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-        throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+      const googleApiKeys = [geminiKey, googleKey].filter(Boolean) as string[];
+      const useDirectGemini = googleApiKeys.length > 0;
+
+      if (googleApiKeys.length === 0 && !LOVABLE_API_KEY) {
+        throw new Error("No AI API key configured. Set GEMINI_API_KEY, GOOGLE_API_KEY, or LOVABLE_API_KEY");
       }
-      console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+      console.log(`🔑 Keys: GEMINI=${!!geminiKey}, GOOGLE=${!!googleKey}, LOVABLE=${!!LOVABLE_API_KEY}`);
 
       const systemPrompt = `You are a Stripe financial assistant specialized in payouts, transfers, and balance management. 
 You have access to the user's Stripe data including:
@@ -102,25 +104,28 @@ If asked about authorized persons or suspicious activity, analyze the transfer d
         { role: "user", content: message },
       ];
 
-      // Call AI API - Direct Gemini or Lovable fallback
-      const aiUrl = useDirectGemini 
-        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        : "https://ai.gateway.lovable.dev/v1/chat/completions";
-      const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
+      // Call AI API - Try both Google keys on 403, then Lovable fallback
       const aiModel = useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash";
+      const requestBody = JSON.stringify({ model: aiModel, messages, stream: true });
 
-      const response = await fetch(aiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${aiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: aiModel,
-          messages,
-          stream: true,
-        }),
-      });
+      let response: Response | null = null;
+      if (useDirectGemini) {
+        for (const apiKey of googleApiKeys) {
+          response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: requestBody,
+          });
+          if (response.status !== 403) break;
+          console.log("Key failed with 403, trying next...");
+        }
+      } else {
+        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: requestBody,
+        });
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
