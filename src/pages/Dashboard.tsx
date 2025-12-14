@@ -81,7 +81,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from('weekly_patterns')
         .select('*')
-        .order('week_end_date', { ascending: false })
+        .order('week_start', { ascending: false })
         .limit(1)
         .single();
 
@@ -104,13 +104,13 @@ export default function Dashboard() {
         (supabase as any)
           .from('deals')
           .select('deal_value')
-          .eq('status', 'won')
+          .eq('status', 'closed')
           .gte('close_date', thisMonthStart)
           .lte('close_date', thisMonthEnd),
         (supabase as any)
           .from('deals')
           .select('deal_value')
-          .eq('status', 'won')
+          .eq('status', 'closed')
           .gte('close_date', lastMonthStart)
           .lte('close_date', lastMonthEnd),
       ]);
@@ -131,7 +131,7 @@ export default function Dashboard() {
       const { data, error } = await (supabase as any)
         .from('deals')
         .select('deal_value')
-        .not('status', 'in', '("won","lost")');
+        .not('status', 'in', '("closed","lost")');
 
       if (error) return { total: 0, count: 0 };
       const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;

@@ -15,7 +15,7 @@ export function LiveRevenueChart() {
       const { data, error } = await (supabase as any)
         .from('deals')
         .select('deal_value, close_date')
-        .eq('status', 'won')
+        .eq('status', 'closed')
         .gte('close_date', thirtyDaysAgo)
         .order('close_date', { ascending: true });
       

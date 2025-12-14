@@ -46,7 +46,7 @@ export function TodaySnapshot() {
           .select('id', { count: 'exact', head: true })
           .gte('close_date', startOfToday.split('T')[0])
           .lte('close_date', endOfToday.split('T')[0])
-          .eq('status', 'won'),
+          .eq('status', 'closed'),
       ]);
 
       return {
