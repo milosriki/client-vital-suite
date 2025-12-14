@@ -186,18 +186,17 @@ export const Navigation = () => {
                   
                   {/* More Pages */}
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mt-6 mb-2">More</p>
-                  <Link to="/analytics" onClick={() => setMobileMenuOpen(false)} className="nav-link">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Analytics</span>
-                  </Link>
-                  <Link to="/ptd-control" onClick={() => setMobileMenuOpen(false)} className="nav-link">
-                    <Settings className="h-4 w-4" />
-                    <span>PTD Control</span>
-                  </Link>
-                  <Link to="/ultimate-ceo" onClick={() => setMobileMenuOpen(false)} className="nav-link">
-                    <Bot className="h-4 w-4" />
-                    <span>AI CEO</span>
-                  </Link>
+                  {moreItems.map((item) => (
+                    <Link 
+                      key={item.path}
+                      to={item.path} 
+                      onClick={() => setMobileMenuOpen(false)} 
+                      className="nav-link"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
                   
                   {/* Quick Actions */}
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mt-6 mb-2">Quick Actions</p>
