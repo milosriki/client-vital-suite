@@ -134,8 +134,8 @@ This allows **your app** to call **your Supabase functions**. It does NOT affect
 | Cron Job | Frequency | HubSpot API Calls | File |
 |----------|-----------|-------------------|------|
 | `hubspot-data-sync` | **Every 15 minutes** | 3 API calls per run (contacts, deals, meetings) | `20251208000001_add_hubspot_sync_schedule.sql` |
-| `hubspot-sync-hourly` | **Every hour** | Multiple API calls | `20251209_agent_cron_schedules.sql` |
-| `daily-capi-sync` | Daily at 11:00 AM | Fetches HubSpot data for CAPI sync | `20251205000001_setup_cron_schedules.sql` |
+| `hubspot-sync-hourly` | **Every hour** | 1-3 API calls per run (contacts, deals, batch mode) | `20251209_agent_cron_schedules.sql` |
+| `daily-capi-sync` | Daily at 11:00 AM | 1 API call (fetches contacts for CAPI sync) | `20251205000001_setup_cron_schedules.sql` |
 
 **Total HubSpot API Calls:**
 - **96 calls/day** from 15-minute sync (4 per hour × 24 hours)
@@ -178,15 +178,15 @@ Good retry logic exists, but **aggressive polling frequency** could still contri
 
 ## HubSpot Functions Overview
 
-| Function | Purpose | Risk to HubSpot UI |
-|----------|---------|-------------------|
-| `sync-hubspot-to-supabase` | Syncs contacts/deals from HubSpot → Supabase | ❌ No risk - server-side only |
-| `sync-hubspot-data` | Lightweight sync (contacts, deals, meetings) | ❌ No risk - server-side only |
-| `sync-hubspot-to-capi` | Syncs HubSpot data to Facebook CAPI | ❌ No risk - server-side only |
-| `fetch-hubspot-live` | Fetches real-time HubSpot data | ❌ No risk - server-side only |
-| `hubspot-anytrack-webhook` | Receives webhooks from HubSpot | ❌ No risk - passive receiver |
-| `hubspot-command-center` | Control center for HubSpot operations | ❌ No risk - server-side only |
-| `auto-reassign-leads` | Reassigns leads in HubSpot | ⚠️ Makes API writes, but infrequent |
+| Function                      | Purpose                                        | Risk to HubSpot UI               |
+|-------------------------------|------------------------------------------------|----------------------------------|
+| `sync-hubspot-to-supabase`    | Syncs contacts/deals from HubSpot → Supabase  | ❌ No risk - server-side only    |
+| `sync-hubspot-data`           | Lightweight sync (contacts, deals, meetings)   | ❌ No risk - server-side only    |
+| `sync-hubspot-to-capi`        | Syncs HubSpot data to Facebook CAPI           | ❌ No risk - server-side only    |
+| `fetch-hubspot-live`          | Fetches real-time HubSpot data                | ❌ No risk - server-side only    |
+| `hubspot-anytrack-webhook`    | Receives webhooks from HubSpot                | ❌ No risk - passive receiver    |
+| `hubspot-command-center`      | Control center for HubSpot operations         | ❌ No risk - server-side only    |
+| `auto-reassign-leads`         | Reassigns leads in HubSpot                    | ⚠️ Makes API writes, infrequent  |
 
 **All functions run on Supabase Edge Functions (server-side). None run in the browser.**
 
