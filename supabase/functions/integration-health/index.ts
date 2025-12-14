@@ -135,12 +135,12 @@ async function checkHubSpot(): Promise<IntegrationStatus> {
     try {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       
-      // Check if there was a recent successful sync
+      // Check if there was a recent successful sync (include completed_with_errors as it's still functional)
       const { data: recentSync, error: syncError } = await supabase
         .from("sync_logs")
-        .select("completed_at, records_processed")
+        .select("completed_at, records_processed, status")
         .eq("platform", "hubspot")
-        .eq("status", "completed")
+        .in("status", ["completed", "completed_with_errors"])
         .gte("completed_at", hourAgo)
         .order("completed_at", { ascending: false })
         .limit(1)
