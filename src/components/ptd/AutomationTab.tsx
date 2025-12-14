@@ -133,9 +133,9 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
       return data;
     },
     onSuccess: (data) => {
-      toast({ 
-        title: "CAPI Validation Complete", 
-        description: `${data?.valid || 0} valid, ${data?.invalid || 0} invalid events` 
+      toast({
+        title: "CAPI Validation Complete",
+        description: `${data?.valid || 0} valid, ${data?.invalid || 0} invalid events`
       });
     },
     onError: () => {
@@ -143,9 +143,102 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
     }
   });
 
-  const isAnyLoading = runDailyReport.isPending || runDataQuality.isPending || 
-    checkIntegrationHealth.isPending || runPipelineMonitor.isPending || 
-    runCoachAnalyzer.isPending || runCAPIValidator.isPending;
+  // CSV Preflight - validate CSV structure and content
+  const preflightCsv = useMutation({
+    mutationFn: async () => {
+      if (!csvUrl) throw new Error("CSV URL required");
+      // Fetch CSV headers and first few rows to validate
+      const response = await fetch(csvUrl);
+      if (!response.ok) throw new Error(`Failed to fetch CSV: ${response.status}`);
+      const text = await response.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = lines[0]?.split(',').map(h => h.trim().replace(/"/g, ''));
+      const rowCount = lines.length - 1;
+
+      // Validate required columns
+      const requiredColumns = ['email', 'event_name'];
+      const missingColumns = requiredColumns.filter(c => !headers?.includes(c));
+
+      return { headers, rowCount, missingColumns, valid: missingColumns.length === 0 };
+    },
+    onSuccess: (data) => {
+      if (data.valid) {
+        toast({
+          title: "✅ Preflight Passed",
+          description: `Found ${data.rowCount} rows with columns: ${data.headers?.slice(0, 5).join(', ')}${data.headers && data.headers.length > 5 ? '...' : ''}`
+        });
+      } else {
+        toast({
+          title: "⚠️ Preflight Issues",
+          description: `Missing required columns: ${data.missingColumns?.join(', ')}`,
+          variant: "destructive"
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Preflight Failed",
+        description: error instanceof Error ? error.message : "Failed to validate CSV",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // CSV Simulate - process without sending to CAPI
+  const simulateCsv = useMutation({
+    mutationFn: async () => {
+      if (!csvUrl) throw new Error("CSV URL required");
+      const { data, error } = await supabase.functions.invoke('process-csv-batch', {
+        body: { csv_url: csvUrl, mode, simulate: true }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Simulation Complete",
+        description: `Would process ${data?.events_count || 0} events. ${data?.valid || 0} valid, ${data?.invalid || 0} invalid.`
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Simulation Failed",
+        description: error instanceof Error ? error.message : "Failed to simulate CSV processing",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // CSV Run - actually process and send to CAPI
+  const runCsvBackfill = useMutation({
+    mutationFn: async () => {
+      if (!csvUrl) throw new Error("CSV URL required");
+      const { data, error } = await supabase.functions.invoke('process-csv-batch', {
+        body: { csv_url: csvUrl, mode, simulate: false }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "CSV Backfill Complete",
+        description: `Processed ${data?.events_sent || 0} events to CAPI. ${data?.failed || 0} failed.`
+      });
+      refetchLogs();
+    },
+    onError: (error) => {
+      toast({
+        title: "Backfill Failed",
+        description: error instanceof Error ? error.message : "Failed to process CSV backfill",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const isAnyLoading = runDailyReport.isPending || runDataQuality.isPending ||
+    checkIntegrationHealth.isPending || runPipelineMonitor.isPending ||
+    runCoachAnalyzer.isPending || runCAPIValidator.isPending ||
+    preflightCsv.isPending || simulateCsv.isPending || runCsvBackfill.isPending;
 
   return (
     <div className="space-y-6">
@@ -260,17 +353,28 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => toast({ title: "Preflight", description: `CSV: ${csvUrl}` })}>
+            <Button
+              variant="outline"
+              disabled={!csvUrl || preflightCsv.isPending}
+              onClick={() => preflightCsv.mutate()}
+            >
               <Eye className="h-4 w-4 mr-2" />
-              Preflight
+              {preflightCsv.isPending ? "Checking..." : "Preflight"}
             </Button>
-            <Button variant="outline" onClick={() => toast({ title: "Simulate", description: "Simulation complete" })}>
+            <Button
+              variant="outline"
+              disabled={!csvUrl || simulateCsv.isPending}
+              onClick={() => simulateCsv.mutate()}
+            >
               <Play className="h-4 w-4 mr-2" />
-              Simulate
+              {simulateCsv.isPending ? "Simulating..." : "Simulate"}
             </Button>
-            <Button>
+            <Button
+              disabled={!csvUrl || runCsvBackfill.isPending}
+              onClick={() => runCsvBackfill.mutate()}
+            >
               <Upload className="h-4 w-4 mr-2" />
-              Run
+              {runCsvBackfill.isPending ? "Running..." : "Run"}
             </Button>
           </div>
         </CardContent>
