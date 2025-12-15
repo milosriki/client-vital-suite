@@ -10,16 +10,23 @@ Workspace-specific VSCode settings that:
 - Enable schema downloads
 - Format code on save
 - Configure TypeScript settings
+- Associate specific JSON files with JSONC for comment support
 
 ### `extensions.json`
 Recommended VSCode extensions for this project:
-- ESLint for JavaScript/TypeScript linting
-- Prettier for code formatting
-- Tailwind CSS IntelliSense
-- TypeScript language features
+- **ESLint**: JavaScript/TypeScript linting
+- **Prettier**: Code formatting
+- **Tailwind CSS IntelliSense**: Tailwind CSS support
+- **TypeScript**: Enhanced TypeScript language features
 
 ### `mcp-config-example.json`
 Example MCP (Model Context Protocol) server configuration showing the **correct** format for HubSpot tools.
+
+**⚠️ Important**: 
+- This is an EXAMPLE file for reference only
+- Replace `YOUR_HUBSPOT_API_KEY_HERE` with your actual API key
+- Do not commit real API keys to version control
+- This file shows correct JSON Schema format with `items` for all arrays
 
 **Key Points:**
 - All array parameters must have an `items` property

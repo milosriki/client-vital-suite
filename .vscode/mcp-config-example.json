@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-hubspot"],
       "env": {
-        "HUBSPOT_API_KEY": "your-api-key-here"
+        "HUBSPOT_API_KEY": "YOUR_HUBSPOT_API_KEY_HERE"
       }
     }
   },

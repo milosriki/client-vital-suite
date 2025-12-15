@@ -199,6 +199,5 @@ This will get you started with the fix right away!
 
 ---
 
-**Last Updated**: December 15, 2024
 **Issue**: MCP HubSpot tool validation error
 **Status**: Documentation complete, ready for user to apply fix

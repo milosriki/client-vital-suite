@@ -6,7 +6,8 @@
     "source.fixAll": "explicit"
   },
   "files.associations": {
-    "*.json": "jsonc"
+    "tsconfig*.json": "jsonc",
+    ".vscode/*.json": "jsonc"
   },
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true
