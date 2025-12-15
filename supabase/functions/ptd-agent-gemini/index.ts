@@ -1649,7 +1649,7 @@ ${learnedPatterns || 'No patterns learned yet.'}
         const result = await executeTool(supabase, toolCall.function.name, args);
         // Ensure content is always a non-empty string to avoid API errors
         // Empty/null content can trigger "image media type is required" error in some APIs
-        const content = result && result.trim() ? result : "No data returned";
+        const content = (typeof result === 'string' && result.trim()) ? result : "No data returned";
         return {
           role: "tool",
           tool_call_id: toolCall.id,

@@ -1113,7 +1113,7 @@ IMPORTANT:
       for (const { id, result } of toolResults) {
         // Ensure content is always a non-empty string to avoid API errors
         // Empty/null content can trigger "image media type is required" error in some APIs
-        const content = result && result.trim() ? result : "No data returned";
+        const content = (typeof result === 'string' && result.trim()) ? result : "No data returned";
         currentMessages.push({
           role: "tool",
           tool_call_id: id,
