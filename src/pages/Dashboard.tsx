@@ -15,6 +15,8 @@ import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
 import { DashboardInterventionTracker } from "@/components/dashboard/DashboardInterventionTracker";
+import { TickerFeed } from "@/components/hubspot/TickerFeed";
+import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "@/hooks/use-toast";
@@ -26,8 +28,11 @@ import {
   Zap, 
   CreditCard,
   Activity,
-  LayoutGrid
+  LayoutGrid,
+  RefreshCw
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
   useRealtimeHealthScores();
@@ -200,6 +205,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Live Ticker at the top */}
+      <TickerFeed />
+      
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <MissionControlHeader
           title="Executive Dashboard"
@@ -295,7 +303,7 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          {/* Clients Tab */}
+          {/* Clients Tab - Enhanced with Traffic Light badges */}
           <TabsContent value="clients" className="space-y-6 mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
@@ -306,19 +314,22 @@ export default function Dashboard() {
                   <CardHeader>
                     <CardTitle>Health Summary</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    {["GREEN", "YELLOW", "RED", "PURPLE"].map((zone) => {
+                  <CardContent className="space-y-4">
+                    {(["GREEN", "YELLOW", "RED", "PURPLE"] as const).map((zone) => {
                       const count = (clients || []).filter((c) => c.health_zone === zone).length;
-                      const colors: Record<string, string> = {
-                        GREEN: "bg-success text-success-foreground",
-                        YELLOW: "bg-warning text-warning-foreground",
-                        RED: "bg-destructive text-destructive-foreground",
-                        PURPLE: "bg-primary text-primary-foreground",
+                      const labels: Record<string, string> = {
+                        GREEN: "Healthy",
+                        YELLOW: "Warning",
+                        RED: "Critical",
+                        PURPLE: "VIP",
                       };
                       return (
-                        <div key={zone} className="flex items-center justify-between">
-                          <Badge className={colors[zone]}>{zone}</Badge>
-                          <span className="font-mono font-bold">{count}</span>
+                        <div key={zone} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <TrafficLightBadge zone={zone} size="lg" pulsing={zone === "RED" && count > 0} />
+                            <span className="font-medium">{labels[zone]}</span>
+                          </div>
+                          <span className="font-mono font-bold text-lg">{count}</span>
                         </div>
                       );
                     })}
@@ -328,9 +339,29 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          {/* HubSpot Tab */}
+          {/* HubSpot Tab - Enhanced with live log */}
           <TabsContent value="hubspot" className="space-y-6 mt-0">
-            <LiveActivityFeed />
+            <Card className="border-border/50 bg-card/80">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    HubSpot Live Activity
+                  </CardTitle>
+                  <CardDescription>Real-time activity from HubSpot CRM</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+                  </span>
+                  <span className="text-xs font-medium text-success">Connected</span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <LiveActivityFeed />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Revenue Tab */}
