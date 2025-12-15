@@ -83,6 +83,20 @@
 **Purpose:** CEO-level strategic intelligence
 **Secret:** `ANTHROPIC_API_KEY`
 
+#### **I. ptd-self-developer** ✅
+**Location:** `supabase/functions/ptd-self-developer/index.ts`
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+**Status:** ✅ **DEPLOYED** (configured in config.toml)
+**Purpose:** Self-development and code generation agent
+**Secret:** `ANTHROPIC_API_KEY`
+
+#### **J. agent-analyst** ✅
+**Location:** `supabase/functions/agent-analyst/index.ts`
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+**Status:** ✅ **DEPLOYED** (configured in config.toml)
+**Purpose:** AI business analyst for PTD Fitness
+**Secret:** `ANTHROPIC_API_KEY`
+
 ---
 
 ## 📊 **DEPLOYMENT STATUS**
@@ -98,8 +112,10 @@
 | `churn-predictor` | ✅ | ✅ | Sonnet 4.5 | ⚠️ Optional |
 | `business-intelligence` | ✅ | ✅ | Sonnet 4.5 | ⚠️ Optional |
 | `ai-ceo-master` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
+| `ptd-self-developer` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
+| `agent-analyst` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
 
-**Total Claude Functions:** 9
+**Total Claude Functions:** 11
 **All Configured:** ✅ Yes
 **All Deployed:** ✅ Yes (assuming deployment)
 
@@ -143,6 +159,8 @@ supabase secrets set ANTHROPIC_API_KEY=your_key_here
 - ✅ `generate-lead-reply` - Required
 - ✅ `generate-lead-replies` - Required
 - ✅ `ai-ceo-master` - Required
+- ✅ `ptd-self-developer` - Required
+- ✅ `agent-analyst` - Required
 - ⚠️ `intervention-recommender` - Optional (templates fallback)
 - ⚠️ `churn-predictor` - Optional (skips AI)
 - ⚠️ `business-intelligence` - Optional (graceful fallback)
