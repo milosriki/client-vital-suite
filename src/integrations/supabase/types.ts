@@ -5149,6 +5149,12 @@ export type Database = {
           status: string
         }[]
       }
+      get_database_size: {
+        Args: never
+        Returns: {
+          size: number
+        }[]
+      }
       get_event_volume_by_source: {
         Args: never
         Returns: {
