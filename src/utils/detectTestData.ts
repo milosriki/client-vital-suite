@@ -29,7 +29,7 @@ export async function detectTestData(): Promise<{
     const { data: testLeads } = await supabase
       .from('leads')
       .select('email', { count: 'exact', head: false })
-      .or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%555-0%')
+      .or('email.ilike.%@example.com,email.ilike.%@email.com')
       .limit(1);
 
     if (testLeads && testLeads.length > 0) {
