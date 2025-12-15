@@ -93,10 +93,13 @@ export default {
       boxShadow: {
         glow: "0 0 40px hsl(var(--primary) / 0.3)",
         "glow-sm": "0 0 20px hsl(var(--primary) / 0.2)",
-        "glow-success": "0 0 40px hsl(var(--success) / 0.3)",
-        "glow-warning": "0 0 40px hsl(var(--warning) / 0.3)",
-        "glow-danger": "0 0 40px hsl(var(--destructive) / 0.3)",
+        "glow-lg": "0 0 60px hsl(var(--primary) / 0.4)",
+        "glow-success": "0 0 20px hsl(var(--success) / 0.4)",
+        "glow-warning": "0 0 20px hsl(var(--warning) / 0.4)",
+        "glow-danger": "0 0 20px hsl(var(--destructive) / 0.4)",
+        "glow-info": "0 0 20px hsl(220 70% 50% / 0.4)",
         premium: "0 4px 20px rgba(0, 0, 0, 0.4)",
+        "premium-lg": "0 8px 40px rgba(0, 0, 0, 0.5)",
       },
       keyframes: {
         "accordion-down": {
