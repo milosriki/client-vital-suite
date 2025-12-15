@@ -4933,17 +4933,26 @@ export type Database = {
           weight: number
         }[]
       }
-      calculate_confidence_score: {
-        Args: {
-          p_email: string
-          p_external_id: string
-          p_fbc: string
-          p_fbp: string
-          p_phone: string
-          p_sources_agree: boolean
-        }
-        Returns: number
-      }
+      calculate_confidence_score:
+        | {
+            Args: {
+              data_points?: number
+              recency_days?: number
+              source_quality?: number
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_email: string
+              p_external_id: string
+              p_fbc: string
+              p_fbp: string
+              p_phone: string
+              p_sources_agree: boolean
+            }
+            Returns: number
+          }
       calculate_lead_score: {
         Args: {
           budget_range_param: string
@@ -4952,6 +4961,19 @@ export type Database = {
           fitness_goal_param: string
           urgency_param: string
         }
+        Returns: number
+      }
+      check_sync_health: {
+        Args: never
+        Returns: {
+          alert_level: string
+          last_success: string
+          platform: string
+          recent_failures: number
+        }[]
+      }
+      cleanup_old_agent_memory: {
+        Args: { retention_days?: number }
         Returns: number
       }
       cleanup_old_logs: { Args: never; Returns: undefined }
@@ -4981,6 +5003,15 @@ export type Database = {
           total_closes: number
           total_leads: number
           total_pitches: number
+        }[]
+      }
+      get_data_freshness: {
+        Args: never
+        Returns: {
+          hours_since_sync: number
+          last_sync: string
+          platform: string
+          status: string
         }[]
       }
       get_event_volume_by_source: {
@@ -5046,16 +5077,7 @@ export type Database = {
           ph: number
         }[]
       }
-      get_last_admin_review: {
-        Args: never
-        Returns: {
-          notes: string
-          review_date: string
-          review_status: string
-          review_type: string
-          reviewed_by: string
-        }[]
-      }
+      get_last_admin_review: { Args: never; Returns: string }
       get_revenue_data: {
         Args: never
         Returns: {
@@ -5091,12 +5113,10 @@ export type Database = {
           query_embedding: string
         }
         Returns: {
-          category: string
           content: string
           id: string
           metadata: Json
           similarity: number
-          source: string
         }[]
       }
       match_memories: {
