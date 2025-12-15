@@ -1,59 +1,60 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useRealtimeHealthScores } from '@/hooks/useRealtimeHealthScores';
-import { useNotifications } from '@/hooks/useNotifications';
-import { HeroStatCard } from '@/components/dashboard/HeroStatCard';
-import { GreetingBar } from '@/components/dashboard/GreetingBar';
-import { LiveHealthDistribution } from '@/components/dashboard/LiveHealthDistribution';
-import { LiveQuickActions } from '@/components/dashboard/LiveQuickActions';
-import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
-import { LiveRevenueChart } from '@/components/dashboard/LiveRevenueChart';
-import { TodaySnapshot } from '@/components/dashboard/TodaySnapshot';
-import { CoachLeaderboard } from '@/components/dashboard/CoachLeaderboard';
-import { AlertsBar } from '@/components/dashboard/AlertsBar';
-import { ExecutiveBriefing } from '@/components/dashboard/ExecutiveBriefing';
-import { PredictiveAlerts } from '@/components/dashboard/PredictiveAlerts';
-import { PatternInsights } from '@/components/dashboard/PatternInsights';
-import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
-import { MetricDrilldownModal } from '@/components/dashboard/MetricDrilldownModal';
-import { FunctionStatusChecker } from '@/components/FunctionStatusChecker';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Users, DollarSign, AlertTriangle, TrendingUp, Phone, Calendar, Target } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { MissionControlHeader } from "@/components/dashboard/MissionControlHeader";
+import { KPIGrid } from "@/components/dashboard/KPIGrid";
+import { ExecutiveBriefing } from "@/components/dashboard/ExecutiveBriefing";
+import { PredictiveAlerts } from "@/components/dashboard/PredictiveAlerts";
+import { LiveHealthDistribution } from "@/components/dashboard/LiveHealthDistribution";
+import { CoachLeaderboard } from "@/components/dashboard/CoachLeaderboard";
+import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
+import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
+import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
+import { DashboardInterventionTracker } from "@/components/dashboard/DashboardInterventionTracker";
+import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
+import { useNotifications } from "@/hooks/useNotifications";
+import { toast } from "@/hooks/use-toast";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { 
+  Calendar, 
+  TrendingUp, 
+  Users, 
+  Zap, 
+  CreditCard,
+  Activity,
+  LayoutGrid
+} from "lucide-react";
 
 export default function Dashboard() {
   useRealtimeHealthScores();
   useNotifications();
   const navigate = useNavigate();
-  const [showAIPanel, setShowAIPanel] = useState(false);
-  const [isRunningBI, setIsRunningBI] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [drilldownMetric, setDrilldownMetric] = useState<{ title: string; value: string | number; type: "revenue" | "clients" | "pipeline" | "attention" } | null>(null);
+  const [activeTab, setActiveTab] = useState("today");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch clients
-  const { data: clients, isLoading: clientsLoading } = useQuery({
-    queryKey: ['client-health-scores-dashboard'],
+  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useQuery({
+    queryKey: ["client-health-scores-dashboard"],
     queryFn: async () => {
-      // Get latest calculated_on date - use maybeSingle to avoid error when no rows
       const { data: latestDateRows } = await supabase
-        .from('client_health_scores')
-        .select('calculated_on')
-        .order('calculated_on', { ascending: false })
+        .from("client_health_scores")
+        .select("calculated_on")
+        .order("calculated_on", { ascending: false })
         .limit(1);
 
       const latestDate = latestDateRows?.[0]?.calculated_on;
-      
-      // If no calculated_on, just get all clients
       let query = supabase
-        .from('client_health_scores')
-        .select('*')
-        .order('health_score', { ascending: true });
+        .from("client_health_scores")
+        .select("*")
+        .order("health_score", { ascending: true });
 
       if (latestDate) {
-        query = query.eq('calculated_on', latestDate);
+        query = query.eq("calculated_on", latestDate);
       }
 
       const { data, error } = await query;
@@ -63,343 +64,281 @@ export default function Dashboard() {
     refetchInterval: 60000,
   });
 
-  // Fetch daily summary for Executive Briefing
+  // Fetch daily summary
   const { data: dailySummary } = useQuery({
-    queryKey: ['daily-summary-briefing'],
+    queryKey: ["daily-summary-briefing"],
     queryFn: async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const today = format(new Date(), "yyyy-MM-dd");
       const { data, error } = await supabase
-        .from('daily_summary')
-        .select('*')
-        .eq('summary_date', today)
+        .from("daily_summary")
+        .select("*")
+        .eq("summary_date", today)
         .single();
-
       if (error) return null;
       return data;
     },
     refetchInterval: 300000,
   });
 
-  // Fetch weekly patterns
-  const { data: weeklyPatterns } = useQuery({
-    queryKey: ['weekly-patterns'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('weekly_patterns')
-        .select('*')
-        .order('week_start', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) return null;
-      return data;
-    },
-  });
-
-  // Fetch revenue this month
+  // Fetch revenue
   const { data: revenueData, isLoading: revenueLoading } = useQuery({
-    queryKey: ['monthly-revenue'],
+    queryKey: ["monthly-revenue"],
     queryFn: async () => {
       const now = new Date();
-      const thisMonthStart = format(startOfMonth(now), 'yyyy-MM-dd');
-      const thisMonthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
-      const lastMonthStart = format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
-      const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
+      const thisMonthStart = format(startOfMonth(now), "yyyy-MM-dd");
+      const thisMonthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+      const lastMonthStart = format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
+      const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
 
       const [thisMonth, lastMonth] = await Promise.all([
-        (supabase as any)
-          .from('deals')
-          .select('deal_value')
-          .eq('status', 'closed')
-          .gte('close_date', thisMonthStart)
-          .lte('close_date', thisMonthEnd),
-        (supabase as any)
-          .from('deals')
-          .select('deal_value')
-          .eq('status', 'closed')
-          .gte('close_date', lastMonthStart)
-          .lte('close_date', lastMonthEnd),
+        (supabase as any).from("deals").select("deal_value").eq("status", "closed").gte("close_date", thisMonthStart).lte("close_date", thisMonthEnd),
+        (supabase as any).from("deals").select("deal_value").eq("status", "closed").gte("close_date", lastMonthStart).lte("close_date", lastMonthEnd),
       ]);
 
       const thisTotal = thisMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
       const lastTotal = lastMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
       const trend = lastTotal > 0 ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0;
-
       return { total: thisTotal, trend, isPositive: trend >= 0 };
     },
     refetchInterval: 120000,
   });
 
-  // Fetch pipeline value
+  // Fetch pipeline
   const { data: pipelineData } = useQuery({
-    queryKey: ['pipeline-value'],
+    queryKey: ["pipeline-value"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('deals')
-        .select('deal_value')
-        .not('status', 'in', '("closed","lost")');
-
+      const { data, error } = await (supabase as any).from("deals").select("deal_value").not("status", "in", '("closed","lost")');
       if (error) return { total: 0, count: 0 };
       const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
       return { total, count: data?.length || 0 };
     },
   });
 
-  // Fetch today's leads count (HubSpot stores leads as contacts)
+  // Fetch today's leads
   const { data: leadsToday } = useQuery({
-    queryKey: ['leads-today'],
+    queryKey: ["leads-today"],
     queryFn: async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const { count, error } = await supabase
-        .from('contacts')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today);
-
-      if (error) return 0;
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { count, error } = await supabase.from("contacts").select("*", { count: "exact", head: true }).gte("created_at", today);
       return count || 0;
     },
   });
 
-  // Fetch today's calls count
+  // Fetch today's calls
   const { data: callsToday } = useQuery({
-    queryKey: ['calls-today'],
+    queryKey: ["calls-today"],
     queryFn: async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const { count, error } = await supabase
-        .from('call_records')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today);
-
-      if (error) return 0;
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { count, error } = await supabase.from("call_records").select("*", { count: "exact", head: true }).gte("created_at", today);
       return count || 0;
     },
   });
 
-  // Compute stats
+  // Computed stats
   const stats = useMemo(() => {
     const allClients = clients || [];
-    const atRisk = allClients.filter(c => 
-      c.health_zone === 'RED' || c.health_zone === 'YELLOW'
-    ).length;
-
-    return {
-      totalClients: allClients.length,
-      atRiskClients: atRisk,
-    };
+    const atRisk = allClients.filter((c) => c.health_zone === "RED" || c.health_zone === "YELLOW").length;
+    return { totalClients: allClients.length, atRiskClients: atRisk };
   }, [clients]);
 
-  // Build executive summary object
+  // KPI Data
+  const kpiData = {
+    revenue: { value: revenueData?.total || 0, trend: revenueData?.trend },
+    clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
+    pipeline: { value: pipelineData?.total || 0, count: pipelineData?.count || 0 },
+    leads: leadsToday || 0,
+    calls: callsToday || 0,
+    appointments: dailySummary?.interventions_recommended || 0,
+    criticalAlerts: dailySummary?.critical_interventions || 0,
+  };
+
+  // Executive summary
   const executiveSummary = useMemo(() => {
     const atRiskRevenue = (clients || [])
-      .filter(c => c.health_zone === 'RED' || c.health_zone === 'YELLOW')
+      .filter((c) => c.health_zone === "RED" || c.health_zone === "YELLOW")
       .reduce((sum, c) => sum + (c.package_value_aed || 0), 0);
 
     return {
-      executive_briefing: dailySummary?.patterns_detected 
+      executive_briefing: dailySummary?.patterns_detected
         ? `${stats.totalClients} active clients tracked. ${stats.atRiskClients} require immediate attention with AED ${atRiskRevenue.toLocaleString()} at risk.`
         : `Monitoring ${stats.totalClients} clients. ${stats.atRiskClients} in warning/critical zones.`,
-      max_utilization_rate: stats.totalClients > 0 
-        ? Math.round(((stats.totalClients - stats.atRiskClients) / stats.totalClients) * 100) 
-        : 0,
-      system_health_status: stats.atRiskClients > 10 ? 'Attention Required' : 'Healthy',
-      action_plan: stats.atRiskClients > 0 
-        ? [`Review ${stats.atRiskClients} at-risk clients`, 'Schedule intervention calls', 'Update client engagement scores']
-        : [],
+      max_utilization_rate: stats.totalClients > 0 ? Math.round(((stats.totalClients - stats.atRiskClients) / stats.totalClients) * 100) : 0,
+      system_health_status: stats.atRiskClients > 10 ? "Attention Required" : "Healthy",
+      action_plan: stats.atRiskClients > 0 ? [`Review ${stats.atRiskClients} at-risk clients`, "Schedule intervention calls", "Update client engagement scores"] : [],
       sla_breach_count: dailySummary?.critical_interventions || 0,
     };
   }, [clients, dailySummary, stats]);
 
-  // Handlers
-  const runBusinessIntelligence = async () => {
-    setIsRunningBI(true);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
     try {
-      const { error } = await supabase.functions.invoke('business-intelligence');
-      if (error) throw error;
-      toast({ title: 'BI Agent Complete', description: 'Analysis updated successfully' });
-    } catch (error: any) {
-      toast({ title: 'BI Agent Error', description: error.message, variant: 'destructive' });
+      await refetchClients();
+      setLastUpdated(new Date());
+      toast({ title: "Data refreshed", description: "Dashboard updated with latest data" });
+    } catch (error) {
+      toast({ title: "Refresh failed", variant: "destructive" });
     } finally {
-      setIsRunningBI(false);
+      setIsRefreshing(false);
     }
   };
 
-  const syncHubSpot = async () => {
-    setIsSyncing(true);
-    try {
-      const { error } = await supabase.functions.invoke('sync-hubspot-to-supabase');
-      if (error) throw error;
-      toast({ title: 'Sync Complete', description: 'HubSpot data synchronized' });
-    } catch (error: any) {
-      toast({ title: 'Sync Error', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSyncing(false);
-    }
+  const handleMetricClick = (metric: string) => {
+    const routes: Record<string, string> = {
+      revenue: "/analytics",
+      clients: "/clients",
+      attention: "/clients?zone=RED",
+      pipeline: "/sales-pipeline",
+      leads: "/clients",
+      calls: "/call-tracking",
+      appointments: "/interventions",
+      alerts: "/interventions",
+    };
+    if (routes[metric]) navigate(routes[metric]);
   };
+
+  const isLoading = clientsLoading || revenueLoading;
 
   return (
-    <div className="min-h-screen bg-background gradient-mesh">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* Greeting Bar */}
-        <GreetingBar />
+    <div className="min-h-screen bg-background">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <MissionControlHeader
+          title="Executive Dashboard"
+          subtitle="Real-time business intelligence at your fingertips"
+          isConnected={true}
+          lastUpdated={lastUpdated}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
-        {/* Executive Briefing - AI Summary */}
-        <ExecutiveBriefing summary={executiveSummary} />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid grid-cols-5 lg:w-auto lg:inline-grid bg-muted/30 p-1 rounded-xl">
+            <TabsTrigger value="today" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Calendar className="h-4 w-4 hidden sm:block" />
+              <span>Today</span>
+            </TabsTrigger>
+            <TabsTrigger value="sales" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <TrendingUp className="h-4 w-4 hidden sm:block" />
+              <span>Sales</span>
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Users className="h-4 w-4 hidden sm:block" />
+              <span>Clients</span>
+            </TabsTrigger>
+            <TabsTrigger value="hubspot" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Zap className="h-4 w-4 hidden sm:block" />
+              <span>HubSpot</span>
+            </TabsTrigger>
+            <TabsTrigger value="revenue" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <CreditCard className="h-4 w-4 hidden sm:block" />
+              <span>Revenue</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Key Metrics Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Key Metrics</span>
-            <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
-          </div>
-          
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
-            <HeroStatCard
-              label="Revenue This Month"
-              value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
-              icon={DollarSign}
-              trend={revenueData?.total ? { value: Math.abs(revenueData.trend), isPositive: revenueData.isPositive } : undefined}
-              variant="success"
-              delay={0}
-              href="/analytics"
-              emptyMessage="No revenue yet"
-              isLoading={revenueLoading}
-            />
-            <HeroStatCard
-              label="Active Clients"
-              value={stats.totalClients}
-              icon={Users}
-              variant="default"
-              delay={50}
-              href="/clients"
-              emptyMessage="No clients yet"
-              isLoading={clientsLoading}
-            />
-            <HeroStatCard
-              label="Needs Attention"
-              value={stats.atRiskClients}
-              icon={AlertTriangle}
-              variant={stats.atRiskClients > 5 ? "danger" : "warning"}
-              pulse={stats.atRiskClients > 10}
-              delay={100}
-              href="/clients?zone=RED"
-              subtitle={stats.atRiskClients === 0 ? "All healthy! 🎉" : undefined}
-              isLoading={clientsLoading}
-            />
-            <HeroStatCard
-              label="Pipeline Value"
-              value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
-              icon={TrendingUp}
-              variant="default"
-              delay={150}
-              href="/sales-pipeline"
-              subtitle={pipelineData?.count ? `from ${pipelineData.count} deals` : undefined}
-              emptyMessage="No active deals"
-            />
-          </div>
-        </section>
-
-        {/* Today's Activity Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Today's Activity</span>
-            <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
-          </div>
-          
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
-            <HeroStatCard
-              label="Leads Today"
-              value={leadsToday || 0}
-              icon={Target}
-              variant="default"
-              delay={200}
-              href="/clients"
-            />
-            <HeroStatCard
-              label="Calls Today"
-              value={callsToday || 0}
-              icon={Phone}
-              variant="default"
-              delay={250}
-              href="/call-tracking"
-            />
-            <HeroStatCard
-              label="Appointments Set"
-              value={dailySummary?.interventions_recommended || 0}
-              icon={Calendar}
-              variant="success"
-              delay={300}
-              href="/interventions"
-            />
-            <HeroStatCard
-              label="Critical Alerts"
-              value={dailySummary?.critical_interventions || 0}
-              icon={AlertTriangle}
-              variant={(dailySummary?.critical_interventions || 0) > 0 ? "danger" : "default"}
-              delay={350}
-              href="/interventions"
-            />
-          </div>
-        </section>
-
-        {/* Predictive Alerts */}
-        <PredictiveAlerts clients={clients || []} summary={dailySummary} />
-
-        {/* Analytics Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-border via-border/50 to-transparent" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Analytics & Insights</span>
-            <div className="h-px flex-1 bg-gradient-to-l from-border via-border/50 to-transparent" />
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - 2/3 */}
-            <div className="lg:col-span-2 space-y-6">
-              <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
-              <LiveRevenueChart />
-              <PatternInsights patterns={weeklyPatterns} clients={clients || []} />
-              <LiveActivityFeed />
+          {/* Today Tab - Daily Pulse */}
+          <TabsContent value="today" className="space-y-6 mt-0">
+            <ExecutiveBriefing summary={executiveSummary} />
+            <KPIGrid data={kpiData} isLoading={isLoading} onMetricClick={handleMetricClick} />
+            <PredictiveAlerts clients={clients || []} summary={dailySummary} />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <ClientRiskMatrix clients={clients || []} isLoading={clientsLoading} />
+                <DashboardInterventionTracker />
+              </div>
+              <div className="space-y-6">
+                <CoachLeaderboard />
+                <LiveActivityFeed />
+              </div>
             </div>
+          </TabsContent>
 
-            {/* Right Column - 1/3 */}
-            <div className="space-y-6">
-              <LiveQuickActions
-                onRunBI={runBusinessIntelligence}
-                onSyncHubSpot={syncHubSpot}
-                onOpenAI={() => setShowAIPanel(true)}
-                isRunningBI={isRunningBI}
-                isSyncing={isSyncing}
-              />
-              <TodaySnapshot />
-              <CoachLeaderboard />
+          {/* Sales Tab */}
+          <TabsContent value="sales" className="space-y-6 mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <Card className="border-border/50 bg-card/80">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      Sales Pipeline
+                    </CardTitle>
+                    <CardDescription>Track deals through your sales funnel</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <p>Pipeline visualization loading...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div>
+                <Card className="border-border/50 bg-card/80">
+                  <CardHeader>
+                    <CardTitle>Quick Stats</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b border-border/30">
+                      <span className="text-sm text-muted-foreground">Open Deals</span>
+                      <span className="font-mono font-bold">{pipelineData?.count || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-border/30">
+                      <span className="text-sm text-muted-foreground">Pipeline Value</span>
+                      <span className="font-mono font-bold text-success">AED {(pipelineData?.total || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm text-muted-foreground">Closed MTD</span>
+                      <span className="font-mono font-bold text-success">AED {(revenueData?.total || 0).toLocaleString()}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
-        </section>
+          </TabsContent>
 
-        {/* Alerts Bar */}
-        <AlertsBar />
+          {/* Clients Tab */}
+          <TabsContent value="clients" className="space-y-6 mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
+              </div>
+              <div>
+                <Card className="border-border/50 bg-card/80">
+                  <CardHeader>
+                    <CardTitle>Health Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {["GREEN", "YELLOW", "RED", "PURPLE"].map((zone) => {
+                      const count = (clients || []).filter((c) => c.health_zone === zone).length;
+                      const colors: Record<string, string> = {
+                        GREEN: "bg-success text-success-foreground",
+                        YELLOW: "bg-warning text-warning-foreground",
+                        RED: "bg-destructive text-destructive-foreground",
+                        PURPLE: "bg-primary text-primary-foreground",
+                      };
+                      return (
+                        <div key={zone} className="flex items-center justify-between">
+                          <Badge className={colors[zone]}>{zone}</Badge>
+                          <span className="font-mono font-bold">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
 
-        {/* Function Status Checker - Debug Tool (Development Only) */}
-        {import.meta.env.DEV && (
-          <FunctionStatusChecker />
-        )}
+          {/* HubSpot Tab */}
+          <TabsContent value="hubspot" className="space-y-6 mt-0">
+            <LiveActivityFeed />
+          </TabsContent>
+
+          {/* Revenue Tab */}
+          <TabsContent value="revenue" className="space-y-6 mt-0">
+            <LiveRevenueChart />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* AI Panel Sheet */}
-      <Sheet open={showAIPanel} onOpenChange={setShowAIPanel}>
-        <SheetContent side="right" className="w-full sm:w-[450px] p-0">
-          <AIAssistantPanel />
-        </SheetContent>
-      </Sheet>
-
-      {/* Metric Drilldown Modal */}
-      <MetricDrilldownModal
-        open={!!drilldownMetric}
-        onClose={() => setDrilldownMetric(null)}
-        metric={drilldownMetric}
-      />
     </div>
   );
 }
