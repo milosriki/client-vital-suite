@@ -14,51 +14,47 @@ export async function detectTestData(): Promise<{
 
   try {
     // Check for test emails in contacts
-    const { data: testContacts } = await supabase
+    const { count: contactCount } = await supabase
       .from('contacts')
-      .select('email', { count: 'exact', head: false })
-      .or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com')
-      .limit(1);
+      .select('*', { count: 'exact', head: true })
+      .or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com');
 
-    if (testContacts && testContacts.length > 0) {
+    if (contactCount && contactCount > 0) {
       sources.push('contacts');
-      totalCount += testContacts.length;
+      totalCount += contactCount;
     }
 
     // Check for test emails in leads
-    const { data: testLeads } = await supabase
+    const { count: leadCount } = await supabase
       .from('leads')
-      .select('email', { count: 'exact', head: false })
-      .or('email.ilike.%@example.com,email.ilike.%@email.com')
-      .limit(1);
+      .select('*', { count: 'exact', head: true })
+      .or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com');
 
-    if (testLeads && testLeads.length > 0) {
+    if (leadCount && leadCount > 0) {
       sources.push('leads');
-      totalCount += testLeads.length;
+      totalCount += leadCount;
     }
 
     // Check for test emails in enhanced_leads
-    const { data: testEnhancedLeads } = await supabase
+    const { count: enhancedLeadCount } = await supabase
       .from('enhanced_leads')
-      .select('email', { count: 'exact', head: false })
-      .or('email.ilike.%@example.com,email.ilike.%@email.com')
-      .limit(1);
+      .select('*', { count: 'exact', head: true })
+      .or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com');
 
-    if (testEnhancedLeads && testEnhancedLeads.length > 0) {
+    if (enhancedLeadCount && enhancedLeadCount > 0) {
       sources.push('enhanced_leads');
-      totalCount += testEnhancedLeads.length;
+      totalCount += enhancedLeadCount;
     }
 
     // Check for test deals
-    const { data: testDeals } = await supabase
+    const { count: dealCount } = await supabase
       .from('deals')
-      .select('deal_name', { count: 'exact', head: false })
-      .or('deal_name.ilike.%test%,deal_name.ilike.%fake%,hubspot_deal_id.is.null')
-      .limit(1);
+      .select('*', { count: 'exact', head: true })
+      .or('deal_name.ilike.%test%,deal_name.ilike.%fake%,hubspot_deal_id.is.null');
 
-    if (testDeals && testDeals.length > 0) {
+    if (dealCount && dealCount > 0) {
       sources.push('deals');
-      totalCount += testDeals.length;
+      totalCount += dealCount;
     }
 
     return {
