@@ -1092,7 +1092,8 @@ IMPORTANT:
       console.log(`Agent iteration ${iterations}, tool calls:`, assistantMessage.tool_calls.length);
       
       // Add assistant message with tool calls
-      // Ensure content is a string to avoid API errors
+      // Ensure content is a string (not null) to avoid "image media type is required" error
+      // Some OpenAI-compatible APIs reject null content in messages with tool_calls
       currentMessages.push({
         ...assistantMessage,
         content: assistantMessage.content || ""
@@ -1111,6 +1112,7 @@ IMPORTANT:
       // Add tool results to messages
       for (const { id, result } of toolResults) {
         // Ensure content is always a non-empty string to avoid API errors
+        // Empty/null content can trigger "image media type is required" error in some APIs
         const content = result && result.trim() ? result : "No data returned";
         currentMessages.push({
           role: "tool",

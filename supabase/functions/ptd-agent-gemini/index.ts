@@ -1634,6 +1634,8 @@ ${learnedPatterns || 'No patterns learned yet.'}
     const toolCalls = message.tool_calls;
 
     // Add assistant message with tool calls
+    // Note: content must be a string (not null) to avoid "image media type is required" error
+    // Some OpenAI-compatible APIs reject null content in messages with tool_calls
     messages.push({
       role: "assistant",
       content: message.content || "",
@@ -1646,6 +1648,7 @@ ${learnedPatterns || 'No patterns learned yet.'}
         const args = JSON.parse(toolCall.function.arguments || "{}");
         const result = await executeTool(supabase, toolCall.function.name, args);
         // Ensure content is always a non-empty string to avoid API errors
+        // Empty/null content can trigger "image media type is required" error in some APIs
         const content = result && result.trim() ? result : "No data returned";
         return {
           role: "tool",
