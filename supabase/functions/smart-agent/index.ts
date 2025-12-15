@@ -1166,7 +1166,7 @@ IMPORTANT:
     return new Response(JSON.stringify({
       response: assistantMessage.content,
       iterations,
-      model: "google/gemini-2.5-flash",
+      model: useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash",
       tools_available: tools.length
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
