@@ -81,3 +81,25 @@ supabase db push
 
 ## 🤝 Support
 For issues with the AI agents, check the `function_logs` in Supabase.
+
+## 🔧 Troubleshooting
+
+### VSCode MCP Tool Validation Error
+
+If you encounter this error in VSCode:
+```
+Failed to validate tool mcp_hubspot-advan_hubspot_create_engagement: Error: tool parameters array type must have items.
+```
+
+This is an MCP (Model Context Protocol) server configuration issue. See our detailed fix guides:
+- **Quick Fix**: [QUICK_FIX_MCP_HUBSPOT.md](./QUICK_FIX_MCP_HUBSPOT.md)
+- **Comprehensive Guide**: [MCP_HUBSPOT_FIX.md](./MCP_HUBSPOT_FIX.md)
+- **Example Config**: [.vscode/mcp-config-example.json](./.vscode/mcp-config-example.json)
+
+**TL;DR**: The error means an MCP tool has an array parameter without the required `items` property in its JSON schema. Check your VSCode MCP configuration and ensure all array-type parameters include an `items` definition.
+
+### Other Common Issues
+
+- **Build Failures**: Run `npm install` to ensure all dependencies are installed
+- **Supabase Connection**: Check environment variables in `.env`
+- **Edge Function Errors**: Check logs in Supabase Dashboard > Edge Functions
