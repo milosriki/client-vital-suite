@@ -152,7 +152,7 @@ Always respond with a JSON object containing:
         risk_level: parsedAction.risk_level || 'medium',
         confidence: parsedAction.confidence || 0.5,
         prepared_payload: parsedAction.prepared_payload || {},
-        status: 'pending',
+        status: 'prepared',
         priority: parsedAction.risk_level === 'high' ? 1 : parsedAction.risk_level === 'medium' ? 2 : 3,
         source_agent: 'ptd-self-developer'
       })
