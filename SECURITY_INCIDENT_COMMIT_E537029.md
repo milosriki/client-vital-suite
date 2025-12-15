@@ -12,18 +12,20 @@ Commit e537029 (merged from PR #39) accidentally committed a `.env` file contain
 The following sensitive credentials were exposed in the commit:
 
 ```
-VITE_SUPABASE_URL="https://ztjndilxurtsfqdsvfds.supabase.co"
-VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo"
-VITE_SUPABASE_PROJECT_ID="ztjndilxurtsfqdsvfds"
-VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo"
+VITE_SUPABASE_URL="https://ztjn...vfds.supabase.co" [REDACTED]
+VITE_SUPABASE_ANON_KEY="eyJh...15Lo" [REDACTED - JWT token exposed]
+VITE_SUPABASE_PROJECT_ID="ztjn...vfds" [REDACTED]
+VITE_SUPABASE_PUBLISHABLE_KEY="eyJh...15Lo" [REDACTED - JWT token exposed]
 ```
+
+**Note:** Full credentials are visible in commit e537029. Check git history for complete values if needed for rotation.
 
 ## Impact Assessment
 
 ### Current Risk Level: HIGH
 - **Public Exposure:** If this repository is public or was public at any time, these credentials are exposed to the internet
 - **API Access:** The anon key allows anyone to access the Supabase project's public API endpoints
-- **Project ID Exposure:** The project ID `ztjndilxurtsfqdsvfds` is now known
+- **Project ID Exposure:** The project ID is now known (see commit e537029 for details)
 
 ### Potential Consequences
 1. Unauthorized access to Supabase database (limited by Row Level Security policies)
@@ -44,8 +46,8 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJz
 These credentials are permanently in git history and must be rotated:
 
 1. **Generate new anon/public key:**
-   - Go to Supabase Dashboard: https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds/settings/api
-   - Navigate to: Settings > API > Project API keys
+   - Go to Supabase Dashboard > Your Project > Settings > API
+   - Navigate to: Project API keys section
    - Click "Reset" on the anon/public key
    - Update the new key in your local `.env` file
 
