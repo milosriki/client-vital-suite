@@ -30,10 +30,13 @@ import {
   CreditCard,
   Activity,
   LayoutGrid,
-  RefreshCw
+  RefreshCw,
+  ArrowUpRight,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   useRealtimeHealthScores();
@@ -220,31 +223,56 @@ export default function Dashboard() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-5 lg:w-auto lg:inline-grid bg-muted/30 p-1 rounded-xl">
-            <TabsTrigger value="today" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Calendar className="h-4 w-4 hidden sm:block" />
-              <span>Today</span>
-            </TabsTrigger>
-            <TabsTrigger value="sales" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <TrendingUp className="h-4 w-4 hidden sm:block" />
-              <span>Sales</span>
-            </TabsTrigger>
-            <TabsTrigger value="clients" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Users className="h-4 w-4 hidden sm:block" />
-              <span>Clients</span>
-            </TabsTrigger>
-            <TabsTrigger value="hubspot" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Zap className="h-4 w-4 hidden sm:block" />
-              <span>HubSpot</span>
-            </TabsTrigger>
-            <TabsTrigger value="revenue" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <CreditCard className="h-4 w-4 hidden sm:block" />
-              <span>Revenue</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <TabsList className="grid grid-cols-5 lg:w-auto lg:inline-grid bg-muted/30 p-1 rounded-xl backdrop-blur-sm border border-border/50">
+              <TabsTrigger value="today" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+                <Calendar className="h-4 w-4 hidden sm:block" />
+                <span>Today</span>
+              </TabsTrigger>
+              <TabsTrigger value="sales" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+                <TrendingUp className="h-4 w-4 hidden sm:block" />
+                <span>Sales</span>
+              </TabsTrigger>
+              <TabsTrigger value="clients" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+                <Users className="h-4 w-4 hidden sm:block" />
+                <span>Clients</span>
+              </TabsTrigger>
+              <TabsTrigger value="hubspot" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+                <Zap className="h-4 w-4 hidden sm:block" />
+                <span>HubSpot</span>
+              </TabsTrigger>
+              <TabsTrigger value="revenue" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+                <CreditCard className="h-4 w-4 hidden sm:block" />
+                <span>Revenue</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/sales-pipeline')}
+                className="gap-2 bg-card/50 border-border/50 hover:border-primary/30"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="hidden sm:inline">Pipeline</span>
+                <ArrowUpRight className="h-3 w-3 opacity-50" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/ptd-control')}
+                className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 text-primary"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">AI Control</span>
+              </Button>
+            </div>
+          </div>
 
           {/* Today Tab - Daily Pulse */}
-          <TabsContent value="today" className="space-y-6 mt-0">
+          <TabsContent value="today" className="space-y-6 mt-0 animate-fade-in">
             <ExecutiveBriefing summary={executiveSummary} />
             <KPIGrid data={kpiData} isLoading={isLoading} onMetricClick={handleMetricClick} />
             <PredictiveAlerts clients={clients || []} summary={dailySummary} />
@@ -262,7 +290,7 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* Sales Tab - Kanban Board */}
-          <TabsContent value="sales" className="space-y-6 mt-0">
+          <TabsContent value="sales" className="space-y-6 mt-0 animate-fade-in">
             <KanbanBoard
               leads={(clients || []).map((c: any) => ({
                 id: c.id?.toString() || c.email,
@@ -275,41 +303,40 @@ export default function Dashboard() {
                 owner_name: c.assigned_coach,
               }))}
             />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="border-border/50 bg-card/80">
-                <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center py-2 border-b border-border/30">
-                    <span className="text-sm text-muted-foreground">Open Deals</span>
-                    <span className="font-mono font-bold">{pipelineData?.count || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-border/30">
-                    <span className="text-sm text-muted-foreground">Pipeline Value</span>
-                    <span className="font-mono font-bold text-success">AED {(pipelineData?.total || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-muted-foreground">Closed MTD</span>
-                    <span className="font-mono font-bold text-success">AED {(revenueData?.total || 0).toLocaleString()}</span>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <QuickStatCard 
+                title="Open Deals" 
+                value={pipelineData?.count || 0} 
+                onClick={() => navigate('/sales-pipeline')}
+              />
+              <QuickStatCard 
+                title="Pipeline Value" 
+                value={`AED ${(pipelineData?.total || 0).toLocaleString()}`} 
+                variant="success"
+              />
+              <QuickStatCard 
+                title="Closed MTD" 
+                value={`AED ${(revenueData?.total || 0).toLocaleString()}`} 
+                variant="success"
+              />
             </div>
           </TabsContent>
 
           {/* Clients Tab - Enhanced with Traffic Light badges */}
-          <TabsContent value="clients" className="space-y-6 mt-0">
+          <TabsContent value="clients" className="space-y-6 mt-0 animate-fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
               </div>
               <div>
-                <Card className="border-border/50 bg-card/80">
+                <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
                   <CardHeader>
-                    <CardTitle>Health Summary</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-primary" />
+                      Health Summary
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3">
                     {(["GREEN", "YELLOW", "RED", "PURPLE"] as const).map((zone) => {
                       const count = (clients || []).filter((c) => c.health_zone === zone).length;
                       const labels: Record<string, string> = {
@@ -319,13 +346,21 @@ export default function Dashboard() {
                         PURPLE: "VIP",
                       };
                       return (
-                        <div key={zone} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                        <button
+                          key={zone}
+                          onClick={() => navigate(`/clients?zone=${zone}`)}
+                          className={cn(
+                            "w-full flex items-center justify-between p-4 bg-muted/20 rounded-xl transition-all duration-200",
+                            "hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-md",
+                            "border border-transparent hover:border-border/50"
+                          )}
+                        >
                           <div className="flex items-center gap-3">
                             <TrafficLightBadge zone={zone} size="lg" pulsing={zone === "RED" && count > 0} />
                             <span className="font-medium">{labels[zone]}</span>
                           </div>
-                          <span className="font-mono font-bold text-lg">{count}</span>
-                        </div>
+                          <span className="font-mono font-bold text-xl">{count}</span>
+                        </button>
                       );
                     })}
                   </CardContent>
@@ -335,8 +370,8 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* HubSpot Tab - Enhanced with live log */}
-          <TabsContent value="hubspot" className="space-y-6 mt-0">
-            <Card className="border-border/50 bg-card/80">
+          <TabsContent value="hubspot" className="space-y-6 mt-0 animate-fade-in">
+            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -345,7 +380,7 @@ export default function Dashboard() {
                   </CardTitle>
                   <CardDescription>Real-time activity from HubSpot CRM</CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
@@ -360,11 +395,120 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* Revenue Tab */}
-          <TabsContent value="revenue" className="space-y-6 mt-0">
+          <TabsContent value="revenue" className="space-y-6 mt-0 animate-fade-in">
             <LiveRevenueChart />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <RevenueStatCard 
+                title="Monthly Revenue" 
+                value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
+                trend={revenueData?.trend}
+                isPositive={revenueData?.isPositive}
+              />
+              <RevenueStatCard 
+                title="Pipeline Value" 
+                value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
+                subtitle={`${pipelineData?.count || 0} active deals`}
+              />
+              <RevenueStatCard 
+                title="At-Risk Revenue" 
+                value={`AED ${(clients || [])
+                  .filter(c => c.health_zone === "RED" || c.health_zone === "YELLOW")
+                  .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
+                  .toLocaleString()}`}
+                variant="warning"
+              />
+              <RevenueStatCard 
+                title="Healthy Revenue" 
+                value={`AED ${(clients || [])
+                  .filter(c => c.health_zone === "GREEN" || c.health_zone === "PURPLE")
+                  .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
+                  .toLocaleString()}`}
+                variant="success"
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
     </div>
+  );
+}
+
+// Quick Stat Card Component
+function QuickStatCard({ 
+  title, 
+  value, 
+  variant = "default",
+  onClick 
+}: { 
+  title: string; 
+  value: string | number; 
+  variant?: "default" | "success" | "warning";
+  onClick?: () => void;
+}) {
+  const variantStyles = {
+    default: "bg-card/80 border-border/50",
+    success: "bg-success/5 border-success/20",
+    warning: "bg-warning/5 border-warning/20",
+  };
+
+  return (
+    <Card 
+      className={cn(
+        "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+        variantStyles[variant],
+        onClick && "cursor-pointer"
+      )}
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <p className="text-sm text-muted-foreground mb-1">{title}</p>
+        <p className="text-2xl font-bold font-mono">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Revenue Stat Card Component
+function RevenueStatCard({ 
+  title, 
+  value, 
+  trend,
+  isPositive,
+  subtitle,
+  variant = "default"
+}: { 
+  title: string; 
+  value: string; 
+  trend?: number;
+  isPositive?: boolean;
+  subtitle?: string;
+  variant?: "default" | "success" | "warning";
+}) {
+  const variantStyles = {
+    default: "bg-card/80 border-border/50",
+    success: "bg-success/5 border-success/20",
+    warning: "bg-warning/5 border-warning/20",
+  };
+
+  return (
+    <Card className={cn("transition-all duration-200", variantStyles[variant])}>
+      <CardContent className="p-5">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
+        <p className="text-2xl font-bold font-mono">{value}</p>
+        {trend !== undefined && (
+          <div className={cn(
+            "flex items-center gap-1 text-xs mt-2",
+            isPositive ? "text-success" : "text-destructive"
+          )}>
+            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingUp className="h-3 w-3 rotate-180" />}
+            <span>{isPositive ? "+" : ""}{trend}%</span>
+            <span className="text-muted-foreground">vs last month</span>
+          </div>
+        )}
+        {subtitle && (
+          <p className="text-xs text-muted-foreground mt-2">{subtitle}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

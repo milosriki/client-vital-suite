@@ -941,6 +941,7 @@ export type Database = {
       }
       call_records: {
         Row: {
+          ai_summary: string | null
           appointment_set: boolean | null
           call_direction: string | null
           call_outcome: string | null
@@ -956,6 +957,7 @@ export type Database = {
           ended_at: string | null
           forwarded_from: string | null
           id: string
+          keywords: string[] | null
           keywords_mentioned: string[] | null
           lead_quality: string | null
           provider_call_id: string | null
@@ -966,9 +968,11 @@ export type Database = {
           tracking_number_id: string | null
           transcription: string | null
           transcription_confidence: number | null
+          transcription_status: string | null
           updated_at: string | null
         }
         Insert: {
+          ai_summary?: string | null
           appointment_set?: boolean | null
           call_direction?: string | null
           call_outcome?: string | null
@@ -984,6 +988,7 @@ export type Database = {
           ended_at?: string | null
           forwarded_from?: string | null
           id?: string
+          keywords?: string[] | null
           keywords_mentioned?: string[] | null
           lead_quality?: string | null
           provider_call_id?: string | null
@@ -994,9 +999,11 @@ export type Database = {
           tracking_number_id?: string | null
           transcription?: string | null
           transcription_confidence?: number | null
+          transcription_status?: string | null
           updated_at?: string | null
         }
         Update: {
+          ai_summary?: string | null
           appointment_set?: boolean | null
           call_direction?: string | null
           call_outcome?: string | null
@@ -1012,6 +1019,7 @@ export type Database = {
           ended_at?: string | null
           forwarded_from?: string | null
           id?: string
+          keywords?: string[] | null
           keywords_mentioned?: string[] | null
           lead_quality?: string | null
           provider_call_id?: string | null
@@ -1022,6 +1030,7 @@ export type Database = {
           tracking_number_id?: string | null
           transcription?: string | null
           transcription_confidence?: number | null
+          transcription_status?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2234,6 +2243,39 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_function_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          function_name: string
+          id: string
+          request_data: Json | null
+          response_data: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          function_name: string
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          function_name?: string
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       enhanced_leads: {
         Row: {
           ad_id: string | null
@@ -2657,6 +2699,36 @@ export type Database = {
           processed?: boolean | null
           received_at?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      hubspot_activity_cache: {
+        Row: {
+          activity_data: Json
+          activity_timestamp: string
+          activity_type: string
+          contact_id: string | null
+          contact_name: string | null
+          created_at: string
+          id: string
+        }
+        Insert: {
+          activity_data: Json
+          activity_timestamp: string
+          activity_type: string
+          contact_id?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          activity_data?: Json
+          activity_timestamp?: string
+          activity_type?: string
+          contact_id?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
         }
         Relationships: []
       }
@@ -4044,6 +4116,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_log: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          endpoint: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          operation: string
+          records_affected: number | null
+          service: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          operation: string
+          records_affected?: number | null
+          service: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          operation?: string
+          records_affected?: number | null
+          service?: string
+          status?: string
+        }
+        Relationships: []
+      }
       sync_logs: {
         Row: {
           completed_at: string | null
@@ -4110,6 +4221,30 @@ export type Database = {
           next_attempt_at?: string | null
           payload?: Json | null
           status?: string | null
+        }
+        Relationships: []
+      }
+      system_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          metrics_data: Json
+          metrics_type: string
+          recorded_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics_data?: Json
+          metrics_type: string
+          recorded_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics_data?: Json
+          metrics_type?: string
+          recorded_at?: string
         }
         Relationships: []
       }
