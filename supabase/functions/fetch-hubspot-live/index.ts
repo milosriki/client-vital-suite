@@ -16,7 +16,11 @@ serve(async (req) => {
       throw new Error('HUBSPOT_API_KEY not configured');
     }
 
-    const { type, timeframe, setter } = await req.json();
+    const body = await req.json();
+    // Support both old and new parameter names
+    const type = body.type || body.action || 'all';
+    const timeframe = body.timeframe || 'last_week';
+    const setter = body.setter;
     
     const now = new Date();
     let filterDate = new Date();
@@ -42,7 +46,7 @@ serve(async (req) => {
 
     const filterTimestamp = filterDate.getTime();
 
-    if (type === 'contacts' || type === 'all') {
+    if (type === 'contacts' || type === 'all' || type === 'fetch-all') {
       // Fetch contacts with recent activity
       const contactsResponse = await fetch(
         'https://api.hubapi.com/crm/v3/objects/contacts/search',
