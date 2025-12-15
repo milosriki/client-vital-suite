@@ -23,43 +23,61 @@ const WarRoom = () => {
   const [autoPilotEnabled, setAutoPilotEnabled] = useState(false);
 
   // Fetch deals for forecasting
-  const { data: deals, isLoading: dealsLoading } = useQuery({
+  const { data: deals, isLoading: dealsLoading, error: dealsError } = useQuery({
     queryKey: ["war-room-deals"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.error("Failed to fetch deals:", error);
+        throw error;
+      }
       return data || [];
     },
+    retry: 2,
   });
 
   // Fetch leads for leakage detection
-  const { data: leads, isLoading: leadsLoading } = useQuery({
+  const { data: leads, isLoading: leadsLoading, error: leadsError } = useQuery({
     queryKey: ["war-room-leads"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enhanced_leads")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.error("Failed to fetch leads:", error);
+        throw error;
+      }
       return data || [];
     },
+    retry: 2,
   });
 
   // Fetch client health for LTV calculation
-  const { data: clients, isLoading: clientsLoading } = useQuery({
+  const { data: clients, isLoading: clientsLoading, error: clientsError } = useQuery({
     queryKey: ["war-room-clients"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("client_health_scores")
         .select("*");
-      if (error) throw error;
+      if (error) {
+        console.error("Failed to fetch clients:", error);
+        throw error;
+      }
       return data || [];
     },
+    retry: 2,
   });
 
+  // Show error toast if any query fails
+  useEffect(() => {
+    if (dealsError) toast.error("Failed to load deals data");
+    if (leadsError) toast.error("Failed to load leads data");
+    if (clientsError) toast.error("Failed to load client data");
+  }, [dealsError, leadsError, clientsError]);
   // Calculate Unit Economics
   const newCustomersThisMonth = clients?.filter(c => {
     const created = new Date(c.created_at || "");
@@ -110,8 +128,11 @@ const WarRoom = () => {
   }) || [];
 
   const discountedDeals = deals?.filter(d => {
-    // Placeholder - would need discount field
-    return false;
+    // Calculate discount: if cash_collected < deal_value, it was discounted
+    const dealValue = d.deal_value || 0;
+    const cashCollected = d.cash_collected || dealValue;
+    // Consider it discounted if collected less than 90% of deal value
+    return dealValue > 0 && cashCollected < (dealValue * 0.9);
   }) || [];
 
   // Calculate actual historical revenue from deals
