@@ -1121,21 +1121,38 @@ IMPORTANT:
         });
       }
       
-      // Continue conversation with tool results
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: currentMessages,
-          tools,
-          tool_choice: "auto",
-          stream: false
-        }),
-      });
+      // Continue conversation with tool results - use same API as initial call
+      if (useDirectGemini) {
+        response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${GEMINI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gemini-2.0-flash",
+            messages: currentMessages,
+            tools,
+            tool_choice: "auto",
+            stream: false
+          }),
+        });
+      } else {
+        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: currentMessages,
+            tools,
+            tool_choice: "auto",
+            stream: false
+          }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`AI Gateway error on iteration ${iterations}`);
