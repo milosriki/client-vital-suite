@@ -459,7 +459,7 @@ async function generateWithClaude(query: string, persona: any, context: any) {
             'content-type': 'application/json'
         },
         body: JSON.stringify({
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-sonnet-4-5-20250929',
             max_tokens: 4000,
             system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
             messages: [{

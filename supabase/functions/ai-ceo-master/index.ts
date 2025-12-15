@@ -164,7 +164,7 @@ RESPOND WITH VALID JSON ONLY:
         method: 'POST',
         headers: { 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2024-10-22', 'content-type': 'application/json' },
         body: JSON.stringify({
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-sonnet-4-5-20250929',
             max_tokens: 4000,
             system: systemPrompt,
             messages: [{ role: 'user', content: command }]

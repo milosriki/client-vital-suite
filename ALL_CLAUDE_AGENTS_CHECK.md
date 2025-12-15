@@ -29,7 +29,7 @@
 
 #### **A. ptd-ultimate-intelligence** ✅
 **Location:** `supabase/functions/ptd-ultimate-intelligence/index.ts`
-**Model:** Claude 3 Sonnet (`claude-3-sonnet-20240229`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** Multi-persona intelligence agent
 **Secret:** `ANTHROPIC_API_KEY`
@@ -78,7 +78,7 @@
 
 #### **H. ai-ceo-master** ✅
 **Location:** `supabase/functions/ai-ceo-master/index.ts`
-**Model:** Claude 3 Sonnet (`claude-3-sonnet-20240229`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** CEO-level strategic intelligence
 **Secret:** `ANTHROPIC_API_KEY`
@@ -90,14 +90,14 @@
 | Function | Config | Deployed | Model | Secret Required |
 |----------|--------|----------|-------|-----------------|
 | `ptd-agent-claude` | ✅ | ✅ | Sonnet 4 | ✅ Required |
-| `ptd-ultimate-intelligence` | ✅ | ✅ | Claude 3 Sonnet | ✅ Required |
+| `ptd-ultimate-intelligence` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
 | `ptd-agent` | ✅ | ✅ | Sonnet 4 | ✅ Required |
 | `intervention-recommender` | ✅ | ✅ | Sonnet 4 | ⚠️ Optional |
 | `generate-lead-reply` | ✅ | ✅ | Sonnet 4 | ✅ Required |
 | `generate-lead-replies` | ✅ | ✅ | Sonnet 4 | ✅ Required |
 | `churn-predictor` | ✅ | ✅ | Sonnet 4 | ⚠️ Optional |
 | `business-intelligence` | ✅ | ✅ | Sonnet 4 | ⚠️ Optional |
-| `ai-ceo-master` | ✅ | ✅ | Claude 3 Sonnet | ✅ Required |
+| `ai-ceo-master` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
 
 **Total Claude Functions:** 9
 **All Configured:** ✅ Yes
