@@ -37,7 +37,7 @@ serve(async (req) => {
     const { data: allDeals } = await supabase
       .from('deals')
       .select('hubspot_contact_id, deal_value, status')
-      .eq('status', 'closedwon');
+      .eq('status', 'closed');
 
     const sourceStats: Record<string, {
       leads: Set<string>;
@@ -166,7 +166,7 @@ serve(async (req) => {
     const { data: deals } = await supabase
       .from('deals')
       .select('hubspot_contact_id, deal_value, status')
-      .eq('status', 'closedwon');
+      .eq('status', 'closed');
 
     const { data: contacts } = await supabase
       .from('contacts')
@@ -230,8 +230,8 @@ serve(async (req) => {
     // Q4: Attribution Discrepancy
     // ========================================
     const { data: q4Facebook } = await supabase
-      .from('capi_events_enriched')
-      .select('utm_campaign, email')
+      .from('events')
+      .select('custom, user_data')
       .eq('event_name', 'Lead');
 
     const { data: q4HubSpot } = await supabase
@@ -247,10 +247,12 @@ serve(async (req) => {
     const campaignCounts: Record<string, { facebook: Set<string>; hubspot: Set<string>; anytrack: Set<string> }> = {};
 
     q4Facebook?.forEach((e: any) => {
-      if (!campaignCounts[e.utm_campaign]) {
-        campaignCounts[e.utm_campaign] = { facebook: new Set(), hubspot: new Set(), anytrack: new Set() };
+      const campaign = e.custom?.utm_campaign || 'unknown';
+      const email = e.user_data?.em || 'unknown';
+      if (!campaignCounts[campaign]) {
+        campaignCounts[campaign] = { facebook: new Set(), hubspot: new Set(), anytrack: new Set() };
       }
-      campaignCounts[e.utm_campaign].facebook.add(e.email);
+      campaignCounts[campaign].facebook.add(email);
     });
 
     q4HubSpot?.forEach((c: any) => {
@@ -321,7 +323,7 @@ serve(async (req) => {
     const { data: q5Deals } = await supabase
       .from('deals')
       .select('hubspot_contact_id, deal_value, status')
-      .eq('status', 'closedwon');
+      .eq('status', 'closed');
 
     const campaignMetrics: Record<string, {
       spend: number;
