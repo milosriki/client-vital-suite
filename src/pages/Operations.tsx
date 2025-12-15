@@ -11,6 +11,7 @@ import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { WorkflowStatusDiagram } from "@/components/automation/WorkflowStatusDiagram";
 import { UsageGauge } from "@/components/system/UsageGauge";
 import { AudioPlayer } from "@/components/calls/AudioPlayer";
+import { useAPIUsage, useWorkflowStatus } from "@/hooks/useDashboardFeatures";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
@@ -87,19 +88,18 @@ export default function Operations() {
     },
   });
 
-  // Mock API usage (would come from actual metrics)
-  const apiUsage = {
-    hubspot: { used: 8500, limit: 10000 },
-    supabase: { used: 45000, limit: 100000 },
-    stripe: { used: 450, limit: 1000 },
-  };
+  // Use REAL API usage data from hook
+  const { data: apiUsage, isLoading: apiUsageLoading } = useAPIUsage();
+  
+  // Use REAL workflow status from hook
+  const { data: workflowData, isLoading: workflowLoading } = useWorkflowStatus();
 
-  // Connection status
+  // Connection status - check based on actual data availability
   const connections = [
-    { name: "Supabase", status: "connected", icon: Database },
-    { name: "HubSpot API", status: "connected", icon: Zap },
-    { name: "Stripe API", status: "connected", icon: Server },
-    { name: "n8n Workflows", status: "warning", icon: Activity },
+    { name: "Supabase", status: "connected" as const, icon: Database },
+    { name: "HubSpot API", status: syncErrors && syncErrors.length > 0 ? "warning" as const : "connected" as const, icon: Zap },
+    { name: "Stripe API", status: "connected" as const, icon: Server },
+    { name: "n8n Workflows", status: workflowData?.some(w => w.status === "error") ? "warning" as const : "connected" as const, icon: Activity },
   ];
 
   const handleRefresh = async () => {
@@ -186,17 +186,23 @@ export default function Operations() {
               <Card className="border-border/50 bg-card/80">
                 <CardHeader>
                   <CardTitle>API Usage</CardTitle>
-                  <CardDescription>Daily API call limits</CardDescription>
+                  <CardDescription>Daily API call estimates</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-center gap-6">
-                    <UsageGauge
-                      value={apiUsage.hubspot.used}
-                      max={apiUsage.hubspot.limit}
-                      label="HubSpot"
-                      size="sm"
-                    />
-                  </div>
+                  {apiUsageLoading ? (
+                    <div className="flex justify-center">
+                      <Skeleton className="h-24 w-24 rounded-full" />
+                    </div>
+                  ) : (
+                    <div className="flex justify-center gap-6">
+                      <UsageGauge
+                        value={apiUsage?.hubspot?.used || 0}
+                        max={apiUsage?.hubspot?.limit || 10000}
+                        label="HubSpot"
+                        size="sm"
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -282,20 +288,27 @@ export default function Operations() {
                   <CardTitle>System Resources</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-around">
-                    <UsageGauge
-                      value={apiUsage.supabase.used}
-                      max={apiUsage.supabase.limit}
-                      label="Database"
-                      size="sm"
-                    />
-                    <UsageGauge
-                      value={apiUsage.stripe.used}
-                      max={apiUsage.stripe.limit}
-                      label="Stripe"
-                      size="sm"
-                    />
-                  </div>
+                  {apiUsageLoading ? (
+                    <div className="flex justify-around">
+                      <Skeleton className="h-24 w-24 rounded-full" />
+                      <Skeleton className="h-24 w-24 rounded-full" />
+                    </div>
+                  ) : (
+                    <div className="flex justify-around">
+                      <UsageGauge
+                        value={apiUsage?.supabase?.used || 0}
+                        max={apiUsage?.supabase?.limit || 100000}
+                        label="Database"
+                        size="sm"
+                      />
+                      <UsageGauge
+                        value={apiUsage?.stripe?.used || 0}
+                        max={apiUsage?.stripe?.limit || 1000}
+                        label="Stripe"
+                        size="sm"
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -345,14 +358,8 @@ export default function Operations() {
           {/* Automation Tab */}
           <TabsContent value="automation" className="space-y-6 mt-0">
             <WorkflowStatusDiagram
-              workflows={[
-                { id: "1", name: "Lead Assignment", status: "active", executionsToday: 45, successRate: 98, lastRun: "2 min ago" },
-                { id: "2", name: "Follow-up Reminder", status: "active", executionsToday: 23, successRate: 95, lastRun: "5 min ago" },
-                { id: "3", name: "Health Score Calculation", status: "active", executionsToday: 12, successRate: 100, lastRun: "1 hour ago" },
-                { id: "4", name: "No-Show Recovery", status: "paused", executionsToday: 0, successRate: 85, lastRun: "Yesterday" },
-                { id: "5", name: "Churn Prevention", status: "active", executionsToday: 8, successRate: 92, lastRun: "30 min ago" },
-                { id: "6", name: "HubSpot Sync", status: "error", executionsToday: 156, successRate: 78, lastRun: "10 min ago", errorCount: 3 },
-              ]}
+              workflows={workflowData || []}
+              isLoading={workflowLoading}
               onToggle={(id, active) => {
                 toast({
                   title: active ? "Workflow Activated" : "Workflow Paused",
