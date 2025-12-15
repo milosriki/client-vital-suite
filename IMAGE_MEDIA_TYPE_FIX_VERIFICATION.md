@@ -80,9 +80,7 @@ The following agent functions were also examined:
 
 **Deployment Method:** The GitHub Actions workflow `.github/workflows/deploy-supabase.yml` automatically deploys edge functions when changes are pushed to `main` or `master` branches.
 
-**Current Branch:** `copilot/fix-copilot-request-error-again`
-
-**Action Required:** Merge this PR to main/master to trigger automatic deployment.
+**Action Required:** Merge the PR containing these fixes to main/master to trigger automatic deployment.
 
 ## Files Modified
 
