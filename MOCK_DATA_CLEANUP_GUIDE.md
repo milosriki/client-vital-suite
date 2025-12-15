@@ -62,9 +62,6 @@ The system looks for these patterns:
 - `*@email.com`
 - `*@test.com`
 
-**Phone Patterns:**
-- `555-0*` (standard test phone numbers)
-
 **Deal Patterns:**
 - Deal names containing "test"
 - Deal names containing "fake"

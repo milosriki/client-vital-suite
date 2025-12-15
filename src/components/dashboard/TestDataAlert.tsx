@@ -157,7 +157,7 @@ export function TestDataAlert() {
           <AlertDialogHeader>
             <AlertDialogTitle>Clear Test Data & Sync from HubSpot?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete all test/fake data (emails ending with @email.com or @example.com)
+              This will delete all test/fake data (emails ending with @example.com, @email.com, or @test.com)
               and sync fresh data from HubSpot. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
