@@ -15,6 +15,7 @@ import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
 import { DashboardInterventionTracker } from "@/components/dashboard/DashboardInterventionTracker";
+import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
 import { TickerFeed } from "@/components/hubspot/TickerFeed";
 import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
 import { KanbanBoard } from "@/components/sales/KanbanBoard";
@@ -221,6 +222,9 @@ export default function Dashboard() {
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
+
+        {/* Test Data Alert - Shows when mock/test data is detected */}
+        <TestDataAlert />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">

@@ -84,6 +84,17 @@ For issues with the AI agents, check the `function_logs` in Supabase.
 
 ## 🔧 Troubleshooting
 
+### Mock/Test Data in Production
+
+If you see test data (emails like test@example.com or fake@email.com) on your production deployment:
+
+1. Visit the Dashboard at `/dashboard` or `/overview`
+2. Look for the amber "Test/Mock Data Detected" alert banner
+3. Click "Clear & Sync from HubSpot" to remove test data and sync real data
+4. Wait 10-30 seconds for the sync to complete
+
+See [MOCK_DATA_CLEANUP_GUIDE.md](./MOCK_DATA_CLEANUP_GUIDE.md) for detailed instructions.
+
 ### VSCode MCP Tool Validation Error
 
 If you encounter this error in VSCode:
