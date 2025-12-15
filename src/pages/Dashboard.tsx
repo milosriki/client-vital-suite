@@ -17,6 +17,7 @@ import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
 import { DashboardInterventionTracker } from "@/components/dashboard/DashboardInterventionTracker";
 import { TickerFeed } from "@/components/hubspot/TickerFeed";
 import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
+import { KanbanBoard } from "@/components/sales/KanbanBoard";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "@/hooks/use-toast";
@@ -260,46 +261,40 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          {/* Sales Tab */}
+          {/* Sales Tab - Kanban Board */}
           <TabsContent value="sales" className="space-y-6 mt-0">
+            <KanbanBoard
+              leads={(clients || []).map((c: any) => ({
+                id: c.id?.toString() || c.email,
+                first_name: c.firstname,
+                last_name: c.lastname,
+                email: c.email,
+                status: c.health_zone === "RED" ? "follow_up" : c.health_zone === "GREEN" ? "closed" : "new",
+                created_at: c.created_at || new Date().toISOString(),
+                deal_value: c.package_value_aed,
+                owner_name: c.assigned_coach,
+              }))}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <Card className="border-border/50 bg-card/80">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-primary" />
-                      Sales Pipeline
-                    </CardTitle>
-                    <CardDescription>Track deals through your sales funnel</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <p>Pipeline visualization loading...</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div>
-                <Card className="border-border/50 bg-card/80">
-                  <CardHeader>
-                    <CardTitle>Quick Stats</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center py-2 border-b border-border/30">
-                      <span className="text-sm text-muted-foreground">Open Deals</span>
-                      <span className="font-mono font-bold">{pipelineData?.count || 0}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-border/30">
-                      <span className="text-sm text-muted-foreground">Pipeline Value</span>
-                      <span className="font-mono font-bold text-success">AED {(pipelineData?.total || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2">
-                      <span className="text-sm text-muted-foreground">Closed MTD</span>
-                      <span className="font-mono font-bold text-success">AED {(revenueData?.total || 0).toLocaleString()}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="border-border/50 bg-card/80">
+                <CardHeader>
+                  <CardTitle>Quick Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-border/30">
+                    <span className="text-sm text-muted-foreground">Open Deals</span>
+                    <span className="font-mono font-bold">{pipelineData?.count || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/30">
+                    <span className="text-sm text-muted-foreground">Pipeline Value</span>
+                    <span className="font-mono font-bold text-success">AED {(pipelineData?.total || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm text-muted-foreground">Closed MTD</span>
+                    <span className="font-mono font-bold text-success">AED {(revenueData?.total || 0).toLocaleString()}</span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
