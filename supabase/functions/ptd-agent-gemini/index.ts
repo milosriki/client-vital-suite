@@ -1636,7 +1636,7 @@ ${learnedPatterns || 'No patterns learned yet.'}
     // Add assistant message with tool calls
     messages.push({
       role: "assistant",
-      content: message.content || null,
+      content: message.content || "",
       tool_calls: toolCalls
     });
 
@@ -1645,10 +1645,12 @@ ${learnedPatterns || 'No patterns learned yet.'}
       toolCalls.map(async (toolCall: any) => {
         const args = JSON.parse(toolCall.function.arguments || "{}");
         const result = await executeTool(supabase, toolCall.function.name, args);
+        // Ensure content is always a non-empty string to avoid API errors
+        const content = result && result.trim() ? result : "No data returned";
         return {
           role: "tool",
           tool_call_id: toolCall.id,
-          content: result,
+          content: content,
         };
       })
     );
