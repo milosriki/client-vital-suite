@@ -965,7 +965,7 @@ serve(async (req) => {
   try {
     const { messages, stream = false } = await req.json();
     
-    // Try direct Gemini API first, fallback to Lovable
+    // Use direct Gemini API (LOVABLE_API_KEY is optional, only for fallback)
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -973,9 +973,9 @@ serve(async (req) => {
     
     const useDirectGemini = !!GEMINI_API_KEY;
     if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-      throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+      throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
     }
-    console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+    console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway (fallback)'}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

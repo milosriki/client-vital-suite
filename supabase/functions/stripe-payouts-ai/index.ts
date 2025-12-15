@@ -65,15 +65,15 @@ serve(async (req) => {
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
 
-      // Try direct Gemini API first, fallback to Lovable
+      // Use direct Gemini API (LOVABLE_API_KEY is optional, only for fallback)
       const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       const useDirectGemini = !!GEMINI_API_KEY;
       
       if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-        throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+        throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
       }
-      console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+      console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway (fallback)'}`);
 
       const systemPrompt = `You are a Stripe financial assistant specialized in payouts, transfers, and balance management. 
 You have access to the user's Stripe data including:
