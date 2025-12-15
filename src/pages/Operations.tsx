@@ -112,7 +112,7 @@ export default function Operations() {
               <HubSpotAnalyzer />
             </TabsContent>
             <TabsContent value="rules" className="mt-4">
-              <AutomationTab />
+              <AutomationTab mode="live" />
             </TabsContent>
           </Tabs>
         </TabsContent>
