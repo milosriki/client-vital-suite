@@ -6,7 +6,7 @@
 
 **Function:** `ptd-agent-claude`
 **Location:** `supabase/functions/ptd-agent-claude/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 
 **Features:**
@@ -36,42 +36,42 @@
 
 #### **B. ptd-agent** ✅
 **Location:** `supabase/functions/ptd-agent/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** General PTD agent with Claude fallback
 **Secret:** `ANTHROPIC_API_KEY`
 
 #### **C. intervention-recommender** ✅
 **Location:** `supabase/functions/intervention-recommender/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** AI-powered intervention recommendations
 **Secret:** `ANTHROPIC_API_KEY` (optional - falls back to templates)
 
 #### **D. generate-lead-reply** ✅
 **Location:** `supabase/functions/generate-lead-reply/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** Generate personalized lead replies
 **Secret:** `ANTHROPIC_API_KEY`
 
 #### **E. generate-lead-replies** ✅
 **Location:** `supabase/functions/generate-lead-replies/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** Batch generate lead replies
 **Secret:** `ANTHROPIC_API_KEY` (required)
 
 #### **F. churn-predictor** ✅
 **Location:** `supabase/functions/churn-predictor/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** AI insights for churn prediction
 **Secret:** `ANTHROPIC_API_KEY` (optional - skips AI if missing)
 
 #### **G. business-intelligence** ✅
 **Location:** `supabase/functions/business-intelligence/index.ts`
-**Model:** Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+**Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
 **Status:** ✅ **DEPLOYED** (configured in config.toml)
 **Purpose:** Business intelligence insights
 **Secret:** `ANTHROPIC_API_KEY` (optional - falls back gracefully)
@@ -89,14 +89,14 @@
 
 | Function | Config | Deployed | Model | Secret Required |
 |----------|--------|----------|-------|-----------------|
-| `ptd-agent-claude` | ✅ | ✅ | Sonnet 4 | ✅ Required |
+| `ptd-agent-claude` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
 | `ptd-ultimate-intelligence` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
-| `ptd-agent` | ✅ | ✅ | Sonnet 4 | ✅ Required |
-| `intervention-recommender` | ✅ | ✅ | Sonnet 4 | ⚠️ Optional |
-| `generate-lead-reply` | ✅ | ✅ | Sonnet 4 | ✅ Required |
-| `generate-lead-replies` | ✅ | ✅ | Sonnet 4 | ✅ Required |
-| `churn-predictor` | ✅ | ✅ | Sonnet 4 | ⚠️ Optional |
-| `business-intelligence` | ✅ | ✅ | Sonnet 4 | ⚠️ Optional |
+| `ptd-agent` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
+| `intervention-recommender` | ✅ | ✅ | Sonnet 4.5 | ⚠️ Optional |
+| `generate-lead-reply` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
+| `generate-lead-replies` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
+| `churn-predictor` | ✅ | ✅ | Sonnet 4.5 | ⚠️ Optional |
+| `business-intelligence` | ✅ | ✅ | Sonnet 4.5 | ⚠️ Optional |
 | `ai-ceo-master` | ✅ | ✅ | Sonnet 4.5 | ✅ Required |
 
 **Total Claude Functions:** 9

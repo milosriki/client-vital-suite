@@ -193,7 +193,7 @@ Provide a brief, actionable insight for the coach.`;
         "anthropic-version": "2024-10-22"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: 150,
         messages: [{ role: "user", content: prompt }]
       })
