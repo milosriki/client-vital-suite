@@ -28,3 +28,7 @@ dist-ssr
 .lovableignore
 .env.vercel
 .env*.local
+
+# Environment variables - NEVER commit secrets
+.env
+.env.local
