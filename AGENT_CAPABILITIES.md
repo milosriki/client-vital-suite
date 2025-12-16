@@ -8,5 +8,6 @@ This repository already includes helper scripts for validating CLI setup (see `c
 - **Update scripts/docs**: extend or fix deployment scripts and add concise runbooks so you can repeat the steps locally.
 - **Surface blockers early**: when a required CLI is missing or mis-linked, report the exact command to remediate and exit non-zero so CI or shell scripts catch the issue.
 - **Explain full capabilities and data flow**: see `CAPABILITIES_AND_DATA_FLOW.md` for how Stripe forensics, HubSpot sync, call intelligence, RAG memory, and proactive agents fit together without removing any functions.
+- **Explain orchestration and improvements**: see `AGENT_ORCHESTRATION.md` for how agents coordinate today and the concrete steps to make the orchestrator more reliable and observable.
 
 If you want me to proceed with a deployment from here, share which target (Vercel or Supabase) to run first and whether to use production settings; I can then run the existing helpers to validate authentication and project linkage before executing the deploy commands.
