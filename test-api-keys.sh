@@ -10,7 +10,10 @@ echo ""
 # Get Supabase URL and Service Role Key from environment or .env file
 if [ -f .env ]; then
     echo "📂 Loading environment variables from .env file..."
-    export $(grep -v '^#' .env | xargs)
+    # Safer way to load .env file
+    set -a
+    source .env
+    set +a
 fi
 
 # Check if required environment variables are set
@@ -56,7 +59,7 @@ if echo "$RESPONSE" | jq empty 2>/dev/null; then
     
     # Check overall status
     OVERALL_STATUS=$(echo "$RESPONSE" | jq -r '.summary.overall_status')
-    if [[ "$OVERALL_STATUS" == *"ALL REQUIRED KEYS SET"* ]]; then
+    if [ "$OVERALL_STATUS" = "✅ ALL REQUIRED KEYS SET" ]; then
         echo "✅ SUCCESS: All required API keys are configured!"
         echo ""
         echo "🔑 Required Keys Status:"

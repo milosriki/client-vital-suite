@@ -160,7 +160,7 @@ serve(async (req) => {
       supabase_required_total: totalSupabaseKeys,
       supabase_required_set: setSupabaseKeys,
       supabase_required_missing: totalSupabaseKeys - setSupabaseKeys,
-      supabase_required_percentage: Math.round((setSupabaseKeys / totalSupabaseKeys) * 100),
+      supabase_required_percentage: totalSupabaseKeys > 0 ? Math.round((setSupabaseKeys / totalSupabaseKeys) * 100) : 0,
       supabase_optional_total: totalOptionalKeys,
       supabase_optional_set: setOptionalKeys,
       vercel_total: totalVercelKeys,
@@ -173,7 +173,8 @@ serve(async (req) => {
     const recommendations: string[] = [];
     
     if (report.missing_keys.length > 0) {
-      recommendations.push(`❌ ${report.missing_keys.length} required keys missing in Supabase`);
+      const keyWord = report.missing_keys.length === 1 ? 'key' : 'keys';
+      recommendations.push(`❌ ${report.missing_keys.length} required ${keyWord} missing in Supabase`);
       for (const missing of report.missing_keys) {
         recommendations.push(`  - ${missing.key} (used by: ${missing.used_by.join(', ')})`);
       }
@@ -182,7 +183,8 @@ serve(async (req) => {
     }
 
     if (setOptionalKeys < totalOptionalKeys) {
-      recommendations.push(`ℹ️ ${totalOptionalKeys - setOptionalKeys} optional keys not set (Lovable fallback)`);
+      const keyWord = (totalOptionalKeys - setOptionalKeys) === 1 ? 'key' : 'keys';
+      recommendations.push(`ℹ️ ${totalOptionalKeys - setOptionalKeys} optional ${keyWord} not set (Lovable fallback)`);
     } else {
       recommendations.push('✅ All optional keys are set');
     }
