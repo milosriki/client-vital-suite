@@ -12,6 +12,12 @@
 - ✅ All function calls use correct syntax
 - ✅ Error handling in place
 
+### 3. **Browser-first (no Docker) quick check** ✅
+- Run entirely in the browser—no Docker layer required.
+- Use the live Vercel URL for health checks and event ingress; you can verify end-to-end status with just the browser console.
+- Frontend cards and real-time Supabase subscriptions make predictive signals visible without extra tooling.
+- Predictive checks are available without local containers: ask the in-app agent about Stripe risk, call patterns, or at-risk clients and it will hit live `/api` routes plus Supabase functions directly.
+
 ### 3. **Testing Tools Created** ✅
 - ✅ `src/utils/testFunctions.ts` - Function testing utility
 - ✅ `src/components/FunctionStatusChecker.tsx` - UI component for testing
@@ -35,6 +41,14 @@ await testAllFunctions()
 // Quick test
 await quickTest('ptd-agent-gemini')
 ```
+
+### **Predictive signals (no mocks, no Docker)**
+
+- Health & churn: `await quickTest('health-calculator')` then ask the agent, "Which clients are trending to Yellow/Red this week?"
+- Fraud & payouts: `await quickTest('stripe-forensics')` then ask, "Any payout anomalies or blocked cards today?"
+- Calls & setters: `await quickTest('callgear-live-monitor')` then ask, "Summarize setter performance and missed calls for today."
+- Attribution & ads: `await quickTest('process-capi-batch')` then ask, "Which Meta campaign has the best ROAS right now?"
+- Lifecycle truth: `await quickTest('ultimate-truth-alignment')` then ask, "Show leads with conflicting attribution vs. payment data."
 
 ### **Method 2: Dashboard UI**
 
