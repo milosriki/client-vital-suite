@@ -11,14 +11,15 @@ const corsHeaders = {
 
 // Required keys mapping: key_name -> functions that use it
 // Note: OPTIONAL keys are marked but not counted as missing if not set
+// Note: For Gemini, functions check GEMINI_API_KEY first, then fall back to GOOGLE_API_KEY
 const REQUIRED_KEYS = {
   // Supabase Secrets
   SUPABASE: {
     'ANTHROPIC_API_KEY': ['ptd-agent-claude', 'ptd-agent', 'churn-predictor', 'intervention-recommender', 'ptd-ultimate-intelligence'],
     'OPENAI_API_KEY': ['ptd-agent-claude', 'generate-embeddings', 'openai-embeddings'],
-    'GOOGLE_API_KEY': ['ptd-agent-gemini', 'ptd-watcher', 'ptd-ultimate-intelligence', 'smart-agent', 'stripe-payouts-ai'],
-    'GEMINI_API_KEY': ['ptd-agent-gemini', 'ptd-watcher', 'smart-agent', 'stripe-payouts-ai'],
-    'GOOGLE_GEMINI_API_KEY': ['ptd-agent-gemini'],
+    'GEMINI_API_KEY': ['ptd-agent-gemini', 'ptd-watcher', 'smart-agent', 'stripe-payouts-ai', 'ptd-ultimate-intelligence (preferred, falls back to GOOGLE_API_KEY)'],
+    'GOOGLE_API_KEY': ['ptd-agent-gemini', 'ptd-watcher', 'smart-agent', 'stripe-payouts-ai', 'ptd-ultimate-intelligence (fallback if GEMINI_API_KEY not set)'],
+    'GOOGLE_GEMINI_API_KEY': ['ptd-agent-gemini (legacy, use GEMINI_API_KEY instead)'],
     'HUBSPOT_API_KEY': ['sync-hubspot-to-supabase', 'sync-hubspot-to-capi', 'fetch-hubspot-live', 'reassign-owner', 'auto-reassign-leads'],
     'STRIPE_SECRET_KEY': ['stripe-dashboard-data', 'stripe-forensics', 'stripe-payouts-ai', 'enrich-with-stripe', 'stripe-webhook'],
     'STAPE_CAPIG_API_KEY': ['send-to-stape-capi', 'process-capi-batch'],
