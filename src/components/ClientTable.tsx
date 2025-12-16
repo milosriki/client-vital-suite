@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { HealthScoreBadge } from "./HealthScoreBadge";
 import { TrendIndicator } from "./TrendIndicator";
@@ -33,35 +33,37 @@ export const ClientTable = ({ clients }: ClientTableProps) => {
     }
   };
 
-  const sortedClients = [...clients].sort((a, b) => {
-    let aValue: any;
-    let bValue: any;
+  const sortedClients = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
 
-    // Handle name field specially by combining firstname and lastname
-    if (sortField === 'name') {
-      aValue = `${a.firstname || ''} ${a.lastname || ''}`.trim();
-      bValue = `${b.firstname || ''} ${b.lastname || ''}`.trim();
-    } else {
-      aValue = a[sortField];
-      bValue = b[sortField];
-    }
+      // Handle name field specially by combining firstname and lastname
+      if (sortField === 'name') {
+        aValue = `${a.firstname || ''} ${a.lastname || ''}`.trim();
+        bValue = `${b.firstname || ''} ${b.lastname || ''}`.trim();
+      } else {
+        aValue = a[sortField];
+        bValue = b[sortField];
+      }
 
-    // Handle null values
-    if (aValue === null) return 1;
-    if (bValue === null) return -1;
+      // Handle null values
+      if (aValue === null) return 1;
+      if (bValue === null) return -1;
 
-    // Convert to numbers if needed
-    if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-    }
+      // Convert to numbers if needed
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
 
-    // String comparison
-    const aStr = String(aValue).toLowerCase();
-    const bStr = String(bValue).toLowerCase();
-    return sortDirection === 'asc' 
-      ? aStr.localeCompare(bStr)
-      : bStr.localeCompare(aStr);
-  });
+      // String comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      return sortDirection === 'asc' 
+        ? aStr.localeCompare(bStr)
+        : bStr.localeCompare(aStr);
+    });
+  }, [clients, sortField, sortDirection]);
 
   const totalPages = Math.ceil(sortedClients.length / itemsPerPage);
   const paginatedClients = sortedClients.slice(
