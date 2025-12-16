@@ -1370,13 +1370,13 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 
 // ============= MAIN AGENT WITH GEMINI 2.5 PRO =============
 async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default'): Promise<string> {
-  // Try GEMINI_API_KEY first (direct Google API), fallback to LOVABLE_API_KEY
+  // Use GEMINI_API_KEY (direct Google API), LOVABLE_API_KEY is optional fallback
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
   const useDirectGemini = !!GEMINI_API_KEY;
   if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-    throw new Error("No AI API key configured. Set GEMINI_API_KEY or LOVABLE_API_KEY");
+    throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
   }
 
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
@@ -1702,16 +1702,16 @@ serve(async (req) => {
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
     if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-      console.error("❌ Missing AI API key (GEMINI_API_KEY or LOVABLE_API_KEY)");
+      console.error("❌ Missing AI API key (GEMINI_API_KEY or GOOGLE_API_KEY)");
       return new Response(JSON.stringify({
         error: "AI Gateway not configured",
-        response: "AI service is not configured. Please set GEMINI_API_KEY or LOVABLE_API_KEY."
+        response: "AI service is not configured. Please set GEMINI_API_KEY (or GOOGLE_API_KEY)."
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log(`🤖 Using ${GEMINI_API_KEY ? 'Direct Gemini API' : 'Lovable Gateway'}`);
+    console.log(`🤖 Using ${GEMINI_API_KEY ? 'Direct Gemini API' : 'Lovable Gateway (fallback)'}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
