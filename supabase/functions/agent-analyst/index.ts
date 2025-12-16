@@ -77,7 +77,7 @@ serve(async (req) => {
 
     // Call Claude for analysis
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       messages: [{
         role: 'user',
@@ -105,7 +105,7 @@ Be specific and data-driven.`
       role: 'analyst',
       message: query,
       response: analysis,
-      metadata: { context, model: 'claude-3-5-sonnet' }
+      metadata: { context, model: 'claude-sonnet-4-5' }
     });
 
     return new Response(

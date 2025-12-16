@@ -66,7 +66,7 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
                         "anthropic-version": "2024-10-22"
                     },
                     body: JSON.stringify({
-                        model: "claude-sonnet-4-20250514",
+                        model: "claude-sonnet-4-5-20250929",
                         max_tokens: 200,
                         messages: [{ role: "user", content: prompt }]
                     })
