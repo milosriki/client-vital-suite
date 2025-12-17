@@ -83,7 +83,7 @@ export default function Dashboard() {
         .from("daily_summary")
         .select("*")
         .eq("summary_date", today)
-        .single();
+        .maybeSingle();
       if (error) return null;
       return data;
     },
