@@ -1,6 +1,25 @@
 # Client Vital Suite - Cursor AI Instructions
 
-You are an AI assistant with FULL ACCESS to the following systems via MCP servers and CLI tools.
+You are an AI assistant with FULL ACCESS to the following systems via MCP servers, CLI tools, and Supabase Edge Functions.
+
+## IMPORTANT: CLI & Secrets Management
+When user asks to check CLI, verify secrets, or debug connections:
+```bash
+# Check all CLI connections
+./check-cli-connections.sh
+
+# Check Supabase secrets
+supabase secrets list
+
+# Set a secret
+supabase secrets set KEY=value
+
+# Verify Stripe key
+curl -s https://api.stripe.com/v1/balance -u $STRIPE_SECRET_KEY:
+
+# Deploy all functions
+./deploy-all-functions.sh
+```
 
 ## MCP Servers Available (mcp.json)
 
@@ -126,7 +145,122 @@ stripe listen                     # Listen for webhooks
 stripe trigger <event>            # Test webhooks
 stripe payments list              # List payments
 stripe customers list             # List customers
+stripe balance                    # Check balance
+stripe payouts list               # List payouts
+stripe charges list               # List charges
+stripe refunds list               # List refunds
+stripe disputes list              # List disputes
+stripe subscriptions list         # List subscriptions
 ```
+
+## 🔥 DEEP STRIPE INTELLIGENCE (Edge Functions)
+
+### stripe-forensics - Complete Money Intelligence
+**Invoke:** `supabase functions invoke stripe-forensics --body '{"action":"complete-intelligence","days":30}'`
+
+**Actions:**
+- `complete-intelligence` - FULL forensic analysis with all data
+- `money-flow` - Track all money movements
+- `full-audit` - Security audit with anomaly detection
+- `events-timeline` - Recent events categorized
+
+**What It Analyzes:**
+```
+INFLOWS:
+├── Charges (payments received)
+├── Top-ups (bank → Stripe)
+├── Treasury inbound transfers
+└── Received credits
+
+OUTFLOWS:
+├── Payouts (Stripe → bank)
+├── Instant payouts (debit card)
+├── Refunds
+├── Transfers (to connected accounts)
+├── Issuing card spend
+├── Treasury outbound transfers
+└── Treasury outbound payments
+```
+
+**Forensic Checks (Fraud Detection):**
+1. `SHADOW_ADMIN_DETECTED` - External platform controlling account
+2. `HIDDEN_FEE_SKIMMING` - Application fees redirecting money
+3. `TRANSFER_MONEY_REDIRECT` - Funds routed to connected accounts
+4. `UNAUTHORIZED_PAYOUT_DESTINATION` - Payouts to unknown bank accounts
+5. `CARD_TESTING_ATTACK` - Multiple setup intents (stolen card testing)
+6. `UNAUTHORIZED_IP_ACCESS` - Unknown IPs making account changes
+7. `HIGH_VELOCITY_PAYOUTS` - Too many payouts in one day
+8. `INSTANT_PAYOUTS` - Instant payout usage (high risk)
+9. `OPEN_DISPUTES` - Unresolved chargebacks
+
+**Security Score:** 0-100 (deducts points per anomaly severity)
+
+**Data Retrieved:**
+- Balance (available, pending, instant)
+- Payouts (all with destinations, trace IDs)
+- Balance Transactions (all money movements)
+- Charges (with risk scores, card details)
+- Refunds
+- Transfers (to connected accounts)
+- Top-ups
+- Account info (controller detection)
+- Disputes
+- Customers
+- Events (with IP addresses)
+- Issuing (cards, transactions, authorizations)
+- Treasury (financial accounts, transfers, payments)
+- Terminal (readers, locations)
+- Cash Balances (customer prepaid funds)
+
+### stripe-payouts-ai - AI-Powered Payout Analysis
+**Invoke:** `supabase functions invoke stripe-payouts-ai --body '{"action":"fetch-data"}'`
+
+**Actions:**
+- `fetch-data` - Get balance, payouts, transfers, transactions
+- `chat` - AI chat about payouts (uses Gemini)
+
+**AI Capabilities:**
+- Answer questions about payouts, transfers, balance
+- Identify suspicious or unusual transactions
+- Track where money went and when
+- Explain payout schedules and statuses
+- Alert about failed or pending payouts
+- Investigate unauthorized transfers
+
+### stripe-payout-controls - Read-Only Dashboard
+**Invoke:** `supabase functions invoke stripe-payout-controls --body '{"action":"get-dashboard"}'`
+
+**Actions:**
+- `get-dashboard` - Full overview (balance, payouts, transactions)
+- `get-history` - Detailed payout history with stats
+- `get-balance` - Current balance breakdown
+- `get-charges` - Recent charges with daily totals
+- `get-subscriptions` - Subscriptions with MRR calculation
+- `list-actions` - List all available actions
+
+**Data Provided:**
+- Balance: available, pending, instant_available
+- Payouts: status, method, arrival_date, failure_code
+- Transactions: categorized by type
+- Charges: with refund amounts
+- Subscriptions: with MRR (Monthly Recurring Revenue)
+
+### stripe-webhook - Real-time Event Handler
+**Events Handled:**
+- `payment_intent.succeeded/failed`
+- `charge.succeeded/refunded/disputed`
+- `payout.created/paid/failed`
+- `customer.subscription.*`
+- `invoice.paid/payment_failed`
+
+### stripe-dashboard-data - Dashboard API
+**Provides:** Transaction summaries, revenue charts, customer stats
+
+### enrich-with-stripe - CRM Enrichment
+**Function:** Adds Stripe payment data to HubSpot contacts
+
+### stripe-history - Historical Analysis
+**Function:** Deep historical payment analysis
 
 ## Database Tables (Supabase)
 
@@ -138,11 +272,15 @@ stripe customers list             # List customers
 - `appointments` - Calendly bookings
 - `intervention_log` - Recommended actions
 
-### Financial Tables
-- `stripe_events` - Webhook events
-- `stripe_transactions` - Payments
-- `stripe_subscriptions` - Subscriptions
-- `fraud_alerts` - Anomaly detection
+### Financial Tables (Stripe Deep Intelligence)
+- `stripe_events` - All webhook events
+- `stripe_transactions` - Payments with full details
+- `stripe_subscriptions` - Subscriptions with MRR
+- `stripe_invoices` - Invoice records
+- `stripe_refunds` - Refund tracking
+- `fraud_alerts` - Anomaly detection results
+- `payout_history` - Historical payouts
+- `balance_snapshots` - Balance over time
 
 ### Marketing Tables
 - `attribution_events` - AnyTrack data
@@ -220,3 +358,81 @@ GOOGLE_APPLICATION_CREDENTIALS - Firebase service account
 4. **Run AI analysis** → Invoke `ptd-agent-claude` or `ptd-agent-gemini`
 5. **Check health scores** → Query `client_health_scores` table
 6. **Debug issues** → Run `./check-cli-connections.sh` first
+
+## 💰 STRIPE DEEP RESEARCH - Example Prompts
+
+### Financial Analysis
+```
+"Run a complete money intelligence analysis for the last 30 days"
+→ supabase functions invoke stripe-forensics --body '{"action":"complete-intelligence","days":30}'
+
+"Show me all money flows - where did money come from and go"
+→ supabase functions invoke stripe-forensics --body '{"action":"money-flow","days":30}'
+
+"Run a full security audit on my Stripe account"
+→ supabase functions invoke stripe-forensics --body '{"action":"full-audit"}'
+```
+
+### Payout Intelligence
+```
+"Get my current balance and pending payouts"
+→ supabase functions invoke stripe-payout-controls --body '{"action":"get-dashboard"}'
+
+"Show payout history with failure analysis"
+→ supabase functions invoke stripe-payout-controls --body '{"action":"get-history","limit":100}'
+
+"Calculate my MRR from subscriptions"
+→ supabase functions invoke stripe-payout-controls --body '{"action":"get-subscriptions"}'
+```
+
+### Fraud Detection
+```
+"Check for unauthorized payouts or suspicious activity"
+→ Look for: UNAUTHORIZED_PAYOUT_DESTINATION, SHADOW_ADMIN_DETECTED
+
+"Detect if someone is skimming fees from my account"
+→ Look for: HIDDEN_FEE_SKIMMING, TRANSFER_MONEY_REDIRECT
+
+"Check for card testing attacks"
+→ Look for: CARD_TESTING_ATTACK (multiple setup intents)
+
+"Find unknown IP addresses accessing my account"
+→ Look for: UNAUTHORIZED_IP_ACCESS
+```
+
+### AI-Powered Questions
+```
+"Ask AI: Where did my money go this month?"
+→ supabase functions invoke stripe-payouts-ai --body '{"action":"chat","message":"Where did my money go this month?","context":{...}}'
+
+"Ask AI: Are there any suspicious transfers?"
+→ supabase functions invoke stripe-payouts-ai --body '{"action":"chat","message":"Identify any suspicious transfers or unauthorized activity"}'
+```
+
+### CLI Quick Checks
+```bash
+# Check current balance
+stripe balance
+
+# List recent payouts
+stripe payouts list --limit 10
+
+# List failed payments
+stripe charges list --status failed --limit 20
+
+# Check for disputes
+stripe disputes list
+
+# Listen for real-time events
+stripe listen --forward-to localhost:54321/functions/v1/stripe-webhook
+```
+
+## 🔐 Required Secrets for Stripe
+
+```
+STRIPE_SECRET_KEY          # sk_live_... or sk_test_...
+STRIPE_WEBHOOK_SECRET      # whsec_... for webhook verification
+AUTHORIZED_IP_ADDRESSES    # Comma-separated IPs for forensic checks
+```
+
+Set via: `supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx`
