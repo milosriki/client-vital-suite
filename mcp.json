@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "hubspot-advanced": {
+      "command": "node",
+      "args": ["/Users/milosvukovic/Documents/hubspot-mcp-server/dist/server.js"],
+      "env": {
+        "HUBSPOT_ACCESS_TOKEN": "${HUBSPOT_ACCESS_TOKEN}"
+      }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "ztjndilxurtsfqdsvfds"
+      ]
+    },
+    "firebase": {
+      "command": "npx",
+      "args": ["-y", "firebase-tools", "experimental:mcp"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "${GOOGLE_APPLICATION_CREDENTIALS}"
+      }
+    },
+    "vercel": {
+      "command": "npx",
+      "args": ["-y", "vercel-mcp-server"],
+      "env": {
+        "VERCEL_TOKEN": "${VERCEL_TOKEN}"
+      }
+    }
+  }
+}
