@@ -190,10 +190,14 @@ serve(async (req) => {
 
     console.log(`[Health Calculator] Starting ${mode} calculation...`);
 
-    // Fetch clients from CONTACTS table (Source of Truth)
+    // Fetch only real customers from CONTACTS table (Source of Truth)
     let query = supabase
       .from("contacts")
-      .select("*");
+      .select("*")
+      .eq("lifecycle_stage", "customer")
+      .not("email", "ilike", "%@example.com")
+      .not("email", "ilike", "%@test.com")
+      .not("email", "ilike", "%@email.com");
 
     if (client_emails.length > 0) {
       query = query.in("email", client_emails);
@@ -292,14 +296,14 @@ serve(async (req) => {
     const today = new Date().toISOString().split("T")[0];
     await supabase.from("daily_summary").upsert({
       summary_date: today,
-      total_clients: results.processed,
+      total_active_clients: results.processed,
       avg_health_score: results.avgHealthScore,
-      red_count: results.zones.RED,
-      yellow_count: results.zones.YELLOW,
-      green_count: results.zones.GREEN,
-      purple_count: results.zones.PURPLE,
+      red_clients: results.zones.RED,
+      yellow_clients: results.zones.YELLOW,
+      green_clients: results.zones.GREEN,
+      purple_clients: results.zones.PURPLE,
       critical_interventions: results.criticalInterventions,
-      generated_at: new Date().toISOString()
+      updated_at: new Date().toISOString()
     }, { onConflict: "summary_date" });
 
     const duration = Date.now() - startTime;
