@@ -114,3 +114,7 @@ This is an MCP (Model Context Protocol) server configuration issue. See our deta
 - **Build Failures**: Run `npm install` to ensure all dependencies are installed
 - **Supabase Connection**: Check environment variables in `.env`
 - **Edge Function Errors**: Check logs in Supabase Dashboard > Edge Functions
+
+---
+
+*Last verified: December 2025*
