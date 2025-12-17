@@ -1,0 +1,222 @@
+# Client Vital Suite - Cursor AI Instructions
+
+You are an AI assistant with FULL ACCESS to the following systems via MCP servers and CLI tools.
+
+## MCP Servers Available (mcp.json)
+
+### 1. HubSpot Advanced (~90 tools)
+```json
+{
+  "command": "node",
+  "args": ["/Users/milosvukovic/Documents/hubspot-mcp-server/dist/server.js"],
+  "env": { "HUBSPOT_ACCESS_TOKEN": "${HUBSPOT_ACCESS_TOKEN}" }
+}
+```
+**Capabilities:**
+- `hubspot_search_contacts` - Search contacts by query/filters
+- `hubspot_create_contact` - Create new contacts
+- `hubspot_update_contact` - Update contact properties
+- `hubspot_create_engagement` - Create notes, emails, tasks, meetings, calls
+- `hubspot_search_deals` - Search deals by pipeline/stage
+- `hubspot_create_deal` - Create new deals
+- `hubspot_move_deal_stage` - Move deals through pipeline
+- `hubspot_list_owners` - Get all HubSpot owners
+- `hubspot_change_owner` - Reassign contacts/deals
+- `hubspot_get_associations` - Get related records
+- `hubspot_create_association` - Link records together
+- `hubspot_list_pipelines` - Get deal pipelines
+- `hubspot_list_properties` - Get all properties
+- `hubspot_enroll_in_workflow` - Add to automation workflows
+
+**Portal:** 7973797 (PersonalTrainersDubai)
+
+### 2. Supabase (~50 tools)
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@supabase/mcp-server-supabase@latest", "--project-ref", "ztjndilxurtsfqdsvfds"]
+}
+```
+**Capabilities:**
+- `query` - SELECT from any table
+- `insert` - INSERT rows
+- `update` - UPDATE rows
+- `delete` - DELETE rows
+- `rpc` - Call database functions
+- `execute_sql` - Run raw SQL
+- `list_tables` - Get all tables
+- `get_table_schema` - Get table structure
+- `list_functions` - Edge functions list
+- `invoke_function` - Call edge functions
+- `list_secrets` - View secret names
+- `set_secret` - Set secrets
+- `list_buckets` - Storage buckets
+- `upload_file` / `download_file` - File operations
+
+**Project:** ztjndilxurtsfqdsvfds (Mumbai region)
+
+### 3. Firebase (~40 tools)
+```json
+{
+  "command": "npx",
+  "args": ["-y", "firebase-tools", "experimental:mcp"],
+  "env": { "GOOGLE_APPLICATION_CREDENTIALS": "${GOOGLE_APPLICATION_CREDENTIALS}" }
+}
+```
+**Capabilities:**
+- `firestore_get` / `firestore_set` / `firestore_query` - Firestore operations
+- `auth_get_user` / `auth_create_user` - Authentication
+- `storage_upload` / `storage_download` - File storage
+- `functions_list` / `functions_call` - Cloud Functions
+- `hosting_deploy` - Deploy hosting
+- `remote_config_get` / `remote_config_set` - Remote config
+
+### 4. Vercel (~30 tools)
+```json
+{
+  "command": "npx",
+  "args": ["-y", "vercel-mcp-server"],
+  "env": { "VERCEL_TOKEN": "${VERCEL_TOKEN}" }
+}
+```
+**Capabilities:**
+- `list_deployments` / `create_deployment` - Manage deployments
+- `list_projects` / `get_project` - Project management
+- `list_domains` / `add_domain` - Domain management
+- `list_env_vars` / `create_env_var` - Environment variables
+- `get_logs` / `tail_logs` - View logs
+- `redeploy` - Trigger redeployment
+
+**Project:** client-vital-suite
+
+## CLI Tools Available
+
+### Supabase CLI
+```bash
+supabase login                    # Authenticate
+supabase projects list            # List projects
+supabase functions list           # List edge functions
+supabase functions deploy <name>  # Deploy function
+supabase secrets list             # List secrets
+supabase secrets set KEY=value    # Set secret
+supabase db dump                  # Export database
+```
+
+### Vercel CLI
+```bash
+vercel login                      # Authenticate
+vercel whoami                     # Check auth
+vercel link                       # Link project
+vercel --prod                     # Deploy to production
+vercel env pull                   # Pull env vars
+vercel logs                       # View logs
+```
+
+### HubSpot CLI
+```bash
+hs auth                           # Authenticate
+hs accounts list                  # List accounts
+hs project upload                 # Upload assets
+```
+
+### Stripe CLI
+```bash
+stripe login                      # Authenticate
+stripe listen                     # Listen for webhooks
+stripe trigger <event>            # Test webhooks
+stripe payments list              # List payments
+stripe customers list             # List customers
+```
+
+## Database Tables (Supabase)
+
+### Core Tables
+- `contacts` - HubSpot contacts synced
+- `deals` - HubSpot deals synced
+- `client_health_scores` - Daily health scores (0-100)
+- `call_records` - CallGear call data
+- `appointments` - Calendly bookings
+- `intervention_log` - Recommended actions
+
+### Financial Tables
+- `stripe_events` - Webhook events
+- `stripe_transactions` - Payments
+- `stripe_subscriptions` - Subscriptions
+- `fraud_alerts` - Anomaly detection
+
+### Marketing Tables
+- `attribution_events` - AnyTrack data
+- `capi_events` - Meta CAPI events
+- `facebook_ads_insights` - Ad performance
+- `ultimate_truth_events` - Unified attribution
+
+### AI Tables
+- `agent_memory` - Conversation history
+- `agent_patterns` - Learned behaviors
+- `knowledge_base` - RAG embeddings
+- `proactive_insights` - Generated insights
+
+## Edge Functions (80+)
+
+### HubSpot
+- `sync-hubspot-to-supabase` - Main CRM sync
+- `fetch-hubspot-live` - Real-time queries
+- `hubspot-command-center` - Operations hub
+
+### Stripe
+- `stripe-webhook` - Webhook handler
+- `stripe-forensics` - Anomaly detection
+- `stripe-dashboard-data` - Dashboard API
+
+### AI Agents
+- `ptd-agent-claude` - Claude-based agent
+- `ptd-agent-gemini` - Gemini-based agent
+- `health-calculator` - Daily scoring
+- `churn-predictor` - Churn analysis
+- `intervention-recommender` - Action suggestions
+
+### Marketing
+- `sync-hubspot-to-capi` - Meta CAPI sync
+- `process-capi-batch` - Batch processing
+- `ultimate-truth-alignment` - Attribution unification
+
+## Quick Commands
+
+```bash
+# Verify all connections
+./check-cli-connections.sh
+
+# Deploy everything
+vercel --prod && ./deploy-all-functions.sh
+
+# Test health endpoint
+curl https://client-vital-suite.vercel.app/api/health
+
+# Run a Supabase function
+supabase functions invoke health-calculator
+
+# Sync HubSpot
+supabase functions invoke sync-hubspot-to-supabase
+```
+
+## Environment Variables Required
+
+```
+HUBSPOT_ACCESS_TOKEN     - HubSpot Private App token
+STRIPE_SECRET_KEY        - Stripe API key
+FB_ACCESS_TOKEN          - Meta access token
+FB_PIXEL_ID              - Meta Pixel ID
+ANTHROPIC_API_KEY        - Claude API key
+GOOGLE_GEMINI_API_KEY    - Gemini API key
+VERCEL_TOKEN             - Vercel API token
+GOOGLE_APPLICATION_CREDENTIALS - Firebase service account
+```
+
+## When Asked To:
+
+1. **Query CRM data** → Use HubSpot MCP or Supabase `contacts`/`deals` tables
+2. **Check payments** → Use Stripe CLI or Supabase `stripe_*` tables
+3. **Deploy changes** → Use `vercel --prod` or `./deploy-all-functions.sh`
+4. **Run AI analysis** → Invoke `ptd-agent-claude` or `ptd-agent-gemini`
+5. **Check health scores** → Query `client_health_scores` table
+6. **Debug issues** → Run `./check-cli-connections.sh` first
