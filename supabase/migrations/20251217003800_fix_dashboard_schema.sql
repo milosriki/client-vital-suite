@@ -50,51 +50,74 @@ CREATE POLICY "Public read sync_queue" ON public.sync_queue FOR SELECT USING (tr
 DROP POLICY IF EXISTS "Service role full access sync_queue" ON public.sync_queue;
 CREATE POLICY "Service role full access sync_queue" ON public.sync_queue FOR ALL USING (true);
 
--- 3. Add missing columns to contact_activities
-ALTER TABLE public.contact_activities 
-ADD COLUMN IF NOT EXISTS activity_description TEXT,
-ADD COLUMN IF NOT EXISTS performed_by TEXT,
-ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+-- 3. Add missing columns to contact_activities (only if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'contact_activities') THEN
+        ALTER TABLE public.contact_activities 
+        ADD COLUMN IF NOT EXISTS activity_description TEXT,
+        ADD COLUMN IF NOT EXISTS performed_by TEXT,
+        ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+    END IF;
+END $$;
 
--- 4. Add performance_score column to coach_performance
-ALTER TABLE public.coach_performance 
-ADD COLUMN IF NOT EXISTS performance_score NUMERIC;
+-- 4. Add performance_score column to coach_performance (only if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'coach_performance') THEN
+        ALTER TABLE public.coach_performance 
+        ADD COLUMN IF NOT EXISTS performance_score NUMERIC;
+        
+        -- Backfill performance_score from avg_client_health if null
+        UPDATE public.coach_performance 
+        SET performance_score = avg_client_health 
+        WHERE performance_score IS NULL AND avg_client_health IS NOT NULL;
+    END IF;
+END $$;
 
--- Backfill performance_score from avg_client_health if null
-UPDATE public.coach_performance 
-SET performance_score = avg_client_health 
-WHERE performance_score IS NULL AND avg_client_health IS NOT NULL;
+-- 5. Ensure daily_summary has proper RLS (only if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'daily_summary') THEN
+        ALTER TABLE public.daily_summary ENABLE ROW LEVEL SECURITY;
+        
+        DROP POLICY IF EXISTS "Public read daily_summary" ON public.daily_summary;
+        CREATE POLICY "Public read daily_summary" ON public.daily_summary FOR SELECT USING (true);
+        
+        DROP POLICY IF EXISTS "Service role full access daily_summary" ON public.daily_summary;
+        CREATE POLICY "Service role full access daily_summary" ON public.daily_summary FOR ALL USING (true);
+    END IF;
+END $$;
 
--- 5. Ensure daily_summary has proper RLS
-ALTER TABLE public.daily_summary ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public read daily_summary" ON public.daily_summary;
-CREATE POLICY "Public read daily_summary" ON public.daily_summary FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Service role full access daily_summary" ON public.daily_summary;
-CREATE POLICY "Service role full access daily_summary" ON public.daily_summary FOR ALL USING (true);
-
--- 6. Ensure all key tables have public read access
+-- 6. Ensure all key tables have public read access (only if tables exist)
 DO $$ 
 BEGIN
     -- contacts
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'contacts' AND policyname = 'Public read contacts') THEN
-        CREATE POLICY "Public read contacts" ON public.contacts FOR SELECT USING (true);
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'contacts') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'contacts' AND policyname = 'Public read contacts') THEN
+            CREATE POLICY "Public read contacts" ON public.contacts FOR SELECT USING (true);
+        END IF;
     END IF;
     
     -- client_health_scores
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'client_health_scores' AND policyname = 'Public read client_health_scores') THEN
-        CREATE POLICY "Public read client_health_scores" ON public.client_health_scores FOR SELECT USING (true);
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'client_health_scores') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'client_health_scores' AND policyname = 'Public read client_health_scores') THEN
+            CREATE POLICY "Public read client_health_scores" ON public.client_health_scores FOR SELECT USING (true);
+        END IF;
     END IF;
     
     -- deals
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'deals' AND policyname = 'Public read deals') THEN
-        CREATE POLICY "Public read deals" ON public.deals FOR SELECT USING (true);
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'deals') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'deals' AND policyname = 'Public read deals') THEN
+            CREATE POLICY "Public read deals" ON public.deals FOR SELECT USING (true);
+        END IF;
     END IF;
     
     -- intervention_log
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'intervention_log' AND policyname = 'Public read intervention_log') THEN
-        CREATE POLICY "Public read intervention_log" ON public.intervention_log FOR SELECT USING (true);
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'intervention_log') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'intervention_log' AND policyname = 'Public read intervention_log') THEN
+            CREATE POLICY "Public read intervention_log" ON public.intervention_log FOR SELECT USING (true);
+        END IF;
     END IF;
 END $$;
 
