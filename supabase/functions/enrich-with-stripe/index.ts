@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import { getStripeClient, STRIPE_API_VERSION } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,17 +14,19 @@ serve(async (req) => {
 
   try {
     const { event_ids } = await req.json();
-    
-    const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!STRIPE_SECRET_KEY || !supabaseUrl || !supabaseKey) {
-      throw new Error('Missing required environment variables');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing required Supabase environment variables');
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+
+    // Use shared Stripe client with standardized API version
+    const stripe = getStripeClient();
+    console.log(`[ENRICH-WITH-STRIPE] Using Stripe API version: ${STRIPE_API_VERSION}`);
 
     console.log('Enriching events with Stripe data:', {
       count: event_ids?.length || 'all pending'

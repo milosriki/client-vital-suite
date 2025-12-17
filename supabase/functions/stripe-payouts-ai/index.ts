@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
+import { getStripeClient, STRIPE_API_VERSION } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,13 +13,10 @@ serve(async (req) => {
 
   try {
     const { mode, action, message, context, history } = await req.json();
-    
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) {
-      throw new Error("STRIPE_SECRET_KEY not configured");
-    }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    // Use shared Stripe client with standardized API version
+    const stripe = getStripeClient();
+    console.log(`[STRIPE-PAYOUTS-AI] Using Stripe API version: ${STRIPE_API_VERSION}`);
 
     // Action: fetch-data - Get all payout-related data
     if (action === "fetch-data") {

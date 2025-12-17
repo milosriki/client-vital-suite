@@ -1,27 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { verifyWebhookSignature, parseStripeAmount, parseStripeTimestamp } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
 };
 
-interface StripeEvent {
-  id: string;
-  object: string;
-  type: string;
-  api_version: string;
-  created: number;
-  livemode: boolean;
-  data: {
-    object: any;
-    previous_attributes?: any;
-  };
-  request?: {
-    id: string;
-    idempotency_key: string | null;
-  };
-}
+// Use Stripe's official event type for proper typing
+type StripeEvent = Stripe.Event;
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -30,14 +18,8 @@ serve(async (req) => {
   }
 
   try {
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
-    const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    if (!STRIPE_SECRET_KEY) {
-      throw new Error("STRIPE_SECRET_KEY not configured");
-    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -45,31 +27,44 @@ serve(async (req) => {
     const signature = req.headers.get("stripe-signature");
     const body = await req.text();
 
-    // Verify webhook signature if secret is configured
-    if (STRIPE_WEBHOOK_SECRET && signature) {
-      // Note: In production, use Stripe's webhook signature verification
-      // For now, we'll log and process the event
-      console.log("📝 Webhook signature received (verification recommended)");
-    }
+    // CRITICAL: Verify webhook signature to prevent forged events
+    // This uses Stripe.webhooks.constructEvent under the hood
+    let event: StripeEvent;
+    try {
+      event = await verifyWebhookSignature(body, signature);
+      console.log("✅ Webhook signature verified successfully");
+    } catch (verifyError) {
+      const errorMessage = verifyError instanceof Error ? verifyError.message : "Unknown verification error";
+      console.error("🚨 SECURITY: Webhook signature verification FAILED:", errorMessage);
 
-    // Parse the event
-    const event: StripeEvent = JSON.parse(body);
+      // Return 400 to indicate the webhook should not be retried
+      return new Response(
+        JSON.stringify({
+          error: "Webhook signature verification failed",
+          received: false,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
 
     console.log(`📨 Received Stripe event: ${event.type} (${event.id})`);
 
-    // Store the event in database
+    // Store the event in database (using verified event)
     const { error: insertError } = await supabase
       .from("stripe_events")
       .insert({
         event_id: event.id,
         event_type: event.type,
-        api_version: event.api_version,
+        api_version: event.api_version || null,
         livemode: event.livemode,
-        created_at: new Date(event.created * 1000).toISOString(),
+        created_at: parseStripeTimestamp(event.created),
         data: event.data.object,
-        request_id: event.request?.id,
-        idempotency_key: event.request?.idempotency_key,
-        raw_event: event,
+        request_id: event.request?.id || null,
+        idempotency_key: event.request?.idempotency_key || null,
+        raw_event: event as unknown as Record<string, unknown>,
       });
 
     if (insertError) {

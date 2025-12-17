@@ -52,13 +52,17 @@ export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdown
         hubspotSync?.[0]?.started_at &&
         (Date.now() - new Date(hubspotSync[0].started_at).getTime()) < 86400000;
 
-      // Check Stripe - look for recent data in deals or stripe_events
+      // Check Stripe - look for recent webhook events in stripe_events (within 24h)
+      // This properly verifies Stripe integration is working, not just that deals exist
       const { data: stripeData } = await supabase
-        .from('deals')
-        .select('id')
+        .from('stripe_events')
+        .select('event_id, created_at')
+        .order('created_at', { ascending: false })
         .limit(1);
-      
-      const stripeConnected = (stripeData?.length || 0) > 0;
+
+      // Stripe is connected if we have recent events (within last 24 hours)
+      const stripeConnected = stripeData?.[0]?.created_at &&
+        (Date.now() - new Date(stripeData[0].created_at).getTime()) < 86400000;
 
       return {
         supabase: supabaseConnected,

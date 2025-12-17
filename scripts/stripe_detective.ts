@@ -1,17 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@14.14.0";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
-// CONFIGURATION
-const STRIPE_KEY = Deno.env.get("STRIPE_API_KEY");
+// CONFIGURATION - Support both STRIPE_SECRET_KEY (preferred) and legacy STRIPE_API_KEY
+const STRIPE_KEY = Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_API_KEY");
 
 if (!STRIPE_KEY) {
     console.error("❌ ERROR: Please provide your Stripe API Key.");
-    console.error("Usage: STRIPE_API_KEY=sk_live_... deno run -A scripts/stripe_detective.ts");
+    console.error("Usage: STRIPE_SECRET_KEY=sk_live_... deno run -A scripts/stripe_detective.ts");
+    console.error("  (Legacy: STRIPE_API_KEY is also supported for backward compatibility)");
     Deno.exit(1);
 }
 
+// Use standardized API version across all Stripe functions
 const stripe = new Stripe(STRIPE_KEY, {
-    apiVersion: "2023-10-16",
+    apiVersion: "2024-12-18.acacia",
 });
 
 console.log("🕵️‍♂️ STARTING STRIPE FORENSIC AUDIT...");

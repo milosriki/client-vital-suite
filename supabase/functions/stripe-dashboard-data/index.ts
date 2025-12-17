@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import { getStripeClient, STRIPE_API_VERSION } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,13 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
-    
-    if (!STRIPE_SECRET_KEY) {
-      throw new Error("STRIPE_SECRET_KEY is not configured");
-    }
-
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+    // Use shared Stripe client with standardized API version
+    const stripe = getStripeClient();
+    console.log(`[STRIPE-DASHBOARD-DATA] Using Stripe API version: ${STRIPE_API_VERSION}`);
 
     // Parse request body for date range and filters
     const body = await req.json().catch(() => ({}));
