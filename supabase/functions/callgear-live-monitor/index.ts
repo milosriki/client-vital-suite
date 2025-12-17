@@ -115,8 +115,8 @@ async function getEmployeeStatus(apiKey: string): Promise<EmployeeStatus[]> {
   // First, get active calls to determine who's busy
   const activeCalls = await listActiveCalls(apiKey);
 
-  // Get employee list
-  const employeeResponse = await makeCallGearRequest(apiKey, "list.employees", {});
+  // Get employee list using correct method
+  const employeeResponse = await makeCallGearRequest(apiKey, "get.employees", {});
 
   if (employeeResponse.error) {
     throw new Error(`CallGear API error: ${employeeResponse.error.message}`);
@@ -151,9 +151,11 @@ async function getEmployeeStatus(apiKey: string): Promise<EmployeeStatus[]> {
 }
 
 async function getQueueStats(apiKey: string): Promise<QueueStats> {
-  // Get all active calls
-  const allCallsResponse = await makeCallGearRequest(apiKey, "list.calls", {
-    status: "active",
+  // Get all recent calls using correct method
+  const allCallsResponse = await makeCallGearRequest(apiKey, "get.calls_report", {
+    date_from: new Date(Date.now() - 3600000).toISOString().replace('T', ' ').slice(0, 19),
+    date_till: new Date().toISOString().replace('T', ' ').slice(0, 19),
+    limit: 100
   });
 
   if (allCallsResponse.error) {
