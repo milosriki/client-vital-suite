@@ -25,24 +25,26 @@ serve(async (req) => {
 
         console.log(`Fetching CallGear data from ${fromDate} to ${toDate}`);
 
-        // CallGear Data API (using the Data API endpoint structure)
-        // Note: Based on common implementations, we'll try the standard JSON-RPC endpoint
-        // If this fails, we might need to adjust the endpoint based on specific region (com/ae)
-        const response = await fetch('https://api.callgear.com/v2.0/go/site_phone/call/get_list', {
+        // CallGear Data API - CORRECT endpoint
+        // Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC)
+        // Call API: https://callapi.callgear.com/v4.0 (REST - for call management)
+        const response = await fetch('https://dataapi.callgear.com/v2.0', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 jsonrpc: "2.0",
-                method: "get_list",
+                method: "get.calls_report",
                 params: {
-                    auth_token: CALLGEAR_API_KEY,
-                    date_from: fromDate,
-                    date_to: toDate,
+                    access_token: CALLGEAR_API_KEY,
+                    date_from: `${fromDate} 00:00:00`,
+                    date_till: `${toDate} 23:59:59`,
                     limit: limit,
-                    // Request specific fields to ensure we get employee info
-                    fields: ["id", "start_time", "duration", "calling_phone", "called_phone", "employee_full_name", "status", "finish_reason", "record_url", "source", "campaign_name", "medium", "keyword"]
+                    // Request specific fields for call data
+                    fields: ["id", "start_time", "finish_time", "talk_duration", "total_duration", 
+                             "contact_phone_number", "virtual_phone_number", "employees", 
+                             "finish_reason", "direction", "is_lost", "call_records"]
                 },
                 id: 1
             })

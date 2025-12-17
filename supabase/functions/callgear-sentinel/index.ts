@@ -16,7 +16,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const CALLGEAR_API_ENDPOINT = "https://api.callgear.com/call_api/v1/manage_call/add_coach";
+// CORRECT CallGear API endpoints:
+// - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
+// - Call API: https://callapi.callgear.com/v4.0 (REST for call management)
+const CALLGEAR_API_ENDPOINT = "https://callapi.callgear.com/v4.0";
 const CALLGEAR_API_KEY = Deno.env.get("CALLGEAR_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const CALLGEAR_API_ENDPOINT = "https://api.callgear.com/call_api/v1/manage_call/add_coach";
+// CORRECT CallGear API endpoints:
+// - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
+// - Call API: https://callapi.callgear.com/v4.0 (REST for call management)
+const CALLGEAR_API_ENDPOINT = "https://callapi.callgear.com/v4.0";
 
 interface CoachParams {
   call_session_id: string;

@@ -3,8 +3,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-// Use environment variable for region flexibility, default to .com (international)
-const CALLGEAR_API_URL = Deno.env.get("CALLGEAR_API_URL") || "https://api.callgear.com/rpc";
+// CORRECT CallGear API URLs:
+// - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
+// - Call API: https://callapi.callgear.com/v4.0 (REST for call management)
+const CALLGEAR_API_URL = Deno.env.get("CALLGEAR_API_URL") || "https://dataapi.callgear.com/v2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +63,7 @@ async function makeCallGearRequest(
     jsonrpc: "2.0",
     method,
     params: {
-      auth_token: apiKey,
+      access_token: apiKey,  // CORRECT: use access_token not auth_token
       ...params,
     },
     id: Date.now(),
@@ -83,8 +85,14 @@ async function makeCallGearRequest(
 }
 
 async function listActiveCalls(apiKey: string): Promise<ActiveCall[]> {
-  const response = await makeCallGearRequest(apiKey, "list.calls", {
-    status: "active",
+  // Use get.calls_report with filter for recent calls
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 3600000);
+  
+  const response = await makeCallGearRequest(apiKey, "get.calls_report", {
+    date_from: oneHourAgo.toISOString().replace('T', ' ').slice(0, 19),
+    date_till: now.toISOString().replace('T', ' ').slice(0, 19),
+    limit: 100
   });
 
   if (response.error) {
