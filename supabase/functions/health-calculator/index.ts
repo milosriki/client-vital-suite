@@ -190,24 +190,46 @@ serve(async (req) => {
 
     console.log(`[Health Calculator] Starting ${mode} calculation...`);
 
-    // Fetch clients from CONTACTS table (Source of Truth)
-    let query = supabase
-      .from("contacts")
-      .select("*");
+    // Fetch ONLY actual customers (lifecycle_stage = 'customer') from CONTACTS table
+    // This filters out leads, opportunities, and other non-customer contacts
+    // Use pagination to handle all records (Supabase default limit is 1000)
+    const PAGE_SIZE = 1000;
+    let allContacts: any[] = [];
+    let page = 0;
+    let hasMore = true;
 
-    if (client_emails.length > 0) {
-      query = query.in("email", client_emails);
+    while (hasMore) {
+      let query = supabase
+        .from("contacts")
+        .select("*")
+        .eq("lifecycle_stage", "customer")
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (client_emails.length > 0) {
+        query = query.in("email", client_emails);
+      }
+
+      const { data: pageData, error: pageError } = await query;
+
+      if (pageError) {
+        console.error(`Error fetching contacts page ${page}:`, pageError);
+        throw pageError;
+      }
+
+      if (pageData && pageData.length > 0) {
+        allContacts = allContacts.concat(pageData);
+        hasMore = pageData.length === PAGE_SIZE;
+        page++;
+      } else {
+        hasMore = false;
+      }
     }
 
-    const { data: contacts, error: fetchError } = await query;
+    const contacts = allContacts;
+    console.log(`[Health Calculator] Fetched ${contacts.length} customers (lifecycle_stage = 'customer') across ${page + 1} page(s)`);
 
-    if (fetchError) {
-      console.error("Error fetching contacts:", fetchError);
-      throw fetchError;
-    }
-
-    // Process all contacts
-    console.log(`[Health Calculator] Processing ${contacts?.length || 0} clients from contacts table`);
+    // Process all customers (filtered by lifecycle_stage = 'customer')
+    console.log(`[Health Calculator] Processing ${contacts?.length || 0} actual customers`);
 
     const results = {
       processed: 0,
