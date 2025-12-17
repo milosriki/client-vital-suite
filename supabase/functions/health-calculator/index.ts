@@ -26,6 +26,9 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Domains used for test/mock data that should be excluded from calculations
+const TEST_EMAIL_PATTERNS = ["%@example.com", "%@test.com", "%@email.com"];
+
 // ============================================
 // SCORING ALGORITHMS
 // ============================================
@@ -194,10 +197,11 @@ serve(async (req) => {
     let query = supabase
       .from("contacts")
       .select("*")
-      .eq("lifecycle_stage", "customer")
-      .not("email", "ilike", "%@example.com")
-      .not("email", "ilike", "%@test.com")
-      .not("email", "ilike", "%@email.com");
+      .eq("lifecycle_stage", "customer");
+
+    for (const pattern of TEST_EMAIL_PATTERNS) {
+      query = query.not("email", "ilike", pattern);
+    }
 
     if (client_emails.length > 0) {
       query = query.in("email", client_emails);
