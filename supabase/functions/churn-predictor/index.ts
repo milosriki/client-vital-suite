@@ -190,7 +190,7 @@ Provide a brief, actionable insight for the coach.`;
       headers: {
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2024-10-22"
+        "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",

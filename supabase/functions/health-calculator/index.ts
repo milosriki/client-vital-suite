@@ -184,11 +184,13 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
+  const debugLogs: any[] = [];
 
   try {
     const { mode = "full", client_emails = [] } = await req.json().catch(() => ({}));
 
     console.log(`[Health Calculator] Starting ${mode} calculation...`);
+    debugLogs.push({location:'health-calculator/index.ts:191',message:'Starting calculation',data:{mode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'});
 
     // Fetch clients from CONTACTS table (Source of Truth)
     let query = supabase
@@ -200,6 +202,8 @@ serve(async (req) => {
     }
 
     const { data: contacts, error: fetchError } = await query;
+
+    debugLogs.push({location:'health-calculator/index.ts:202',message:'Contacts fetched',data:{count:contacts?.length, error: fetchError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'});
 
     if (fetchError) {
       console.error("Error fetching contacts:", fetchError);
@@ -234,6 +238,10 @@ serve(async (req) => {
         const momentum = getMomentumIndicator(client);
         const predictiveRisk = calculatePredictiveRisk(client, healthZone, momentum);
         const interventionPriority = getInterventionPriority(healthZone, predictiveRisk, momentum);
+
+        if (results.processed === 0) {
+           debugLogs.push({location:'health-calculator/index.ts:238',message:'Calculated score for first client',data:{email:client.email, score:healthScore, zone:healthZone},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'});
+        }
 
         // Update or insert new record in client_health_scores
         // Mapped to match database schema
@@ -308,16 +316,19 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       duration_ms: duration,
-      results
+      results,
+      debugLogs
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
   } catch (error) {
+    debugLogs.push({location:'health-calculator/index.ts:317',message:'Global error',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'});
     console.error("[Health Calculator] Error:", error);
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: error instanceof Error ? error.message : "Unknown error",
+      debugLogs
     }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders }

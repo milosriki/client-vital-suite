@@ -455,7 +455,7 @@ async function generateWithClaude(query: string, persona: any, context: any) {
         method: 'POST',
         headers: {
             'x-api-key': ANTHROPIC_API_KEY!,
-            'anthropic-version': '2024-10-22',
+            'anthropic-version': '2023-06-01',
             'content-type': 'application/json'
         },
         body: JSON.stringify({

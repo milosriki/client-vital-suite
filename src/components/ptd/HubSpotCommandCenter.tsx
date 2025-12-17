@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { 
-  RefreshCw, Shield, AlertTriangle, Users, Activity, 
+import {
+  RefreshCw, Shield, AlertTriangle, Users, Activity,
   LogIn, Download, Trash2, UserX, Clock, Search,
   TrendingUp, Eye, ChevronRight
 } from 'lucide-react';
@@ -127,7 +127,7 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
     return <Badge variant="secondary">Low ({score})</Badge>;
   };
 
-  const filteredSummaries = (overview?.summaries || []).filter(s => 
+  const filteredSummaries = (overview?.summaries || []).filter(s =>
     !searchTerm || s.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -312,8 +312,8 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
                     </TableHeader>
                     <TableBody>
                       {filteredSummaries.slice(0, 20).map((summary: any) => (
-                        <TableRow 
-                          key={summary.id} 
+                        <TableRow
+                          key={summary.id}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => setSelectedUser(summary.user_email)}
                         >
@@ -365,9 +365,8 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
                   {filteredSummaries.map((summary: any) => (
                     <div
                       key={summary.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedUser === summary.user_email ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'
-                      }`}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedUser === summary.user_email ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'
+                        }`}
                       onClick={() => setSelectedUser(summary.user_email)}
                     >
                       <div className="flex items-center justify-between">

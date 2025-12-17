@@ -162,7 +162,7 @@ RESPOND WITH VALID JSON ONLY:
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2024-10-22', 'content-type': 'application/json' },
+        headers: { 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
             model: 'claude-sonnet-4-5-20250929',
             max_tokens: 4000,

@@ -110,7 +110,7 @@ serve(async (req) => {
       );
 
       const data = await response.json();
-      
+
       const contacts = (data.results || []).map((c: any) => ({
         id: c.id,
         name: `${c.properties.firstname || ''} ${c.properties.lastname || ''}`.trim() || 'Unknown',
@@ -130,12 +130,12 @@ serve(async (req) => {
       }));
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           query: 'latest_contacts',
           count: contacts.length,
           fetched_at: new Date().toISOString(),
-          contacts 
+          contacts
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -163,7 +163,7 @@ serve(async (req) => {
       );
 
       const data = await response.json();
-      
+
       const deals = (data.results || []).map((d: any) => ({
         id: d.id,
         name: d.properties.dealname,
@@ -179,12 +179,12 @@ serve(async (req) => {
       }));
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           query: 'latest_deals',
           count: deals.length,
           fetched_at: new Date().toISOString(),
-          deals 
+          deals
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -295,7 +295,7 @@ serve(async (req) => {
         'https://api.hubapi.com/conversations/v3/conversations/threads?limit=' + Math.min(limit, 50),
         { headers }
       );
-      
+
       let conversations = [];
       if (convoResponse.ok) {
         const convoData = await convoResponse.json();
@@ -629,8 +629,8 @@ serve(async (req) => {
     // Unknown query - show available options
     // =====================
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: 'Unknown query type',
         available_queries: {
           read: ['latest_contacts', 'latest_deals', 'search', 'today_activity', 'owners', 'contact_detail', 'conversations', 'pipelines'],
