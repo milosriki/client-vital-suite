@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "hubspot-advan": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-hubspot"],
+    "hubspot-advanced": {
+      "command": "node",
+      "args": ["/Users/milosvukovic/Documents/hubspot-mcp-server/dist/server.js"],
       "env": {
-        "HUBSPOT_API_KEY": "your-api-key-here"
+        "HUBSPOT_ACCESS_TOKEN": "<your-hubspot-api-key-from-supabase-secrets>"
       }
     }
   },
