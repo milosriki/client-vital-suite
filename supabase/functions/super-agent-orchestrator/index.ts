@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 // LangSmith Configuration
-const LANGSMITH_API_KEY = Deno.env.get("LANGSMITH_API_KEY") || "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";
+const LANGSMITH_API_KEY = Deno.env.get("LANGSMITH_API_KEY");
 const LANGSMITH_PROJECT = "super-agent-orchestrator";
 const LANGSMITH_ENDPOINT = "https://api.smith.langchain.com";
 
@@ -60,6 +60,7 @@ interface SystemState {
 // ============================================================================
 
 async function trace(name: string, data: Record<string, any>): Promise<void> {
+  if (!LANGSMITH_API_KEY) return;
   try {
     await fetch(`${LANGSMITH_ENDPOINT}/runs`, {
       method: "POST",
