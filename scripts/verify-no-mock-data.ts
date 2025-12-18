@@ -76,9 +76,9 @@ function checkFile(filePath: string): CheckResult {
       result.issues.push('Found hardcoded array without database query');
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     result.passed = false;
-    result.issues.push(`Error reading file: ${error.message}`);
+    result.issues.push(`Error reading file: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return result;

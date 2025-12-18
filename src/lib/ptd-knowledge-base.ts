@@ -20,7 +20,7 @@ async function retryOperation<T>(
     operationName = 'Operation'
   } = options;
 
-  let lastError: any;
+  let lastError: Error | unknown;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {

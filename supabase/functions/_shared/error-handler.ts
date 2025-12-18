@@ -8,7 +8,7 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
     timestamp: string;
   };
 }
@@ -113,9 +113,9 @@ function mapFunctionNameToSource(functionName: string): string {
 async function logErrorToDatabase(
   supabase: SupabaseClient | null,
   functionName: string,
-  error: Error | any,
+  error: Error | unknown,
   errorCode: ErrorCode,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): Promise<void> {
   if (!supabase) {
     console.warn("⚠️ Cannot log error to database: Supabase client not provided");
@@ -161,7 +161,7 @@ async function logErrorToDatabase(
 export function createErrorResponse(
   code: ErrorCode,
   message: string,
-  details?: any
+  details?: Record<string, unknown>
 ): ErrorResponse {
   return {
     success: false,
@@ -178,12 +178,12 @@ export function createErrorResponse(
  * Handle error and return a Response object with proper status code and logging
  */
 export async function handleError(
-  error: Error | any,
+  error: Error | unknown,
   functionName: string,
   options?: {
     supabase?: SupabaseClient;
     errorCode?: ErrorCode;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
     includeStack?: boolean;
   }
 ): Promise<Response> {
@@ -253,7 +253,7 @@ export function validateEnvVars(
  * Validate request body parameters
  */
 export function validateRequestBody(
-  body: any,
+  body: Record<string, unknown> | null | undefined,
   requiredFields: string[],
   functionName: string
 ): { valid: boolean; missing: string[] } {
@@ -276,7 +276,7 @@ export function validateRequestBody(
 /**
  * Create a standardized success response
  */
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T = unknown> {
   success: true;
   data: T;
   timestamp: string;
@@ -319,7 +319,7 @@ export function handleCorsPreFlight(): Response {
 /**
  * Try to parse JSON with error handling
  */
-export async function parseJsonSafely<T = any>(
+export async function parseJsonSafely<T = unknown>(
   req: Request,
   functionName: string
 ): Promise<{ success: true; data: T } | { success: false; error: Error }> {

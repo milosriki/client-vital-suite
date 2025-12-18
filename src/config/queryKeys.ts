@@ -247,12 +247,12 @@ export const QUERY_KEYS = {
 
   // Audit Trail
   audit: {
-    trail: (searchTrigger?: any) => ['audit', 'trail', searchTrigger] as const,
+    trail: (searchTrigger?: string) => ['audit', 'trail', searchTrigger] as const,
   },
 
   // Dashboard
   dashboard: {
-    batch: (filters?: any) => ['dashboard', 'batch', filters] as const,
+    batch: (filters?: Record<string, unknown>) => ['dashboard', 'batch', filters] as const,
     alerts: ['dashboard', 'alerts'] as const,
     features: {
       apiUsage: ['dashboard', 'api-usage-metrics'] as const,

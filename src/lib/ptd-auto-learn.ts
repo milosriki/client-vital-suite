@@ -13,7 +13,7 @@ async function retryWithBackoff<T>(
   options: RetryOptions = {}
 ): Promise<T> {
   const { maxRetries = 3, delayMs = 1000, backoff = true } = options;
-  let lastError: any;
+  let lastError: Error | unknown;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -58,12 +58,12 @@ export async function discoverSystemStructure() {
     const systemKnowledge = {
       type: 'system_structure',
       discovered_at: new Date().toISOString(),
-      tables: tables?.map((t: any) => ({
+      tables: tables?.map((t: { table_name: string; column_count: number; row_estimate: number }) => ({
         name: t.table_name,
         columns: t.column_count,
         rows: t.row_estimate
       })) || [],
-      functions: functions?.map((f: any) => ({
+      functions: functions?.map((f: { function_name: string; parameter_count: number; return_type: string }) => ({
         name: f.function_name,
         params: f.parameter_count,
         returns: f.return_type
@@ -239,8 +239,8 @@ export async function getDynamicMegaPrompt(): Promise<string> {
         .limit(5)
     ]);
 
-    const structureData = structure.data?.value as any || {};
-    const patternData = patterns.data?.value as any || {};
+    const structureData = (structure.data?.value as Record<string, unknown>) || {};
+    const patternData = (patterns.data?.value as Record<string, unknown>) || {};
     const memories = recentMemories.data || [];
 
     // Build dynamic prompt
@@ -248,8 +248,8 @@ export async function getDynamicMegaPrompt(): Promise<string> {
 ## PTD SUPER-AGENT (DYNAMIC KNOWLEDGE)
 
 ### DISCOVERED SYSTEM (${structureData.discovered_at || 'Not discovered yet'})
-Tables (${structureData.tables?.length || 0}): ${structureData.tables?.slice(0, 20).map((t: any) => t.name).join(', ') || 'None discovered'}
-Functions (${structureData.functions?.length || 0}): ${structureData.functions?.slice(0, 10).map((f: any) => f.name).join(', ') || 'None discovered'}
+Tables (${(structureData.tables as Array<{name: string}>)?.length || 0}): ${(structureData.tables as Array<{name: string}>)?.slice(0, 20).map((t) => t.name).join(', ') || 'None discovered'}
+Functions (${(structureData.functions as Array<{name: string}>)?.length || 0}): ${(structureData.functions as Array<{name: string}>)?.slice(0, 10).map((f) => f.name).join(', ') || 'None discovered'}
 
 ### CURRENT PATTERNS (${patternData.analyzed_at || 'Not analyzed'})
 Health Zones: ${JSON.stringify(patternData.health_zones || {})}
@@ -260,7 +260,7 @@ Avg Health Score: ${patternData.avg_health || 'N/A'}
 Avg Deal Value: ${patternData.avg_deal_value || 'N/A'}
 
 ### RECENT LEARNINGS
-${memories.map((m: any) => `- Q: "${m.query?.slice(0, 50)}..." → Learned: ${JSON.stringify(m.knowledge_extracted || {}).slice(0, 100)}`).join('\n')}
+${memories.map((m: { query?: string; knowledge_extracted?: Record<string, unknown> }) => `- Q: "${m.query?.slice(0, 50)}..." → Learned: ${JSON.stringify(m.knowledge_extracted || {}).slice(0, 100)}`).join('\n')}
 
 ### BEHAVIOR RULES
 1. Use discovered tables/functions for queries
@@ -366,7 +366,7 @@ function extractKnowledge(query: string, response: string) {
 }
 
 // Helper functions
-function countBy(data: any[] | null, key: string): Record<string, number> {
+function countBy(data: Record<string, unknown>[] | null, key: string): Record<string, number> {
   if (!data) return {};
   return data.reduce((acc, item) => {
     const val = item[key] || 'unknown';
@@ -375,7 +375,7 @@ function countBy(data: any[] | null, key: string): Record<string, number> {
   }, {} as Record<string, number>);
 }
 
-function calculateAvg(data: any[] | null, key: string): number | null {
+function calculateAvg(data: Record<string, unknown>[] | null, key: string): number | null {
   if (!data || data.length === 0) return null;
   const values = data.map(d => d[key]).filter(v => typeof v === 'number');
   if (values.length === 0) return null;

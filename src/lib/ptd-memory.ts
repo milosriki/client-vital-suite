@@ -9,7 +9,7 @@ export interface MemoryItem {
   thread_id: string;
   query: string;
   response: string;
-  knowledge_extracted: any;
+  knowledge_extracted: Record<string, unknown> | null;
   created_at: string;
   similarity?: number;
 }
@@ -18,7 +18,7 @@ export interface PatternItem {
   pattern_name: string;
   description: string;
   confidence: number;
-  examples: any[];
+  examples: string[];
 }
 
 export interface ThreadMetadata {
@@ -229,7 +229,7 @@ export async function saveMessageToDatabase(
   threadId: string,
   query: string,
   response: string,
-  knowledgeExtracted?: any
+  knowledgeExtracted?: Record<string, unknown> | null
 ): Promise<void> {
   try {
     await withTimeoutAndRetry(async () => {
@@ -389,7 +389,7 @@ export async function getThreadStats(threadId: string): Promise<{
 /**
  * Extract knowledge from interaction (called from edge function)
  */
-export function extractKnowledge(query: string, response: string): any {
+export function extractKnowledge(query: string, response: string): Record<string, unknown> {
   const combined = `${query} ${response}`.toLowerCase();
 
   const patterns: Record<string, boolean> = {

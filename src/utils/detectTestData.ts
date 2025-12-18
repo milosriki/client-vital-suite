@@ -316,11 +316,11 @@ export async function autoFixTestData(options: {
       deletedCount: data.summary?.total_records_deleted || 0,
       details: data.fake_data_cleanup?.by_table || {}
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error auto-fixing test data:', error);
     return {
       success: false,
-      message: error.message || 'Failed to auto-fix test data',
+      message: error instanceof Error ? error.message : 'Failed to auto-fix test data',
       deletedCount: 0,
       details: {}
     };
@@ -340,11 +340,11 @@ export async function clearTestData(): Promise<{
       success: result.success,
       message: result.message
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error clearing test data:', error);
     return {
       success: false,
-      message: error.message || 'Failed to clear test data'
+      message: error instanceof Error ? error.message : 'Failed to clear test data'
     };
   }
 }
