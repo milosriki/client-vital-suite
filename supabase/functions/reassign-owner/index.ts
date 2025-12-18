@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  checkCircuitBreaker,
+  recordUpdateSource,
+  logCircuitBreakerTrip,
+} from "../_shared/circuit-breaker.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +40,40 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[Reassign Owner] Reassigning contact ${contact_id} to owner ${new_owner_id}`);
+    const contactIdStr = contact_id.toString();
+
+    // ========================================
+    // CIRCUIT BREAKER CHECK - Prevent Infinite Loops
+    // ========================================
+    const circuitCheck = checkCircuitBreaker(contactIdStr);
+    if (!circuitCheck.shouldProcess) {
+      console.warn(`[CIRCUIT BREAKER] ${circuitCheck.reason}`);
+      await logCircuitBreakerTrip(supabase, contactIdStr, circuitCheck.count, circuitCheck.reason!);
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Circuit breaker tripped - infinite loop detected',
+        reason: circuitCheck.reason,
+        processing_count: circuitCheck.count
+      }), {
+        status: 429, // Too Many Requests
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`[Reassign Owner] Reassigning contact ${contact_id} to owner ${new_owner_id} (attempt ${circuitCheck.count}/3)`);
+
+    // ========================================
+    // RECORD SOURCE BEFORE HUBSPOT UPDATE
+    // This ensures when HubSpot sends webhook back, we know to ignore it
+    // ========================================
+    await recordUpdateSource(supabase, contactIdStr, 'manual_reassign', {
+      new_owner_id,
+      old_owner_id,
+      reason: reason || 'MANUAL_REASSIGNMENT',
+      initiated_at: new Date().toISOString()
+    });
+    console.log(`[Reassign Owner] Recorded source as 'manual_reassign' for ${contactIdStr}`);
 
     // Update owner in HubSpot
     const hubspotResponse = await fetch(
@@ -79,10 +117,16 @@ serve(async (req) => {
     }
 
     // Update contact in Supabase if exists
+    // Mark the source so webhook handler knows to ignore bounce-back
     try {
       await supabase
         .from('contacts')
-        .update({ owner_id: new_owner_id.toString() })
+        .update({ 
+          owner_id: new_owner_id.toString(),
+          last_updated_by: 'manual_reassign',
+          last_updated_source: 'internal',
+          updated_at: new Date().toISOString()
+        })
         .eq('hubspot_contact_id', contact_id.toString());
     } catch (updateError) {
       console.warn('[Reassign Owner] Failed to update Supabase contact:', updateError);

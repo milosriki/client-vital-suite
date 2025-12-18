@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  checkCircuitBreaker,
+  recordUpdateSource,
+  logCircuitBreakerTrip,
+} from "../_shared/circuit-breaker.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +36,7 @@ serve(async (req) => {
       checked: 0,
       reassigned: 0,
       skipped: 0,
+      circuitBreakerTrips: 0,
       errors: [] as string[],
       reassignments: [] as any[]
     };
@@ -141,8 +147,23 @@ serve(async (req) => {
 
     for (const contact of contactsToReassign) {
       results.checked++;
+      const contactIdStr = contact.id?.toString();
 
       try {
+        // ========================================
+        // CIRCUIT BREAKER CHECK - Prevent Infinite Loops
+        // ========================================
+        if (contactIdStr) {
+          const circuitCheck = checkCircuitBreaker(contactIdStr);
+          if (!circuitCheck.shouldProcess) {
+            console.warn(`[CIRCUIT BREAKER] Skipping ${contactIdStr}: ${circuitCheck.reason}`);
+            await logCircuitBreakerTrip(supabase, contactIdStr, circuitCheck.count, circuitCheck.reason!);
+            results.circuitBreakerTrips++;
+            results.skipped++;
+            continue;
+          }
+        }
+
         // Skip if already has owner and was recently updated
         if (contact.current_owner && contact.created_at) {
           const createdDate = new Date(contact.created_at);
@@ -156,6 +177,19 @@ serve(async (req) => {
         // Get next owner (round-robin)
         const newOwnerId = ownerRotation[ownerIndex % ownerRotation.length];
         ownerIndex++;
+
+        // ========================================
+        // RECORD SOURCE BEFORE REASSIGNMENT
+        // This ensures webhook handler knows to ignore bounce-back
+        // ========================================
+        if (contactIdStr) {
+          await recordUpdateSource(supabase, contactIdStr, 'auto_reassign', {
+            new_owner_id: newOwnerId,
+            old_owner_id: contact.current_owner || null,
+            reason: `AUTO_REASSIGN_SLA_BREACH_${sla_minutes}MIN`,
+            initiated_at: new Date().toISOString()
+          });
+        }
 
         // Reassign using reassign-owner function (or direct API call)
         const reassignResponse = await fetch(
@@ -188,8 +222,16 @@ serve(async (req) => {
           console.log(`[Auto Reassign] ✅ Reassigned ${contact.id} → ${newOwnerId}`);
         } else {
           const errorData = await reassignResponse.json();
-          results.errors.push(`Contact ${contact.id}: ${errorData.error || 'Unknown error'}`);
-          console.error(`[Auto Reassign] ❌ Failed to reassign ${contact.id}:`, errorData);
+          
+          // Check if it was a circuit breaker trip
+          if (reassignResponse.status === 429) {
+            results.circuitBreakerTrips++;
+            results.skipped++;
+            console.warn(`[Auto Reassign] ⚠️ Circuit breaker for ${contact.id}:`, errorData);
+          } else {
+            results.errors.push(`Contact ${contact.id}: ${errorData.error || 'Unknown error'}`);
+            console.error(`[Auto Reassign] ❌ Failed to reassign ${contact.id}:`, errorData);
+          }
         }
 
         // Small delay to avoid rate limiting
@@ -202,16 +244,19 @@ serve(async (req) => {
     }
 
     // Log summary
+    const hasCircuitBreakerIssues = results.circuitBreakerTrips > 0;
     await supabase.from('sync_logs').insert({
       platform: 'hubspot',
-      status: results.errors.length > 0 ? 'warning' : 'success',
-      message: `Auto-reassignment: ${results.reassigned} reassigned, ${results.skipped} skipped, ${results.errors.length} errors`,
-      error_details: results.errors.length > 0 ? { errors: results.errors } : null,
+      status: hasCircuitBreakerIssues ? 'warning' : (results.errors.length > 0 ? 'warning' : 'success'),
+      message: `Auto-reassignment: ${results.reassigned} reassigned, ${results.skipped} skipped, ${results.circuitBreakerTrips} circuit breaker trips, ${results.errors.length} errors`,
+      error_details: results.errors.length > 0 || hasCircuitBreakerIssues 
+        ? { errors: results.errors, circuit_breaker_trips: results.circuitBreakerTrips } 
+        : null,
       started_at: new Date().toISOString(),
       completed_at: new Date().toISOString()
     });
 
-    console.log(`[Auto Reassign] Complete: ${results.reassigned} reassigned, ${results.skipped} skipped, ${results.errors.length} errors`);
+    console.log(`[Auto Reassign] Complete: ${results.reassigned} reassigned, ${results.skipped} skipped, ${results.circuitBreakerTrips} circuit breaker trips, ${results.errors.length} errors`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -219,10 +264,14 @@ serve(async (req) => {
         checked: results.checked,
         reassigned: results.reassigned,
         skipped: results.skipped,
+        circuit_breaker_trips: results.circuitBreakerTrips,
         errors: results.errors.length
       },
       reassignments: results.reassignments,
       errors: results.errors.slice(0, 10), // Limit error details
+      circuit_breaker_warning: hasCircuitBreakerIssues 
+        ? `${results.circuitBreakerTrips} contacts hit circuit breaker - check for infinite loops in workflow 1655409725`
+        : null,
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

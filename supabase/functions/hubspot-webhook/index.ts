@@ -9,6 +9,13 @@ import {
   validateEnvVars,
   parseJsonSafely,
 } from "../_shared/error-handler.ts";
+import {
+  safeProcessLead,
+  checkCircuitBreaker,
+  logCircuitBreakerTrip,
+  wasRecentlyUpdatedInternally,
+  recordUpdateSource,
+} from "../_shared/circuit-breaker.ts";
 
 serve(async (req) => {
   const FUNCTION_NAME = "hubspot-webhook";
@@ -60,19 +67,62 @@ serve(async (req) => {
 
     // Handle array of events (HubSpot sends batches)
     const events = Array.isArray(payload) ? payload : [payload];
-    const results = { processed: 0, errors: 0 };
+    const results = { processed: 0, errors: 0, skipped: 0, circuitBreakerTrips: 0 };
 
     for (const event of events) {
       try {
         const { subscriptionType, objectId, propertyName, propertyValue, occurredAt } = event;
+        const contactId = objectId?.toString();
+
+        // ========================================
+        // CIRCUIT BREAKER CHECK - Prevent Infinite Loops
+        // ========================================
+        if (contactId && subscriptionType?.includes('contact')) {
+          // 1. Check circuit breaker (max 3 times per minute)
+          const circuitCheck = checkCircuitBreaker(contactId);
+          if (!circuitCheck.shouldProcess) {
+            console.warn(`[CIRCUIT BREAKER] ${circuitCheck.reason}`);
+            await logCircuitBreakerTrip(supabase, contactId, circuitCheck.count, circuitCheck.reason!);
+            results.circuitBreakerTrips++;
+            results.skipped++;
+            continue;
+          }
+
+          // 2. Check if this contact was recently updated internally
+          // If so, this webhook is a "bounce back" - IGNORE IT
+          const internalCheck = await wasRecentlyUpdatedInternally(supabase, contactId);
+          if (internalCheck.wasInternal) {
+            console.log(`[LOOP PREVENTION] Ignoring webhook for ${contactId} - recently updated internally via ${internalCheck.source}`);
+            
+            // Log the skip for audit
+            await supabase.from('webhook_logs').insert({
+              source: 'hubspot',
+              event_type: `${subscriptionType}_SKIPPED`,
+              payload: { ...event, skip_reason: `Internal update via ${internalCheck.source}` },
+              processed_at: new Date().toISOString()
+            });
+            
+            results.skipped++;
+            continue;
+          }
+        }
+
+        // ========================================
+        // PROCESS THE EVENT
+        // ========================================
 
         // 1. Handle Contact Creation
         if (subscriptionType === 'contact.creation') {
           await supabase.from('contacts').upsert({
             hubspot_contact_id: objectId,
             created_at: new Date(occurredAt).toISOString(),
-            status: 'new'
+            status: 'new',
+            last_updated_by: 'hubspot_webhook',
+            last_updated_source: 'hubspot'
           }, { onConflict: 'hubspot_contact_id' });
+          
+          // Record the source for loop prevention
+          await recordUpdateSource(supabase, contactId, 'hubspot_webhook', { event: 'creation' });
         }
 
         // 2. Handle Deal Creation
@@ -88,11 +138,29 @@ serve(async (req) => {
         else if (subscriptionType === 'contact.propertyChange' && propertyName === 'lifecyclestage') {
           await supabase.from('contacts').update({
             lifecycle_stage: propertyValue,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            last_updated_by: 'hubspot_webhook',
+            last_updated_source: 'hubspot'
           }).eq('hubspot_contact_id', objectId);
+          
+          await recordUpdateSource(supabase, contactId, 'hubspot_webhook', { event: 'lifecycle_change', value: propertyValue });
         }
 
-        // 4. Handle Deal Stage Changes
+        // 4. Handle Owner Changes (CRITICAL for reassignment loop)
+        else if (subscriptionType === 'contact.propertyChange' && propertyName === 'hubspot_owner_id') {
+          // This is where the loop happens! Only update if NOT from internal source
+          await supabase.from('contacts').update({
+            owner_id: propertyValue,
+            updated_at: new Date().toISOString(),
+            last_updated_by: 'hubspot_webhook',
+            last_updated_source: 'hubspot'
+          }).eq('hubspot_contact_id', objectId);
+          
+          await recordUpdateSource(supabase, contactId, 'hubspot_webhook', { event: 'owner_change', new_owner: propertyValue });
+          console.log(`[Webhook] Owner change for ${contactId} to ${propertyValue} - recorded as hubspot_webhook source`);
+        }
+
+        // 5. Handle Deal Stage Changes
         else if (subscriptionType === 'deal.propertyChange' && propertyName === 'dealstage') {
           await supabase.from('deals').update({
             stage: propertyValue,
