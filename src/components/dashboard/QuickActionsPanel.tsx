@@ -1,15 +1,12 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import {
   RefreshCw,
   Users,
   Phone,
-  Calendar,
   TrendingUp,
   Zap,
   Target,
-  Settings,
   Play,
   ArrowRight,
 } from "lucide-react";
@@ -17,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useSyncLock, SYNC_OPERATIONS } from "@/hooks/useSyncLock";
 
 interface QuickAction {
   id: string;
@@ -30,65 +28,79 @@ interface QuickAction {
 export function QuickActionsPanel() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
+  
+  // Use sync locks to prevent race conditions
+  const hubspotSync = useSyncLock(SYNC_OPERATIONS.HUBSPOT_SYNC);
+  const biAgentSync = useSyncLock(SYNC_OPERATIONS.BI_AGENT);
+  const interventionsSync = useSyncLock(SYNC_OPERATIONS.INTERVENTIONS);
 
   const runBIAgent = async () => {
-    setLoading("bi-agent");
-    try {
-      const { data, error } = await supabase.functions.invoke("business-intelligence");
-      if (error) throw error;
-      toast({
-        title: "BI Agent Complete",
-        description: `Analyzed ${data?.clients_analyzed || 0} clients`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(null);
-    }
+    await biAgentSync.execute(async () => {
+      setLoading("bi-agent");
+      try {
+        const { data, error } = await supabase.functions.invoke("business-intelligence");
+        if (error) throw error;
+        toast({
+          title: "BI Agent Complete",
+          description: `Analyzed ${data?.clients_analyzed || 0} clients`,
+        });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(null);
+      }
+    }, { lockMessage: 'BI Agent is already running' });
   };
 
   const syncHubSpot = async () => {
-    setLoading("sync");
-    try {
-      const { data, error } = await supabase.functions.invoke("sync-hubspot-to-supabase");
-      if (error) throw error;
-      toast({
-        title: "Sync Complete",
-        description: `Synced ${data?.contacts_synced || 0} contacts`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(null);
-    }
+    await hubspotSync.execute(async () => {
+      setLoading("sync");
+      try {
+        const { data, error } = await supabase.functions.invoke("sync-hubspot-to-supabase");
+        if (error) throw error;
+        toast({
+          title: "Sync Complete",
+          description: `Synced ${data?.contacts_synced || 0} contacts`,
+        });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(null);
+      }
+    }, { lockMessage: 'HubSpot sync is already in progress' });
   };
 
   const generateInterventions = async () => {
-    setLoading("interventions");
-    try {
-      const { data, error } = await supabase.functions.invoke("intervention-recommender");
-      if (error) throw error;
-      toast({
-        title: "Interventions Generated",
-        description: `Created ${data?.interventions_created || 0} recommendations`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(null);
-    }
+    await interventionsSync.execute(async () => {
+      setLoading("interventions");
+      try {
+        const { data, error } = await supabase.functions.invoke("intervention-recommender");
+        if (error) throw error;
+        toast({
+          title: "Interventions Generated",
+          description: `Created ${data?.interventions_created || 0} recommendations`,
+        });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(null);
+      }
+    }, { lockMessage: 'Intervention generation is already running' });
   };
 
   const actions: QuickAction[] = [

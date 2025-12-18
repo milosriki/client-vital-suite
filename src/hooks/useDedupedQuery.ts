@@ -17,9 +17,30 @@ type DedupedOptions<TQueryFnData, TError, TData, TQueryKey extends QueryKey> =
   };
 
 /**
+ * Default retry configuration with exponential backoff
+ * 
+ * FIXES:
+ * - Transient failures become permanent
+ * - No resilience to temporary issues
+ * - Poor user experience on network hiccups
+ */
+const DEFAULT_RETRY_CONFIG = {
+  retry: 3, // Retry up to 3 times
+  retryDelay: (attemptIndex: number) => {
+    // Exponential backoff: 1s, 2s, 4s
+    return Math.min(1000 * Math.pow(2, attemptIndex), 8000);
+  },
+};
+
+/**
  * Wraps `useQuery` to avoid duplicate fetches triggered by React StrictMode
  * double-invocation or rapid re-mounts. Returns cached data when the same
  * query key is requested within the configured interval.
+ * 
+ * Also includes:
+ * - Automatic retry with exponential backoff
+ * - Improved error handling
+ * - Deduplication within configurable time window
  */
 export function useDedupedQuery<
   TQueryFnData = unknown,
@@ -55,10 +76,20 @@ export function useDedupedQuery<
     }
 
     lastCallRef.current = { key: keyString, timestamp: now };
-    return options.queryFn!(ctx);
+    
+    try {
+      return await options.queryFn!(ctx);
+    } catch (error) {
+      // Log error for debugging (but don't swallow it)
+      console.error(`[Query Error] ${keyString}:`, error);
+      throw error;
+    }
   };
 
   return useQuery<TQueryFnData, TError, TData, TQueryKey>({
+    // Apply default retry configuration
+    ...DEFAULT_RETRY_CONFIG,
+    // User options override defaults
     ...options,
     queryFn: wrappedQueryFn,
   });

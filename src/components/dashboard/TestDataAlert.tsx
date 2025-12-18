@@ -36,11 +36,16 @@ export function TestDataAlert() {
       const result = await detectTestData();
       setHasTestData(result.hasTestData);
       setTestDataInfo({
-        testDataCount: result.testDataCount,
-        sources: result.sources
+        testDataCount: result.totalCount,
+        sources: result.affectedTables || []
       });
     } catch (error) {
       console.error('Failed to check for test data:', error);
+      // Set defaults on error to prevent crashes
+      setTestDataInfo({
+        testDataCount: 0,
+        sources: []
+      });
     } finally {
       setIsChecking(false);
     }
@@ -100,7 +105,7 @@ export function TestDataAlert() {
               <AlertDescription className="text-amber-800 dark:text-amber-200 space-y-2">
                 <p>
                   Your database contains test data that should not be in production.
-                  {testDataInfo && testDataInfo.sources.length > 0 && (
+                  {testDataInfo && testDataInfo.sources && testDataInfo.sources.length > 0 && (
                     <>
                       {' '}Found in: <strong>{testDataInfo.sources.join(', ')}</strong>
                     </>

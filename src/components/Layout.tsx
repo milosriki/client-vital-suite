@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { FloatingChat } from "./FloatingChat";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export const Layout = () => {
   // Enable global keyboard shortcuts
@@ -12,7 +13,9 @@ export const Layout = () => {
   return (
     <>
       <Navigation />
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
       <Toaster />
       <Sonner />
       <FloatingChat />

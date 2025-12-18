@@ -11,12 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { SystemStatusDropdown } from "@/components/dashboard/SystemStatusDropdown";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useSyncLock, SYNC_OPERATIONS } from "@/hooks/useSyncLock";
 
 export const Navigation = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const isMobile = useIsMobile();
+  
+  // Use sync lock to prevent concurrent syncs
+  const hubspotSync = useSyncLock(SYNC_OPERATIONS.HUBSPOT_SYNC);
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -46,16 +50,18 @@ export const Navigation = () => {
   ];
 
   const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const { error } = await supabase.functions.invoke('sync-hubspot-to-supabase');
-      if (error) throw error;
-      toast({ title: 'Sync Complete', description: 'HubSpot data synchronized' });
-    } catch (error: any) {
-      toast({ title: 'Sync Error', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSyncing(false);
-    }
+    await hubspotSync.execute(async () => {
+      setIsSyncing(true);
+      try {
+        const { error } = await supabase.functions.invoke('sync-hubspot-to-supabase');
+        if (error) throw error;
+        toast({ title: 'Sync Complete', description: 'HubSpot data synchronized' });
+      } catch (error: any) {
+        toast({ title: 'Sync Error', description: error.message, variant: 'destructive' });
+      } finally {
+        setIsSyncing(false);
+      }
+    }, { lockMessage: 'HubSpot sync is already in progress' });
   };
 
   const NavLink = ({ item, onClick }: { item: typeof navItems[0]; onClick?: () => void }) => {
