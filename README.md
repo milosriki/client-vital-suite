@@ -57,6 +57,11 @@ STRIPE_SECRET_KEY=...
 ANTHROPIC_API_KEY=...
 ```
 
+### LangSmith tracing (LangChain)
+- Tracing for the super-agent orchestrator is the only place we call the LangSmith API (`supabase/functions/super-agent-orchestrator/index.ts` hits `https://api.smith.langchain.com`).
+- To activate it, add `LANGSMITH_API_KEY` as a secret on the `super-agent-orchestrator` function (optionally set `LANGSMITH_PROJECT`/`LANGSMITH_ENDPOINT` if you use a custom workspace).
+- If the key is absent, the function runs without sending any LangSmith traces.
+
 ### 3. Deploy Functions
 ```bash
 supabase functions deploy --no-verify-jwt
