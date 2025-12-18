@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, Clock, AlertTriangle, Target, ListTodo } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 export function DashboardInterventionTracker() {
   const queryClient = useQueryClient();
@@ -18,7 +19,7 @@ export function DashboardInterventionTracker() {
 
   // Self-fetching interventions
   const { data: interventions = [], isLoading } = useQuery({
-    queryKey: ['dashboard-interventions'],
+    queryKey: QUERY_KEYS.interventions.dashboard,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('intervention_log')
@@ -65,7 +66,7 @@ export function DashboardInterventionTracker() {
       toast({ title: 'Error', description: 'Failed to update intervention status', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Intervention marked as executed' });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-interventions'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.dashboard });
     }
   };
 

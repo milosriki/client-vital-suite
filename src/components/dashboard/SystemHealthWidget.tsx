@@ -3,17 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Activity, 
-  CheckCircle, 
-  AlertTriangle, 
-  Database, 
-  Zap, 
+import {
+  Activity,
+  CheckCircle,
+  AlertTriangle,
+  Database,
+  Zap,
   Clock,
   Server
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface SystemStatus {
   name: string;
@@ -24,7 +25,7 @@ interface SystemStatus {
 
 export function SystemHealthWidget() {
   const { data: syncLogs } = useQuery({
-    queryKey: ["system-sync-logs"],
+    queryKey: QUERY_KEYS.sync.logs,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sync_logs")

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +34,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { StripeMoneyFlowTab } from "./StripeMoneyFlowTab";
 import { StripeCompleteIntelligence } from "./StripeCompleteIntelligence";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface StripeForensicsTabProps {
   mode: "test" | "live";
@@ -69,7 +69,7 @@ interface ForensicsData {
 export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
   const [isAuditing, setIsAuditing] = useState(false);
 
-  const { data: forensicsData, isLoading, refetch, isError, isFetching } = useQuery({
+  const { data: forensicsData, isLoading, refetch, isError, isFetching } = useDedupedQuery({
     queryKey: ['stripe-forensics', mode],
     queryFn: async (): Promise<ForensicsData> => {
       console.log('[Forensics] Fetching fresh data...');

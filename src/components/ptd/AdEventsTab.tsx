@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface AdEventsTabProps {
   mode: "test" | "live";
 }
 
 export default function AdEventsTab({ mode }: AdEventsTabProps) {
-  const { data: events, isLoading, refetch } = useQuery({
+  const { data: events, isLoading, refetch } = useDedupedQuery({
     queryKey: ["capi-events", mode],
     queryFn: async () => {
       const { data, error } = await (supabase

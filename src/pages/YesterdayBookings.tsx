@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Calendar, User, DollarSign, MapPin, Clock, CheckCircle2 } from "lucide-react";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const YesterdayBookings = () => {
   const yesterday = subDays(new Date(), 1);
@@ -13,7 +13,7 @@ const YesterdayBookings = () => {
   const yesterdayEnd = endOfDay(yesterday);
 
   // Query for bookings from yesterday
-  const { data: bookings, isLoading } = useQuery({
+  const { data: bookings, isLoading } = useDedupedQuery({
     queryKey: ["yesterday-bookings"],
     queryFn: async () => {
       // Try multiple approaches to find bookings from yesterday

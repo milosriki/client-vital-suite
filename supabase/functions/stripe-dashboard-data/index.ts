@@ -6,6 +6,41 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Currency conversion rates to AED (approximate, should be updated from live API in production)
+const CURRENCY_TO_AED: Record<string, number> = {
+  "aed": 1,
+  "usd": 3.67,
+  "eur": 4.00,
+  "gbp": 4.65,
+  "sar": 0.98,
+  "jpy": 0.025,
+  "cad": 2.70,
+  "aud": 2.40,
+  "chf": 4.15,
+  "inr": 0.044,
+};
+
+/**
+ * Converts any currency amount to AED
+ * @param amount - Amount in smallest currency unit (cents/fils)
+ * @param currency - ISO currency code
+ * @returns Amount converted to AED in smallest unit
+ */
+function convertToAED(amount: number, currency: string): number {
+  const currencyLower = currency.toLowerCase();
+  const rate = CURRENCY_TO_AED[currencyLower] || 1;
+  return Math.round(amount * rate);
+}
+
+/**
+ * Formats amount from smallest unit to major unit with AED currency
+ * @param amount - Amount in fils (smallest AED unit)
+ * @returns Formatted string like "1,234.56 AED"
+ */
+function formatAED(amount: number): string {
+  return `${(amount / 100).toFixed(2)} AED`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -114,7 +149,7 @@ serve(async (req) => {
       })
     ]);
 
-    // Calculate metrics
+    // Calculate metrics - ALL AMOUNTS NORMALIZED TO AED
     const paymentsData = payments.data || [];
     const chargesData = charges.data || [];
     const payoutsData = payouts.data || [];
@@ -123,34 +158,47 @@ serve(async (req) => {
 
     const successfulPayments = paymentsData.filter((p: any) => p.status === "succeeded");
     const failedPayments = paymentsData.filter((p: any) => p.status === "canceled" || p.status === "requires_payment_method");
-    const totalRevenue = successfulPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-    const totalRefunded = refundsData.reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
-    const netRevenue = totalRevenue - totalRefunded;
-    const totalPayouts = payoutsData.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
 
-    // Subscription metrics
+    // Convert all amounts to AED for consistent reporting
+    const totalRevenue = successfulPayments.reduce(
+      (sum: number, p: any) => sum + convertToAED(p.amount || 0, p.currency || "aed"),
+      0
+    );
+    const totalRefunded = refundsData.reduce(
+      (sum: number, r: any) => sum + convertToAED(r.amount || 0, r.currency || "aed"),
+      0
+    );
+    const netRevenue = totalRevenue - totalRefunded;
+    const totalPayouts = payoutsData.reduce(
+      (sum: number, p: any) => sum + convertToAED(p.amount || 0, p.currency || "aed"),
+      0
+    );
+
+    // Subscription metrics - MRR normalized to AED
     const activeSubscriptions = subscriptionsData.filter((s: any) => s.status === "active");
     const canceledSubscriptions = subscriptionsData.filter((s: any) => s.status === "canceled");
     const trialSubscriptions = subscriptionsData.filter((s: any) => s.status === "trialing");
     const mrr = activeSubscriptions.reduce((sum: number, s: any) => {
       const price = s.items?.data?.[0]?.price;
+      const currency = price?.currency || "aed";
+
       if (price?.recurring?.interval === "month") {
-        return sum + (price.unit_amount || 0);
+        return sum + convertToAED(price.unit_amount || 0, currency);
       } else if (price?.recurring?.interval === "year") {
-        return sum + ((price.unit_amount || 0) / 12);
+        return sum + convertToAED((price.unit_amount || 0) / 12, currency);
       }
       return sum;
     }, 0);
 
-    // Daily breakdown for charts (last 30 days if no filter)
+    // Daily breakdown for charts - ALL AMOUNTS IN AED
     const dailyData: Record<string, { revenue: number; refunds: number; payouts: number; count: number }> = {};
-    
+
     successfulPayments.forEach((p: any) => {
       const date = new Date(p.created * 1000).toISOString().split('T')[0];
       if (!dailyData[date]) {
         dailyData[date] = { revenue: 0, refunds: 0, payouts: 0, count: 0 };
       }
-      dailyData[date].revenue += p.amount || 0;
+      dailyData[date].revenue += convertToAED(p.amount || 0, p.currency || "aed");
       dailyData[date].count += 1;
     });
 
@@ -159,7 +207,7 @@ serve(async (req) => {
       if (!dailyData[date]) {
         dailyData[date] = { revenue: 0, refunds: 0, payouts: 0, count: 0 };
       }
-      dailyData[date].refunds += r.amount || 0;
+      dailyData[date].refunds += convertToAED(r.amount || 0, r.currency || "aed");
     });
 
     payoutsData.forEach((p: any) => {
@@ -167,25 +215,40 @@ serve(async (req) => {
       if (!dailyData[date]) {
         dailyData[date] = { revenue: 0, refunds: 0, payouts: 0, count: 0 };
       }
-      dailyData[date].payouts += p.amount || 0;
+      dailyData[date].payouts += convertToAED(p.amount || 0, p.currency || "aed");
     });
 
     const chartData = Object.entries(dailyData)
       .map(([date, data]) => ({ date, ...data }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    console.log("Stripe data fetched successfully:", {
+    console.log("Stripe data fetched successfully (all amounts normalized to AED):", {
       customersCount: (customers.data || []).length,
       subscriptionsCount: subscriptionsData.length,
       paymentsCount: paymentsData.length,
       chargesCount: chargesData.length,
       payoutsCount: payoutsData.length,
-      refundsCount: refundsData.length
+      refundsCount: refundsData.length,
+      totalRevenueAED: formatAED(totalRevenue),
+      netRevenueAED: formatAED(netRevenue),
     });
+
+    // Convert balance amounts to AED
+    const balanceAvailableAED = balance?.available?.[0]
+      ? convertToAED(balance.available[0].amount, balance.available[0].currency)
+      : 0;
+    const balancePendingAED = balance?.pending?.[0]
+      ? convertToAED(balance.pending[0].amount, balance.pending[0].currency)
+      : 0;
 
     return new Response(
       JSON.stringify({
-        balance: balance,
+        balance: {
+          ...balance,
+          available: [{ amount: balanceAvailableAED, currency: "aed" }],
+          pending: [{ amount: balancePendingAED, currency: "aed" }],
+          _original: balance, // Keep original for reference
+        },
         customers: customers.data || [],
         subscriptions: subscriptionsData,
         payments: paymentsData,
@@ -196,6 +259,7 @@ serve(async (req) => {
         invoices: invoices.data || [],
         account: account,
         metrics: {
+          // All amounts in AED (fils - smallest unit)
           totalRevenue,
           totalRefunded,
           netRevenue,
@@ -206,12 +270,14 @@ serve(async (req) => {
           canceledSubscriptions: canceledSubscriptions.length,
           trialSubscriptions: trialSubscriptions.length,
           mrr,
-          successRate: paymentsData.length > 0 
-            ? Math.round((successfulPayments.length / paymentsData.length) * 100) 
+          successRate: paymentsData.length > 0
+            ? Math.round((successfulPayments.length / paymentsData.length) * 100)
             : 100,
+          currency: "aed", // All amounts normalized to AED
         },
         chartData,
-        dateRange: { startDate, endDate }
+        dateRange: { startDate, endDate },
+        currency: "aed", // Global currency indicator
       }),
       {
         status: 200,

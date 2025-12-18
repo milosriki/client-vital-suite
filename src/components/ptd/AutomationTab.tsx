@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Play, Eye, Upload, RefreshCw, FileText, Activity, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface AutomationTabProps {
   mode: "test" | "live";
@@ -19,7 +20,7 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
   const [csvUrl, setCsvUrl] = useState("");
 
   // Fetch sync logs
-  const { data: logs, refetch: refetchLogs } = useQuery({
+  const { data: logs, refetch: refetchLogs } = useDedupedQuery({
     queryKey: ["sync-logs"],
     queryFn: async () => {
       const { data, error } = await supabase

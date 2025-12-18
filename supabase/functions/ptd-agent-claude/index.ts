@@ -60,93 +60,178 @@ BUSINESS RULES:
 
 // ============= PERSISTENT MEMORY SYSTEM + RAG =============
 
-// Get embeddings for semantic search
-async function getEmbeddings(text: string): Promise<number[] | null> {
+// Timeout wrapper for async operations
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operationName: string
+): Promise<T | null> {
+  const timeoutPromise = new Promise<null>((resolve) => {
+    setTimeout(() => {
+      console.warn(`⏱️ ${operationName} timed out after ${timeoutMs}ms`);
+      resolve(null);
+    }, timeoutMs);
+  });
+
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) return null;
-
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'text-embedding-3-small',
-        input: text.slice(0, 8000),
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.data[0].embedding;
+    return await Promise.race([promise, timeoutPromise]);
   } catch (e) {
-    console.log('Embeddings error:', e);
+    console.error(`❌ ${operationName} failed:`, e instanceof Error ? e.message : String(e));
     return null;
   }
 }
 
-// Search agent memory using vector similarity
-async function searchMemory(supabase: any, query: string, threadId?: string): Promise<string> {
-  try {
-    const embedding = await getEmbeddings(query);
-    
-    if (embedding) {
-      // Vector similarity search
-      const { data } = await supabase.rpc('match_memories', {
-        query_embedding: embedding,
-        match_threshold: 0.7,
-        match_count: 5,
-        filter_thread_id: threadId || null
+// Get embeddings for semantic search with timeout
+async function getEmbeddings(text: string): Promise<number[] | null> {
+  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OPENAI_API_KEY not configured - embeddings disabled');
+    return null;
+  }
+
+  const embeddingOperation = async (): Promise<number[] | null> => {
+    try {
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: text.slice(0, 8000),
+        }),
       });
 
-      if (data && data.length > 0) {
-        return data.slice(0, 3).map((m: any) => 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ OpenAI API error:', response.status, errorText);
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (!data?.data?.[0]?.embedding) {
+        console.error('❌ Invalid embedding response format');
+        return null;
+      }
+
+      console.log('✅ Embeddings generated successfully');
+      return data.data[0].embedding;
+    } catch (e) {
+      console.error('❌ Embedding generation failed:', e instanceof Error ? e.message : String(e));
+      return null;
+    }
+  };
+
+  return await withTimeout(embeddingOperation(), 30000, 'Embedding generation');
+}
+
+// Search agent memory using vector similarity with timeout
+async function searchMemory(supabase: any, query: string, threadId?: string): Promise<string> {
+  const memorySearchOperation = async (): Promise<string> => {
+    try {
+      const embedding = await getEmbeddings(query);
+
+      if (embedding) {
+        console.log('🔍 Performing vector similarity search...');
+
+        // Vector similarity search
+        const { data, error } = await supabase.rpc('match_memories', {
+          query_embedding: embedding,
+          match_threshold: 0.7,
+          match_count: 5,
+          filter_thread_id: threadId || null
+        });
+
+        if (error) {
+          console.error('❌ Vector search RPC error:', error.message);
+          // Fallback to keyword search
+          return await searchMemoryByKeywords(supabase, query, threadId);
+        }
+
+        if (data && data.length > 0) {
+          console.log(`✅ Found ${data.length} relevant memories via vector search`);
+          return data.slice(0, 3).map((m: any) =>
+            `[Memory] Q: "${m.query.slice(0, 100)}..." → A: "${m.response.slice(0, 200)}..."`
+          ).join('\n');
+        }
+
+        console.log('ℹ️ No vector matches found, falling back to keyword search');
+      }
+
+      // Fallback to keyword search
+      return await searchMemoryByKeywords(supabase, query, threadId);
+    } catch (e) {
+      console.error('❌ Memory search error:', e instanceof Error ? e.message : String(e));
+      return '';
+    }
+  };
+
+  const result = await withTimeout(memorySearchOperation(), 30000, 'Memory search');
+  return result || '';
+}
+
+// Keyword-based memory search (fallback) with timeout
+async function searchMemoryByKeywords(supabase: any, query: string, threadId?: string): Promise<string> {
+  const keywordSearchOperation = async (): Promise<string> => {
+    try {
+      console.log('🔍 Performing keyword-based memory search...');
+
+      let queryBuilder = supabase
+        .from('agent_memory')
+        .select('query, response, knowledge_extracted')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (threadId) {
+        queryBuilder = queryBuilder.eq('thread_id', threadId);
+      }
+
+      const { data, error } = await queryBuilder;
+
+      if (error) {
+        console.error('❌ Keyword search database error:', error.message);
+        return '';
+      }
+
+      if (!data || data.length === 0) {
+        console.log('ℹ️ No memories found in database');
+        return '';
+      }
+
+      const keywords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+
+      if (keywords.length === 0) {
+        console.log('⚠️ No valid keywords extracted from query');
+        return '';
+      }
+
+      const relevant = data
+        .filter((m: any) => {
+          const content = `${m.query} ${m.response}`.toLowerCase();
+          return keywords.some((kw: string) => content.includes(kw));
+        })
+        .slice(0, 3);
+
+      if (relevant.length > 0) {
+        console.log(`✅ Found ${relevant.length} relevant memories via keyword search`);
+        return relevant.map((m: any) =>
           `[Memory] Q: "${m.query.slice(0, 100)}..." → A: "${m.response.slice(0, 200)}..."`
         ).join('\n');
       }
+
+      console.log('ℹ️ No keyword matches found');
+      return '';
+    } catch (e) {
+      console.error('❌ Keyword search error:', e instanceof Error ? e.message : String(e));
+      return '';
     }
+  };
 
-    // Fallback to keyword search
-    return await searchMemoryByKeywords(supabase, query, threadId);
-  } catch (e) {
-    console.log('Memory search error:', e);
-    return '';
-  }
-}
-
-// Keyword-based memory search (fallback)
-async function searchMemoryByKeywords(supabase: any, query: string, threadId?: string): Promise<string> {
-  try {
-    let queryBuilder = supabase
-      .from('agent_memory')
-      .select('query, response, knowledge_extracted')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    
-    if (threadId) {
-      queryBuilder = queryBuilder.eq('thread_id', threadId);
-    }
-    
-    const { data } = await queryBuilder;
-    if (!data || data.length === 0) return '';
-
-    const keywords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
-    
-    const relevant = data
-      .filter((m: any) => {
-        const content = `${m.query} ${m.response}`.toLowerCase();
-        return keywords.some((kw: string) => content.includes(kw));
-      })
-      .slice(0, 3);
-
-    return relevant.map((m: any) => 
-      `[Memory] Q: "${m.query.slice(0, 100)}..." → A: "${m.response.slice(0, 200)}..."`
-    ).join('\n');
-  } catch (e) {
-    return '';
-  }
+  const result = await withTimeout(keywordSearchOperation(), 30000, 'Keyword memory search');
+  return result || '';
 }
 
 // Search RAG knowledge documents
@@ -413,6 +498,32 @@ const tools: Anthropic.Tool[] = [
   },
 ];
 
+// =============================================================================
+// SECURITY UTILITIES - Input Validation
+// =============================================================================
+
+/**
+ * Validate and sanitize email address
+ */
+function validateEmail(email: string): string {
+  const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const sanitized = email.trim().toLowerCase().slice(0, 255);
+
+  if (!emailRegex.test(sanitized)) {
+    throw new Error('Invalid email format');
+  }
+
+  return sanitized;
+}
+
+/**
+ * Validate and sanitize string input
+ */
+function sanitizeString(input: string, maxLength: number = 255): string {
+  // Remove any characters that could be used in SQL injection
+  return input.replace(/['"`;\\]/g, '').trim().slice(0, maxLength);
+}
+
 // Tool execution
 async function executeTool(supabase: any, toolName: string, input: any): Promise<string> {
   console.log(`Executing tool: ${toolName}`, input);
@@ -421,19 +532,27 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
     switch (toolName) {
       case "client_control": {
         const { email, action } = input;
+
+        // SECURITY: Validate email input
+        let validatedEmail: string;
+        try {
+          validatedEmail = validateEmail(email);
+        } catch (e) {
+          return JSON.stringify({ error: 'Invalid email address provided' });
+        }
         
         if (action === "get_all") {
           const [health, calls, deals, activities] = await Promise.all([
-            supabase.from('client_health_scores').select('*').eq('email', email).single(),
+            supabase.from('client_health_scores').select('*').eq('email', validatedEmail).single(),
             supabase.from('call_records').select('*').order('created_at', { ascending: false }).limit(10),
             supabase.from('deals').select('*').order('created_at', { ascending: false }).limit(10),
             supabase.from('contact_activities').select('*').order('occurred_at', { ascending: false }).limit(20),
           ]);
           return JSON.stringify({ health: health.data, calls: calls.data, deals: deals.data, activities: activities.data }, null, 2);
         }
-        
+
         if (action === "get_health") {
-          const { data } = await supabase.from('client_health_scores').select('*').eq('email', email).single();
+          const { data } = await supabase.from('client_health_scores').select('*').eq('email', validatedEmail).single();
           return JSON.stringify(data);
         }
         
@@ -464,9 +583,17 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         }
         
         if (action === "search" && query) {
-          const searchTerm = `%${query}%`;
+          // SECURITY: Sanitize search query to prevent SQL injection
+          // Remove any SQL special characters and limit to alphanumeric, @, ., -, +, space
+          const sanitizedQuery = query.replace(/[^a-zA-Z0-9@.\-+\s]/g, '').slice(0, 100);
+
+          if (!sanitizedQuery) {
+            return JSON.stringify({ count: 0, leads: [], error: 'Invalid search query' });
+          }
+
+          // Use parameterized queries instead of template literals
           const { data } = await supabase.from('contacts').select('*')
-            .or(`email.ilike.${searchTerm},first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`)
+            .or(`email.ilike.%${sanitizedQuery}%,first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,phone.ilike.%${sanitizedQuery}%`)
             .limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
@@ -478,7 +605,9 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         }
         
         if (action === "get_by_status") {
-          const { data } = await supabase.from('contacts').select('*').eq('lead_status', status || 'new').limit(limit);
+          // SECURITY: Sanitize status input to prevent SQL injection
+          const sanitizedStatus = status ? sanitizeString(status, 50) : 'new';
+          const { data } = await supabase.from('contacts').select('*').eq('lead_status', sanitizedStatus).limit(limit);
           return JSON.stringify(data || []);
         }
         
@@ -501,7 +630,11 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         
         if (action === "get_deals") {
           let query = supabase.from('deals').select('*');
-          if (stage) query = query.eq('stage', stage);
+          if (stage) {
+            // SECURITY: Sanitize stage input to prevent SQL injection
+            const sanitizedStage = sanitizeString(stage, 100);
+            query = query.eq('stage', sanitizedStage);
+          }
           const { data } = await query.order('created_at', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }

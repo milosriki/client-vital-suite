@@ -1,23 +1,61 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import {
+  handleError,
+  createSuccessResponse,
+  handleCorsPreFlight,
+  corsHeaders,
+  ErrorCode,
+  validateEnvVars,
+  parseJsonSafely,
+} from "../_shared/error-handler.ts";
 
 serve(async (req) => {
+  const FUNCTION_NAME = "hubspot-webhook";
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreFlight();
   }
 
+  let supabase = null;
+
   try {
+    // Validate required environment variables
+    const envValidation = validateEnvVars(
+      ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+      FUNCTION_NAME
+    );
+
+    if (!envValidation.valid) {
+      return handleError(
+        new Error(`Missing required environment variables: ${envValidation.missing.join(", ")}`),
+        FUNCTION_NAME,
+        {
+          errorCode: ErrorCode.MISSING_API_KEY,
+          context: { missingVars: envValidation.missing },
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Parse the incoming webhook payload
-    const payload = await req.json();
+    // Parse the incoming webhook payload with error handling
+    const parseResult = await parseJsonSafely(req, FUNCTION_NAME);
+    if (!parseResult.success) {
+      return handleError(
+        parseResult.error,
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          context: { parseError: parseResult.error.message },
+        }
+      );
+    }
+
+    const payload = parseResult.data;
     console.log('Received HubSpot Webhook:', JSON.stringify(payload, null, 2));
 
     // Handle array of events (HubSpot sends batches)
@@ -74,18 +112,52 @@ serve(async (req) => {
       } catch (err) {
         console.error('Error processing event:', err);
         results.errors++;
+        // Log individual event processing error
+        await handleError(
+          err as Error,
+          FUNCTION_NAME,
+          {
+            supabase,
+            errorCode: ErrorCode.DATABASE_ERROR,
+            context: {
+              subscriptionType: event.subscriptionType,
+              objectId: event.objectId,
+              operation: "process_event"
+            },
+          }
+        );
       }
     }
 
-    return new Response(JSON.stringify({ success: true, ...results }), {
+    const successResponse = createSuccessResponse({
+      ...results,
+      totalEvents: events.length,
+    });
+
+    return new Response(JSON.stringify(successResponse), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error: any) {
-    console.error('Webhook Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Determine appropriate error code
+    let errorCode = ErrorCode.INTERNAL_ERROR;
+
+    if (error.message?.includes("HubSpot")) {
+      errorCode = ErrorCode.HUBSPOT_API_ERROR;
+    } else if (error.message?.includes("database") || error.message?.includes("insert")) {
+      errorCode = ErrorCode.DATABASE_ERROR;
+    } else if (error.message?.includes("JSON") || error.message?.includes("parse")) {
+      errorCode = ErrorCode.VALIDATION_ERROR;
+    }
+
+    return handleError(
+      error,
+      FUNCTION_NAME,
+      {
+        supabase,
+        errorCode,
+        context: { method: req.method },
+      }
+    );
   }
 });

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface PropertyChange {
   timestamp: string;
@@ -54,7 +54,7 @@ export default function AuditTrail() {
   const [propertyFilter, setPropertyFilter] = useState<string>("all");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  const { data: auditData, isLoading, error, refetch } = useQuery({
+  const { data: auditData, isLoading, error, refetch } = useDedupedQuery({
     queryKey: ["audit-trail", searchTrigger],
     queryFn: async () => {
       if (!searchTrigger) return null;

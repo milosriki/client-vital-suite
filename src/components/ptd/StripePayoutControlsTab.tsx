@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ import {
   Ban
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface StripePayoutControlsTabProps {
   mode: "test" | "live";
@@ -100,7 +101,7 @@ export function StripePayoutControlsTab({ mode }: StripePayoutControlsTabProps) 
   const [scheduleWeeklyAnchor, setScheduleWeeklyAnchor] = useState<string>("monday");
 
   // Fetch payout settings
-  const { data: settings, isLoading, refetch } = useQuery<PayoutSettings>({
+  const { data: settings, isLoading, refetch } = useDedupedQuery<PayoutSettings>({
     queryKey: ["stripe-payout-settings", mode],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-payout-controls", {
@@ -760,5 +761,4 @@ export function StripePayoutControlsTab({ mode }: StripePayoutControlsTabProps) 
     </div>
   );
 }
-
 

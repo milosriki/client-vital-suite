@@ -11,6 +11,7 @@ import { CheckCircle, XCircle, RefreshCw, ExternalLink, AlertCircle, Clock } fro
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface SystemStatusDropdownProps {
   isSyncing: boolean;
@@ -22,7 +23,7 @@ export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdown
 
   // Check connection statuses
   const { data: status, refetch: refetchStatus } = useQuery({
-    queryKey: ['system-status'],
+    queryKey: QUERY_KEYS.system.status,
     queryFn: async () => {
       const supabaseConnected = true; // We're using it right now
       

@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import {
 import { CallCard } from "@/components/call-tracking/CallCard";
 import { CallFilters } from "@/components/call-tracking/CallFilters";
 import { CallCardSkeleton } from "@/components/call-tracking/CallCardSkeleton";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 // Normalize phone number for comparison (remove all non-digits)
 const normalizePhone = (phone: string | null) => {
@@ -26,7 +26,7 @@ export default function CallTracking() {
   });
 
   // Fetch call records
-  const { data: callRecords, isLoading: loadingCalls } = useQuery({
+  const { data: callRecords, isLoading: loadingCalls } = useDedupedQuery({
     queryKey: ["call-records-enriched"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,7 +40,7 @@ export default function CallTracking() {
   });
 
   // Fetch contacts for enrichment
-  const { data: contacts, isLoading: loadingContacts } = useQuery({
+  const { data: contacts, isLoading: loadingContacts } = useDedupedQuery({
     queryKey: ["contacts-for-calls"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -53,7 +53,7 @@ export default function CallTracking() {
   });
 
   // Fetch enhanced leads for additional data
-  const { data: enhancedLeads, isLoading: loadingLeads } = useQuery({
+  const { data: enhancedLeads, isLoading: loadingLeads } = useDedupedQuery({
     queryKey: ["enhanced-leads-for-calls"],
     queryFn: async () => {
       const { data, error } = await supabase

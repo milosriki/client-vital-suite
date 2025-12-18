@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, subMonths, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 // KPI Formulas
 const calculateConversionRate = (converted: number, total: number) => 
@@ -79,7 +79,7 @@ const HubSpotLiveData = () => {
   }, [timeframe]);
 
   // Fetch leads from Supabase (HubSpot stores leads as contacts)
-  const { data: leadsData, isLoading: loadingLeads, refetch: refetchLeads } = useQuery({
+  const { data: leadsData, isLoading: loadingLeads, refetch: refetchLeads } = useDedupedQuery({
     queryKey: ["db-leads", timeframe],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -103,7 +103,7 @@ const HubSpotLiveData = () => {
   });
 
   // Fetch enhanced leads
-  const { data: enhancedLeadsData, isLoading: loadingEnhanced, refetch: refetchEnhanced } = useQuery({
+  const { data: enhancedLeadsData, isLoading: loadingEnhanced, refetch: refetchEnhanced } = useDedupedQuery({
     queryKey: ["db-enhanced-leads", timeframe],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -119,7 +119,7 @@ const HubSpotLiveData = () => {
   });
 
   // Fetch deals from Supabase (for selected timeframe)
-  const { data: dealsData, isLoading: loadingDeals, refetch: refetchDeals } = useQuery({
+  const { data: dealsData, isLoading: loadingDeals, refetch: refetchDeals } = useDedupedQuery({
     queryKey: ["db-deals", timeframe],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -136,7 +136,7 @@ const HubSpotLiveData = () => {
 
   // Fetch deals for current month (for revenue calculation - always from 1st of month)
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
-  const { data: monthlyDealsData, refetch: refetchMonthlyDeals } = useQuery({
+  const { data: monthlyDealsData, refetch: refetchMonthlyDeals } = useDedupedQuery({
     queryKey: ["db-deals-monthly"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -151,7 +151,7 @@ const HubSpotLiveData = () => {
   });
 
   // Fetch call records
-  const { data: callsData, isLoading: loadingCalls, refetch: refetchCalls } = useQuery({
+  const { data: callsData, isLoading: loadingCalls, refetch: refetchCalls } = useDedupedQuery({
     queryKey: ["db-calls", timeframe],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -167,7 +167,7 @@ const HubSpotLiveData = () => {
   });
 
   // Fetch staff for setter mapping
-  const { data: staffData } = useQuery({
+  const { data: staffData } = useDedupedQuery({
     queryKey: ["staff"],
     queryFn: async () => {
       const { data, error } = await supabase.from("staff").select("*");

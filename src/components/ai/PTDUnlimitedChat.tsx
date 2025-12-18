@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { 
+import {
   Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database,
   Shield, AlertTriangle, CheckCircle, XCircle, Activity, Zap, Users,
   Minimize2, Maximize2, Mic, MicOff, Volume2, VolumeX
 } from "lucide-react";
 import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
-import { getThreadId, startNewThread } from "@/lib/ptd-memory";
-import { 
-  getAgentStats, 
-  getPendingApprovals, 
-  approveExecution, 
+import { getThreadId, startNewThread, loadConversationHistory, saveMessageToDatabase } from "@/lib/ptd-memory";
+import {
+  getAgentStats,
+  getPendingApprovals,
+  approveExecution,
   rejectExecution,
   runMonitoringScan,
   SPECIALIST_AGENTS,
@@ -44,6 +44,8 @@ export default function PTDUnlimitedChat() {
   const [monitoring, setMonitoring] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice chat hooks
@@ -78,38 +80,75 @@ export default function PTDUnlimitedChat() {
     loadChatHistory(tid);
   }, []);
 
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('Connection restored');
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('Connection lost - messages will be saved when reconnected');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const loadChatHistory = async (tid: string) => {
     try {
-      const { data, error } = await supabase
-        .from('agent_memory')
-        .select('query, response, knowledge_extracted')
-        .eq('thread_id', tid)
-        .order('created_at', { ascending: true });
-      
-      if (!error && data && data.length > 0) {
+      setLoadingHistory(true);
+      const history = await loadConversationHistory(tid);
+
+      if (history && history.length > 0) {
+        // Convert history to messages format and extract uploaded files
         const loadedMessages: { role: string; content: string }[] = [];
         const loadedFiles: { name: string; content: string }[] = [];
-        
-        data.forEach(item => {
-          // Check if this is a document upload entry
-          const knowledge = item.knowledge_extracted as any;
-          if (knowledge?.type === 'document_upload') {
-            loadedFiles.push({ 
-              name: knowledge.filename, 
-              content: knowledge.preview || '' 
-            });
-          }
-          loadedMessages.push({ role: 'user', content: item.query });
-          loadedMessages.push({ role: 'ai', content: item.response });
-        });
-        
+
+        // Load full data to check for document uploads
+        const { data } = await supabase
+          .from('agent_memory')
+          .select('query, response, knowledge_extracted')
+          .eq('thread_id', tid)
+          .order('created_at', { ascending: true });
+
+        if (data) {
+          data.forEach(item => {
+            // Skip thread metadata entries
+            if (item.query === '[THREAD_START]') return;
+
+            // Check if this is a document upload entry
+            const knowledge = item.knowledge_extracted as any;
+            if (knowledge?.type === 'document_upload') {
+              loadedFiles.push({
+                name: knowledge.filename,
+                content: knowledge.preview || ''
+              });
+            }
+
+            loadedMessages.push({ role: 'user', content: item.query });
+            loadedMessages.push({ role: 'ai', content: item.response });
+          });
+        }
+
         setMessages(loadedMessages);
         if (loadedFiles.length > 0) {
           setUploadedFiles(loadedFiles);
         }
+
+        toast.success(`Loaded ${loadedMessages.length / 2} previous messages`);
       }
     } catch (e) {
       console.error('Failed to load chat history:', e);
+      toast.error('Could not load previous conversation');
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -137,6 +176,9 @@ export default function PTDUnlimitedChat() {
     setMessages([]);
     setUploadedFiles([]);
     toast.success('Started new conversation thread');
+
+    // Load history for new thread (should be empty)
+    loadChatHistory(newId);
   };
 
   const handleRunMonitoring = async () => {
@@ -217,30 +259,33 @@ export default function PTDUnlimitedChat() {
         } else {
           // Save full content (no size limit)
           setUploadedFiles(prev => [...prev, { name: file.name, content }]);
-          
+
           const responseMsg = `📚 Learned from **${file.name}**\n\n${data.chunks_created} knowledge chunks created.`;
           const userQuery = `[Document Upload] ${file.name}`;
-          
-          // Save to agent_memory for persistence across sessions
-          await supabase.from('agent_memory').insert({
-            thread_id: threadId,
-            query: userQuery,
-            response: responseMsg,
-            knowledge_extracted: {
-              type: 'document_upload',
-              filename: file.name,
-              file_type: file.type,
-              file_size: file.size,
-              chunks_created: data.chunks_created,
-              preview: content.slice(0, 1000) // Store preview for display
-            }
-          });
-          
-          toast.success(`Agent learned from ${file.name}`);
-          setMessages(prev => [...prev, 
+
+          setMessages(prev => [...prev,
             { role: "user", content: userQuery },
             { role: "ai", content: responseMsg }
           ]);
+
+          // Save to agent_memory for persistence across sessions using new utility
+          if (isOnline) {
+            try {
+              await saveMessageToDatabase(threadId, userQuery, responseMsg, {
+                type: 'document_upload',
+                filename: file.name,
+                file_type: file.type,
+                file_size: file.size,
+                chunks_created: data.chunks_created,
+                preview: content.slice(0, 1000) // Store preview for display
+              });
+            } catch (dbError) {
+              console.error('Failed to save file upload to database:', dbError);
+              toast.error('File processed but not saved to database');
+            }
+          }
+
+          toast.success(`Agent learned from ${file.name}`);
         }
       } catch (error) {
         toast.error(`Error reading ${file.name}`);
@@ -259,40 +304,84 @@ export default function PTDUnlimitedChat() {
   const handleAsk = async () => {
     if (!input.trim()) return;
 
-    const userMsg = { role: "user", content: input };
+    const userMessage = input;
+    const userMsg = { role: "user", content: userMessage };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
     setInput("");
 
     try {
       const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
-        body: { 
-          message: input,
+        body: {
+          message: userMessage,
           thread_id: threadId
         },
       });
 
       if (error) {
-        setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message}` }]);
+        const errorMsg = `Error: ${error.message}`;
+        setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+
+        // Still try to save the error to database if online
+        if (isOnline) {
+          try {
+            await saveMessageToDatabase(threadId, userMessage, errorMsg);
+          } catch (dbError) {
+            console.error('Failed to save error message to database:', dbError);
+          }
+        }
       } else if (data?.response) {
         const aiResponse = data.response;
         setMessages(prev => [...prev, { role: "ai", content: aiResponse }]);
-        
+
         // Speak the AI response if voice is enabled
         if (voiceEnabled && voiceOutputSupported) {
           // Extract text from markdown if present
           const textToSpeak = aiResponse.replace(/[#*`_]/g, '').substring(0, 500);
           speak(textToSpeak);
         }
-        
-        await learnFromInteraction(input, aiResponse);
+
+        // Save conversation to database in real-time with retry
+        if (isOnline) {
+          try {
+            await saveMessageToDatabase(threadId, userMessage, aiResponse);
+          } catch (dbError) {
+            console.error('Failed to save message to database:', dbError);
+            toast.error('Could not save conversation to database', {
+              description: 'Your message was sent but not saved. Check your connection.'
+            });
+          }
+        } else {
+          toast.warning('Message not saved - you are offline');
+        }
+
+        // Learn from interaction (for pattern detection)
+        await learnFromInteraction(userMessage, aiResponse);
         loadStats();
         loadPendingApprovals();
       } else if (data?.error) {
-        setMessages(prev => [...prev, { role: "ai", content: `Error: ${data.error}` }]);
+        const errorMsg = `Error: ${data.error}`;
+        setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+
+        if (isOnline) {
+          try {
+            await saveMessageToDatabase(threadId, userMessage, errorMsg);
+          } catch (dbError) {
+            console.error('Failed to save error to database:', dbError);
+          }
+        }
       }
     } catch (error) {
-      setMessages(prev => [...prev, { role: "ai", content: `Error: ${error}` }]);
+      const errorMsg = `Error: ${error}`;
+      setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+
+      if (isOnline) {
+        try {
+          await saveMessageToDatabase(threadId, userMessage, errorMsg);
+        } catch (dbError) {
+          console.error('Failed to save exception to database:', dbError);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -341,6 +430,9 @@ export default function PTDUnlimitedChat() {
                   <Users className="w-3 h-3" />
                   {stats?.specialists || 0}
                 </span>
+                {!isOnline && (
+                  <span className="text-orange-400 text-[10px]">OFFLINE</span>
+                )}
               </div>
             </div>
           </div>
@@ -475,7 +567,16 @@ export default function PTDUnlimitedChat() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-cyan-500/20">
-        {messages.length === 0 && (
+        {loadingHistory && (
+          <div className="h-full flex items-center justify-center">
+            <div className="flex items-center gap-2 text-cyan-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading conversation history...</span>
+            </div>
+          </div>
+        )}
+
+        {!loadingHistory && messages.length === 0 && (
           <div className="h-full flex items-center justify-center text-center">
             <div className="space-y-3">
               <div className="relative">

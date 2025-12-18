@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +14,7 @@ import {
   Shield, Terminal, Landmark, Users, Activity, Eye
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface StripeCompleteIntelligenceProps {
   mode?: "test" | "live";
@@ -23,7 +23,7 @@ interface StripeCompleteIntelligenceProps {
 export function StripeCompleteIntelligence({ mode = "live" }: StripeCompleteIntelligenceProps) {
   const [days, setDays] = useState(30);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, refetch, isRefetching } = useDedupedQuery({
     queryKey: ["stripe-complete-intelligence", mode, days],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-forensics", {

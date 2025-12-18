@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +7,7 @@ import { RefreshCw, Users, DollarSign, Phone, TrendingUp, ArrowRight } from 'luc
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface TodaysActivityProps {
   ownerFilter?: string;
@@ -15,15 +15,15 @@ interface TodaysActivityProps {
   locationFilter?: 'all' | 'premium' | 'standard';
 }
 
-export function TodaysActivity({ 
-  ownerFilter, 
-  sourceFilter, 
-  locationFilter = 'all' 
+export function TodaysActivity({
+  ownerFilter,
+  sourceFilter,
+  locationFilter = 'all'
 }: TodaysActivityProps) {
   const [selectedOwner, setSelectedOwner] = useState<string>(ownerFilter || 'all');
   const [selectedSource, setSelectedSource] = useState<string>(sourceFilter || 'all');
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useDedupedQuery({
     queryKey: ['hubspot-today-activity', selectedOwner, selectedSource, locationFilter],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -36,7 +36,7 @@ export function TodaysActivity({
   });
 
   // Fetch owners for filter dropdown
-  const { data: ownersData } = useQuery({
+  const { data: ownersData } = useDedupedQuery({
     queryKey: ['hubspot-owners-filter'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -58,19 +58,19 @@ export function TodaysActivity({
   }
 
   if (selectedSource !== 'all') {
-    filteredContacts = filteredContacts.filter((c: any) => 
+    filteredContacts = filteredContacts.filter((c: any) =>
       c.source?.toLowerCase().includes(selectedSource.toLowerCase())
     );
   }
 
   if (locationFilter === 'premium') {
     const premiumLocations = ['marina', 'downtown', 'difc', 'jbr', 'arabian ranches', 'jumeirah'];
-    filteredContacts = filteredContacts.filter((c: any) => 
+    filteredContacts = filteredContacts.filter((c: any) =>
       premiumLocations.some(loc => c.city?.toLowerCase().includes(loc))
     );
   } else if (locationFilter === 'standard') {
     const premiumLocations = ['marina', 'downtown', 'difc', 'jbr', 'arabian ranches', 'jumeirah'];
-    filteredContacts = filteredContacts.filter((c: any) => 
+    filteredContacts = filteredContacts.filter((c: any) =>
       !premiumLocations.some(loc => c.city?.toLowerCase().includes(loc))
     );
   }
@@ -287,5 +287,4 @@ export function TodaysActivity({
     </Card>
   );
 }
-
 

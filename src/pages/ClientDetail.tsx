@@ -1,5 +1,4 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Calendar, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { format } from "date-fns";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function ClientDetail() {
   const { email } = useParams<{ email: string }>();
@@ -19,7 +19,7 @@ export default function ClientDetail() {
   // Decode email parameter in case it has special characters
   const decodedEmail = email ? decodeURIComponent(email) : '';
 
-  const { data: client, isLoading: clientLoading } = useQuery({
+  const { data: client, isLoading: clientLoading } = useDedupedQuery({
     queryKey: ["client", decodedEmail],
     queryFn: async () => {
       if (!decodedEmail) return null;
@@ -41,7 +41,7 @@ export default function ClientDetail() {
     enabled: !!decodedEmail,
   });
 
-  const { data: interventions, isLoading: interventionsLoading } = useQuery({
+  const { data: interventions, isLoading: interventionsLoading } = useDedupedQuery({
     queryKey: ["interventions", decodedEmail],
     queryFn: async () => {
       if (!decodedEmail) return [];

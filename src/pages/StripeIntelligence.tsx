@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, subMonths } from "date-fns";
 import {
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
   LineChart,
   Line,
   AreaChart,
@@ -93,7 +93,7 @@ export default function StripeIntelligence() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch Stripe dashboard data with date range
-  const { data: stripeData, isLoading, refetch, isRefetching } = useQuery({
+  const { data: stripeData, isLoading, refetch, isRefetching } = useDedupedQuery({
     queryKey: ["stripe-dashboard-data", dateRange.from?.toISOString(), dateRange.to?.toISOString(), statusFilter],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-dashboard-data", {
@@ -111,7 +111,7 @@ export default function StripeIntelligence() {
   });
 
   // Fetch forensic data
-  const { data: forensicData, isLoading: forensicLoading } = useQuery({
+  const { data: forensicData, isLoading: forensicLoading } = useDedupedQuery({
     queryKey: ["stripe-forensics"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-forensics", {

@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { Phone, Mail, Calendar, DollarSign, UserPlus, CheckCircle, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface Activity {
   id: string;
@@ -26,7 +26,7 @@ export function TickerFeed() {
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading } = useDedupedQuery({
     queryKey: ['ticker-activities'],
     queryFn: async () => {
       const { data, error } = await supabase

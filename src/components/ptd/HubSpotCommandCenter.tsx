@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,9 +9,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
-  RefreshCw, Shield, AlertTriangle, Users, Activity,
-  LogIn, Download, Trash2, UserX, Clock, Search,
-  TrendingUp, Eye, ChevronRight
+  RefreshCw,
+  Shield,
+  AlertTriangle,
+  Users,
+  Activity,
+  LogIn,
+  Download,
+  Trash2,
+  UserX,
+  Clock,
+  Search,
+  TrendingUp,
+  Eye,
+  ChevronRight,
 } from 'lucide-react';
 
 interface HubSpotCommandCenterProps {
@@ -52,7 +63,7 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch overview data
-  const { data: overview, isLoading: overviewLoading, refetch: refetchOverview } = useQuery({
+  const { data: overview, isLoading: overviewLoading, refetch: refetchOverview } = useDedupedQuery({
     queryKey: ['hubspot-command-center', 'overview', mode],
     queryFn: async (): Promise<OverviewData> => {
       const { data, error } = await supabase.functions.invoke('hubspot-command-center', {
@@ -61,12 +72,12 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
       if (error) throw error;
       return data;
     },
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30000, // Cache for 30s instead of always refetching
+    dedupeIntervalMs: 1000, // Prevent duplicate calls within 1s
   });
 
   // Fetch user detail when selected
-  const { data: userDetail, isLoading: userLoading } = useQuery({
+  const { data: userDetail, isLoading: userLoading } = useDedupedQuery({
     queryKey: ['hubspot-command-center', 'user-detail', selectedUser],
     queryFn: async (): Promise<UserDetail> => {
       const { data, error } = await supabase.functions.invoke('hubspot-command-center', {
@@ -76,10 +87,11 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
       return data;
     },
     enabled: !!selectedUser,
+    dedupeIntervalMs: 1000,
   });
 
   // Fetch risky contacts
-  const { data: riskyContacts, refetch: refetchRisky } = useQuery({
+  const { data: riskyContacts, refetch: refetchRisky } = useDedupedQuery({
     queryKey: ['hubspot-command-center', 'risky-contacts', mode],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-command-center', {
@@ -88,7 +100,8 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
       if (error) throw error;
       return data;
     },
-    staleTime: 0,
+    staleTime: 30000,
+    dedupeIntervalMs: 1000,
   });
 
   const handleFullSync = async () => {

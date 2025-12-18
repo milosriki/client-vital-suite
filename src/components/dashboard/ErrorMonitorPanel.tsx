@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 export function ErrorMonitorPanel() {
     const [realtimeErrors, setRealtimeErrors] = useState<any[]>([]);
@@ -32,7 +33,7 @@ export function ErrorMonitorPanel() {
     }, []);
 
     const { data: errors, refetch } = useQuery({
-        queryKey: ['sync-errors'],
+        queryKey: QUERY_KEYS.sync.errors.all,
         queryFn: async () => {
             const { data } = await supabase
                 .from('sync_errors')

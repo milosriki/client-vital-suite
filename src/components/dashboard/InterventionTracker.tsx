@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 interface InterventionTrackerProps {
   interventions: any[];
@@ -58,7 +59,7 @@ export function InterventionTracker({ interventions, isLoading }: InterventionTr
         title: 'Success',
         description: 'Intervention marked as executed',
       });
-      queryClient.invalidateQueries({ queryKey: ['interventions'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
     }
   };
 
@@ -86,7 +87,7 @@ export function InterventionTracker({ interventions, isLoading }: InterventionTr
       });
       setNotes('');
       setSelectedIntervention(null);
-      queryClient.invalidateQueries({ queryKey: ['interventions'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
     }
   };
 

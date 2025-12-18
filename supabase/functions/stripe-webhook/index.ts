@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
-};
+import {
+  handleError,
+  createSuccessResponse,
+  handleCorsPreFlight,
+  corsHeaders,
+  ErrorCode,
+  validateEnvVars,
+} from "../_shared/error-handler.ts";
 
 interface StripeEvent {
   id: string;
@@ -24,36 +27,116 @@ interface StripeEvent {
 }
 
 serve(async (req) => {
+  const FUNCTION_NAME = "stripe-webhook";
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreFlight();
   }
 
+  let supabase = null;
+
   try {
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
+    // Validate required environment variables
+    const envValidation = validateEnvVars(
+      ["STRIPE_SECRET_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+      FUNCTION_NAME
+    );
+
+    if (!envValidation.valid) {
+      return handleError(
+        new Error(`Missing required environment variables: ${envValidation.missing.join(", ")}`),
+        FUNCTION_NAME,
+        {
+          errorCode: ErrorCode.MISSING_API_KEY,
+          context: { missingVars: envValidation.missing },
+        }
+      );
+    }
+
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
     const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!STRIPE_SECRET_KEY) {
-      throw new Error("STRIPE_SECRET_KEY not configured");
-    }
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get the raw body and signature
     const signature = req.headers.get("stripe-signature");
     const body = await req.text();
 
-    // Verify webhook signature if secret is configured
-    if (STRIPE_WEBHOOK_SECRET && signature) {
-      // Note: In production, use Stripe's webhook signature verification
-      // For now, we'll log and process the event
-      console.log("📝 Webhook signature received (verification recommended)");
+    // Validate body is not empty
+    if (!body || body.trim() === "") {
+      return handleError(
+        new Error("Request body is empty"),
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          context: { requestMethod: req.method },
+        }
+      );
     }
 
-    // Parse the event
-    const event: StripeEvent = JSON.parse(body);
+    // Verify webhook signature if secret is configured
+    let event: StripeEvent;
+
+    if (STRIPE_WEBHOOK_SECRET && signature) {
+      try {
+        // Import Stripe for signature verification
+        const Stripe = (await import("https://esm.sh/stripe@18.5.0")).default;
+        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+
+        // Verify the webhook signature
+        event = stripe.webhooks.constructEvent(
+          body,
+          signature,
+          STRIPE_WEBHOOK_SECRET
+        ) as StripeEvent;
+
+        console.log("✅ Webhook signature verified");
+      } catch (err: any) {
+        console.error("❌ Webhook signature verification failed:", err.message);
+        return handleError(
+          err,
+          FUNCTION_NAME,
+          {
+            supabase,
+            errorCode: ErrorCode.VALIDATION_ERROR,
+            context: { hasSignature: true, error: err.message },
+          }
+        );
+      }
+    } else {
+      // Parse without verification (not recommended for production)
+      console.log("⚠️ Webhook signature verification skipped");
+      try {
+        event = JSON.parse(body);
+      } catch (parseError) {
+        return handleError(
+          parseError as Error,
+          FUNCTION_NAME,
+          {
+            supabase,
+            errorCode: ErrorCode.VALIDATION_ERROR,
+            context: { rawBody: body.substring(0, 200) },
+          }
+        );
+      }
+    }
+
+    // Validate event structure
+    if (!event.id || !event.type) {
+      return handleError(
+        new Error("Invalid Stripe event format: missing id or type"),
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          context: { hasId: !!event?.id, hasType: !!event?.type },
+        }
+      );
+    }
 
     console.log(`📨 Received Stripe event: ${event.type} (${event.id})`);
 
@@ -74,6 +157,16 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("❌ Error storing event:", insertError);
+      // Log to sync_errors but continue processing
+      await handleError(
+        insertError,
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.DATABASE_ERROR,
+          context: { eventId: event.id, eventType: event.type, operation: "insert_stripe_event" },
+        }
+      );
       // Continue processing even if storage fails
     }
 
@@ -117,10 +210,16 @@ serve(async (req) => {
     else if (event.type.includes("charge")) {
       if (event.type.includes("succeeded")) {
         result = await handleChargeSucceeded(supabase, event);
+      } else if (event.type.includes("refund")) {
+        result = await handleChargeRefunded(supabase, event);
       } else {
         result = await handleChargeFailed(supabase, event);
       }
       await checkPaymentFraud(supabase, event);
+    }
+    // Refund Events
+    else if (event.type.includes("refund")) {
+      result = await handleRefundEvent(supabase, event);
     }
     // Subscription Events
     else if (event.type.includes("subscription")) {
@@ -147,13 +246,15 @@ serve(async (req) => {
       await checkGeneralFraud(supabase, event);
     }
 
+    const successResponse = createSuccessResponse({
+      received: true,
+      event_id: event.id,
+      event_type: event.type,
+      ...result,
+    });
+
     return new Response(
-      JSON.stringify({
-        received: true,
-        event_id: event.id,
-        event_type: event.type,
-        ...result,
-      }),
+      JSON.stringify(successResponse),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -161,15 +262,25 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error("❌ Webhook error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error.message,
-        received: false,
-      }),
+    // Determine appropriate error code based on error type
+    let errorCode = ErrorCode.INTERNAL_ERROR;
+
+    if (error.message?.includes("Stripe")) {
+      errorCode = ErrorCode.STRIPE_API_ERROR;
+    } else if (error.message?.includes("database") || error.message?.includes("insert")) {
+      errorCode = ErrorCode.DATABASE_ERROR;
+    }
+
+    return handleError(
+      error,
+      FUNCTION_NAME,
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
+        supabase,
+        errorCode,
+        context: {
+          hasSignature: !!req.headers.get("stripe-signature"),
+          method: req.method,
+        },
       }
     );
   }
@@ -251,9 +362,9 @@ async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
 
 async function handleChargeFailed(supabase: any, event: StripeEvent) {
   const charge = event.data.object;
-  
+
   console.log(`❌ Charge failed: ${charge.id}`);
-  
+
   await supabase
     .from("stripe_transactions")
     .upsert({
@@ -271,6 +382,82 @@ async function handleChargeFailed(supabase: any, event: StripeEvent) {
     });
 
   return { processed: true, action: "charge_failed" };
+}
+
+async function handleChargeRefunded(supabase: any, event: StripeEvent) {
+  const charge = event.data.object;
+
+  console.log(`💸 Charge refunded: ${charge.id} - Refunded: ${charge.amount_refunded / 100} ${charge.currency}`);
+
+  // Update transaction to mark as refunded
+  await supabase
+    .from("stripe_transactions")
+    .upsert({
+      stripe_id: charge.payment_intent || charge.id,
+      charge_id: charge.id,
+      customer_id: charge.customer,
+      amount: charge.amount / 100,
+      currency: charge.currency,
+      status: charge.refunded ? "refunded" : "partially_refunded",
+      amount_refunded: charge.amount_refunded / 100,
+      refunded: charge.refunded,
+      metadata: charge.metadata,
+      created_at: new Date(charge.created * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: "stripe_id"
+    });
+
+  return { processed: true, action: "charge_refunded" };
+}
+
+async function handleRefundEvent(supabase: any, event: StripeEvent) {
+  const refund = event.data.object;
+
+  console.log(`🔄 Refund ${event.type}: ${refund.id} - ${refund.amount / 100} ${refund.currency}`);
+
+  // Store refund details
+  await supabase
+    .from("stripe_refunds")
+    .upsert({
+      stripe_id: refund.id,
+      charge_id: refund.charge,
+      payment_intent_id: refund.payment_intent,
+      amount: refund.amount / 100,
+      currency: refund.currency,
+      status: refund.status,
+      reason: refund.reason,
+      metadata: refund.metadata,
+      created_at: new Date(refund.created * 1000).toISOString(),
+    }, {
+      onConflict: "stripe_id"
+    });
+
+  // Update the corresponding transaction
+  if (refund.charge || refund.payment_intent) {
+    const { data: transaction } = await supabase
+      .from("stripe_transactions")
+      .select("*")
+      .or(`stripe_id.eq.${refund.payment_intent},charge_id.eq.${refund.charge}`)
+      .single();
+
+    if (transaction) {
+      const newRefundedAmount = (transaction.amount_refunded || 0) + (refund.amount / 100);
+      const isFullyRefunded = newRefundedAmount >= transaction.amount;
+
+      await supabase
+        .from("stripe_transactions")
+        .update({
+          amount_refunded: newRefundedAmount,
+          refunded: isFullyRefunded,
+          status: isFullyRefunded ? "refunded" : "partially_refunded",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", transaction.id);
+    }
+  }
+
+  return { processed: true, action: "refund_processed" };
 }
 
 async function handleSubscriptionChange(supabase: any, event: StripeEvent) {

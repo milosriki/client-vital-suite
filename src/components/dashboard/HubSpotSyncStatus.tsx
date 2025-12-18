@@ -4,10 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 export function HubSpotSyncStatus() {
     const { data: lastSync, refetch, isLoading } = useQuery({
-        queryKey: ['last-hubspot-sync'],
+        queryKey: QUERY_KEYS.hubspot.sync.last,
         queryFn: async () => {
             const { data } = await supabase
                 .from('sync_errors')

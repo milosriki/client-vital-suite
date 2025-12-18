@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Clock, XCircle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { subMinutes, subHours } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface Alert {
   id: string;
@@ -18,7 +19,7 @@ export function AlertsBar() {
   const now = new Date();
 
   const { data: alerts } = useQuery({
-    queryKey: ['dashboard-alerts'],
+    queryKey: QUERY_KEYS.dashboard.alerts,
     queryFn: async () => {
       const alertsList: Alert[] = [];
 

@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
   Bot,
   Send,
   ArrowUpRight,
@@ -53,7 +53,7 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: payoutData, isLoading, refetch } = useQuery({
+  const { data: payoutData, isLoading, refetch } = useDedupedQuery({
     queryKey: ['stripe-payouts-data', mode],
     queryFn: async (): Promise<PayoutData> => {
       const { data, error } = await supabase.functions.invoke('stripe-payouts-ai', {

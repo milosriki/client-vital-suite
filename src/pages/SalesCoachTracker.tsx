@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DollarSign, TrendingUp, TrendingDown, Users, AlertCircle, Calendar } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const SalesCoachTracker = () => {
   // Get current and previous month date ranges
@@ -15,7 +15,7 @@ const SalesCoachTracker = () => {
   const previousMonthEnd = endOfMonth(subMonths(new Date(), 1));
 
   // Query for this month's sales (closed won deals)
-  const { data: currentMonthSales, isLoading: loadingCurrent } = useQuery({
+  const { data: currentMonthSales, isLoading: loadingCurrent } = useDedupedQuery({
     queryKey: ["current-month-sales"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -33,7 +33,7 @@ const SalesCoachTracker = () => {
   });
 
   // Query for previous month's sales
-  const { data: previousMonthSales, isLoading: loadingPrevious } = useQuery({
+  const { data: previousMonthSales, isLoading: loadingPrevious } = useDedupedQuery({
     queryKey: ["previous-month-sales"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -51,7 +51,7 @@ const SalesCoachTracker = () => {
   });
 
   // Query for coaches with no recent sessions
-  const { data: inactiveCoaches, isLoading: loadingCoaches } = useQuery({
+  const { data: inactiveCoaches, isLoading: loadingCoaches } = useDedupedQuery({
     queryKey: ["inactive-coaches"],
     queryFn: async () => {
       const thirtyDaysAgo = new Date();

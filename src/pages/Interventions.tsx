@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const Interventions = () => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const { data: interventions, isLoading, refetch } = useQuery({
+  const { data: interventions, isLoading, refetch } = useDedupedQuery({
     queryKey: ['interventions-all', statusFilter],
     queryFn: async () => {
       let query = supabase

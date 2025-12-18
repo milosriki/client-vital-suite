@@ -6,12 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  Phone, 
-  Calendar, 
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  Phone,
+  Calendar,
   MessageSquare,
   ChevronRight,
   Sparkles
@@ -19,6 +19,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface InterventionTrackerProps {
   interventions: any[];
@@ -94,7 +95,7 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
       toast({ title: "Error", description: "Failed to update", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Intervention completed" });
-      queryClient.invalidateQueries({ queryKey: ["interventions"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
     }
   };
 
@@ -115,7 +116,7 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
       toast({ title: "Success", description: "Notes added" });
       setNotes("");
       setSelectedIntervention(null);
-      queryClient.invalidateQueries({ queryKey: ["interventions"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
     }
   };
 

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { QUERY_INTERVALS } from '@/config/queryConfig';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 /**
  * Centralized hook to fetch the latest calculation date
@@ -16,7 +17,7 @@ import { QUERY_INTERVALS } from '@/config/queryConfig';
  */
 export function useLatestCalculationDate() {
   return useQuery({
-    queryKey: ['latest-calculation-date'],
+    queryKey: QUERY_KEYS.calculation.latestDate,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('client_health_scores')

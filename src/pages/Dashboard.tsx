@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function Dashboard() {
   useRealtimeHealthScores();
@@ -48,7 +48,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch clients
-  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useQuery({
+  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useDedupedQuery({
     queryKey: ["client-health-scores-dashboard"],
     queryFn: async () => {
       const { data: latestDateRows } = await supabase
@@ -75,7 +75,7 @@ export default function Dashboard() {
   });
 
   // Fetch daily summary
-  const { data: dailySummary } = useQuery({
+  const { data: dailySummary } = useDedupedQuery({
     queryKey: ["daily-summary-briefing"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
@@ -91,7 +91,7 @@ export default function Dashboard() {
   });
 
   // Fetch revenue
-  const { data: revenueData, isLoading: revenueLoading } = useQuery({
+  const { data: revenueData, isLoading: revenueLoading } = useDedupedQuery({
     queryKey: ["monthly-revenue"],
     queryFn: async () => {
       const now = new Date();
@@ -114,7 +114,7 @@ export default function Dashboard() {
   });
 
   // Fetch pipeline
-  const { data: pipelineData } = useQuery({
+  const { data: pipelineData } = useDedupedQuery({
     queryKey: ["pipeline-value"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("deals").select("deal_value").not("status", "in", '("closed","lost")');
@@ -125,7 +125,7 @@ export default function Dashboard() {
   });
 
   // Fetch today's leads
-  const { data: leadsToday } = useQuery({
+  const { data: leadsToday } = useDedupedQuery({
     queryKey: ["leads-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
@@ -135,7 +135,7 @@ export default function Dashboard() {
   });
 
   // Fetch today's calls
-  const { data: callsToday } = useQuery({
+  const { data: callsToday } = useDedupedQuery({
     queryKey: ["calls-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");

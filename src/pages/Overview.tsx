@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MetricCard } from "@/components/MetricCard";
 import { ZoneDistributionBar } from "@/components/ZoneDistributionBar";
@@ -16,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const Overview = () => {
   const [setupLoading, setSetupLoading] = useState(false);
@@ -30,7 +30,7 @@ const Overview = () => {
   useRealtimeHealthScores();
 
   // Fetch daily summary
-  const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useQuery<DailySummary | null>({
+  const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useDedupedQuery<DailySummary | null>({
     queryKey: ['daily-summary'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
@@ -47,7 +47,7 @@ const Overview = () => {
   });
 
   // Fetch critical clients (RED zone)
-  const { data: criticalClients, refetch: refetchCritical } = useQuery<ClientHealthScore[]>({
+  const { data: criticalClients, refetch: refetchCritical } = useDedupedQuery<ClientHealthScore[]>({
     queryKey: ['critical-clients'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
@@ -66,7 +66,7 @@ const Overview = () => {
   });
 
   // Fetch coach performance
-  const { data: coaches, refetch: refetchCoaches } = useQuery<CoachPerformance[]>({
+  const { data: coaches, refetch: refetchCoaches } = useDedupedQuery<CoachPerformance[]>({
     queryKey: ['coach-performance'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
@@ -83,7 +83,7 @@ const Overview = () => {
   });
 
   // Fetch interventions
-  const { data: interventions = [], refetch: refetchInterventions } = useQuery({
+  const { data: interventions = [], refetch: refetchInterventions } = useDedupedQuery({
     queryKey: ['interventions'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -99,7 +99,7 @@ const Overview = () => {
   });
 
   // Fetch weekly patterns
-  const { data: weeklyPatterns = [], refetch: refetchWeekly } = useQuery({
+  const { data: weeklyPatterns = [], refetch: refetchWeekly } = useDedupedQuery({
     queryKey: ['weekly-patterns'],
     queryFn: async () => {
       const { data, error } = await supabase

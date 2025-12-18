@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import {
   Rocket, ShieldAlert, BarChart3, Radio, Brain
 } from "lucide-react";
 import { 
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Legend, ReferenceLine 
 } from "recharts";
@@ -23,7 +23,7 @@ const WarRoom = () => {
   const [autoPilotEnabled, setAutoPilotEnabled] = useState(false);
 
   // Fetch deals for forecasting
-  const { data: deals, isLoading: dealsLoading, error: dealsError } = useQuery({
+  const { data: deals, isLoading: dealsLoading, error: dealsError } = useDedupedQuery({
     queryKey: ["war-room-deals"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,7 +40,7 @@ const WarRoom = () => {
   });
 
   // Fetch leads for leakage detection
-  const { data: leads, isLoading: leadsLoading, error: leadsError } = useQuery({
+  const { data: leads, isLoading: leadsLoading, error: leadsError } = useDedupedQuery({
     queryKey: ["war-room-leads"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -57,7 +57,7 @@ const WarRoom = () => {
   });
 
   // Fetch client health for LTV calculation
-  const { data: clients, isLoading: clientsLoading, error: clientsError } = useQuery({
+  const { data: clients, isLoading: clientsLoading, error: clientsError } = useDedupedQuery({
     queryKey: ["war-room-clients"],
     queryFn: async () => {
       const { data, error } = await supabase

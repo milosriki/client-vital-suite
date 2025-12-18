@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Phone, PhoneCall, Calendar, User, Clock, TrendingUp, CheckCircle2, Activity, RefreshCw } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { useState } from "react";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const SetterActivityToday = () => {
   const todayStart = startOfDay(new Date());
@@ -15,7 +15,7 @@ const SetterActivityToday = () => {
   const [selectedOwner, setSelectedOwner] = useState<string>("all");
 
   // Fetch all unique owners from contacts
-  const { data: owners } = useQuery({
+  const { data: owners } = useDedupedQuery({
     queryKey: ["contact-owners"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -32,7 +32,7 @@ const SetterActivityToday = () => {
   });
 
   // Query for calls today - filtered by owner if selected
-  const { data: callsData, isLoading: loadingCalls } = useQuery({
+  const { data: callsData, isLoading: loadingCalls } = useDedupedQuery({
     queryKey: ["team-calls-today", selectedOwner],
     queryFn: async () => {
       // Query intervention_log for calls made today
@@ -73,7 +73,7 @@ const SetterActivityToday = () => {
   });
 
   // Query for bookings today
-  const { data: bookingsData, isLoading: loadingBookings } = useQuery({
+  const { data: bookingsData, isLoading: loadingBookings } = useDedupedQuery({
     queryKey: ["team-bookings-today", selectedOwner],
     queryFn: async () => {
       let query = supabase

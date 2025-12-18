@@ -12,9 +12,10 @@ serve(async (req) => {
     }
 
     try {
-        const HUBSPOT_ACCESS_TOKEN = Deno.env.get('HUBSPOT_ACCESS_TOKEN');
-        if (!HUBSPOT_ACCESS_TOKEN) {
-            throw new Error('HUBSPOT_ACCESS_TOKEN not set');
+        // Use HUBSPOT_API_KEY for consistency with other functions
+        const HUBSPOT_API_KEY = Deno.env.get('HUBSPOT_API_KEY') || Deno.env.get('HUBSPOT_ACCESS_TOKEN');
+        if (!HUBSPOT_API_KEY) {
+            throw new Error('HUBSPOT_API_KEY or HUBSPOT_ACCESS_TOKEN not set');
         }
 
         const { target_identity, limit = 50 } = await req.json().catch(() => ({}));
@@ -29,7 +30,7 @@ serve(async (req) => {
         const searchResponse = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${HUBSPOT_ACCESS_TOKEN}`,
+                'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -68,7 +69,7 @@ serve(async (req) => {
 
         const historyResponse = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}?properties=${propertiesToCheck.join(',')}&propertiesWithHistory=${propertiesToCheck.join(',')}`, {
             headers: {
-                'Authorization': `Bearer ${HUBSPOT_ACCESS_TOKEN}`
+                'Authorization': `Bearer ${HUBSPOT_API_KEY}`
             }
         });
 
@@ -97,7 +98,7 @@ serve(async (req) => {
 
         // 4. (Optional) Fetch Associated Deals History
         const associationsResponse = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}/associations/deals`, {
-            headers: { 'Authorization': `Bearer ${HUBSPOT_ACCESS_TOKEN}` }
+            headers: { 'Authorization': `Bearer ${HUBSPOT_API_KEY}` }
         });
         const assocData = await associationsResponse.json();
 
@@ -105,7 +106,7 @@ serve(async (req) => {
         if (assocData.results) {
             for (const deal of assocData.results) {
                 const dealHistoryResponse = await fetch(`https://api.hubapi.com/crm/v3/objects/deals/${deal.id}?properties=dealstage,amount&propertiesWithHistory=dealstage,amount`, {
-                    headers: { 'Authorization': `Bearer ${HUBSPOT_ACCESS_TOKEN}` }
+                    headers: { 'Authorization': `Bearer ${HUBSPOT_API_KEY}` }
                 });
                 const dealData = await dealHistoryResponse.json();
                 if (dealData.propertiesWithHistory) {
