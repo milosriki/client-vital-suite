@@ -74,18 +74,23 @@ serve(async (req) => {
     }
 
     // Clear fake/test data if requested
+    // Patterns match detectTestData.ts: @example.com, @email.com, @test.com, phone 555-0, deals with test/fake
     if (clear_fake_data && !cursor) {
       console.log('Clearing fake data...');
-      await supabase.from('leads').delete().or('email.ilike.%@example.com,phone.ilike.%555-0%');
-      await supabase.from('contacts').delete().ilike('email', '%@example.com');
-      // Also clear enhanced_leads test data
-      await supabase.from('enhanced_leads').delete().ilike('email', '%@email.com');
-      await supabase.from('enhanced_leads').delete().ilike('email', '%@example.com');
       
-      // Clear fake deals (test/fake names or no HubSpot ID)
+      // Clear leads - all test email patterns + test phone numbers
+      await supabase.from('leads').delete().or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com,phone.ilike.%555-0%');
+      
+      // Clear contacts - all test email patterns (matches detectTestData.ts)
+      await supabase.from('contacts').delete().or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com');
+      
+      // Clear enhanced_leads - all test email patterns
+      await supabase.from('enhanced_leads').delete().or('email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com');
+      
+      // Clear fake deals (test/fake names)
+      // NOTE: Removed hubspot_deal_id IS NULL check - could delete legitimate manual deals
       await supabase.from('deals').delete().ilike('deal_name', '%test%');
       await supabase.from('deals').delete().ilike('deal_name', '%fake%');
-      await supabase.from('deals').delete().is('hubspot_deal_id', null);
       
       console.log('Fake data cleared');
     }

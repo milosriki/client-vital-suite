@@ -123,28 +123,20 @@ serve(async (req) => {
           };
 
           if (contactData.email) {
-            // Check if contact exists
-            const { data: existing } = await supabase
+            // Use upsert with email as conflict key to prevent duplicates
+            // This ensures AnyTrack contacts don't create orphan records without hubspot_contact_id
+            const { error: upsertError } = await supabase
               .from("contacts")
-              .select("id, total_events, total_value")
-              .eq("email", contactData.email)
-              .single();
-
-            if (existing) {
-              // Update existing
-              await supabase
-                .from("contacts")
-                .update({
-                  total_events: (existing.total_events || 0) + 1,
-                  total_value: (existing.total_value || 0) + (eventData.custom.value || 0),
-                  last_touch_source: event.mainAttribution?.source || null,
-                  last_touch_time: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", existing.id);
-            } else {
-              // Create new
-              await supabase.from("contacts").insert(contactData);
+              .upsert({
+                ...contactData,
+                updated_at: new Date().toISOString(),
+              }, { 
+                onConflict: 'email',
+                ignoreDuplicates: false 
+              });
+            
+            if (upsertError) {
+              console.warn(`[AnyTrack Webhook] Contact upsert warning for ${contactData.email}:`, upsertError.message);
             }
           }
         }
