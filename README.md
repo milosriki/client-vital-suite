@@ -25,6 +25,25 @@ It has been migrated from a legacy n8n-based architecture to a fully serverless 
 -   **Edge Functions**: Deno/TypeScript serverless functions replacing all n8n workflows.
 -   **Automation**: `pg_cron` handles all scheduled tasks (daily health scores, syncs, reports).
 
+### Architecture: Living Being
+
+This application uses a **"Living Being" architecture** where the UI behaves as a unified organism that responds to data changes in real-time, rather than constantly polling the database.
+
+**How it works:**
+-   **Real-time WebSockets**: Supabase RealtimeChannel subscriptions listen for database changes on critical tables (client_health_scores, deals, intervention_log, sync_errors, sync_logs, contacts, call_records, daily_summary).
+-   **Central State Hook**: The `useVitalState` hook (initialized in `Layout.tsx`) manages all real-time subscriptions globally and automatically invalidates React Query cache when data changes.
+-   **Instant UI Updates**: When data changes in the database, the UI updates instantly without requiring a page refresh or manual polling.
+
+**Key Benefits:**
+-   Reduced database load (no constant polling)
+-   Instant UI feedback when data changes
+-   Better user experience with real-time updates
+-   Lower infrastructure costs
+
+**DO NOT ADD `refetchInterval` TO QUERIES.**
+
+All queries should use `staleTime: Infinity` and rely on the real-time subscriptions to handle cache invalidation. See `src/config/queryConfig.ts` for configuration details and examples.
+
 ## 🤖 Active Agents & Functions
 
 | Function | Purpose | Schedule |
