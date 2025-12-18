@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useDedupedQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { RefreshCw, Users, DollarSign, Search, TrendingUp, TrendingDown } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface OwnerStats {
   id: string;
@@ -23,7 +24,7 @@ export function OwnerPerformanceGrid() {
   const [sortBy, setSortBy] = useState<'name' | 'contacts' | 'deals' | 'value'>('contacts');
 
   // Fetch owners
-  const { data: ownersData, isLoading: ownersLoading, refetch: refetchOwners } = useQuery({
+  const { data: ownersData, isLoading: ownersLoading, refetch: refetchOwners } = useDedupedQuery({
     queryKey: ['hubspot-owners-grid'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -36,7 +37,7 @@ export function OwnerPerformanceGrid() {
   });
 
   // Fetch latest contacts to count per owner
-  const { data: contactsData } = useQuery({
+  const { data: contactsData } = useDedupedQuery({
     queryKey: ['hubspot-contacts-for-owners'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -49,7 +50,7 @@ export function OwnerPerformanceGrid() {
   });
 
   // Fetch latest deals to count per owner
-  const { data: dealsData } = useQuery({
+  const { data: dealsData } = useDedupedQuery({
     queryKey: ['hubspot-deals-for-owners'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -270,5 +271,4 @@ export function OwnerPerformanceGrid() {
     </Card>
   );
 }
-
 

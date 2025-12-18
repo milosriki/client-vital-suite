@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { RefreshCw, Database, DollarSign, Send, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface DataEnrichmentTabProps {
   mode: "test" | "live";
@@ -17,7 +18,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch pending events queue
-  const { data: queueStats } = useQuery({
+  const { data: queueStats } = useDedupedQuery({
     queryKey: ["queue-stats", mode],
     queryFn: async () => {
       const { data, error } = await (supabase
@@ -41,7 +42,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   });
 
   // Fetch batch jobs
-  const { data: batchJobs } = useQuery({
+  const { data: batchJobs } = useDedupedQuery({
     queryKey: ["batch-jobs", mode],
     queryFn: async () => {
       const { data, error } = await (supabase
@@ -58,7 +59,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   });
 
   // Fetch batch config
-  const { data: batchConfigs } = useQuery({
+  const { data: batchConfigs } = useDedupedQuery({
     queryKey: ["batch-config"],
     queryFn: async () => {
       const { data, error } = await (supabase

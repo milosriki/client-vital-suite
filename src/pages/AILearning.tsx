@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +17,14 @@ import {
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function AILearning() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Fetch AI decisions
-  const { data: decisions, isLoading } = useQuery({
+  const { data: decisions, isLoading } = useDedupedQuery({
     queryKey: ["ai-decisions", statusFilter],
     queryFn: async () => {
       let query = supabase
@@ -47,7 +47,7 @@ export default function AILearning() {
   });
 
   // Fetch agent patterns for metrics
-  const { data: patterns } = useQuery({
+  const { data: patterns } = useDedupedQuery({
     queryKey: ["ai-patterns"],
     queryFn: async () => {
       const { data, error } = await supabase

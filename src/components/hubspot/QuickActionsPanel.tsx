@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useDedupedQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { Zap, UserPlus, FileText, Search, RefreshCw } from 'lucide-react';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export function QuickActionsPanel() {
   const [contactId, setContactId] = useState('');
@@ -20,7 +21,7 @@ export function QuickActionsPanel() {
   const [isSearching, setIsSearching] = useState(false);
 
   // Fetch owners for dropdown
-  const { data: ownersData } = useQuery({
+  const { data: ownersData } = useDedupedQuery({
     queryKey: ['hubspot-owners-actions'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -263,5 +264,4 @@ export function QuickActionsPanel() {
     </Card>
   );
 }
-
 

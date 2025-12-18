@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +48,7 @@ import {
 import { format, subDays } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const STATUS_CONFIG = {
   new: { label: "New Leads", color: "bg-blue-500", icon: Users },
@@ -238,7 +239,7 @@ export default function SalesPipeline() {
   }, [queryClient]);
 
   // Fetch lead funnel data (HubSpot stores leads as contacts)
-  const { data: funnelData } = useQuery({
+  const { data: funnelData } = useDedupedQuery({
     queryKey: ['lead-funnel', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -287,7 +288,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch enhanced leads
-  const { data: enhancedLeads } = useQuery({
+  const { data: enhancedLeads } = useDedupedQuery({
     queryKey: ['enhanced-leads', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -304,7 +305,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch contacts
-  const { data: contacts } = useQuery({
+  const { data: contacts } = useDedupedQuery({
     queryKey: ['contacts', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -321,7 +322,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch deals data
-  const { data: dealsData } = useQuery({
+  const { data: dealsData } = useDedupedQuery({
     queryKey: ['deals-summary', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -349,7 +350,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch call records
-  const { data: callRecords } = useQuery({
+  const { data: callRecords } = useDedupedQuery({
     queryKey: ['call-records', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -373,7 +374,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch appointments
-  const { data: appointments } = useQuery({
+  const { data: appointments } = useDedupedQuery({
     queryKey: ['appointments-summary', daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -394,7 +395,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch KPIs
-  const { data: kpis } = useQuery({
+  const { data: kpis } = useDedupedQuery({
     queryKey: ['kpi-tracking'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -409,7 +410,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch forecasts
-  const { data: forecasts } = useQuery({
+  const { data: forecasts } = useDedupedQuery({
     queryKey: ['business-forecasts'],
     queryFn: async () => {
       const { data, error } = await supabase

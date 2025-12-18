@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useDedupedQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, TrendingUp, DollarSign, MousePointer, Eye, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function MetaDashboard() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Fetch Facebook Ads Insights from Supabase
-  const { data: insights, isLoading, refetch } = useQuery({
+  const { data: insights, isLoading, refetch } = useDedupedQuery({
     queryKey: ['facebook-ads-insights'],
     queryFn: async () => {
       const { data, error } = await supabase

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   Sparkles, Command, Cpu, GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface PreparedAction {
   id: string;
@@ -71,7 +72,7 @@ export default function AIDevConsole() {
   const queryClient = useQueryClient();
 
   // Fetch all actions
-  const { data: actions, isLoading: actionsLoading, refetch } = useQuery({
+  const { data: actions, isLoading: actionsLoading, refetch } = useDedupedQuery({
     queryKey: ['prepared-actions'],
     queryFn: async () => {
       const { data, error } = await supabase

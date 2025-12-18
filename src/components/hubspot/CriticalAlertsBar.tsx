@@ -1,10 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useDedupedQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Users, Clock, DollarSign, MessageSquare, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface Alert {
   type: 'unassigned' | 'sla_breach' | 'stuck_deal' | 'conversation';
@@ -19,7 +20,7 @@ export function CriticalAlertsBar() {
   const navigate = useNavigate();
 
   // Fetch today's activity to calculate alerts
-  const { data: todayData, isLoading, refetch } = useQuery({
+  const { data: todayData, isLoading, refetch } = useDedupedQuery({
     queryKey: ['hubspot-critical-alerts'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -32,7 +33,7 @@ export function CriticalAlertsBar() {
   });
 
   // Fetch latest contacts to check for unassigned
-  const { data: contactsData } = useQuery({
+  const { data: contactsData } = useDedupedQuery({
     queryKey: ['hubspot-latest-contacts-alerts'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -45,7 +46,7 @@ export function CriticalAlertsBar() {
   });
 
   // Fetch conversations
-  const { data: conversationsData } = useQuery({
+  const { data: conversationsData } = useDedupedQuery({
     queryKey: ['hubspot-conversations-alerts'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -205,5 +206,4 @@ export function CriticalAlertsBar() {
     </div>
   );
 }
-
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Search } from "lucide-react";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export function OwnerManagementTab() {
   const [contactId, setContactId] = useState("");
@@ -21,7 +22,7 @@ export function OwnerManagementTab() {
   const [isSearching, setIsSearching] = useState(false);
 
   // Fetch owners for dropdown
-  const { data: ownersData } = useQuery({
+  const { data: ownersData } = useDedupedQuery({
     queryKey: ["hubspot-owners-management"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("hubspot-live-query", {
@@ -109,7 +110,7 @@ export function OwnerManagementTab() {
 
   // Note: reassignment_log table may need to be created in Supabase
   // For now, we'll skip this query to avoid type errors
-  const { data: reassignmentLog } = useQuery({
+  const { data: reassignmentLog } = useDedupedQuery({
     queryKey: ["reassignment-log"],
     queryFn: async () => {
       // Try to fetch from reassignment_log if it exists

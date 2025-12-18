@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { RefreshCw, TrendingUp, Clock, DollarSign } from 'lucide-react';
 import { useState } from 'react';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export function PipelineHealth() {
   const [selectedPipeline, setSelectedPipeline] = useState<string>('all');
 
   // Fetch pipelines
-  const { data: pipelinesData, isLoading: pipelinesLoading, refetch: refetchPipelines } = useQuery({
+  const { data: pipelinesData, isLoading: pipelinesLoading, refetch: refetchPipelines } = useDedupedQuery({
     queryKey: ['hubspot-pipelines-health'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -24,7 +24,7 @@ export function PipelineHealth() {
   });
 
   // Fetch deals to count per stage
-  const { data: dealsData } = useQuery({
+  const { data: dealsData } = useDedupedQuery({
     queryKey: ['hubspot-deals-for-pipelines'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -38,16 +38,16 @@ export function PipelineHealth() {
 
   // Calculate pipeline stats
   const pipelineStats = (pipelinesData?.pipelines || []).map((pipeline: any) => {
-    const pipelineDeals = (dealsData?.deals || []).filter((d: any) => 
+    const pipelineDeals = (dealsData?.deals || []).filter((d: any) =>
       d.pipeline === pipeline.id || d.pipeline === pipeline.label
     );
 
     const stageCounts = pipeline.stages.map((stage: any) => {
-      const stageDeals = pipelineDeals.filter((d: any) => 
+      const stageDeals = pipelineDeals.filter((d: any) =>
         d.stage === stage.id || d.stage === stage.label
       );
       const stageValue = stageDeals.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
-      
+
       return {
         ...stage,
         dealCount: stageDeals.length,
@@ -66,8 +66,8 @@ export function PipelineHealth() {
     };
   });
 
-  const filteredPipelines = selectedPipeline === 'all' 
-    ? pipelineStats 
+  const filteredPipelines = selectedPipeline === 'all'
+    ? pipelineStats
     : pipelineStats.filter((p: any) => p.id === selectedPipeline || p.label === selectedPipeline);
 
   if (pipelinesLoading) {
@@ -190,8 +190,8 @@ export function PipelineHealth() {
                         {stage.dealValue.toLocaleString()} AED
                       </td>
                       <td className="p-2 text-right text-muted-foreground">
-                        {stage.dealCount > 0 
-                          ? (stage.dealValue / stage.dealCount).toLocaleString() 
+                        {stage.dealCount > 0
+                          ? (stage.dealValue / stage.dealCount).toLocaleString()
                           : '0'} AED
                       </td>
                     </tr>
@@ -211,5 +211,4 @@ export function PipelineHealth() {
     </Card>
   );
 }
-
 

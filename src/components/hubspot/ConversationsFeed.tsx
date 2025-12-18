@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, MessageSquare, Clock, User, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export function ConversationsFeed() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'open' | 'assigned' | 'unassigned'>('all');
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useDedupedQuery({
     queryKey: ['hubspot-conversations-feed', filterStatus],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('hubspot-live-query', {
@@ -132,9 +132,9 @@ export function ConversationsFeed() {
             </div>
           ) : (
             sortedConversations.map((conversation: any) => {
-              const updatedAt = conversation.updated_at 
-                ? new Date(conversation.updated_at) 
-                : conversation.created_at 
+              const updatedAt = conversation.updated_at
+                ? new Date(conversation.updated_at)
+                : conversation.created_at
                   ? new Date(conversation.created_at)
                   : null;
               const timeAgo = updatedAt ? formatDistanceToNow(updatedAt, { addSuffix: true }) : 'Unknown';
@@ -145,7 +145,7 @@ export function ConversationsFeed() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
-                          <Badge 
+                          <Badge
                             variant={conversation.status === 'OPEN' ? 'default' : 'secondary'}
                           >
                             {conversation.status || 'UNKNOWN'}
@@ -209,5 +209,4 @@ export function ConversationsFeed() {
     </Card>
   );
 }
-
 

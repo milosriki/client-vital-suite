@@ -4,10 +4,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Brain, AlertTriangle, Activity, Calculator, TrendingUp, TrendingDown } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface HealthIntelligenceTabProps {
   mode: "test" | "live";
@@ -18,7 +19,7 @@ export default function HealthIntelligenceTab({ mode }: HealthIntelligenceTabPro
   const { toast } = useToast();
 
   // Fetch client health scores from Supabase
-  const { data: healthScores, refetch, isLoading } = useQuery({
+  const { data: healthScores, refetch, isLoading } = useDedupedQuery({
     queryKey: ["client-health-scores", zoneFilter],
     queryFn: async () => {
       let query = supabase

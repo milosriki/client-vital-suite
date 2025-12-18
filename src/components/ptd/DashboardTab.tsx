@@ -2,9 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Activity, TrendingUp, Settings, AlertTriangle, TrendingDown, Users, RefreshCw, Eye, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface DashboardTabProps {
   mode: "test" | "live";
@@ -15,7 +16,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
   const { toast } = useToast();
 
   // Fetch daily summary
-  const { data: summary, refetch: refetchSummary } = useQuery({
+  const { data: summary, refetch: refetchSummary } = useDedupedQuery({
     queryKey: ["daily-summary"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -31,7 +32,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
   });
 
   // Fetch client health scores for quick stats
-  const { data: healthStats } = useQuery({
+  const { data: healthStats } = useDedupedQuery({
     queryKey: ["health-stats"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -52,6 +53,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
       };
       return stats;
     },
+    dedupeIntervalMs: 1000,
   });
 
   // PTD Watcher - Run real-time monitoring

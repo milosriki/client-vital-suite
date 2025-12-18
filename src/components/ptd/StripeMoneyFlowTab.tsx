@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +21,7 @@ import {
   ArrowLeftRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface MoneyFlowEvent {
   id: string;
@@ -66,7 +66,7 @@ export function StripeMoneyFlowTab({ mode }: StripeMoneyFlowTabProps) {
   const [days, setDays] = useState(30);
   const [filterType, setFilterType] = useState<string>("all");
 
-  const { data, isLoading, refetch, isRefetching } = useQuery<MoneyFlowData>({
+  const { data, isLoading, refetch, isRefetching } = useDedupedQuery<MoneyFlowData>({
     queryKey: ["stripe-money-flow", mode, days],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-forensics", {

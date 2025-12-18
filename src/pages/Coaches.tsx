@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { QUERY_KEYS } from "@/config/queryKeys";
 import { CoachCard } from "@/components/CoachCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientCard } from "@/components/ClientCard";
@@ -10,13 +8,14 @@ import { RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import type { CoachPerformance, ClientHealthScore } from "@/types/database";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const Coaches = () => {
   const [selectedCoach, setSelectedCoach] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<ClientHealthScore | null>(null);
 
-  const { data: coaches, isLoading, error, refetch } = useQuery<CoachPerformance[]>({
-    queryKey: QUERY_KEYS.coaches.performance,
+  const { data: coaches, isLoading, error, refetch } = useDedupedQuery<CoachPerformance[]>({
+    queryKey: ['coach-performance'],
     queryFn: async () => {
       // Get the most recent report_date
       const { data: latestDate } = await (supabase as any)
@@ -42,8 +41,8 @@ const Coaches = () => {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const { data: coachClients } = useQuery<ClientHealthScore[]>({
-    queryKey: QUERY_KEYS.coaches.clients(selectedCoach || ''),
+  const { data: coachClients } = useDedupedQuery<ClientHealthScore[]>({
+    queryKey: ['coach-clients', selectedCoach],
     queryFn: async () => {
       if (!selectedCoach) return [];
 

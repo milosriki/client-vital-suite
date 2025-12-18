@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, TrendingUp, TrendingDown, Brain, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface CoachReviewsTabProps {
   mode: "test" | "live";
@@ -14,7 +15,7 @@ interface CoachReviewsTabProps {
 export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
   const { toast } = useToast();
   
-  const { data: reviews, isLoading, refetch } = useQuery({
+  const { data: reviews, isLoading, refetch } = useDedupedQuery({
     queryKey: ["coach-reviews"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,7 +29,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
     },
   });
 
-  const { data: performance, refetch: refetchPerformance } = useQuery({
+  const { data: performance, refetch: refetchPerformance } = useDedupedQuery({
     queryKey: ["coach-performance"],
     queryFn: async () => {
       const { data, error } = await supabase

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,7 @@ import {
 import { Brain, BookOpen, Search, TrendingUp, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function AIKnowledge() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function AIKnowledge() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   // Fetch knowledge base entries from knowledge_base table
-  const { data: knowledgeEntries, isLoading } = useQuery({
+  const { data: knowledgeEntries, isLoading } = useDedupedQuery({
     queryKey: ["ai-knowledge", categoryFilter],
     queryFn: async () => {
       let query = supabase
@@ -46,7 +46,7 @@ export default function AIKnowledge() {
   });
 
   // Fetch category counts
-  const { data: categoryCounts } = useQuery({
+  const { data: categoryCounts } = useDedupedQuery({
     queryKey: ["ai-knowledge-stats"],
     queryFn: async () => {
       const { data, error } = await supabase

@@ -1,14 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const Analytics = () => {
   // Fetch weekly patterns for trend analysis
-  const { data: weeklyData, isLoading: weeklyLoading, refetch } = useQuery({
+  const { data: weeklyData, isLoading: weeklyLoading, refetch } = useDedupedQuery({
     queryKey: ['weekly-analytics'],
     queryFn: async () => {
       const { data, error } = await (supabase
@@ -24,7 +24,7 @@ const Analytics = () => {
   });
 
   // Fetch current client distribution
-  const { data: clients, isLoading: clientsLoading } = useQuery({
+  const { data: clients, isLoading: clientsLoading } = useDedupedQuery({
     queryKey: ['clients-analytics'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];

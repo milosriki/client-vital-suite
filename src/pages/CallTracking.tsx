@@ -1,17 +1,15 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Phone, PhoneIncoming, Clock, Star, Calendar, TrendingUp,
-  Flame, Users, AlertTriangle, RefreshCw
+import { 
+  Phone, PhoneIncoming, Clock, Star, Calendar, TrendingUp, 
+  Flame, Users, AlertTriangle 
 } from "lucide-react";
 import { CallCard } from "@/components/call-tracking/CallCard";
 import { CallFilters } from "@/components/call-tracking/CallFilters";
 import { CallCardSkeleton } from "@/components/call-tracking/CallCardSkeleton";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 // Normalize phone number for comparison (remove all non-digits)
 const normalizePhone = (phone: string | null) => {
@@ -20,9 +18,6 @@ const normalizePhone = (phone: string | null) => {
 };
 
 export default function CallTracking() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
   const [filters, setFilters] = useState({
     owner: 'all',
     quality: 'all',
@@ -30,44 +25,8 @@ export default function CallTracking() {
     location: 'all',
   });
 
-  // Sync calls from CallGear
-  const syncCallsMutation = useMutation({
-    mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const response = await supabase.functions.invoke('fetch-callgear-data', {
-        body: {
-          // Fetch last 30 days by default
-          date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          date_to: new Date().toISOString().split('T')[0],
-          limit: 1000,
-        },
-      });
-
-      if (response.error) throw response.error;
-      return response.data;
-    },
-    onSuccess: (data) => {
-      // Invalidate and refetch call records
-      queryClient.invalidateQueries({ queryKey: ["call-records-enriched"] });
-
-      toast({
-        title: "Calls synced successfully",
-        description: `${data?.summary?.inserted || 0} new calls, ${data?.summary?.updated || 0} updated`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Sync failed",
-        description: error.message || "Failed to sync calls from CallGear",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Fetch call records
-  const { data: callRecords, isLoading: loadingCalls } = useQuery({
+  const { data: callRecords, isLoading: loadingCalls } = useDedupedQuery({
     queryKey: ["call-records-enriched"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -81,7 +40,7 @@ export default function CallTracking() {
   });
 
   // Fetch contacts for enrichment
-  const { data: contacts, isLoading: loadingContacts } = useQuery({
+  const { data: contacts, isLoading: loadingContacts } = useDedupedQuery({
     queryKey: ["contacts-for-calls"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -94,7 +53,7 @@ export default function CallTracking() {
   });
 
   // Fetch enhanced leads for additional data
-  const { data: enhancedLeads, isLoading: loadingLeads } = useQuery({
+  const { data: enhancedLeads, isLoading: loadingLeads } = useDedupedQuery({
     queryKey: ["enhanced-leads-for-calls"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -246,19 +205,9 @@ export default function CallTracking() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Call Tracking</h1>
-            <p className="text-muted-foreground">Monitor call performance with enriched lead data</p>
-          </div>
-          <Button
-            onClick={() => syncCallsMutation.mutate()}
-            disabled={syncCallsMutation.isPending}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncCallsMutation.isPending ? 'animate-spin' : ''}`} />
-            {syncCallsMutation.isPending ? 'Syncing...' : 'Sync CallGear Data'}
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Call Tracking</h1>
+          <p className="text-muted-foreground">Monitor call performance with enriched lead data</p>
         </div>
 
         {/* Stats Grid - Enhanced */}

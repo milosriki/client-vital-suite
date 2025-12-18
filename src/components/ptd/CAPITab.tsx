@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, Eye, Play, AlertTriangle, CheckCircle, Loader2, RefreshCw, ShoppingCart, UserPlus, FileText, Search, CreditCard, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface CAPITabProps {
   mode: "test" | "live";
@@ -37,7 +37,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
   const [confirmText, setConfirmText] = useState("");
 
   // Fetch recent CAPI events
-  const { data: events, refetch } = useQuery({
+  const { data: events, refetch } = useDedupedQuery({
     queryKey: ["capi-events", mode],
     queryFn: async () => {
       const { data, error } = await (supabase

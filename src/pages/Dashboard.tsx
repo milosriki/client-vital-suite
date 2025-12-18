@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { QUERY_KEYS } from "@/config/queryKeys";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,19 +37,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function Dashboard() {
   useRealtimeHealthScores();
   useNotifications();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("today");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch clients - Using standardized query key
-  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useQuery({
-    queryKey: QUERY_KEYS.clients.healthScoresDashboard,
+  // Fetch clients
+  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useDedupedQuery({
+    queryKey: ["client-health-scores-dashboard"],
     queryFn: async () => {
       const { data: latestDateRows } = await supabase
         .from("client_health_scores")
@@ -76,9 +74,9 @@ export default function Dashboard() {
     refetchInterval: 60000,
   });
 
-  // Fetch daily summary - Using standardized query key
-  const { data: dailySummary } = useQuery({
-    queryKey: QUERY_KEYS.summaries.dailyBriefing,
+  // Fetch daily summary
+  const { data: dailySummary } = useDedupedQuery({
+    queryKey: ["daily-summary-briefing"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const { data, error } = await supabase
@@ -92,9 +90,9 @@ export default function Dashboard() {
     refetchInterval: 300000,
   });
 
-  // Fetch revenue - Using standardized query key
-  const { data: revenueData, isLoading: revenueLoading } = useQuery({
-    queryKey: QUERY_KEYS.revenue.monthly,
+  // Fetch revenue
+  const { data: revenueData, isLoading: revenueLoading } = useDedupedQuery({
+    queryKey: ["monthly-revenue"],
     queryFn: async () => {
       const now = new Date();
       const thisMonthStart = format(startOfMonth(now), "yyyy-MM-dd");
@@ -115,9 +113,9 @@ export default function Dashboard() {
     refetchInterval: 120000,
   });
 
-  // Fetch pipeline - Using standardized query key
-  const { data: pipelineData } = useQuery({
-    queryKey: QUERY_KEYS.pipeline.value,
+  // Fetch pipeline
+  const { data: pipelineData } = useDedupedQuery({
+    queryKey: ["pipeline-value"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("deals").select("deal_value").not("status", "in", '("closed","lost")');
       if (error) return { total: 0, count: 0 };
@@ -126,9 +124,9 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch today's leads - Using standardized query key
-  const { data: leadsToday } = useQuery({
-    queryKey: QUERY_KEYS.pipeline.leads.today,
+  // Fetch today's leads
+  const { data: leadsToday } = useDedupedQuery({
+    queryKey: ["leads-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const { count, error } = await supabase.from("contacts").select("*", { count: "exact", head: true }).gte("created_at", today);
@@ -136,9 +134,9 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch today's calls - Using standardized query key
-  const { data: callsToday } = useQuery({
-    queryKey: QUERY_KEYS.pipeline.calls.today,
+  // Fetch today's calls
+  const { data: callsToday } = useDedupedQuery({
+    queryKey: ["calls-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const { count, error } = await supabase.from("call_records").select("*", { count: "exact", head: true }).gte("created_at", today);
@@ -184,46 +182,11 @@ export default function Dashboard() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Invalidate all dashboard-related queries using standardized query keys
-      // This ensures all dashboard data is refreshed, including:
-      // - Client health scores (all variations)
-      // - Daily summaries and briefings
-      // - Revenue data (monthly, pipeline, charts)
-      // - Activity metrics (leads, calls, today snapshot)
-      // - Coach performance and leaderboards
-      // - Interventions and activity feeds
-      await Promise.all([
-        // Core client data - invalidates all client-related queries
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.clients.all }),
-
-        // Summaries
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.summaries.dailyBriefing }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.summaries.todaySnapshot }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.summaries.daily }),
-
-        // Revenue & Pipeline
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.revenue.monthly }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.revenue.chart }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.pipeline.value }),
-
-        // Activity metrics
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.pipeline.leads.today }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.pipeline.calls.today }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.activity.liveFeed }),
-
-        // Coach performance
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.coaches.leaderboard }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.coaches.performance }),
-
-        // Interventions
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.dashboard }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all }),
-      ]);
+      await refetchClients();
       setLastUpdated(new Date());
-      toast({ title: "Data refreshed", description: "All dashboard data updated successfully" });
+      toast({ title: "Data refreshed", description: "Dashboard updated with latest data" });
     } catch (error) {
-      console.error("Dashboard refresh error:", error);
-      toast({ title: "Refresh failed", variant: "destructive", description: "Some data may not have updated" });
+      toast({ title: "Refresh failed", variant: "destructive" });
     } finally {
       setIsRefreshing(false);
     }

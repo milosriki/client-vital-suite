@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +23,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import StripeAIDashboard from "./StripeAIDashboard";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface StripeDashboardTabProps {
   mode: "test" | "live";
@@ -47,7 +47,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [showAIDashboard, setShowAIDashboard] = useState(false);
 
-  const { data: stripeData, isLoading, refetch, isError } = useQuery({
+  const { data: stripeData, isLoading, refetch, isError } = useDedupedQuery({
     queryKey: ['stripe-dashboard-data', mode],
     queryFn: async (): Promise<StripeData> => {
       const { data, error } = await supabase.functions.invoke('stripe-dashboard-data', {
