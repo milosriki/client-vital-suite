@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 import { formatDistanceToNow } from "date-fns";
-import { 
-  Phone, 
-  Mail, 
+import {
+  Phone,
+  Mail,
   Calendar,
   DollarSign,
   UserPlus,
@@ -27,7 +28,7 @@ const HUBSPOT_PORTAL_ID = "139617706"; // PTD Fitness HubSpot Portal
 
 export function LiveActivityFeed() {
   const { data: activities, isLoading } = useQuery({
-    queryKey: ['live-activity-feed'],
+    queryKey: QUERY_KEYS.activity.liveFeed,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contact_activities')

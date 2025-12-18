@@ -4,12 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 export function ErrorMonitor() {
     const queryClient = useQueryClient();
 
     const { data: errors, refetch, isLoading } = useQuery({
-        queryKey: ["sync-errors-monitor"],
+        queryKey: QUERY_KEYS.sync.errors.monitor,
         queryFn: async () => {
             const { data } = await supabase
                 .from("sync_errors")
@@ -35,7 +36,7 @@ export function ErrorMonitor() {
                     table: 'sync_errors'
                 },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: ["sync-errors-monitor"] });
+                    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sync.errors.monitor });
                 }
             )
             .subscribe();

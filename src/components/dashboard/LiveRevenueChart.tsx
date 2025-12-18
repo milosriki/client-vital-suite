@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -8,7 +9,7 @@ import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
 
 export function LiveRevenueChart() {
   const { data: deals, isLoading } = useQuery({
-    queryKey: ['revenue-chart-data'],
+    queryKey: QUERY_KEYS.revenue.chart,
     queryFn: async () => {
       const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
       

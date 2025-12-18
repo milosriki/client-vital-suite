@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 export function useRealtimeHealthScores() {
   const queryClient = useQueryClient();
@@ -17,9 +18,10 @@ export function useRealtimeHealthScores() {
         },
         (payload) => {
           console.log('Health scores changed:', payload);
-          // Invalidate relevant queries to refetch data
-          queryClient.invalidateQueries({ queryKey: ['client-health-scores'] });
-          queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
+          // Invalidate ALL client health score queries (all filters)
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.clients.all });
+          // Invalidate daily summary
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.summaries.daily });
         }
       )
       .on(
@@ -31,7 +33,8 @@ export function useRealtimeHealthScores() {
         },
         (payload) => {
           console.log('Interventions changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['interventions'] });
+          // Invalidate ALL intervention queries
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
         }
       )
       .on(
@@ -43,7 +46,8 @@ export function useRealtimeHealthScores() {
         },
         (payload) => {
           console.log('Coach performance changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['coach-performance'] });
+          // Invalidate ALL coach queries
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.coaches.all });
         }
       )
       .on(
@@ -55,7 +59,8 @@ export function useRealtimeHealthScores() {
         },
         (payload) => {
           console.log('Weekly patterns changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['weekly-patterns'] });
+          // Invalidate ALL pattern queries
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.patterns.weekly });
         }
       )
       .subscribe();

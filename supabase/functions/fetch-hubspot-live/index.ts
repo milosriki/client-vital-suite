@@ -1,22 +1,61 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import {
+  handleError,
+  createSuccessResponse,
+  handleCorsPreFlight,
+  corsHeaders,
+  ErrorCode,
+  validateEnvVars,
+  parseJsonSafely,
+  createSupabaseClient,
+} from "../_shared/error-handler.ts";
+import { HubSpotSyncManager, HUBSPOT_PROPERTIES } from "../_shared/hubspot-sync-manager.ts";
 
 serve(async (req) => {
+  const FUNCTION_NAME = "fetch-hubspot-live";
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreFlight();
   }
 
+  const supabase = createSupabaseClient(FUNCTION_NAME);
+
   try {
-    const HUBSPOT_API_KEY = Deno.env.get('HUBSPOT_API_KEY');
-    if (!HUBSPOT_API_KEY) {
-      throw new Error('HUBSPOT_API_KEY not configured');
+    // Validate required environment variables
+    const envValidation = validateEnvVars(['HUBSPOT_API_KEY'], FUNCTION_NAME);
+
+    if (!envValidation.valid) {
+      return handleError(
+        new Error(`Missing required environment variables: ${envValidation.missing.join(", ")}`),
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.MISSING_API_KEY,
+          context: { missingVars: envValidation.missing },
+        }
+      );
     }
 
-    const body = await req.json();
+    const HUBSPOT_API_KEY = Deno.env.get('HUBSPOT_API_KEY')!;
+
+    // Initialize unified HubSpot sync manager
+    const syncManager = new HubSpotSyncManager(supabase, HUBSPOT_API_KEY);
+
+    // Parse request body with error handling
+    const parseResult = await parseJsonSafely(req, FUNCTION_NAME);
+    if (!parseResult.success) {
+      return handleError(
+        parseResult.error,
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          context: { parseError: parseResult.error.message },
+        }
+      );
+    }
+
+    const body = parseResult.data;
     // Support both old and new parameter names
     const type = body.type || body.action || 'all';
     const timeframe = body.timeframe || 'last_week';
@@ -47,56 +86,38 @@ serve(async (req) => {
     const filterTimestamp = filterDate.getTime();
 
     if (type === 'contacts' || type === 'all' || type === 'fetch-all') {
-      // Fetch contacts with recent activity
-      const contactsResponse = await fetch(
-        'https://api.hubapi.com/crm/v3/objects/contacts/search',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            filterGroups: [
-              {
-                filters: [
-                  {
-                    propertyName: 'createdate',
-                    operator: 'GTE',
-                    value: filterTimestamp.toString()
-                  }
-                ]
-              }
-            ],
-            properties: [
-              'firstname',
-              'lastname',
-              'email',
-              'phone',
-              'hubspot_owner_id',
-              'lifecyclestage',
-              'hs_lead_status',
-              'createdate',
-              'lastmodifieddate',
-              'notes_last_contacted',
-              'call_status',
-              'assigned_coach',
-              'assessment_scheduled',
-              'assessment_date'
-            ],
-            sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
-            limit: 100
-          })
-        }
-      );
+      // Fetch contacts using unified sync manager
+      const filterGroups = [{
+        filters: [{
+          propertyName: 'createdate',
+          operator: 'GTE',
+          value: filterTimestamp.toString()
+        }]
+      }];
 
-      if (!contactsResponse.ok) {
-        const errorText = await contactsResponse.text();
-        console.error('HubSpot contacts error:', errorText);
-        throw new Error(`HubSpot API error: ${contactsResponse.status}`);
+      let contactsData;
+      try {
+        // Use unified property list - SINGLE SOURCE OF TRUTH
+        contactsData = await syncManager.fetchHubSpot('contacts', {
+          filterGroups,
+          properties: HUBSPOT_PROPERTIES.CONTACTS,
+          sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
+          limit: 100
+        });
+      } catch (error: any) {
+        return handleError(
+          new Error(`HubSpot API error: ${error.message}`),
+          FUNCTION_NAME,
+          {
+            supabase,
+            errorCode: ErrorCode.HUBSPOT_API_ERROR,
+            context: {
+              errorMessage: error.message,
+              endpoint: 'contacts/search'
+            },
+          }
+        );
       }
-
-      const contactsData = await contactsResponse.json();
       
       // Filter by setter if specified
       let contacts = contactsData.results;
@@ -107,7 +128,7 @@ serve(async (req) => {
         );
       }
 
-      // Fetch deals for these contacts
+      // Fetch deals for these contacts using unified sync manager
       const dealIds = contacts
         .map((c: any) => c.associations?.deals?.results || [])
         .flat()
@@ -115,62 +136,22 @@ serve(async (req) => {
 
       let deals = [];
       if (dealIds.length > 0) {
-        const dealsResponse = await fetch(
-          'https://api.hubapi.com/crm/v3/objects/deals/batch/read',
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              properties: [
-                'dealname',
-                'dealstage',
-                'amount',
-                'pipeline',
-                'closedate',
-                'hubspot_owner_id',
-                'createdate'
-              ],
-              inputs: dealIds.slice(0, 50).map((id: string) => ({ id }))
-            })
-          }
-        );
-
-        if (dealsResponse.ok) {
-          const dealsData = await dealsResponse.json();
-          deals = dealsData.results;
+        try {
+          // Use unified property list and batch fetch method
+          deals = await syncManager.batchFetchHubSpot('deals', dealIds, HUBSPOT_PROPERTIES.DEALS);
+        } catch (error) {
+          console.warn('Failed to fetch deals:', error);
+          // Continue without deals
         }
       }
 
-      // Fetch owners for name mapping
-      const ownersResponse = await fetch(
-        'https://api.hubapi.com/crm/v3/owners',
-        {
-          headers: {
-            'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-          }
-        }
-      );
+      // Fetch owners using unified sync manager (with caching)
+      const ownerMap = await syncManager.fetchOwners();
 
-      let ownerMap: Record<string, string> = {};
-      if (ownersResponse.ok) {
-        const ownersData = await ownersResponse.json();
-        ownerMap = Object.fromEntries(
-          ownersData.results.map((owner: any) => [
-            owner.id,
-            `${owner.firstName} ${owner.lastName}`
-          ])
-        );
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          timeframe,
-          filterDate: filterDate.toISOString(),
-          contacts: contacts.slice(0, 100).map((c: any) => ({
+      const successResponse = createSuccessResponse({
+        timeframe,
+        filterDate: filterDate.toISOString(),
+        contacts: contacts.slice(0, 100).map((c: any) => ({
             id: c.id,
             firstName: c.properties.firstname,
             lastName: c.properties.lastname,
@@ -200,8 +181,11 @@ serve(async (req) => {
           ownerMap,
           totalContacts: contacts.length,
           totalDeals: deals.length
-        }),
-        { 
+        });
+
+      return new Response(
+        JSON.stringify(successResponse),
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -209,52 +193,41 @@ serve(async (req) => {
 
     // If type is 'activity' - fetch recent activity
     if (type === 'activity') {
-      const activityResponse = await fetch(
-        'https://api.hubapi.com/crm/v3/objects/calls/search',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            filterGroups: [
-              {
-                filters: [
-                  {
-                    propertyName: 'hs_timestamp',
-                    operator: 'GTE',
-                    value: filterTimestamp.toString()
-                  }
-                ]
-              }
-            ],
-            properties: [
-              'hs_call_title',
-              'hs_call_status',
-              'hs_call_duration',
-              'hs_timestamp',
-              'hs_call_to_number',
-              'hs_call_from_number',
-              'hubspot_owner_id'
-            ],
-            sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
-            limit: 100
-          })
-        }
-      );
+      let activityData;
+      try {
+        // Use unified sync manager with unified property list
+        const filterGroups = [{
+          filters: [{
+            propertyName: 'hs_timestamp',
+            operator: 'GTE',
+            value: filterTimestamp.toString()
+          }]
+        }];
 
-      if (!activityResponse.ok) {
-        throw new Error(`HubSpot activity API error: ${activityResponse.status}`);
+        activityData = await syncManager.fetchHubSpot('calls', {
+          filterGroups,
+          properties: HUBSPOT_PROPERTIES.CALLS,
+          sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+          limit: 100
+        });
+      } catch (error: any) {
+        return handleError(
+          new Error(`HubSpot activity API error: ${error.message}`),
+          FUNCTION_NAME,
+          {
+            supabase,
+            errorCode: ErrorCode.HUBSPOT_API_ERROR,
+            context: {
+              errorMessage: error.message,
+              endpoint: 'calls/search'
+            },
+          }
+        );
       }
 
-      const activityData = await activityResponse.json();
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          timeframe,
-          activities: activityData.results.map((a: any) => ({
+      const successResponse = createSuccessResponse({
+        timeframe,
+        activities: activityData.results.map((a: any) => ({
             id: a.id,
             title: a.properties.hs_call_title,
             status: a.properties.hs_call_status,
@@ -265,31 +238,48 @@ serve(async (req) => {
             ownerId: a.properties.hubspot_owner_id
           })),
           totalActivities: activityData.results.length
-        }),
-        { 
+        });
+
+      return new Response(
+        JSON.stringify(successResponse),
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Invalid type parameter' }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    return handleError(
+      new Error('Invalid type parameter'),
+      FUNCTION_NAME,
+      {
+        supabase,
+        errorCode: ErrorCode.VALIDATION_ERROR,
+        context: { providedType: body.type || body.action },
       }
     );
 
   } catch (error) {
-    console.error('Error fetching HubSpot data:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        details: 'Failed to fetch live data from HubSpot'
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    // Determine appropriate error code
+    let errorCode = ErrorCode.INTERNAL_ERROR;
+
+    if (error instanceof Error) {
+      if (error.message?.includes("HubSpot")) {
+        errorCode = ErrorCode.HUBSPOT_API_ERROR;
+      } else if (error.message?.includes("JSON") || error.message?.includes("parse")) {
+        errorCode = ErrorCode.VALIDATION_ERROR;
+      }
+    }
+
+    return handleError(
+      error as Error,
+      FUNCTION_NAME,
+      {
+        supabase,
+        errorCode,
+        context: {
+          method: req.method,
+          requestType: body?.type || body?.action
+        },
       }
     );
   }

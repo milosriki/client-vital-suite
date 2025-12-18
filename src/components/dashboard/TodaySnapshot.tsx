@@ -5,6 +5,7 @@ import { Phone, Calendar, UserPlus, DollarSign, ChevronRight, Activity } from "l
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { startOfDay, endOfDay } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface SnapshotStat {
   label: string;
@@ -23,7 +24,7 @@ export function TodaySnapshot() {
   const endOfToday = endOfDay(today).toISOString();
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['today-snapshot'],
+    queryKey: QUERY_KEYS.summaries.todaySnapshot,
     queryFn: async () => {
       const [callsResult, appointmentsResult, leadsResult, dealsResult] = await Promise.all([
         supabase

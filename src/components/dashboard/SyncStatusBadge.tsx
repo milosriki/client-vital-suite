@@ -6,13 +6,14 @@ import { Check, RefreshCw, AlertTriangle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 export function SyncStatusBadge() {
     const queryClient = useQueryClient();
     const [isTriggering, setIsTriggering] = useState(false);
 
     const { data: lastSync, refetch } = useQuery({
-        queryKey: ["last-sync-status"],
+        queryKey: QUERY_KEYS.sync.lastStatus,
         queryFn: async () => {
             // Check sync_logs for last successful sync
             const { data: syncLog } = await supabase
@@ -51,7 +52,7 @@ export function SyncStatusBadge() {
                     table: 'sync_logs'
                 },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: ["last-sync-status"] });
+                    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sync.lastStatus });
                 }
             )
             .subscribe();

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 import { useNavigate } from "react-router-dom";
 import { Medal, Trophy, Award, Crown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ export function CoachLeaderboard() {
   const navigate = useNavigate();
 
   const { data: coaches, isLoading } = useQuery({
-    queryKey: ['coach-leaderboard'],
+    queryKey: QUERY_KEYS.coaches.leaderboard,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coach_performance')

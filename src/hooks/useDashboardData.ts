@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { QUERY_INTERVALS } from '@/config/queryConfig';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 /**
  * Batch dashboard queries hook
@@ -26,7 +27,7 @@ interface DashboardFilters {
 
 export function useDashboardData(filters: DashboardFilters = {}) {
   return useQuery({
-    queryKey: ['dashboard-batch', filters],
+    queryKey: QUERY_KEYS.dashboard.batch(filters),
     queryFn: async () => {
       // Execute all queries in parallel
       const [

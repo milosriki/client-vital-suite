@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 import { CoachCard } from "@/components/CoachCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientCard } from "@/components/ClientCard";
@@ -15,7 +16,7 @@ const Coaches = () => {
   const [selectedClient, setSelectedClient] = useState<ClientHealthScore | null>(null);
 
   const { data: coaches, isLoading, error, refetch } = useQuery<CoachPerformance[]>({
-    queryKey: ['coach-performance'],
+    queryKey: QUERY_KEYS.coaches.performance,
     queryFn: async () => {
       // Get the most recent report_date
       const { data: latestDate } = await (supabase as any)
@@ -42,7 +43,7 @@ const Coaches = () => {
   });
 
   const { data: coachClients } = useQuery<ClientHealthScore[]>({
-    queryKey: ['coach-clients', selectedCoach],
+    queryKey: QUERY_KEYS.coaches.clients(selectedCoach || ''),
     queryFn: async () => {
       if (!selectedCoach) return [];
 

@@ -170,22 +170,43 @@ export default function StripeIntelligence() {
         } : null,
       };
 
-      const response = await fetch(
-        `https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/stripe-payouts-ai`,
+      // Use Supabase client to invoke edge function (no hardcoded URLs)
+      const { data: responseData, error: invokeError } = await supabase.functions.invoke(
+        "stripe-payouts-ai",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
+          body: {
             action: "chat",
             message: userMessage,
             context,
             history: chatMessages,
-          }),
+          },
         }
       );
+
+      // Handle errors from invoke
+      if (invokeError) {
+        throw new Error(invokeError.message || "Failed to get response");
+      }
+
+      // For streaming responses, we need to use fetch with proper authorization
+      // Get the function URL from Supabase client config
+      const functionUrl = `${supabase.supabaseUrl}/functions/v1/stripe-payouts-ai`;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "chat",
+          message: userMessage,
+          context,
+          history: chatMessages,
+        }),
+      });
 
       if (!response.ok) {
         if (response.status === 429) {

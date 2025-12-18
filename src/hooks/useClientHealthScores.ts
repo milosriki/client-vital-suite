@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientHealthScore } from '@/types/database';
+import { QUERY_KEYS } from '@/config/queryKeys';
 
 interface UseClientHealthScoresOptions {
   healthZone?: string;
@@ -13,7 +14,7 @@ export function useClientHealthScores(options: UseClientHealthScoresOptions = {}
   const { healthZone, segment, coach, autoRefresh = true } = options;
 
   return useQuery<ClientHealthScore[]>({
-    queryKey: ['client-health-scores', healthZone, segment, coach],
+    queryKey: QUERY_KEYS.clients.healthScores({ healthZone, segment, coach }),
     queryFn: async () => {
       // Get the most recent calculated_on date
       const { data: latestDate } = await supabase

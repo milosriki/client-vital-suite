@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface GreetingBarProps {
   onDateChange?: (date: Date) => void;
@@ -24,7 +25,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
 
   // Check for sync errors
   const { data: syncErrors } = useQuery({
-    queryKey: ['sync-errors-check'],
+    queryKey: QUERY_KEYS.sync.errors.check,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('sync_errors')
@@ -40,7 +41,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
 
   // Get last sync time
   const { data: lastSync } = useQuery({
-    queryKey: ['last-sync-time'],
+    queryKey: QUERY_KEYS.sync.lastTime,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('sync_logs')

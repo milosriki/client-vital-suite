@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Lightbulb, BarChart3 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 interface MetricDrilldownModalProps {
   open: boolean;
@@ -59,7 +60,7 @@ export const MetricDrilldownModal = ({ open, onClose, metric }: MetricDrilldownM
 
 const ContributorsTab = ({ type }: { type: string }) => {
   const { data: contributors, isLoading } = useQuery({
-    queryKey: ["metric-contributors", type],
+    queryKey: QUERY_KEYS.metrics.contributors(type),
     queryFn: async () => {
       if (type === "revenue") {
         const { data } = await supabase
@@ -168,7 +169,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
 
 const TrendTab = ({ type }: { type: string }) => {
   const { data: trendData, isLoading } = useQuery({
-    queryKey: ["metric-trend", type],
+    queryKey: QUERY_KEYS.metrics.trend(type),
     queryFn: async () => {
       // Generate last 30 days of data
       const days = Array.from({ length: 30 }, (_, i) => {

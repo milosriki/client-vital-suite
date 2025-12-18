@@ -1,7 +1,12 @@
 /**
  * Standardized Query Configuration
- * Centralizes polling intervals to reduce database load
+ * Centralizes polling intervals and query keys to reduce database load
+ *
+ * For query keys documentation, see /src/config/queryKeys.ts
  */
+
+// Re-export QUERY_KEYS for convenience (import from either file)
+export { QUERY_KEYS } from './queryKeys';
 
 export const QUERY_INTERVALS = {
   // Critical: Real-time data that needs frequent updates (30 seconds)
@@ -41,25 +46,38 @@ export const queryMode = {
 /**
  * Usage examples:
  *
- * // Critical data (30s polling)
- * useQuery({
- *   queryKey: ['capi-events'],
- *   queryFn: fetchCapiEvents,
- *   refetchInterval: QUERY_INTERVALS.CRITICAL,
- * });
+ * // Using standardized query keys from @/config/queryKeys with intervals
+ * import { QUERY_KEYS } from '@/config/queryKeys';
  *
- * // Standard dashboard data (2min polling)
+ * // Dashboard health scores (2min polling)
  * useQuery({
- *   queryKey: ['health-scores'],
+ *   queryKey: QUERY_KEYS.clients.healthScoresDashboard,
  *   queryFn: fetchHealthScores,
  *   refetchInterval: QUERY_INTERVALS.STANDARD,
  * });
  *
- * // Analytical data (5min polling)
+ * // Filtered client health scores
  * useQuery({
- *   queryKey: ['weekly-trends'],
- *   queryFn: fetchWeeklyTrends,
+ *   queryKey: QUERY_KEYS.clients.healthScores({ healthZone: 'RED', coach: 'John' }),
+ *   queryFn: fetchFilteredHealthScores,
+ *   refetchInterval: QUERY_INTERVALS.STANDARD,
+ * });
+ *
+ * // Invalidating queries (matches all client queries)
+ * queryClient.invalidateQueries({ queryKey: QUERY_KEYS.clients.all });
+ *
+ * // Revenue data with analytical polling (5min)
+ * useQuery({
+ *   queryKey: QUERY_KEYS.revenue.monthly,
+ *   queryFn: fetchMonthlyRevenue,
  *   refetchInterval: QUERY_INTERVALS.ANALYTICAL,
+ * });
+ *
+ * // Critical data (30s polling)
+ * useQuery({
+ *   queryKey: QUERY_KEYS.capi.events('live'),
+ *   queryFn: fetchCapiEvents,
+ *   refetchInterval: QUERY_INTERVALS.CRITICAL,
  * });
  *
  * // Static data (no polling)

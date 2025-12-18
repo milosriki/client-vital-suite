@@ -1,15 +1,59 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// ============= RETRY UTILITY =============
+
+interface RetryOptions {
+  maxRetries?: number;
+  delayMs?: number;
+  backoff?: boolean;
+}
+
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const { maxRetries = 3, delayMs = 1000, backoff = true } = options;
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        const delay = backoff ? delayMs * Math.pow(2, attempt - 1) : delayMs;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+// ============= DISCOVER SYSTEM STRUCTURE =============
+
 // Discover system structure dynamically
 export async function discoverSystemStructure() {
   try {
-    // Get all tables
-    const { data: tables, error: tablesError } = await supabase.rpc('get_all_tables');
-    if (tablesError) throw tablesError;
+    console.log('🔍 Starting system structure discovery...');
 
-    // Get all functions
-    const { data: functions, error: functionsError } = await supabase.rpc('get_all_functions');
-    if (functionsError) throw functionsError;
+    // Get all tables with retry
+    const tables = await retryWithBackoff(async () => {
+      const { data, error } = await supabase.rpc('get_all_tables');
+      if (error) {
+        throw new Error(`Failed to get tables: ${error.message}`);
+      }
+      return data;
+    }, { maxRetries: 3, delayMs: 1000 });
+
+    // Get all functions with retry
+    const functions = await retryWithBackoff(async () => {
+      const { data, error } = await supabase.rpc('get_all_functions');
+      if (error) {
+        throw new Error(`Failed to get functions: ${error.message}`);
+      }
+      return data;
+    }, { maxRetries: 3, delayMs: 1000 });
 
     const systemKnowledge = {
       type: 'system_structure',
@@ -27,79 +71,158 @@ export async function discoverSystemStructure() {
       summary: `Discovered ${tables?.length || 0} tables and ${functions?.length || 0} functions`
     };
 
-    // Save to agent_context for quick access (skip if constraint fails)
+    // Save to agent_context for quick access
     try {
-      await supabase.from('agent_context').upsert({
-        key: 'system_structure',
-        value: systemKnowledge,
-        agent_type: 'smart_agent',
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      });
-    } catch (e) {
-      // Constraint might fail, continue anyway
+      await retryWithBackoff(async () => {
+        const { error } = await supabase.from('agent_context').upsert({
+          key: 'system_structure',
+          value: systemKnowledge,
+          agent_type: 'smart_agent',
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        });
+
+        if (error) {
+          throw new Error(`Failed to save system knowledge: ${error.message}`);
+        }
+      }, { maxRetries: 2, delayMs: 500 });
+
+      console.log('✅ System knowledge saved to database');
+    } catch (saveError) {
+      const errorMsg = saveError instanceof Error ? saveError.message : String(saveError);
+      console.warn(`⚠️ Could not save system knowledge to database: ${errorMsg}`);
+      // Continue anyway - we still have the knowledge in memory
     }
 
     console.log('✅ System structure discovered:', systemKnowledge.summary);
     return systemKnowledge;
   } catch (error) {
-    console.error('System discovery failed:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ System discovery failed:', errorMsg);
     return null;
   }
 }
 
+// ============= LEARN FROM RECENT DATA =============
+
 // Learn from recent data patterns
 export async function learnRecentData() {
   try {
-    const [healthData, eventsData, callsData, dealsData] = await Promise.all([
-      supabase.from('client_health_scores')
-        .select('health_zone, health_score, assigned_coach, package_type')
-        .gte('calculated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .limit(100),
-      supabase.from('events')
-        .select('event_name, source, status')
-        .gte('event_time', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .limit(100),
-      supabase.from('call_records')
-        .select('call_status, call_outcome, lead_quality')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .limit(100),
-      supabase.from('deals')
-        .select('stage, status, deal_value, pipeline')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .limit(100)
+    console.log('🔍 Starting data pattern analysis...');
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Fetch data with error handling
+    const [healthData, eventsData, callsData, dealsData] = await Promise.allSettled([
+      retryWithBackoff(async () => {
+        const { data, error } = await supabase.from('client_health_scores')
+          .select('health_zone, health_score, assigned_coach, package_type')
+          .gte('calculated_at', sevenDaysAgo)
+          .limit(100);
+
+        if (error) throw new Error(`Health data error: ${error.message}`);
+        return data;
+      }, { maxRetries: 2 }),
+
+      retryWithBackoff(async () => {
+        const { data, error } = await supabase.from('events')
+          .select('event_name, source, status')
+          .gte('event_time', sevenDaysAgo)
+          .limit(100);
+
+        if (error) throw new Error(`Events data error: ${error.message}`);
+        return data;
+      }, { maxRetries: 2 }),
+
+      retryWithBackoff(async () => {
+        const { data, error } = await supabase.from('call_records')
+          .select('call_status, call_outcome, lead_quality')
+          .gte('created_at', sevenDaysAgo)
+          .limit(100);
+
+        if (error) throw new Error(`Call data error: ${error.message}`);
+        return data;
+      }, { maxRetries: 2 }),
+
+      retryWithBackoff(async () => {
+        const { data, error } = await supabase.from('deals')
+          .select('stage, status, deal_value, pipeline')
+          .gte('created_at', sevenDaysAgo)
+          .limit(100);
+
+        if (error) throw new Error(`Deals data error: ${error.message}`);
+        return data;
+      }, { maxRetries: 2 })
     ]);
+
+    // Extract successful results
+    const healthResult = healthData.status === 'fulfilled' ? healthData.value : null;
+    const eventsResult = eventsData.status === 'fulfilled' ? eventsData.value : null;
+    const callsResult = callsData.status === 'fulfilled' ? callsData.value : null;
+    const dealsResult = dealsData.status === 'fulfilled' ? dealsData.value : null;
+
+    // Log any failures
+    if (healthData.status === 'rejected') {
+      console.error('❌ Health data fetch failed:', healthData.reason);
+    }
+    if (eventsData.status === 'rejected') {
+      console.error('❌ Events data fetch failed:', eventsData.reason);
+    }
+    if (callsData.status === 'rejected') {
+      console.error('❌ Calls data fetch failed:', callsData.reason);
+    }
+    if (dealsData.status === 'rejected') {
+      console.error('❌ Deals data fetch failed:', dealsData.reason);
+    }
 
     // Analyze patterns
     const patterns = {
       type: 'data_patterns',
       analyzed_at: new Date().toISOString(),
-      health_zones: countBy(healthData.data, 'health_zone'),
-      coaches: countBy(healthData.data, 'assigned_coach'),
-      event_types: countBy(eventsData.data, 'event_name'),
-      event_sources: countBy(eventsData.data, 'source'),
-      call_outcomes: countBy(callsData.data, 'call_outcome'),
-      call_quality: countBy(callsData.data, 'lead_quality'),
-      deal_stages: countBy(dealsData.data, 'stage'),
-      deal_statuses: countBy(dealsData.data, 'status'),
-      avg_health: calculateAvg(healthData.data, 'health_score'),
-      avg_deal_value: calculateAvg(dealsData.data, 'deal_value')
+      health_zones: countBy(healthResult, 'health_zone'),
+      coaches: countBy(healthResult, 'assigned_coach'),
+      event_types: countBy(eventsResult, 'event_name'),
+      event_sources: countBy(eventsResult, 'source'),
+      call_outcomes: countBy(callsResult, 'call_outcome'),
+      call_quality: countBy(callsResult, 'lead_quality'),
+      deal_stages: countBy(dealsResult, 'stage'),
+      deal_statuses: countBy(dealsResult, 'status'),
+      avg_health: calculateAvg(healthResult, 'health_score'),
+      avg_deal_value: calculateAvg(dealsResult, 'deal_value'),
+      data_freshness: {
+        health: healthResult?.length || 0,
+        events: eventsResult?.length || 0,
+        calls: callsResult?.length || 0,
+        deals: dealsResult?.length || 0
+      }
     };
 
+    // Save patterns with retry
     try {
-      await supabase.from('agent_context').upsert({
-        key: 'data_patterns',
-        value: patterns,
-        agent_type: 'smart_agent',
-        expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
-      });
-    } catch (e) {
-      // Constraint might fail, continue anyway
+      await retryWithBackoff(async () => {
+        const { error } = await supabase.from('agent_context').upsert({
+          key: 'data_patterns',
+          value: patterns,
+          agent_type: 'smart_agent',
+          expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+        });
+
+        if (error) {
+          throw new Error(`Failed to save patterns: ${error.message}`);
+        }
+      }, { maxRetries: 2, delayMs: 500 });
+
+      console.log('✅ Data patterns saved to database');
+    } catch (saveError) {
+      const errorMsg = saveError instanceof Error ? saveError.message : String(saveError);
+      console.warn(`⚠️ Could not save patterns to database: ${errorMsg}`);
+      // Continue anyway - we still have the patterns in memory
     }
 
-    console.log('✅ Data patterns learned');
+    console.log('✅ Data patterns learned:', patterns.data_freshness);
     return patterns;
   } catch (error) {
-    console.error('Pattern learning failed:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ Pattern learning failed:', errorMsg);
     return null;
   }
 }
@@ -152,33 +275,62 @@ ${memories.map((m: any) => `- Q: "${m.query?.slice(0, 50)}..." → Learned: ${JS
   }
 }
 
+// ============= LEARN FROM INTERACTIONS =============
+
 // Learn from agent interaction
 export async function learnFromInteraction(query: string, response: string, threadId: string) {
+  if (!query || !response || !threadId) {
+    console.error('❌ Learning failed: Missing required parameters (query, response, or threadId)');
+    return;
+  }
+
   try {
     const knowledge = extractKnowledge(query, response);
-    
-    await supabase.from('agent_memory').insert({
-      thread_id: threadId,
-      query,
-      response: response.slice(0, 5000), // Limit response size
-      knowledge_extracted: knowledge
-    });
+
+    // Save to memory with retry
+    await retryWithBackoff(async () => {
+      const { error } = await supabase.from('agent_memory').insert({
+        thread_id: threadId,
+        query,
+        response: response.slice(0, 5000), // Limit response size
+        knowledge_extracted: knowledge
+      });
+
+      if (error) {
+        throw new Error(`Failed to save interaction: ${error.message}`);
+      }
+    }, { maxRetries: 3, delayMs: 1000 });
 
     // Update patterns if significant
     if (knowledge.significant) {
-      await supabase.from('agent_patterns').upsert({
-        pattern_name: knowledge.pattern_type || 'general',
-        description: knowledge.description,
-        confidence: 0.7,
-        examples: [{ query, response: response.slice(0, 500) }],
-        usage_count: 1,
-        last_used_at: new Date().toISOString()
-      }, { onConflict: 'pattern_name' });
+      try {
+        await retryWithBackoff(async () => {
+          const { error } = await supabase.from('agent_patterns').upsert({
+            pattern_name: knowledge.pattern_type || 'general',
+            description: knowledge.description,
+            confidence: 0.7,
+            examples: [{ query, response: response.slice(0, 500) }],
+            usage_count: 1,
+            last_used_at: new Date().toISOString()
+          }, { onConflict: 'pattern_name' });
+
+          if (error) {
+            throw new Error(`Failed to update pattern: ${error.message}`);
+          }
+        }, { maxRetries: 2, delayMs: 500 });
+
+        console.log('✅ Pattern updated:', knowledge.pattern_type);
+      } catch (patternError) {
+        const errorMsg = patternError instanceof Error ? patternError.message : String(patternError);
+        console.warn(`⚠️ Could not update pattern: ${errorMsg}`);
+        // Continue anyway - memory was saved successfully
+      }
     }
 
     console.log('✅ Learned from interaction:', knowledge.pattern_type);
   } catch (error) {
-    console.error('Learning failed:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ Learning failed:', errorMsg);
   }
 }
 

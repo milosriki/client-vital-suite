@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 // Fetch real API usage metrics from sync_queue and other tables
 export function useAPIUsage() {
   return useQuery({
-    queryKey: ["api-usage-metrics"],
+    queryKey: QUERY_KEYS.dashboard.features.apiUsage,
     queryFn: async () => {
       // Get counts from various tables to estimate API usage
       const [syncQueue, contacts, callRecords, activities] = await Promise.all([
@@ -32,7 +33,7 @@ export function useAPIUsage() {
 // Fetch real workflow status from edge function execution logs
 export function useWorkflowStatus() {
   return useQuery({
-    queryKey: ["workflow-status"],
+    queryKey: QUERY_KEYS.dashboard.features.workflow,
     queryFn: async () => {
       // Query agent_decisions for workflow execution data
       const { data: decisions, error } = await supabase
@@ -112,7 +113,7 @@ export function useWorkflowStatus() {
 // Fetch real ticker feed data from contact_activities
 export function useTickerFeed() {
   return useQuery({
-    queryKey: ["ticker-feed-activities"],
+    queryKey: QUERY_KEYS.dashboard.features.tickerFeed,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contact_activities")

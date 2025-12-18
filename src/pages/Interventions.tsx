@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ const Interventions = () => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   const { data: interventions, isLoading, refetch } = useQuery({
-    queryKey: ['interventions-all', statusFilter],
+    queryKey: QUERY_KEYS.interventions.filtered(statusFilter),
     queryFn: async () => {
       let query = supabase
         .from('intervention_log')

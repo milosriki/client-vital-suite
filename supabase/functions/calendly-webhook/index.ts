@@ -1,26 +1,65 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  handleError,
+  createSuccessResponse,
+  handleCorsPreFlight,
+  corsHeaders,
+  ErrorCode,
+  validateEnvVars,
+  parseJsonSafely,
+} from "../_shared/error-handler.ts";
 
 // Calendly Webhook Receiver - syncs appointments to Supabase
 serve(async (req) => {
+  const FUNCTION_NAME = "calendly-webhook";
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreFlight();
   }
 
-  console.log("[Calendly Webhook] Received request");
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  let supabase = null;
 
   try {
-    const body = await req.json();
+    // Validate required environment variables
+    const envValidation = validateEnvVars(
+      ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+      FUNCTION_NAME
+    );
+
+    if (!envValidation.valid) {
+      return handleError(
+        new Error(`Missing required environment variables: ${envValidation.missing.join(", ")}`),
+        FUNCTION_NAME,
+        {
+          errorCode: ErrorCode.MISSING_API_KEY,
+          context: { missingVars: envValidation.missing },
+        }
+      );
+    }
+
+    console.log("[Calendly Webhook] Received request");
+
+    supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Parse request body with error handling
+    const parseResult = await parseJsonSafely(req, FUNCTION_NAME);
+    if (!parseResult.success) {
+      return handleError(
+        parseResult.error,
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          context: { parseError: parseResult.error.message },
+        }
+      );
+    }
+
+    const body = parseResult.data;
     console.log("[Calendly Webhook] Payload:", JSON.stringify(body).slice(0, 500));
 
     // Calendly webhook structure
@@ -30,9 +69,14 @@ serve(async (req) => {
     const eventDetails = event.event || event.payload?.event;
 
     if (!invitee || !eventDetails) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing invitee or event data" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return handleError(
+        new Error("Missing invitee or event data"),
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          context: { hasInvitee: !!invitee, hasEventDetails: !!eventDetails },
+        }
       );
     }
 
@@ -126,7 +170,15 @@ serve(async (req) => {
 
     if (appointmentError) {
       console.error("[Calendly Webhook] Appointment insert error:", appointmentError);
-      throw appointmentError;
+      return handleError(
+        appointmentError,
+        FUNCTION_NAME,
+        {
+          supabase,
+          errorCode: ErrorCode.DATABASE_ERROR,
+          context: { operation: "insert_appointment", eventType },
+        }
+      );
     }
 
     // Create attribution event for Calendly
@@ -156,21 +208,37 @@ serve(async (req) => {
 
     console.log(`[Calendly Webhook] Processed ${eventType} appointment: ${invitee.email}`);
 
+    const successResponse = createSuccessResponse({
+      message: `Processed Calendly ${eventType} event`,
+      appointment_id: appointmentData.hubspot_id,
+      event_type: eventType,
+    });
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Processed Calendly ${eventType} event`,
-        appointment_id: appointmentData.hubspot_id,
-      }),
+      JSON.stringify(successResponse),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[Calendly Webhook] Fatal error:", errorMessage);
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    // Determine appropriate error code
+    let errorCode = ErrorCode.INTERNAL_ERROR;
+
+    if (error instanceof Error) {
+      if (error.message?.includes("database") || error.message?.includes("insert")) {
+        errorCode = ErrorCode.DATABASE_ERROR;
+      } else if (error.message?.includes("JSON") || error.message?.includes("parse")) {
+        errorCode = ErrorCode.VALIDATION_ERROR;
+      }
+    }
+
+    return handleError(
+      error as Error,
+      FUNCTION_NAME,
+      {
+        supabase,
+        errorCode,
+        context: { method: req.method },
+      }
     );
   }
 });

@@ -255,36 +255,293 @@ async function checkInterventionLog(): Promise<DataIssue[]> {
 async function checkDuplicates(): Promise<DataIssue[]> {
   const issues: DataIssue[] = [];
 
-  // This would need a raw SQL query for proper duplicate detection
-  // For now, we do a simple check
-  const { data: allClients } = await supabase
-    .from("client_health_scores")
-    .select("email")
-    .limit(1000);
+  try {
+    // Check for duplicate emails in client_health_scores using RPC or direct query
+    const { data: duplicateClients, error: dupError } = await supabase.rpc('get_duplicate_emails', {
+      table_name: 'client_health_scores'
+    }).catch(async () => {
+      // Fallback: Use aggregation query
+      const { data } = await supabase
+        .from("client_health_scores")
+        .select("email");
 
-  if (allClients) {
-    const emailCounts = new Map<string, number>();
-    for (const client of allClients) {
-      const email = client.email?.toLowerCase();
-      if (email) {
-        emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+      if (!data) return { data: null, error: null };
+
+      const emailCounts = new Map<string, number>();
+      for (const client of data) {
+        const email = client.email?.toLowerCase();
+        if (email) {
+          emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+        }
       }
-    }
 
-    const duplicates = Array.from(emailCounts.entries())
-      .filter(([_, count]) => count > 1);
+      const duplicates = Array.from(emailCounts.entries())
+        .filter(([_, count]) => count > 1)
+        .map(([email, count]) => ({ email, count }));
 
-    if (duplicates.length > 0) {
+      return { data: duplicates, error: null };
+    });
+
+    if (duplicateClients && duplicateClients.length > 0) {
       issues.push({
         table: "client_health_scores",
         issue_type: "duplicate",
-        severity: "medium",
+        severity: "high",
         description: "Duplicate email addresses found",
-        affected_count: duplicates.length,
-        sample_records: duplicates.slice(0, 5).map(([email, count]) => `${email} (${count}x)`),
-        recommendation: "Deduplicate client records, keep most recent."
+        affected_count: duplicateClients.length,
+        sample_records: duplicateClients.slice(0, 10).map((d: any) => `${d.email} (${d.count}x)`),
+        recommendation: "Deduplicate client records, keep most recent by calculated_at."
       });
     }
+
+    // Check for duplicate contact emails
+    const { data: contactDuplicates } = await supabase
+      .from("contacts")
+      .select("email");
+
+    if (contactDuplicates) {
+      const emailCounts = new Map<string, number>();
+      for (const contact of contactDuplicates) {
+        const email = contact.email?.toLowerCase();
+        if (email) {
+          emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+        }
+      }
+
+      const duplicates = Array.from(emailCounts.entries())
+        .filter(([_, count]) => count > 1);
+
+      if (duplicates.length > 0) {
+        issues.push({
+          table: "contacts",
+          issue_type: "duplicate",
+          severity: "medium",
+          description: "Duplicate contact emails found",
+          affected_count: duplicates.length,
+          sample_records: duplicates.slice(0, 10).map(([email, count]) => `${email} (${count}x)`),
+          recommendation: "Deduplicate contacts, merge or remove duplicates."
+        });
+      }
+    }
+  } catch (error) {
+    console.error("[Data Quality] Error checking duplicates:", error);
+  }
+
+  return issues;
+}
+
+async function checkOrphanedRecords(): Promise<DataIssue[]> {
+  const issues: DataIssue[] = [];
+
+  try {
+    // Check for intervention_log entries with no matching client
+    const { data: orphanedInterventions } = await supabase
+      .from("intervention_log")
+      .select("id, client_email")
+      .limit(1000);
+
+    if (orphanedInterventions) {
+      const clientEmails = new Set(
+        (await supabase.from("client_health_scores").select("email")).data?.map(c => c.email.toLowerCase()) || []
+      );
+
+      const orphaned = orphanedInterventions.filter(
+        i => i.client_email && !clientEmails.has(i.client_email.toLowerCase())
+      );
+
+      if (orphaned.length > 0) {
+        issues.push({
+          table: "intervention_log",
+          issue_type: "inconsistent",
+          severity: "medium",
+          description: "Interventions for non-existent clients",
+          affected_count: orphaned.length,
+          sample_records: orphaned.slice(0, 10).map(i => i.client_email),
+          recommendation: "Remove orphaned intervention records or sync missing clients from HubSpot."
+        });
+      }
+    }
+
+    // Check for CAPI events with invalid or missing client data
+    const { count: orphanedCAPI } = await supabase
+      .from("capi_events_enriched")
+      .select("*", { count: "exact", head: true })
+      .not("email", "is", null)
+      .eq("send_status", "pending")
+      .limit(100);
+
+    if (orphanedCAPI && orphanedCAPI > 0) {
+      // Sample some to check if clients exist
+      const { data: sampleCAPI } = await supabase
+        .from("capi_events_enriched")
+        .select("email")
+        .eq("send_status", "pending")
+        .limit(50);
+
+      if (sampleCAPI) {
+        const clientEmails = new Set(
+          (await supabase.from("client_health_scores").select("email")).data?.map(c => c.email.toLowerCase()) || []
+        );
+
+        const orphanedSample = sampleCAPI.filter(
+          e => e.email && !clientEmails.has(e.email.toLowerCase())
+        );
+
+        if (orphanedSample.length > 0) {
+          issues.push({
+            table: "capi_events_enriched",
+            issue_type: "inconsistent",
+            severity: "low",
+            description: "CAPI events for contacts not in health scores",
+            affected_count: orphanedSample.length,
+            sample_records: orphanedSample.slice(0, 5).map(e => e.email),
+            recommendation: "This is normal for new contacts. Ensure health calculator runs regularly."
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[Data Quality] Error checking orphaned records:", error);
+  }
+
+  return issues;
+}
+
+async function checkRequiredFields(): Promise<DataIssue[]> {
+  const issues: DataIssue[] = [];
+
+  try {
+    // Check contacts for required fields
+    const { count: contactsMissingName } = await supabase
+      .from("contacts")
+      .select("*", { count: "exact", head: true })
+      .or("firstname.is.null,lastname.is.null");
+
+    if (contactsMissingName && contactsMissingName > 0) {
+      issues.push({
+        table: "contacts",
+        issue_type: "missing",
+        severity: "medium",
+        description: "Contacts missing first or last name",
+        affected_count: contactsMissingName,
+        sample_records: [],
+        recommendation: "Update contact names from HubSpot or mark for review."
+      });
+    }
+
+    // Check for contacts without HubSpot IDs
+    const { count: contactsMissingHubSpot } = await supabase
+      .from("contacts")
+      .select("*", { count: "exact", head: true })
+      .or("hubspot_contact_id.is.null,hubspot_contact_id.eq.");
+
+    if (contactsMissingHubSpot && contactsMissingHubSpot > 0) {
+      issues.push({
+        table: "contacts",
+        issue_type: "missing",
+        severity: "high",
+        description: "Contacts without HubSpot ID",
+        affected_count: contactsMissingHubSpot,
+        sample_records: [],
+        recommendation: "Sync from HubSpot or link to existing HubSpot contacts."
+      });
+    }
+
+    // Check deals for required fields
+    const { count: dealsMissingAmount } = await supabase
+      .from("deals")
+      .select("*", { count: "exact", head: true })
+      .or("amount.is.null,amount.eq.0");
+
+    if (dealsMissingAmount && dealsMissingAmount > 0) {
+      issues.push({
+        table: "deals",
+        issue_type: "missing",
+        severity: "low",
+        description: "Deals with no amount set",
+        affected_count: dealsMissingAmount,
+        sample_records: [],
+        recommendation: "Review deals and set appropriate amounts in HubSpot."
+      });
+    }
+
+    // Check leads for required fields
+    const { count: leadsMissingEmail } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .or("email.is.null,email.eq.");
+
+    if (leadsMissingEmail && leadsMissingEmail > 0) {
+      issues.push({
+        table: "leads",
+        issue_type: "missing",
+        severity: "critical",
+        description: "Leads without email addresses",
+        affected_count: leadsMissingEmail,
+        sample_records: [],
+        recommendation: "Email is required for lead processing. Update or remove invalid leads."
+      });
+    }
+  } catch (error) {
+    console.error("[Data Quality] Error checking required fields:", error);
+  }
+
+  return issues;
+}
+
+async function checkDataConsistency(): Promise<DataIssue[]> {
+  const issues: DataIssue[] = [];
+
+  try {
+    // Check for contacts in client_health_scores but not in contacts table
+    const { data: healthClients } = await supabase
+      .from("client_health_scores")
+      .select("email")
+      .limit(1000);
+
+    const { data: contacts } = await supabase
+      .from("contacts")
+      .select("email")
+      .limit(5000);
+
+    if (healthClients && contacts) {
+      const contactEmails = new Set(contacts.map(c => c.email?.toLowerCase()));
+      const missingInContacts = healthClients.filter(
+        h => h.email && !contactEmails.has(h.email.toLowerCase())
+      );
+
+      if (missingInContacts.length > 0) {
+        issues.push({
+          table: "client_health_scores",
+          issue_type: "inconsistent",
+          severity: "medium",
+          description: "Health scores for contacts not in contacts table",
+          affected_count: missingInContacts.length,
+          sample_records: missingInContacts.slice(0, 10).map(c => c.email),
+          recommendation: "Sync contacts from HubSpot or remove orphaned health scores."
+        });
+      }
+    }
+
+    // Check for invalid enum values
+    const { data: invalidZones } = await supabase
+      .from("client_health_scores")
+      .select("email, health_zone")
+      .not("health_zone", "in", "(RED,YELLOW,GREEN,PURPLE)");
+
+    if (invalidZones && invalidZones.length > 0) {
+      issues.push({
+        table: "client_health_scores",
+        issue_type: "invalid",
+        severity: "high",
+        description: "Invalid health zone values",
+        affected_count: invalidZones.length,
+        sample_records: invalidZones.slice(0, 10).map(c => `${c.email}: ${c.health_zone}`),
+        recommendation: "Recalculate health zones to valid values (RED, YELLOW, GREEN, PURPLE)."
+      });
+    }
+  } catch (error) {
+    console.error("[Data Quality] Error checking consistency:", error);
   }
 
   return issues;
@@ -394,6 +651,27 @@ serve(async (req) => {
           sample_records: [],
           recommendation: "Check database connectivity and table existence"
         });
+      }
+
+      try {
+        const orphanedIssues = await checkOrphanedRecords();
+        allIssues.push(...orphanedIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkOrphanedRecords:", e);
+      }
+
+      try {
+        const requiredFieldIssues = await checkRequiredFields();
+        allIssues.push(...requiredFieldIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkRequiredFields:", e);
+      }
+
+      try {
+        const consistencyIssues = await checkDataConsistency();
+        allIssues.push(...consistencyIssues);
+      } catch (e) {
+        console.error("[Data Quality] Error in checkDataConsistency:", e);
       }
     }
 

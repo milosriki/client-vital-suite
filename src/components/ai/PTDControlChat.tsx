@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
-import { getThreadId, startNewThread } from "@/lib/ptd-memory";
+import { getThreadId, startNewThread, loadConversationHistory, saveMessageToDatabase } from "@/lib/ptd-memory";
 import { toast } from "sonner";
 import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 
@@ -15,6 +15,8 @@ export default function PTDControlChat() {
   const [threadId, setThreadId] = useState<string>('');
   const [memoryStats, setMemoryStats] = useState<{ memories: number; patterns: number } | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice chat hooks
@@ -41,11 +43,57 @@ export default function PTDControlChat() {
     stop: stopSpeaking,
   } = useTextToSpeech();
 
-  // Initialize thread ID
+  // Initialize thread ID and load conversation history
   useEffect(() => {
-    setThreadId(getThreadId());
+    const tid = getThreadId();
+    setThreadId(tid);
     loadMemoryStats();
+    loadChatHistory(tid);
   }, []);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('Connection restored');
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('Connection lost - messages will be saved when reconnected');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const loadChatHistory = async (tid: string) => {
+    try {
+      setLoadingHistory(true);
+      const history = await loadConversationHistory(tid);
+
+      if (history && history.length > 0) {
+        // Convert history to messages format
+        const loadedMessages = history.map(item => ({
+          role: item.role,
+          content: item.content
+        }));
+
+        setMessages(loadedMessages);
+        toast.success(`Loaded ${history.length / 2} previous messages`);
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      toast.error('Could not load previous conversation');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const loadMemoryStats = async () => {
     try {
@@ -68,6 +116,9 @@ export default function PTDControlChat() {
     setMessages([]);
     setUploadedFiles([]);
     toast.success('Started new conversation thread');
+
+    // Load history for new thread (should be empty)
+    loadChatHistory(newId);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,10 +148,30 @@ export default function PTDControlChat() {
         } else {
           setUploadedFiles(prev => [...prev, { name: file.name, content: content.slice(0, 500) }]);
           toast.success(`✅ Agent learned from ${file.name}!`);
-          setMessages(prev => [...prev, { 
-            role: "ai", 
-            content: `📚 Learned from **${file.name}**\n\n${data.chunks_created} knowledge chunks created. I can now answer questions based on this content!` 
+
+          const userQuery = `[Document Upload] ${file.name}`;
+          const aiResponse = `📚 Learned from **${file.name}**\n\n${data.chunks_created} knowledge chunks created. I can now answer questions based on this content!`;
+
+          setMessages(prev => [...prev, {
+            role: "ai",
+            content: aiResponse
           }]);
+
+          // Save file upload to database
+          if (isOnline) {
+            try {
+              await saveMessageToDatabase(threadId, userQuery, aiResponse, {
+                type: 'document_upload',
+                filename: file.name,
+                file_type: file.type,
+                file_size: file.size,
+                chunks_created: data.chunks_created,
+                preview: content.slice(0, 1000)
+              });
+            } catch (dbError) {
+              console.error('Failed to save file upload to database:', dbError);
+            }
+          }
         }
       } catch (error) {
         toast.error(`Error reading ${file.name}`);
@@ -119,38 +190,82 @@ export default function PTDControlChat() {
   const handleAsk = async () => {
     if (!input.trim()) return;
 
-    const userMsg = { role: "user", content: input };
+    const userMessage = input;
+    const userMsg = { role: "user", content: userMessage };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
     setInput("");
 
     try {
       const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
-        body: { 
-          message: input,
+        body: {
+          message: userMessage,
           thread_id: threadId  // Pass thread ID for memory continuity
         },
       });
 
       if (error) {
-        setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message}` }]);
+        const errorMsg = `Error: ${error.message}`;
+        setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+
+        // Still try to save the error to database if online
+        if (isOnline) {
+          try {
+            await saveMessageToDatabase(threadId, userMessage, errorMsg);
+          } catch (dbError) {
+            console.error('Failed to save error message to database:', dbError);
+          }
+        }
       } else if (data?.response) {
         const aiResponse = data.response;
         setMessages(prev => [...prev, { role: "ai", content: aiResponse }]);
-        
+
         // Speak the AI response if voice is enabled
         if (voiceEnabled && voiceOutputSupported) {
           const textToSpeak = aiResponse.replace(/[#*`_]/g, '').substring(0, 500);
           speak(textToSpeak);
         }
-        
-        await learnFromInteraction(input, aiResponse);
+
+        // Save conversation to database in real-time with retry
+        if (isOnline) {
+          try {
+            await saveMessageToDatabase(threadId, userMessage, aiResponse);
+          } catch (dbError) {
+            console.error('Failed to save message to database:', dbError);
+            toast.error('Could not save conversation to database', {
+              description: 'Your message was sent but not saved. Check your connection.'
+            });
+          }
+        } else {
+          toast.warning('Message not saved - you are offline');
+        }
+
+        // Learn from interaction (for pattern detection)
+        await learnFromInteraction(userMessage, aiResponse);
         loadMemoryStats(); // Refresh stats after interaction
       } else if (data?.error) {
-        setMessages(prev => [...prev, { role: "ai", content: `Error: ${data.error}` }]);
+        const errorMsg = `Error: ${data.error}`;
+        setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+
+        if (isOnline) {
+          try {
+            await saveMessageToDatabase(threadId, userMessage, errorMsg);
+          } catch (dbError) {
+            console.error('Failed to save error to database:', dbError);
+          }
+        }
       }
     } catch (error) {
-      setMessages(prev => [...prev, { role: "ai", content: `Error: ${error}` }]);
+      const errorMsg = `Error: ${error}`;
+      setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+
+      if (isOnline) {
+        try {
+          await saveMessageToDatabase(threadId, userMessage, errorMsg);
+        } catch (dbError) {
+          console.error('Failed to save exception to database:', dbError);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -172,6 +287,9 @@ export default function PTDControlChat() {
                     <Database className="w-3 h-3" />
                     {memoryStats.memories} memories
                   </span>
+                )}
+                {!isOnline && (
+                  <span className="text-orange-400 text-[10px]">OFFLINE</span>
                 )}
               </div>
             </div>
@@ -231,7 +349,16 @@ export default function PTDControlChat() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-cyan-500/20">
-        {messages.length === 0 && (
+        {loadingHistory && (
+          <div className="h-full flex items-center justify-center">
+            <div className="flex items-center gap-2 text-cyan-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading conversation history...</span>
+            </div>
+          </div>
+        )}
+
+        {!loadingHistory && messages.length === 0 && (
           <div className="h-full flex items-center justify-center text-center">
             <div className="space-y-3">
               <Brain className="w-12 h-12 text-cyan-400 mx-auto opacity-50" />

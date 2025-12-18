@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 export type Currency = "AED" | "USD" | "EUR" | "SAR" | "GBP";
 
@@ -23,7 +24,7 @@ export const useCurrency = () => {
   const queryClient = useQueryClient();
 
   const { data: baseCurrency = "AED" } = useQuery({
-    queryKey: ["base-currency"],
+    queryKey: QUERY_KEYS.currency.base,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("system_preferences")
@@ -47,7 +48,7 @@ export const useCurrency = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["base-currency"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.currency.base });
     },
   });
 

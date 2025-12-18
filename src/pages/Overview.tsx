@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_KEYS } from "@/config/queryKeys";
 import { MetricCard } from "@/components/MetricCard";
 import { ZoneDistributionBar } from "@/components/ZoneDistributionBar";
 import { InterventionTracker } from "@/components/InterventionTracker";
@@ -31,7 +32,7 @@ const Overview = () => {
 
   // Fetch daily summary
   const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useQuery<DailySummary | null>({
-    queryKey: ['daily-summary'],
+    queryKey: QUERY_KEYS.summaries.daily,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await (supabase as any)
@@ -48,7 +49,7 @@ const Overview = () => {
 
   // Fetch critical clients (RED zone)
   const { data: criticalClients, refetch: refetchCritical } = useQuery<ClientHealthScore[]>({
-    queryKey: ['critical-clients'],
+    queryKey: QUERY_KEYS.clients.critical,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await (supabase as any)
@@ -67,7 +68,7 @@ const Overview = () => {
 
   // Fetch coach performance
   const { data: coaches, refetch: refetchCoaches } = useQuery<CoachPerformance[]>({
-    queryKey: ['coach-performance'],
+    queryKey: QUERY_KEYS.coaches.performance,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await (supabase as any)
@@ -84,7 +85,7 @@ const Overview = () => {
 
   // Fetch interventions
   const { data: interventions = [], refetch: refetchInterventions } = useQuery({
-    queryKey: ['interventions'],
+    queryKey: QUERY_KEYS.interventions.all,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('intervention_log')
@@ -100,7 +101,7 @@ const Overview = () => {
 
   // Fetch weekly patterns
   const { data: weeklyPatterns = [], refetch: refetchWeekly } = useQuery({
-    queryKey: ['weekly-patterns'],
+    queryKey: QUERY_KEYS.patterns.weekly,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_patterns')
