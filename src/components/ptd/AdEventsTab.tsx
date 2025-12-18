@@ -25,7 +25,7 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
       if (error) throw error;
       return data as any[];
     },
-    refetchInterval: 10000, // Auto-refresh every 10s
+    staleTime: Infinity, // Real-time updates via subscriptions
   });
 
   const getStatusColor = (status?: string) => {

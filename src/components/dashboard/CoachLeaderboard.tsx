@@ -27,7 +27,7 @@ export function CoachLeaderboard() {
       if (error) throw error;
       return data as CoachPerformance[];
     },
-    refetchInterval: 120000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const rankConfig = [

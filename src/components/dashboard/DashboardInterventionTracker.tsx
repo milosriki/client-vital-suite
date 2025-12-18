@@ -32,7 +32,7 @@ export function DashboardInterventionTracker() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const getPriorityBadge = (priority: string | null) => {

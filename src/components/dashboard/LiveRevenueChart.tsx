@@ -24,7 +24,7 @@ export function LiveRevenueChart() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 120000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const chartData = useMemo(() => {

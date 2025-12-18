@@ -45,7 +45,7 @@ export function ErrorMonitorPanel() {
 
             return data || [];
         },
-        refetchInterval: 30000,
+        staleTime: Infinity, // Realtime subscription handles updates
     });
 
     const unresolvedCount = errors?.length || 0;

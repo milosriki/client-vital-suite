@@ -38,7 +38,7 @@ export function TickerFeed() {
       if (error) throw error;
       return data as Activity[];
     },
-    refetchInterval: 15000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Auto-scroll animation

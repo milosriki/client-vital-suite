@@ -56,7 +56,7 @@ export function LeakDetector() {
         no_activity_48h: staleLeads?.length || 0,
       };
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const metrics = [

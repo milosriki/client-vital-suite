@@ -32,7 +32,7 @@ export function TodaysActivity({
       if (error) throw error;
       return data;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Fetch owners for filter dropdown
