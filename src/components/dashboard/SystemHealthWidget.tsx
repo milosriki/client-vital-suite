@@ -37,7 +37,7 @@ export function SystemHealthWidget() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const systems: SystemStatus[] = [

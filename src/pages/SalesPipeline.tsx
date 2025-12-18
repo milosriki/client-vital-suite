@@ -406,7 +406,7 @@ export default function SalesPipeline() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch forecasts
@@ -423,7 +423,7 @@ export default function SalesPipeline() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   const conversionRate = funnelData?.total 

@@ -94,7 +94,7 @@ export function UltimateAICEO() {
             if (error) throw error;
             return (data || []) as unknown as PreparedAction[];
         },
-        refetchInterval: 15000
+        staleTime: Infinity // Real-time updates via subscriptions
     });
 
     const { data: executedActions } = useQuery({
@@ -109,7 +109,7 @@ export function UltimateAICEO() {
             if (error) throw error;
             return (data || []) as unknown as PreparedAction[];
         },
-        refetchInterval: 30000
+        staleTime: Infinity // Real-time updates via subscriptions
     });
 
     const { data: goals } = useQuery({
@@ -152,7 +152,7 @@ export function UltimateAICEO() {
                 description: ''
             })) as ProactiveInsight[];
         },
-        refetchInterval: 60000
+        staleTime: Infinity // Real-time updates via subscriptions
     });
 
     // NEW: Business Intelligence Data
@@ -163,7 +163,7 @@ export function UltimateAICEO() {
             if (error) throw error;
             return data as { success: boolean; analysis: BIAnalysis; dataFreshness: string; staleWarning: string | null };
         },
-        refetchInterval: 300000 // 5 minutes
+        staleTime: Infinity // Real-time updates via subscriptions
     });
 
     // NEW: Revenue Metrics
@@ -254,7 +254,7 @@ export function UltimateAICEO() {
             
             return status;
         },
-        refetchInterval: 60000
+        staleTime: Infinity // Real-time updates via subscriptions
     });
 
     // NEW: Churn Alerts

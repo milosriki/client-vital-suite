@@ -78,7 +78,7 @@ export default function ProactiveInsightsPanel() {
       if (error) throw error;
       return data as Insight[];
     },
-    refetchInterval: 60000 // Refresh every minute
+    staleTime: Infinity // Realtime subscription handles updates
   });
 
   // Real-time subscription

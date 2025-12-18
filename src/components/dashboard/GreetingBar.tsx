@@ -37,7 +37,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
       if (error) return [];
       return data || [];
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Get last sync time
@@ -54,7 +54,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
       if (error || !data?.[0]) return null;
       return data[0];
     },
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const hasErrors = (syncErrors?.length || 0) > 0;

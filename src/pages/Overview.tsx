@@ -43,7 +43,7 @@ const Overview = () => {
       if (error) throw error;
       return data as DailySummary | null;
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
   });
 
   // Fetch critical clients (RED zone)
@@ -62,7 +62,7 @@ const Overview = () => {
       if (error) throw error;
       return (data as ClientHealthScore[]) || [];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
   });
 
   // Fetch coach performance
@@ -79,7 +79,7 @@ const Overview = () => {
       if (error) throw error;
       return (data as CoachPerformance[]) || [];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
   });
 
   // Fetch interventions
@@ -95,7 +95,7 @@ const Overview = () => {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
   });
 
   // Fetch weekly patterns
@@ -111,7 +111,7 @@ const Overview = () => {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
   });
 
   const handleRefresh = () => {

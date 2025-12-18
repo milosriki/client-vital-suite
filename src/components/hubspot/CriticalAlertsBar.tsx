@@ -28,7 +28,7 @@ export function CriticalAlertsBar() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Fetch latest contacts to check for unassigned
@@ -41,7 +41,7 @@ export function CriticalAlertsBar() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Fetch conversations
@@ -54,7 +54,7 @@ export function CriticalAlertsBar() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Calculate alerts

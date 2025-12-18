@@ -38,7 +38,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
       // TODO: Aggregate counts properly
       return stats;
     },
-    refetchInterval: 10000, // Refresh every 10 seconds
+    staleTime: Infinity, // Real-time updates via subscriptions
   });
 
   // Fetch batch jobs
@@ -55,7 +55,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
       if (error) throw error;
       return data as any[];
     },
-    refetchInterval: 10000,
+    staleTime: Infinity, // Real-time updates via subscriptions
   });
 
   // Fetch batch config

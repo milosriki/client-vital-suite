@@ -70,7 +70,7 @@ export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdown
         recentErrors: errors?.length || 0,
       };
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const allGood = status?.supabase && status?.hubspot && status?.stripe && (status?.recentErrors || 0) === 0;

@@ -58,7 +58,7 @@ export function TodaySnapshot() {
         deals: dealsResult.count || 0,
       };
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const snapshotStats: SnapshotStat[] = [
