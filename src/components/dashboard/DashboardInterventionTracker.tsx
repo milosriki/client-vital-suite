@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 import { CheckCircle, Clock, AlertTriangle, Target, ListTodo } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { QUERY_KEYS } from '@/config/queryKeys';
@@ -18,8 +18,9 @@ export function DashboardInterventionTracker() {
   const [notes, setNotes] = useState('');
 
   // Self-fetching interventions
-  const { data: interventions = [], isLoading } = useQuery({
+  const { data: interventions = [], isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.interventions.dashboard,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('intervention_log')

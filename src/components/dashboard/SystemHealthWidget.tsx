@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import {
   Activity,
   CheckCircle,
@@ -24,8 +24,9 @@ interface SystemStatus {
 }
 
 export function SystemHealthWidget() {
-  const { data: syncLogs } = useQuery({
+  const { data: syncLogs } = useDedupedQuery({
     queryKey: QUERY_KEYS.sync.logs,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sync_logs")

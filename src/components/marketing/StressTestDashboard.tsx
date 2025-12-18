@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingUp, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 
 interface StressTestResult {
   question: string;
@@ -28,8 +28,9 @@ interface StressTestResponse {
 }
 
 export function StressTestDashboard() {
-  const { data, isLoading, refetch } = useQuery<StressTestResponse>({
+  const { data, isLoading, refetch } = useDedupedQuery<StressTestResponse>({
     queryKey: ['marketing-stress-test'],
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('marketing-stress-test');
       if (error) throw error;

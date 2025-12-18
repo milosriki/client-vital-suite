@@ -1,14 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { QUERY_KEYS } from '@/config/queryKeys';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 
 export function HubSpotSyncStatus() {
-    const { data: lastSync, refetch, isLoading } = useQuery({
+    const { data: lastSync, refetch, isLoading } = useDedupedQuery({
         queryKey: QUERY_KEYS.hubspot.sync.last,
+        dedupeIntervalMs: 1000,
         queryFn: async () => {
             const { data } = await supabase
                 .from('sync_errors')

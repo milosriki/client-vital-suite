@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Clock, XCircle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { subMinutes, subHours } from "date-fns";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface Alert {
   id: string;
@@ -18,8 +18,9 @@ export function AlertsBar() {
   const navigate = useNavigate();
   const now = new Date();
 
-  const { data: alerts } = useQuery({
+  const { data: alerts } = useDedupedQuery({
     queryKey: QUERY_KEYS.dashboard.alerts,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const alertsList: Alert[] = [];
 

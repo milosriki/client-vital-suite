@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle, AlertTriangle, RefreshCw, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface GreetingBarProps {
   onDateChange?: (date: Date) => void;
@@ -24,8 +24,9 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   // Check for sync errors
-  const { data: syncErrors } = useQuery({
+  const { data: syncErrors } = useDedupedQuery({
     queryKey: QUERY_KEYS.sync.errors.check,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('sync_errors')
@@ -40,8 +41,9 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
   });
 
   // Get last sync time
-  const { data: lastSync } = useQuery({
+  const { data: lastSync } = useDedupedQuery({
     queryKey: QUERY_KEYS.sync.lastTime,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('sync_logs')

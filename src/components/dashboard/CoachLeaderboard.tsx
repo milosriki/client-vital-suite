@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { useNavigate } from "react-router-dom";
 import { Medal, Trophy, Award, Crown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,8 +14,9 @@ interface CoachPerformance {
 export function CoachLeaderboard() {
   const navigate = useNavigate();
 
-  const { data: coaches, isLoading } = useQuery({
+  const { data: coaches, isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.coaches.leaderboard,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('coach_performance')

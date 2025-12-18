@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { QUERY_INTERVALS } from '@/config/queryConfig';
 import { QUERY_KEYS } from '@/config/queryKeys';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 
 /**
  * Batch dashboard queries hook
@@ -26,8 +26,9 @@ interface DashboardFilters {
 }
 
 export function useDashboardData(filters: DashboardFilters = {}) {
-  return useQuery({
+  return useDedupedQuery({
     queryKey: QUERY_KEYS.dashboard.batch(filters),
+    dedupeIntervalMs: 1000, // Prevent duplicate calls within 1 second
     queryFn: async () => {
       // Execute all queries in parallel
       const [

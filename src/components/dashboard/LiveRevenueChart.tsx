@@ -1,15 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QUERY_KEYS } from "@/config/queryKeys";
 import { useMemo } from "react";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
 
 export function LiveRevenueChart() {
-  const { data: deals, isLoading } = useQuery({
+  const { data: deals, isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.revenue.chart,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
       

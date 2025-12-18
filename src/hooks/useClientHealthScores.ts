@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientHealthScore } from '@/types/database';
 import { QUERY_KEYS } from '@/config/queryKeys';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 
 interface UseClientHealthScoresOptions {
   healthZone?: string;
@@ -13,8 +13,9 @@ interface UseClientHealthScoresOptions {
 export function useClientHealthScores(options: UseClientHealthScoresOptions = {}) {
   const { healthZone, segment, coach, autoRefresh = true } = options;
 
-  return useQuery<ClientHealthScore[]>({
+  return useDedupedQuery<ClientHealthScore[]>({
     queryKey: QUERY_KEYS.clients.healthScores({ healthZone, segment, coach }),
+    dedupeIntervalMs: 1000, // Prevent duplicate calls within 1 second
     queryFn: async () => {
       // Get the most recent calculated_on date
       const { data: latestDate } = await supabase
