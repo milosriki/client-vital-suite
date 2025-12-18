@@ -8,6 +8,7 @@
  * - Race conditions when multiple sync buttons clicked
  * - Data inconsistency from concurrent operations
  * - Duplicate API calls
+ * - Rate limiting to prevent API abuse
  */
 
 interface LockState {
@@ -16,11 +17,27 @@ interface LockState {
   lockId: string;
 }
 
+interface RateLimitState {
+  lastExecuted: number;
+  executionCount: number;
+  windowStart: number;
+}
+
 // Lock timeout - auto-release after 2 minutes to prevent deadlocks
 const LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 
+// Rate limit: minimum time between same operations (10 seconds)
+const RATE_LIMIT_MIN_INTERVAL_MS = 10 * 1000;
+
+// Rate limit: max operations per window (5 per minute)
+const RATE_LIMIT_MAX_OPS = 5;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
 // Global lock state (persists across component renders)
 const locks: Map<string, LockState> = new Map();
+
+// Rate limit state
+const rateLimits: Map<string, RateLimitState> = new Map();
 
 // Subscribers for lock state changes
 const subscribers: Map<string, Set<(isLocked: boolean) => void>> = new Map();
@@ -37,6 +54,67 @@ function generateLockId(): string {
  */
 function isLockExpired(lock: LockState): boolean {
   return Date.now() - lock.lockedAt > LOCK_TIMEOUT_MS;
+}
+
+/**
+ * Check if rate limited
+ * Returns { limited: boolean, waitTime: number (ms) }
+ */
+export function checkRateLimit(operation: string): { limited: boolean; waitTime: number; reason?: string } {
+  const now = Date.now();
+  const state = rateLimits.get(operation);
+  
+  if (!state) {
+    return { limited: false, waitTime: 0 };
+  }
+  
+  // Check minimum interval
+  const timeSinceLastExec = now - state.lastExecuted;
+  if (timeSinceLastExec < RATE_LIMIT_MIN_INTERVAL_MS) {
+    const waitTime = RATE_LIMIT_MIN_INTERVAL_MS - timeSinceLastExec;
+    return { 
+      limited: true, 
+      waitTime, 
+      reason: `Please wait ${Math.ceil(waitTime / 1000)}s before trying again` 
+    };
+  }
+  
+  // Check max operations per window
+  const windowElapsed = now - state.windowStart;
+  if (windowElapsed < RATE_LIMIT_WINDOW_MS && state.executionCount >= RATE_LIMIT_MAX_OPS) {
+    const waitTime = RATE_LIMIT_WINDOW_MS - windowElapsed;
+    return { 
+      limited: true, 
+      waitTime, 
+      reason: `Rate limit exceeded. Try again in ${Math.ceil(waitTime / 1000)}s` 
+    };
+  }
+  
+  return { limited: false, waitTime: 0 };
+}
+
+/**
+ * Update rate limit state after successful execution
+ */
+function updateRateLimit(operation: string): void {
+  const now = Date.now();
+  const existing = rateLimits.get(operation);
+  
+  if (!existing || (now - existing.windowStart) >= RATE_LIMIT_WINDOW_MS) {
+    // Start new window
+    rateLimits.set(operation, {
+      lastExecuted: now,
+      executionCount: 1,
+      windowStart: now,
+    });
+  } else {
+    // Update existing window
+    rateLimits.set(operation, {
+      ...existing,
+      lastExecuted: now,
+      executionCount: existing.executionCount + 1,
+    });
+  }
 }
 
 /**
@@ -146,15 +224,26 @@ export function subscribeLock(
 }
 
 /**
- * Execute a function with automatic lock management
+ * Execute a function with automatic lock management and rate limiting
  * @param operation - Operation name
  * @param fn - Async function to execute
+ * @param options - Options for lock behavior
  * @returns Result of the function, or null if lock couldn't be acquired
  */
 export async function withLock<T>(
   operation: string,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
+  options?: { skipRateLimit?: boolean }
 ): Promise<T | null> {
+  // Check rate limit first
+  if (!options?.skipRateLimit) {
+    const rateCheck = checkRateLimit(operation);
+    if (rateCheck.limited) {
+      console.log(`[SyncLock] Rate limited "${operation}": ${rateCheck.reason}`);
+      return null;
+    }
+  }
+  
   const lockId = acquireLock(operation);
   
   if (!lockId) {
@@ -164,6 +253,8 @@ export async function withLock<T>(
   
   try {
     const result = await fn();
+    // Update rate limit on successful execution
+    updateRateLimit(operation);
     return result;
   } finally {
     releaseLock(operation, lockId);

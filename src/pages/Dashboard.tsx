@@ -47,7 +47,7 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch clients
+  // Fetch clients with retry logic
   const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useDedupedQuery({
     queryKey: ["client-health-scores-dashboard"],
     queryFn: async () => {
@@ -72,9 +72,11 @@ export default function Dashboard() {
       return data || [];
     },
     refetchInterval: 60000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Fetch daily summary
+  // Fetch daily summary with retry
   const { data: dailySummary } = useDedupedQuery({
     queryKey: ["daily-summary-briefing"],
     queryFn: async () => {
@@ -88,9 +90,10 @@ export default function Dashboard() {
       return data;
     },
     refetchInterval: 300000,
+    retry: 2,
   });
 
-  // Fetch revenue
+  // Fetch revenue with retry
   const { data: revenueData, isLoading: revenueLoading } = useDedupedQuery({
     queryKey: ["monthly-revenue"],
     queryFn: async () => {
@@ -111,9 +114,11 @@ export default function Dashboard() {
       return { total: thisTotal, trend, isPositive: trend >= 0 };
     },
     refetchInterval: 120000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Fetch pipeline
+  // Fetch pipeline with retry
   const { data: pipelineData } = useDedupedQuery({
     queryKey: ["pipeline-value"],
     queryFn: async () => {
@@ -122,26 +127,29 @@ export default function Dashboard() {
       const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
       return { total, count: data?.length || 0 };
     },
+    retry: 2,
   });
 
-  // Fetch today's leads
+  // Fetch today's leads with retry
   const { data: leadsToday } = useDedupedQuery({
     queryKey: ["leads-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { count, error } = await supabase.from("contacts").select("*", { count: "exact", head: true }).gte("created_at", today);
+      const { count } = await supabase.from("contacts").select("*", { count: "exact", head: true }).gte("created_at", today);
       return count || 0;
     },
+    retry: 2,
   });
 
-  // Fetch today's calls
+  // Fetch today's calls with retry
   const { data: callsToday } = useDedupedQuery({
     queryKey: ["calls-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { count, error } = await supabase.from("call_records").select("*", { count: "exact", head: true }).gte("created_at", today);
+      const { count } = await supabase.from("call_records").select("*", { count: "exact", head: true }).gte("created_at", today);
       return count || 0;
     },
+    retry: 2,
   });
 
   // Computed stats

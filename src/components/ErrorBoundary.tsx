@@ -1,13 +1,12 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
-  resetKeys?: unknown[];
 }
 
 interface State {
@@ -19,75 +18,43 @@ interface State {
 /**
  * Error Boundary Component
  * 
- * Catches JavaScript errors in child components and displays a fallback UI
- * instead of crashing the entire page.
- * 
  * FIXES:
- * - Cascading failures - one component error breaks everything
- * - No fallback UI - blank screen on error
- * - No error recovery - user must refresh page
- * - Poor error messages - generic "Something went wrong"
+ * - Prevents entire app crash on component errors
+ * - Provides graceful fallback UI
+ * - Allows recovery without page refresh
+ * - Logs errors for debugging
  */
 export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null
-    };
-  }
+  public state: State = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
+  };
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
+  public static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('[ErrorBoundary] Caught error:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ErrorBoundary] Caught error:', error, errorInfo);
     
     this.setState({ errorInfo });
     
-    // Call custom error handler if provided
+    // Call optional error handler
     this.props.onError?.(error, errorInfo);
   }
 
-  componentDidUpdate(prevProps: Props): void {
-    // Reset error state if resetKeys change
-    if (this.state.hasError && this.props.resetKeys) {
-      const hasChanged = this.props.resetKeys.some(
-        (key, index) => key !== prevProps.resetKeys?.[index]
-      );
-      
-      if (hasChanged) {
-        this.setState({
-          hasError: false,
-          error: null,
-          errorInfo: null
-        });
-      }
-    }
-  }
-
-  handleRetry = (): void => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null
-    });
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
-  handleGoHome = (): void => {
+  private handleGoHome = () => {
     window.location.href = '/';
   };
 
-  handleRefresh = (): void => {
-    window.location.reload();
-  };
-
-  render(): ReactNode {
+  public render() {
     if (this.state.hasError) {
-      // Use custom fallback if provided
+      // Custom fallback provided
       if (this.props.fallback) {
         return this.props.fallback;
       }
@@ -95,62 +62,43 @@ export class ErrorBoundary extends Component<Props, State> {
       // Default error UI
       return (
         <div className="min-h-[400px] flex items-center justify-center p-6">
-          <Card className="w-full max-w-lg border-destructive/50 bg-destructive/5">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <Card className="max-w-md w-full border-destructive/50 bg-destructive/5">
+            <CardHeader className="text-center pb-2">
+              <div className="mx-auto mb-4 w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
               </div>
-              <CardTitle className="text-destructive">Something went wrong</CardTitle>
-              <CardDescription>
-                An error occurred while rendering this section. 
-                You can try again or navigate to another page.
+              <CardTitle className="text-xl">Something went wrong</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                An error occurred while rendering this section
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Error details (only in development) */}
-              {import.meta.env.DEV && this.state.error && (
-                <div className="rounded-md bg-muted p-3 text-sm">
-                  <p className="font-mono text-destructive">
-                    {this.state.error.message}
+              {this.state.error && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs font-mono text-muted-foreground break-all">
+                    {this.state.error.message || 'Unknown error'}
                   </p>
-                  {this.state.errorInfo?.componentStack && (
-                    <pre className="mt-2 max-h-32 overflow-auto text-xs text-muted-foreground">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  )}
                 </div>
               )}
               
-              {/* Action buttons */}
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-3 justify-center">
                 <Button 
+                  variant="outline" 
                   onClick={this.handleRetry}
-                  variant="default"
-                  className="flex-1"
+                  className="gap-2"
                 >
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <RefreshCw className="h-4 w-4" />
                   Try Again
                 </Button>
                 <Button 
+                  variant="default" 
                   onClick={this.handleGoHome}
-                  variant="outline"
-                  className="flex-1"
+                  className="gap-2"
                 >
-                  <Home className="mr-2 h-4 w-4" />
-                  Go to Dashboard
+                  <Home className="h-4 w-4" />
+                  Go Home
                 </Button>
               </div>
-              
-              {/* Refresh option */}
-              <p className="text-center text-sm text-muted-foreground">
-                If the problem persists,{' '}
-                <button 
-                  onClick={this.handleRefresh}
-                  className="text-primary underline hover:no-underline"
-                >
-                  refresh the page
-                </button>
-              </p>
             </CardContent>
           </Card>
         </div>
@@ -162,20 +110,55 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 /**
- * HOC to wrap a component with ErrorBoundary
+ * Lightweight error boundary for individual components
+ * Shows a minimal error state inline
  */
-export function withErrorBoundary<P extends object>(
-  WrappedComponent: React.ComponentType<P>,
-  fallback?: ReactNode
-): React.FC<P> {
-  return function WithErrorBoundaryWrapper(props: P) {
-    return (
-      <ErrorBoundary fallback={fallback}>
-        <WrappedComponent {...props} />
-      </ErrorBoundary>
-    );
+export class ComponentErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
   };
+
+  public static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ComponentErrorBoundary] Caught error:', error);
+    this.props.onError?.(error, errorInfo);
+  }
+
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
+
+  public render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        <div className="p-4 border border-destructive/30 rounded-lg bg-destructive/5 text-center">
+          <p className="text-sm text-muted-foreground mb-2">
+            Failed to load this component
+          </p>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={this.handleRetry}
+            className="gap-1.5 text-xs"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Retry
+          </Button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 export default ErrorBoundary;
-
