@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
+import type { Deal } from "@/types/database";
 
 export function LiveRevenueChart() {
   const { data: deals, isLoading } = useDedupedQuery({
@@ -36,7 +37,7 @@ export function LiveRevenueChart() {
 
     // Group deals by date
     const dealsByDate: Record<string, number> = {};
-    deals?.forEach((deal: any) => {
+    (deals as Deal[] | undefined)?.forEach((deal) => {
       const date = deal.close_date;
       if (date) {
         dealsByDate[date] = (dealsByDate[date] || 0) + (deal.deal_value || 0);

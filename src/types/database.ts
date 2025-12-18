@@ -1,4 +1,71 @@
 // Temporary type definitions until Supabase types are regenerated
+
+// Deal type for revenue tracking
+export interface Deal {
+  id: string;
+  deal_name: string | null;
+  deal_value: number | null;
+  stage: string | null;
+  status: 'open' | 'closed' | 'lost' | null;
+  close_date: string | null;
+  hubspot_deal_id: string | null;
+  contact_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Sync error type for error monitoring
+export interface SyncError {
+  id: string;
+  source: string;
+  error_type: string;
+  error_message: string;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+// Sync log type for sync status tracking
+export interface SyncLog {
+  id: string;
+  platform: string;
+  sync_type: string;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  started_at: string;
+  completed_at: string | null;
+  records_processed: number | null;
+  records_failed: number | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+// Contact activity type for live feeds
+export interface ContactActivity {
+  id: string;
+  activity_type: string;
+  activity_title: string | null;
+  activity_description: string | null;
+  occurred_at: string;
+  hubspot_contact_id: string | null;
+}
+
+// Intervention log type for intervention tracking
+export interface InterventionLog {
+  id: number;
+  client_email: string | null;
+  firstname: string | null;
+  lastname: string | null;
+  intervention_type: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  ai_recommendation: string | null;
+  triggered_at: string | null;
+  actioned_at: string | null;
+  assigned_to: string | null;
+  outcome: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ClientHealthScore {
   id: string;
   client_id: string;

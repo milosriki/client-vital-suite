@@ -11,10 +11,11 @@ import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 import { CheckCircle, Clock, AlertTriangle, Target, ListTodo } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { QUERY_KEYS } from '@/config/queryKeys';
+import type { InterventionLog } from '@/types/database';
 
 export function DashboardInterventionTracker() {
   const queryClient = useQueryClient();
-  const [selectedIntervention, setSelectedIntervention] = useState<any>(null);
+  const [selectedIntervention, setSelectedIntervention] = useState<InterventionLog | null>(null);
   const [notes, setNotes] = useState('');
 
   // Self-fetching interventions
