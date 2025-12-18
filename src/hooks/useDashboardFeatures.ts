@@ -27,7 +27,7 @@ export function useAPIUsage() {
         stripe: { used: stripeCalls, limit: 1000 },
       };
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 }
 
@@ -108,7 +108,7 @@ export function useWorkflowStatus() {
 
       return Array.from(workflowMap.values());
     },
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 }
 
@@ -127,7 +127,7 @@ export function useTickerFeed() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 15000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 }
 

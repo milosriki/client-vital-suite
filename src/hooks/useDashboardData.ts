@@ -102,7 +102,6 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         clients: clientsResult.data || [],
       };
     },
-    refetchInterval: QUERY_INTERVALS.STANDARD,
-    staleTime: 60000, // Consider data fresh for 1 minute
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 }
