@@ -29,33 +29,56 @@ const Overview = () => {
   // Enable real-time updates
   useRealtimeHealthScores();
 
-  // Fetch daily summary
+  // Fetch daily summary - try today first, fallback to latest available
   const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useDedupedQuery<DailySummary | null>({
     queryKey: ['daily-summary'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await (supabase as any)
+
+      // Try today first
+      const { data: todayData, error: todayError } = await (supabase as any)
         .from('daily_summary')
         .select('*')
         .eq('summary_date', today)
         .maybeSingle();
-      
-      if (error) throw error;
-      return data as DailySummary | null;
+
+      if (todayData) {
+        return todayData as DailySummary;
+      }
+
+      // Fallback to latest available summary
+      const { data: latestData, error: latestError } = await (supabase as any)
+        .from('daily_summary')
+        .select('*')
+        .order('summary_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestError) throw latestError;
+      return latestData as DailySummary | null;
     },
     refetchInterval: 5 * 60 * 1000,
   });
 
-  // Fetch critical clients (RED zone)
+  // Fetch critical clients (RED zone) - use latest available date
   const { data: criticalClients, refetch: refetchCritical } = useDedupedQuery<ClientHealthScore[]>({
     queryKey: ['critical-clients'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      // Get latest calculated_on date first
+      const { data: latestDateRows } = await (supabase as any)
+        .from('client_health_scores')
+        .select('calculated_on')
+        .order('calculated_on', { ascending: false })
+        .limit(1);
+
+      const latestDate = latestDateRows?.[0]?.calculated_on;
+      if (!latestDate) return [];
+
       const { data, error } = await (supabase as any)
         .from('client_health_scores')
         .select('*')
         .eq('health_zone', 'RED')
-        .eq('calculated_on', today)
+        .eq('calculated_on', latestDate)
         .order('health_score', { ascending: true })
         .limit(10);
 
@@ -65,16 +88,28 @@ const Overview = () => {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  // Fetch coach performance
+  // Fetch coach performance - use latest available date
   const { data: coaches, refetch: refetchCoaches } = useDedupedQuery<CoachPerformance[]>({
     queryKey: ['coach-performance'],
     queryFn: async () => {
+      // Try today first
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await (supabase as any)
+      const { data: todayData } = await (supabase as any)
         .from('coach_performance')
         .select('*')
         .eq('report_date', today)
         .order('avg_client_health', { ascending: false });
+
+      if (todayData && todayData.length > 0) {
+        return todayData as CoachPerformance[];
+      }
+
+      // Fallback to latest available
+      const { data, error } = await (supabase as any)
+        .from('coach_performance')
+        .select('*')
+        .order('report_date', { ascending: false })
+        .limit(20);
 
       if (error) throw error;
       return (data as CoachPerformance[]) || [];

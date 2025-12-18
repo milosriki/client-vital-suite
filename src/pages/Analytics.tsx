@@ -23,16 +23,30 @@ const Analytics = () => {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  // Fetch current client distribution
+  // Fetch current client distribution - use latest available date, not just today
   const { data: clients, isLoading: clientsLoading } = useDedupedQuery({
     queryKey: ['clients-analytics'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      // First get the latest calculated_on date
+      const { data: latestDateRows } = await supabase
+        .from('client_health_scores')
+        .select('calculated_on')
+        .order('calculated_on', { ascending: false })
+        .limit(1);
+
+      const latestDate = latestDateRows?.[0]?.calculated_on;
+
+      // If no data exists at all, return empty
+      if (!latestDate) {
+        return [];
+      }
+
+      // Fetch clients for the latest date
       const { data, error } = await supabase
         .from('client_health_scores')
         .select('*')
-        .eq('calculated_on', today);
-      
+        .eq('calculated_on', latestDate);
+
       if (error) throw error;
       return data || [];
     },
@@ -147,7 +161,7 @@ const Analytics = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Current Zone Distribution</CardTitle>
-                  <CardDescription>Today's client distribution by health zone</CardDescription>
+                  <CardDescription>Latest client distribution by health zone</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import {
   QueryFunction,
   QueryKey,
@@ -42,6 +42,9 @@ const DEFAULT_RETRY_CONFIG = {
  * - Improved error handling
  * - Deduplication within configurable time window
  */
+// Global in-flight promise tracker (shared across hook instances)
+const globalInFlight = new Map<string, Promise<unknown>>();
+
 export function useDedupedQuery<
   TQueryFnData = unknown,
   TError = unknown,
@@ -69,6 +72,13 @@ export function useDedupedQuery<
       now - lastCallRef.current.timestamp < dedupeInterval;
 
     if (isDuplicate) {
+      // First check if there's an in-flight request we can wait for
+      const inFlight = globalInFlight.get(keyString);
+      if (inFlight) {
+        return inFlight as Promise<TQueryFnData>;
+      }
+
+      // Then check cache
       const cached = queryClient.getQueryData<TQueryFnData>(ctx.queryKey);
       if (cached !== undefined) {
         return cached;
@@ -76,14 +86,25 @@ export function useDedupedQuery<
     }
 
     lastCallRef.current = { key: keyString, timestamp: now };
-    
-    try {
-      return await options.queryFn!(ctx);
-    } catch (error) {
-      // Log error for debugging (but don't swallow it)
-      console.error(`[Query Error] ${keyString}:`, error);
-      throw error;
-    }
+
+    // Create the promise and track it globally
+    const fetchPromise = (async () => {
+      try {
+        return await options.queryFn!(ctx);
+      } catch (error) {
+        // Log error for debugging (but don't swallow it)
+        console.error(`[Query Error] ${keyString}:`, error);
+        throw error;
+      } finally {
+        // Clean up in-flight tracking after completion
+        globalInFlight.delete(keyString);
+      }
+    })();
+
+    // Store the in-flight promise globally
+    globalInFlight.set(keyString, fetchPromise);
+
+    return fetchPromise;
   };
 
   return useQuery<TQueryFnData, TError, TData, TQueryKey>({
