@@ -12,8 +12,8 @@ import {
   AlertTriangle, Users, Zap, Pause, Play, RefreshCw,
   Rocket, ShieldAlert, BarChart3, Radio, Brain
 } from "lucide-react";
-import { 
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Legend, ReferenceLine 
 } from "recharts";
