@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS public.client_health_scores (
   assigned_coach TEXT,
   churn_risk_score NUMERIC(5,2) DEFAULT 0,
   calculated_at TIMESTAMPTZ DEFAULT NOW(),
-  calculated_on DATE GENERATED ALWAYS AS (DATE(calculated_at)) STORED,
   momentum_indicator TEXT DEFAULT 'STABLE',
   predictive_risk_score NUMERIC(5,2) DEFAULT 0,
   risk_category TEXT,
@@ -34,6 +33,60 @@ CREATE TABLE IF NOT EXISTS public.client_health_scores (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(email)
 );
+
+-- Add missing columns if table already exists (for existing databases)
+DO $$
+BEGIN
+  -- Add calculated_at if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'calculated_at') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN calculated_at TIMESTAMPTZ DEFAULT NOW();
+  END IF;
+  
+  -- Add health_zone if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'health_zone') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN health_zone TEXT DEFAULT 'YELLOW';
+  END IF;
+  
+  -- Add churn_risk_score if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'churn_risk_score') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN churn_risk_score NUMERIC(5,2) DEFAULT 0;
+  END IF;
+  
+  -- Add days_since_last_session if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'days_since_last_session') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN days_since_last_session INTEGER DEFAULT 0;
+  END IF;
+  
+  -- Add momentum_indicator if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'momentum_indicator') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN momentum_indicator TEXT DEFAULT 'STABLE';
+  END IF;
+  
+  -- Add predictive_risk_score if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'predictive_risk_score') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN predictive_risk_score NUMERIC(5,2) DEFAULT 0;
+  END IF;
+  
+  -- Add risk_category if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'risk_category') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN risk_category TEXT;
+  END IF;
+  
+  -- Add rate_of_change_percent if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'rate_of_change_percent') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN rate_of_change_percent NUMERIC(5,2) DEFAULT 0;
+  END IF;
+  
+  -- Add early_warning_flag if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'early_warning_flag') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN early_warning_flag BOOLEAN DEFAULT FALSE;
+  END IF;
+  
+  -- Add risk_factors if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'client_health_scores' AND column_name = 'risk_factors') THEN
+    ALTER TABLE public.client_health_scores ADD COLUMN risk_factors JSONB DEFAULT '[]';
+  END IF;
+END $$;
 
 -- Enable RLS on client_health_scores table
 ALTER TABLE public.client_health_scores ENABLE ROW LEVEL SECURITY;
