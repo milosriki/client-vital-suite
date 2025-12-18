@@ -237,3 +237,40 @@ verify_jwt = false
 # PTD Self-Developer Agent (AI Code Generation)
 [functions.ptd-self-developer]
 verify_jwt = false
+
+# ============================================
+# DEPLOYMENT FIX (Dec 18, 2025)
+# Functions that existed but weren't declared
+# ============================================
+
+# Cleanup Fake/Test Contacts
+[functions.cleanup-fake-contacts]
+verify_jwt = false
+
+# HubSpot Data Analyzer
+[functions.hubspot-analyzer]
+verify_jwt = false
+
+# HubSpot Live Query (Real-time Dashboard)
+[functions.hubspot-live-query]
+verify_jwt = false
+
+# HubSpot Webhook Handler
+[functions.hubspot-webhook]
+verify_jwt = false
+
+# Smart Coach Analytics
+[functions.smart-coach-analytics]
+verify_jwt = false
+
+# Stripe Transaction History
+[functions.stripe-history]
+verify_jwt = false
+
+# Stripe Payout Controls
+[functions.stripe-payout-controls]
+verify_jwt = false
+
+# Super Agent Orchestrator (Multi-Agent Coordination)
+[functions.super-agent-orchestrator]
+verify_jwt = false
