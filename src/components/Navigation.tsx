@@ -7,11 +7,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { SystemStatusDropdown } from "@/components/dashboard/SystemStatusDropdown";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useSyncLock, SYNC_OPERATIONS } from "@/hooks/useSyncLock";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 export const Navigation = () => {
   const location = useLocation();
@@ -21,6 +24,26 @@ export const Navigation = () => {
   
   // Use sync lock to prevent concurrent syncs
   const hubspotSync = useSyncLock(SYNC_OPERATIONS.HUBSPOT_SYNC);
+  
+  // Check for recent circuit breaker trips (last 24 hours)
+  const { data: circuitBreakerTripped } = useDedupedQuery({
+    queryKey: QUERY_KEYS.sync.errors.all,
+    dedupeIntervalMs: 1000,
+    queryFn: async () => {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('sync_errors')
+        .select('id, error_type, created_at')
+        .eq('error_type', 'circuit_breaker_trip')
+        .gte('created_at', twentyFourHoursAgo)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) return false;
+      return data && data.length > 0;
+    },
+    staleTime: Infinity, // Real-time updates via useVitalState
+  });
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -149,22 +172,38 @@ export const Navigation = () => {
               <SystemStatusDropdown isSyncing={isSyncing} onSync={handleSync} />
             </div>
 
-            {/* Sync Button */}
+            {/* Sync Button with Circuit Breaker Warning */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant={circuitBreakerTripped ? "destructive" : "outline"}
                     size="sm"
                     onClick={handleSync}
                     disabled={isSyncing}
-                    className="hidden sm:flex gap-2 text-xs"
+                    className={cn(
+                      "hidden sm:flex gap-2 text-xs relative",
+                      circuitBreakerTripped && "border-destructive"
+                    )}
                   >
-                    <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
-                    {isSyncing ? "Syncing..." : "Sync"}
+                    {circuitBreakerTripped ? (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    ) : (
+                      <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+                    )}
+                    {isSyncing ? "Syncing..." : circuitBreakerTripped ? "Paused" : "Sync"}
+                    {circuitBreakerTripped && (
+                      <Badge variant="destructive" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                        !
+                      </Badge>
+                    )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Click to sync all data</TooltipContent>
+                <TooltipContent>
+                  {circuitBreakerTripped 
+                    ? "Circuit breaker tripped - sync paused due to repeated failures" 
+                    : "Click to sync all data"}
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -206,9 +245,25 @@ export const Navigation = () => {
                   
                   {/* Quick Actions */}
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mt-6 mb-2">Quick Actions</p>
-                  <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="justify-start">
-                    <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} />
-                    {isSyncing ? "Syncing..." : "Sync HubSpot"}
+                  {circuitBreakerTripped && (
+                    <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md text-xs text-destructive mb-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Circuit breaker tripped - sync paused</span>
+                    </div>
+                  )}
+                  <Button 
+                    variant={circuitBreakerTripped ? "destructive" : "outline"} 
+                    size="sm" 
+                    onClick={handleSync} 
+                    disabled={isSyncing} 
+                    className="justify-start"
+                  >
+                    {circuitBreakerTripped ? (
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                    ) : (
+                      <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} />
+                    )}
+                    {isSyncing ? "Syncing..." : circuitBreakerTripped ? "Sync Paused" : "Sync HubSpot"}
                   </Button>
                   <Button variant="outline" size="sm" asChild className="justify-start">
                     <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">

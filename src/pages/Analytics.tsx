@@ -20,7 +20,7 @@ const Analytics = () => {
       if (error) throw error;
       return (data || []) as any[];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Fetch current client distribution

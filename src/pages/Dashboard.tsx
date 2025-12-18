@@ -71,7 +71,7 @@ export default function Dashboard() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
@@ -89,7 +89,7 @@ export default function Dashboard() {
       if (error) return null;
       return data;
     },
-    refetchInterval: 300000,
+    staleTime: Infinity, // Real-time updates via useVitalState
     retry: 2,
   });
 
@@ -113,7 +113,7 @@ export default function Dashboard() {
       const trend = lastTotal > 0 ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0;
       return { total: thisTotal, trend, isPositive: trend >= 0 };
     },
-    refetchInterval: 120000,
+    staleTime: Infinity, // Real-time updates via useVitalState
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

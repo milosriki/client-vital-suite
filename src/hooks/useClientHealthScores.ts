@@ -49,8 +49,7 @@ export function useClientHealthScores(options: UseClientHealthScoresOptions = {}
       if (error) throw error;
       return (data as unknown as ClientHealthScore[]) || [];
     },
-    staleTime: 60000, // 1 minute
-    refetchInterval: autoRefresh ? 300000 : false, // 5 minutes
+    staleTime: Infinity, // Real-time updates via useVitalState
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 3,
