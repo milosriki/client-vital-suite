@@ -142,7 +142,7 @@ export function AIAssistantPanel() {
         return [];
       }
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time updates via useVitalState
     retry: false
   });
 
