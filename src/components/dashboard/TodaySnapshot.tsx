@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Phone, Calendar, UserPlus, DollarSign, ChevronRight, Activity } from "lucide-react";
@@ -6,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { startOfDay, endOfDay } from "date-fns";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface SnapshotStat {
   label: string;
@@ -23,8 +23,9 @@ export function TodaySnapshot() {
   const startOfToday = startOfDay(today).toISOString();
   const endOfToday = endOfDay(today).toISOString();
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.summaries.todaySnapshot,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const [callsResult, appointmentsResult, leadsResult, dealsResult] = await Promise.all([
         supabase

@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, Skull, Clock, RotateCcw } from "lucide-react";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface LeakMetrics {
   stuck_in_loop_count: number;
@@ -12,8 +12,9 @@ interface LeakMetrics {
 }
 
 export function LeakDetector() {
-  const { data: leaks } = useQuery<LeakMetrics>({
+  const { data: leaks } = useDedupedQuery<LeakMetrics>({
     queryKey: QUERY_KEYS.leaks.detector,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const now = new Date();
       const hours3Ago = new Date(now.getTime() - 3 * 60 * 60 * 1000);

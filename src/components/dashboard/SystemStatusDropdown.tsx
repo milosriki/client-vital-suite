@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Popover,
@@ -12,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface SystemStatusDropdownProps {
   isSyncing: boolean;
@@ -22,8 +22,9 @@ export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdown
   const [isOpen, setIsOpen] = useState(false);
 
   // Check connection statuses
-  const { data: status, refetch: refetchStatus } = useQuery({
+  const { data: status, refetch: refetchStatus } = useDedupedQuery({
     queryKey: QUERY_KEYS.system.status,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const supabaseConnected = true; // We're using it right now
       

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +9,7 @@ import { TrendingUp, TrendingDown, Lightbulb, BarChart3 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 interface MetricDrilldownModalProps {
   open: boolean;
@@ -59,8 +59,9 @@ export const MetricDrilldownModal = ({ open, onClose, metric }: MetricDrilldownM
 };
 
 const ContributorsTab = ({ type }: { type: string }) => {
-  const { data: contributors, isLoading } = useQuery({
+  const { data: contributors, isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.metrics.contributors(type),
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       if (type === "revenue") {
         const { data } = await supabase
@@ -168,8 +169,9 @@ const ContributorsTab = ({ type }: { type: string }) => {
 };
 
 const TrendTab = ({ type }: { type: string }) => {
-  const { data: trendData, isLoading } = useQuery({
+  const { data: trendData, isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.metrics.trend(type),
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       // Generate last 30 days of data
       const days = Array.from({ length: 30 }, (_, i) => {

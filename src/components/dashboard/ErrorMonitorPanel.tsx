@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +5,7 @@ import { AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { QUERY_KEYS } from '@/config/queryKeys';
+import { useDedupedQuery } from '@/hooks/useDedupedQuery';
 
 export function ErrorMonitorPanel() {
     const [realtimeErrors, setRealtimeErrors] = useState<any[]>([]);
@@ -32,8 +32,9 @@ export function ErrorMonitorPanel() {
         };
     }, []);
 
-    const { data: errors, refetch } = useQuery({
+    const { data: errors, refetch } = useDedupedQuery({
         queryKey: QUERY_KEYS.sync.errors.all,
+        dedupeIntervalMs: 1000,
         queryFn: async () => {
             const { data } = await supabase
                 .from('sync_errors')

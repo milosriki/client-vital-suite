@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { formatDistanceToNow } from "date-fns";
 import {
   Phone,
@@ -27,8 +27,9 @@ interface Activity {
 const HUBSPOT_PORTAL_ID = "139617706"; // PTD Fitness HubSpot Portal
 
 export function LiveActivityFeed() {
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading } = useDedupedQuery({
     queryKey: QUERY_KEYS.activity.liveFeed,
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contact_activities')
