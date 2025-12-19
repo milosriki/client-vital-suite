@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 interface KPIData {
   revenue: { value: number; trend?: number };
+  revenueToday?: number;
   clients: { total: number; atRisk: number };
   pipeline: { value: number; count: number };
   leads: number;
@@ -43,6 +44,15 @@ export function KPIGrid({ data, isLoading = false, onMetricClick }: KPIGridProps
     <div className="space-y-6">
       {/* Primary Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Revenue Today"
+          value={formatCurrency(data.revenueToday || 0)}
+          icon={DollarSign}
+          variant="default"
+          trend={{ value: 0, isPositive: true, label: "Daily" }}
+          isLoading={isLoading}
+          onClick={() => onMetricClick?.("revenue")}
+        />
         <MetricCard
           label="Revenue MTD"
           value={formatCurrency(data.revenue.value)}

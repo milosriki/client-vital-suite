@@ -118,6 +118,24 @@ export default function Dashboard() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
+  // Fetch today's revenue
+  const { data: revenueToday } = useDedupedQuery({
+    queryKey: ["revenue-today"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data, error } = await (supabase as any)
+        .from("deals")
+        .select("deal_value")
+        .eq("status", "closed")
+        .gte("close_date", today);
+      
+      if (error) return 0;
+      return data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
+    },
+    staleTime: Infinity, // Real-time updates via useVitalState
+    retry: 2,
+  });
+
   // Fetch pipeline with retry
   const { data: pipelineData } = useDedupedQuery({
     queryKey: ["pipeline-value"],
@@ -162,6 +180,7 @@ export default function Dashboard() {
   // KPI Data
   const kpiData = {
     revenue: { value: revenueData?.total || 0, trend: revenueData?.trend },
+    revenueToday: revenueToday || 0,
     clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
     pipeline: { value: pipelineData?.total || 0, count: pipelineData?.count || 0 },
     leads: leadsToday || 0,
