@@ -1,7 +1,7 @@
 project_id = "ztjndilxurtsfqdsvfds"
 
 [functions.ptd-agent-gemini]
-verify_jwt = false
+verify_jwt = true
 
 # ============================================
 # SUPABASE-NATIVE EDGE FUNCTIONS (AI Agents)
@@ -10,86 +10,86 @@ verify_jwt = false
 
 # Health & Intelligence Agents
 [functions.health-calculator]
-verify_jwt = false
+verify_jwt = true
 
 [functions.churn-predictor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.anomaly-detector]
-verify_jwt = false
+verify_jwt = true
 
 [functions.intervention-recommender]
-verify_jwt = false
+verify_jwt = true
 
 [functions.coach-analyzer]
-verify_jwt = false
+verify_jwt = true
 
 # Operations Agents
 [functions.daily-report]
-verify_jwt = false
+verify_jwt = true
 
 [functions.data-quality]
-verify_jwt = false
+verify_jwt = true
 
 [functions.integration-health]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pipeline-monitor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ptd-watcher]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ptd-agent]
-verify_jwt = false
+verify_jwt = true
 
 # External API Integrations
 [functions.fetch-hubspot-live]
-verify_jwt = false
+verify_jwt = true
 
 # Facebook Insights Fetcher
 [functions.fetch-facebook-insights]
-verify_jwt = false
+verify_jwt = true
 
 [functions.hubspot-command-center]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-to-stape-capi]
-verify_jwt = false
+verify_jwt = true
 
 [functions.sync-hubspot-to-capi]
-verify_jwt = false
+verify_jwt = true
 
 [functions.capi-validator]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-capi-batch]
-verify_jwt = false
+verify_jwt = true
 
 # Stripe Integrations
 [functions.stripe-dashboard-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stripe-forensics]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stripe-payouts-ai]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enrich-with-stripe]
-verify_jwt = false
+verify_jwt = true
 
 # Proactive AI Insights
 [functions.proactive-insights-generator]
-verify_jwt = false
+verify_jwt = true
 
 # HubSpot to Supabase sync
 [functions.sync-hubspot-to-supabase]
-verify_jwt = false
+verify_jwt = true
 
 # Business Intelligence Agent
 [functions.business-intelligence]
-verify_jwt = false
+verify_jwt = true
 
 # AnyTrack Webhook (direct from AnyTrack)
 [functions.anytrack-webhook]
@@ -105,39 +105,39 @@ verify_jwt = false
 
 # AI Lead Reply
 [functions.generate-lead-reply]
-verify_jwt = false
+verify_jwt = true
 
 # LangGraph-style Agent Orchestrator
 [functions.agent-orchestrator]
-verify_jwt = false
+verify_jwt = true
 
 # Smart Agent with Tools (LangChain-style)
 [functions.smart-agent]
-verify_jwt = false
+verify_jwt = true
 
 # Claude-powered Agent with Anthropic SDK
 [functions.ptd-agent-claude]
-verify_jwt = false
+verify_jwt = true
 
 # RAG Knowledge Processor
 [functions.process-knowledge]
-verify_jwt = false
+verify_jwt = true
 
 # OpenAI Embeddings for Vector Search
 [functions.openai-embeddings]
-verify_jwt = false
+verify_jwt = true
 
 # Self-Learning Agent (Cron-triggered)
 [functions.ptd-self-learn]
-verify_jwt = false
+verify_jwt = true
 
 # Generate Embeddings for Knowledge Base
 [functions.generate-embeddings]
-verify_jwt = false
+verify_jwt = true
 
 # CallGear Sentinel - Real-time Impersonation Detection
 [functions.callgear-sentinel]
-verify_jwt = false
+verify_jwt = true
 
 # ============================================
 # UNLIMITED POWER AGENT SYSTEM
@@ -145,11 +145,11 @@ verify_jwt = false
 
 # 24/7 Background Monitoring
 [functions.ptd-24x7-monitor]
-verify_jwt = false
+verify_jwt = true
 
 # Agent Execution Engine (write actions)
 [functions.ptd-execute-action]
-verify_jwt = false
+verify_jwt = true
 
 # ============================================
 # ADDITIONAL EDGE FUNCTIONS (Previously Missing)
@@ -157,47 +157,47 @@ verify_jwt = false
 
 # AI CEO Master Agent
 [functions.ai-ceo-master]
-verify_jwt = false
+verify_jwt = true
 
 # Forensic Data Fetcher
 [functions.fetch-forensic-data]
-verify_jwt = false
+verify_jwt = true
 
 # Batch Lead Reply Generator
 [functions.generate-lead-replies]
-verify_jwt = false
+verify_jwt = true
 
 # AI Deployment Trigger
 [functions.ai-trigger-deploy]
-verify_jwt = false
+verify_jwt = true
 
 # AI Deployment Callback
 [functions.ai-deploy-callback]
-verify_jwt = false
+verify_jwt = true
 
 # Proactive Scanner Agent
 [functions.ptd-proactive-scanner]
-verify_jwt = false
+verify_jwt = true
 
 # CallGear Supervisor (Barge-in/Whisper)
 [functions.callgear-supervisor]
-verify_jwt = false
+verify_jwt = true
 
 # CallGear Live Monitor Dashboard
 [functions.callgear-live-monitor]
-verify_jwt = false
+verify_jwt = true
 
 # CallGear ICP Router
 [functions.callgear-icp-router]
-verify_jwt = false
+verify_jwt = true
 
 # PTD Ultimate Intelligence Agent
 [functions.ptd-ultimate-intelligence]
-verify_jwt = false
+verify_jwt = true
 
 # CallGear Data Fetcher
 [functions.fetch-callgear-data]
-verify_jwt = false
+verify_jwt = true
 
 # Stripe Webhook Handler
 [functions.stripe-webhook]
@@ -205,14 +205,14 @@ verify_jwt = false
 
 # Agent Analyst - Business Intelligence Analyst
 [functions.agent-analyst]
-verify_jwt = false
+verify_jwt = true
 
 # HubSpot Owner Reassignment Functions
 [functions.reassign-owner]
-verify_jwt = false
+verify_jwt = true
 
 [functions.auto-reassign-leads]
-verify_jwt = false
+verify_jwt = true
 
 # ============================================
 # RECENTLY ADDED FUNCTIONS (Dec 14, 2025)
@@ -220,20 +220,27 @@ verify_jwt = false
 
 # Marketing Stress Test - 20 Questions System
 [functions.marketing-stress-test]
-verify_jwt = false
+verify_jwt = true
 
 # Lightweight HubSpot Data Sync
 [functions.sync-hubspot-data]
-verify_jwt = false
+verify_jwt = true
 
 # Ultimate Truth Alignment Checker
 [functions.ultimate-truth-alignment]
-verify_jwt = false
+verify_jwt = true
 
 # API Key Verification Tool
 [functions.verify-all-keys]
-verify_jwt = false
+verify_jwt = true
 
 # PTD Self-Developer Agent (AI Code Generation)
 [functions.ptd-self-developer]
+verify_jwt = true
+
+[functions.super-agent-orchestrator]
+verify_jwt = true
+
+
+[functions.hubspot-webhook]
 verify_jwt = false

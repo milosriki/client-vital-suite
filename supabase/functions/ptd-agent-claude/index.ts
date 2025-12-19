@@ -8,6 +8,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 // ============= PTD KNOWLEDGE BASE =============
 const PTD_SYSTEM_KNOWLEDGE = `
 PTD FITNESS PLATFORM - COMPLETE STRUCTURE (58 Tables + 21 Functions):
@@ -834,7 +841,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
   } catch (error: unknown) {
     console.error(`Tool error (${toolName}):`, error);
     const errMsg = error instanceof Error ? error.message : String(error);
-    return `Error: ${errMsg}`;
+    return JSON.stringify({ error: "Tool execution failed", tool: toolName, details: errMsg });
   }
 }
 
@@ -927,12 +934,22 @@ ${learnedPatterns || 'No patterns learned yet.'}
     // Execute tools in parallel
     const toolResults = await Promise.all(
       toolUseBlocks.map(async (toolUse) => {
-        const result = await executeTool(supabase, toolUse.name, toolUse.input);
-        return {
-          type: "tool_result" as const,
-          tool_use_id: toolUse.id,
-          content: result,
-        };
+        try {
+          const result = await executeTool(supabase, toolUse.name, toolUse.input);
+          return {
+            type: "tool_result" as const,
+            tool_use_id: toolUse.id,
+            content: result,
+          };
+        } catch (toolError) {
+          console.error(`Tool execution failed: ${toolUse.name}`, toolError);
+          const errMsg = toolError instanceof Error ? toolError.message : String(toolError);
+          return {
+            type: "tool_result" as const,
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({ error: "Tool execution failed", tool: toolUse.name, details: errMsg }),
+          };
+        }
       })
     );
 
@@ -957,38 +974,53 @@ serve(async (req) => {
   }
 
   try {
-    const { message, messages: chatHistory, thread_id } = await req.json();
+    const payload = await req.json().catch(() => null);
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY not configured");
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "Invalid request payload" }, 400);
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const { message, messages: chatHistory, thread_id } = payload as Record<string, any>;
 
-    const userMessage = message || (chatHistory?.[chatHistory.length - 1]?.content);
-    const threadId = thread_id || `default_${Date.now()}`;
-    
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    const missingEnv = [
+      !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
+      !SUPABASE_URL && "SUPABASE_URL",
+      !SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY",
+    ].filter(Boolean) as string[];
+
+    if (missingEnv.length > 0) {
+      return jsonResponse({
+        error: "Missing required environment variables",
+        missing: missingEnv,
+      }, 400);
+    }
+
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY! });
+
+    const derivedMessage = typeof message === "string" && message.trim().length > 0
+      ? message
+      : (Array.isArray(chatHistory) ? chatHistory[chatHistory.length - 1]?.content : undefined);
+    const userMessage = typeof derivedMessage === "string" ? derivedMessage : null;
+    const threadId = typeof thread_id === "string" && thread_id.length > 0
+      ? thread_id
+      : `default_${Date.now()}`;
+
     if (!userMessage) {
-      throw new Error("No message provided");
+      return jsonResponse({ error: "A 'message' string is required" }, 400);
     }
 
     console.log(`🧠 Running agent with thread: ${threadId}`);
     const response = await runAgent(supabase, anthropic, userMessage, threadId);
 
-    return new Response(JSON.stringify({ response }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ response });
   } catch (error: unknown) {
     console.error("Agent error:", error);
     const errMsg = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errMsg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: errMsg }, 500);
   }
 });

@@ -31,6 +31,27 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
   const [selectedIntervention, setSelectedIntervention] = useState<any>(null);
   const [notes, setNotes] = useState("");
 
+  const logAiFeedback = async (intervention: any, feedbackNotes?: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const createdBy = userData?.user?.id || intervention?.created_by || null;
+
+      const { error } = await supabase.from("ai_feedback_learning").insert({
+        feedback_type: "INTERVENTION",
+        intervention_id: intervention?.id ?? null,
+        original_recommendation: intervention?.ai_recommendation ?? null,
+        feedback_notes: feedbackNotes ?? intervention?.outcome ?? null,
+        created_by: createdBy,
+      });
+
+      if (error) {
+        console.error("Failed to log AI feedback", error);
+      }
+    } catch (feedbackError) {
+      console.error("AI feedback logging error", feedbackError);
+    }
+  };
+
   const getPriorityConfig = (priority: string | null) => {
     switch (priority) {
       case "CRITICAL":
@@ -82,20 +103,22 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
     };
   };
 
-  const handleMarkExecuted = async (interventionId: number) => {
+  const handleMarkExecuted = async (intervention: any) => {
     const { error } = await supabase
       .from("intervention_log")
       .update({
         status: "COMPLETED",
         actioned_at: new Date().toISOString(),
       })
-      .eq("id", interventionId);
+      .eq("id", intervention.id);
 
     if (error) {
       toast({ title: "Error", description: "Failed to update", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Intervention completed" });
+      await logAiFeedback(intervention);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.dashboard });
     }
   };
 
@@ -116,7 +139,9 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
       toast({ title: "Success", description: "Notes added" });
       setNotes("");
       setSelectedIntervention(null);
+      await logAiFeedback(selectedIntervention, notes);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.interventions.dashboard });
     }
   };
 
@@ -225,7 +250,7 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
                               size="sm"
                               variant="outline"
                               className="gap-1"
-                              onClick={() => handleMarkExecuted(intervention.id)}
+                              onClick={() => handleMarkExecuted(intervention)}
                             >
                               <CheckCircle className="h-4 w-4" />
                               Complete

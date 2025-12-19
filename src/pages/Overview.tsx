@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MetricCard } from "@/components/MetricCard";
 import { ZoneDistributionBar } from "@/components/ZoneDistributionBar";
-import { InterventionTracker } from "@/components/InterventionTracker";
+import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInterventionTracker";
 import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
 import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { QUERY_KEYS } from "@/config/queryKeys";
 
 const Overview = () => {
   const [setupLoading, setSetupLoading] = useState(false);
@@ -31,7 +32,7 @@ const Overview = () => {
 
   // Fetch daily summary - try today first, fallback to latest available
   const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useDedupedQuery<DailySummary | null>({
-    queryKey: ['daily-summary'],
+    queryKey: QUERY_KEYS.summaries.daily,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
 
@@ -62,7 +63,7 @@ const Overview = () => {
 
   // Fetch critical clients (RED zone) - use latest available date
   const { data: criticalClients, refetch: refetchCritical } = useDedupedQuery<ClientHealthScore[]>({
-    queryKey: ['critical-clients'],
+    queryKey: QUERY_KEYS.clients.critical,
     queryFn: async () => {
       // Get latest calculated_on date first
       const { data: latestDateRows } = await (supabase as any)
@@ -90,7 +91,7 @@ const Overview = () => {
 
   // Fetch coach performance - use latest available date
   const { data: coaches, refetch: refetchCoaches } = useDedupedQuery<CoachPerformance[]>({
-    queryKey: ['coach-performance'],
+    queryKey: QUERY_KEYS.coaches.performance,
     queryFn: async () => {
       // Try today first
       const today = new Date().toISOString().split('T')[0];
@@ -118,8 +119,8 @@ const Overview = () => {
   });
 
   // Fetch interventions
-  const { data: interventions = [], refetch: refetchInterventions } = useDedupedQuery({
-    queryKey: ['interventions'],
+  const { data: interventions = [], isLoading: interventionsLoading, refetch: refetchInterventions } = useDedupedQuery({
+    queryKey: QUERY_KEYS.interventions.all,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('intervention_log')
@@ -135,7 +136,7 @@ const Overview = () => {
 
   // Fetch weekly patterns
   const { data: weeklyPatterns = [], refetch: refetchWeekly } = useDedupedQuery({
-    queryKey: ['weekly-patterns'],
+    queryKey: QUERY_KEYS.patterns.weekly,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_patterns')
@@ -497,7 +498,7 @@ const Overview = () => {
 
         {/* Interventions & Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <InterventionTracker interventions={interventions as any} />
+          <EnhancedInterventionTracker interventions={interventions as any} isLoading={interventionsLoading} />
           <WeeklyAnalytics patterns={weeklyPatterns as any} />
         </div>
 

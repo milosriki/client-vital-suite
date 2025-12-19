@@ -222,14 +222,13 @@ serve(async (req) => {
       criticalInterventions: 0
     };
 
+    const upsertPayloads: any[] = [];
     let totalScore = 0;
 
     for (const client of contacts || []) {
       try {
-        // Skip invalid records
         if (!client.email) continue;
 
-        // Calculate scores
         const engagement = calculateEngagementScore(client);
         const packageHealth = calculatePackageHealthScore(client);
         const momentumScore = calculateMomentumScore(client);
@@ -243,41 +242,31 @@ serve(async (req) => {
            debugLogs.push({location:'health-calculator/index.ts:238',message:'Calculated score for first client',data:{email:client.email, score:healthScore, zone:healthZone},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'});
         }
 
-        // Update or insert new record in client_health_scores
-        // Mapped to match database schema
-        const { error: upsertError } = await supabase
-          .from("client_health_scores")
-          .upsert({
-            email: client.email,
-            firstname: client.first_name,
-            lastname: client.last_name,
-            hubspot_contact_id: client.hubspot_contact_id,
-            health_score: healthScore,
-            health_zone: healthZone,
-            engagement_score: engagement,
-            package_health_score: packageHealth,
-            momentum_score: momentumScore,
-            health_trend: momentum, // Mapped from momentum_indicator
-            churn_risk_score: predictiveRisk, // Mapped from predictive_risk_score
-            intervention_priority: interventionPriority,
-            // Use defaults if columns missing in contacts
-            sessions_last_7d: client.sessions_last_7d || 0,
-            sessions_last_30d: client.sessions_last_30d || 0,
-            outstanding_sessions: client.outstanding_sessions || 0,
-            sessions_purchased: client.sessions_purchased || 0,
-            days_since_last_session: client.days_since_last_session || 0,
-            assigned_coach: client.assigned_coach,
-            calculated_at: new Date().toISOString(),
-            calculated_on: new Date().toISOString().split("T")[0],
-            calculation_version: "AGENT_v2"
-          }, {
-            onConflict: "email"
-          });
-
-        if (upsertError) throw upsertError;
+        upsertPayloads.push({
+          email: client.email,
+          firstname: client.first_name,
+          lastname: client.last_name,
+          hubspot_contact_id: client.hubspot_contact_id,
+          health_score: healthScore,
+          health_zone: healthZone,
+          engagement_score: engagement,
+          package_health_score: packageHealth,
+          momentum_score: momentumScore,
+          health_trend: momentum,
+          churn_risk_score: predictiveRisk,
+          intervention_priority: interventionPriority,
+          sessions_last_7d: client.sessions_last_7d || 0,
+          sessions_last_30d: client.sessions_last_30d || 0,
+          outstanding_sessions: client.outstanding_sessions || 0,
+          sessions_purchased: client.sessions_purchased || 0,
+          days_since_last_session: client.days_since_last_session || 0,
+          assigned_coach: client.assigned_coach,
+          calculated_at: new Date().toISOString(),
+          calculated_on: new Date().toISOString().split("T")[0],
+          calculation_version: "AGENT_v2"
+        });
 
         results.processed++;
-        results.updated++;
         results.zones[healthZone as keyof typeof results.zones]++;
         totalScore += healthScore;
 
@@ -291,6 +280,31 @@ serve(async (req) => {
         continue;
       }
     }
+
+    // Batch upsert for performance
+    const batchSize = 100;
+    let batchIndex = 0;
+    let batchFailures = 0;
+    while (batchIndex * batchSize < upsertPayloads.length) {
+      const start = batchIndex * batchSize;
+      const batch = upsertPayloads.slice(start, start + batchSize);
+      console.log(`[Health Calculator] Upserting batch ${batchIndex + 1} with ${batch.length} records`);
+
+      const { error: upsertError } = await supabase
+        .from("client_health_scores")
+        .upsert(batch, { onConflict: "email" });
+
+      if (upsertError) {
+        batchFailures += batch.length;
+        console.error("Batch upsert error:", upsertError);
+      } else {
+        results.updated += batch.length;
+      }
+
+      batchIndex++;
+    }
+
+    console.log(`[Health Calculator] Processed ${results.processed} contacts across ${batchIndex} batches with ${batchFailures} failures`);
 
     results.avgHealthScore = results.processed > 0
       ? Math.round(totalScore / results.processed)
