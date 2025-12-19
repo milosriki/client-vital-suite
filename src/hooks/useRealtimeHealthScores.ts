@@ -29,6 +29,8 @@ export function useRealtimeHealthScores() {
   const pendingUpdates = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
+    // Track subscription status
+    let isSubscribed = false;
     // Debounced invalidation to batch rapid changes
     const debouncedInvalidate = (key: readonly unknown[], debounceKey: string) => {
       const existing = pendingUpdates.current.get(debounceKey);
@@ -156,7 +158,15 @@ export function useRealtimeHealthScores() {
           debouncedInvalidate(QUERY_KEYS.patterns.weekly, 'patterns');
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          isSubscribed = true;
+          console.log('[RealtimeHealthScores] Subscription connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          isSubscribed = false;
+          console.warn('[RealtimeHealthScores] Subscription disconnected:', status);
+        }
+      });
 
     return () => {
       // Clear all pending timeouts

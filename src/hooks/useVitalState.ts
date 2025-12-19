@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { QUERY_KEYS } from '@/config/queryKeys';
@@ -84,6 +84,9 @@ export function useVitalState(): VitalStateReturn {
     staleTime: Infinity, // Never stale - rely on real-time updates
   });
 
+  // Track subscription connection status
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'connected' | 'disconnected'>('disconnected');
+
   // Set up real-time subscriptions for critical tables
   useEffect(() => {
     const channels: RealtimeChannel[] = [];
@@ -101,7 +104,13 @@ export function useVitalState(): VitalStateReturn {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.batch({}) });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setSubscriptionStatus('connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setSubscriptionStatus('disconnected');
+        }
+      });
     channels.push(healthScoresChannel);
 
     // Subscribe to deals changes (for revenue updates)
@@ -229,16 +238,16 @@ export function useVitalState(): VitalStateReturn {
 
   // Compute system health status
   const systemHealth = useMemo<VitalSystemHealth>(() => {
-    const isHealthy = (healthData?.activeErrors || 0) === 0 && !healthData?.circuitBreakerTripped;
+    const isHealthy = (healthData?.activeErrors || 0) === 0 && !healthData?.circuitBreakerTripped && subscriptionStatus === 'connected';
     
     return {
       isHealthy,
       lastSyncTime: healthData?.lastSyncTime || null,
       activeErrors: healthData?.activeErrors || 0,
-      connectionStatus: 'connected',
+      connectionStatus: subscriptionStatus,
       circuitBreakerTripped: healthData?.circuitBreakerTripped || false,
     };
-  }, [healthData]);
+  }, [healthData, subscriptionStatus]);
 
   // Invalidation helpers for targeted cache clearing
   const invalidateAll = useCallback(() => {
@@ -274,7 +283,7 @@ export function useVitalState(): VitalStateReturn {
   return {
     systemHealth,
     isLoading,
-    isConnected: true,
+    isConnected: subscriptionStatus === 'connected',
     invalidateAll,
     invalidateDashboard,
     invalidatePipeline,
