@@ -135,16 +135,19 @@ const HubSpotLiveData = () => {
   });
 
   // Fetch deals for current month (for revenue calculation - always from 1st of month)
-  const monthStart = useMemo(() => startOfMonth(new Date()), []);
+  // Track current month to properly update when month changes
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthStart = useMemo(() => startOfMonth(new Date()), [currentMonth, currentYear]);
   const { data: monthlyDealsData, refetch: refetchMonthlyDeals } = useDedupedQuery({
-    queryKey: ["db-deals-monthly"],
+    queryKey: ["db-deals-monthly", currentMonth, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
         .select("*")
         .gte("created_at", monthStart.toISOString())
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data || [];
     },

@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { QUERY_KEYS } from '@/config/queryKeys';
 
 // Debounce time to batch rapid changes (ms)
-const DEBOUNCE_MS = 1000;
+// Optimized for instant feel while preventing overwhelming updates
+const DEBOUNCE_MS = 300;
 
 // Type for client health score record
 interface ClientHealthScore {

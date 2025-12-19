@@ -82,10 +82,14 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
     setIsStreaming(true);
 
     try {
-      // Use hardcoded values for standalone operation
-      const supabaseUrl = "https://ztjndilxurtsfqdsvfds.supabase.co";
-      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo";
-      
+      // Use environment variables - never hardcode credentials
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Missing Supabase environment variables");
+      }
+
       const response = await fetch(`${supabaseUrl}/functions/v1/stripe-payouts-ai`, {
         method: "POST",
         headers: {
