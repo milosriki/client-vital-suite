@@ -69,7 +69,7 @@ const SetterActivityToday = () => {
         clients: clients || []
       };
     },
-    refetchInterval: 30000
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Query for bookings today
@@ -92,7 +92,7 @@ const SetterActivityToday = () => {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 30000
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Calculate metrics

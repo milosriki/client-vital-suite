@@ -27,7 +27,7 @@ const Interventions = () => {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const getPriorityColor = (priority: string | null) => {

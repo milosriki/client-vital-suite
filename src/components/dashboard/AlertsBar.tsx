@@ -76,7 +76,7 @@ export function AlertsBar() {
 
       return alertsList;
     },
-    refetchInterval: 60000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   if (!alerts || alerts.length === 0) {

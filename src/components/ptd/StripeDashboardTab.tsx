@@ -59,7 +59,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
       return data;
     },
     enabled: isConnected,
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via subscriptions
   });
 
   const handleConnect = async () => {

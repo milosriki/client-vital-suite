@@ -40,7 +40,7 @@ export function LiveActivityFeed() {
       if (error) throw error;
       return data as Activity[];
     },
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const getActivityIcon = (type: string) => {

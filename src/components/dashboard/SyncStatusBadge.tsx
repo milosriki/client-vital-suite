@@ -37,7 +37,7 @@ export function SyncStatusBadge() {
                 hasUnresolvedErrors: (recentErrors?.length || 0) > 0
             };
         },
-        refetchInterval: 30000,
+        staleTime: Infinity, // Realtime subscription handles updates
     });
 
     // Realtime subscription for sync updates

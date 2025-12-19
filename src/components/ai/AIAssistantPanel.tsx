@@ -111,7 +111,7 @@ export function AIAssistantPanel() {
         return [];
       }
     },
-    refetchInterval: 30000, // Check every 30 seconds
+    staleTime: Infinity, // Real-time updates via subscriptions
     retry: false
   });
 
@@ -504,7 +504,7 @@ export function AIAssistantButton({ onClick }: { onClick: () => void }) {
         return 0;
       }
     },
-    refetchInterval: 30000,
+    staleTime: Infinity, // Real-time updates via subscriptions
     retry: false
   });
 

@@ -38,7 +38,7 @@ const Coaches = () => {
       if (error) throw error;
       return (data as CoachPerformance[]) || [];
     },
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   const { data: coachClients } = useDedupedQuery<ClientHealthScore[]>({

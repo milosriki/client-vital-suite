@@ -21,7 +21,7 @@ export function HubSpotSyncStatus() {
 
             return data;
         },
-        refetchInterval: 30000,
+        staleTime: Infinity, // Real-time updates via useVitalState
     });
 
     const isHealthy = !lastSync ||

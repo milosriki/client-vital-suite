@@ -21,7 +21,7 @@ export function ErrorMonitor() {
                 .limit(5);
             return data;
         },
-        refetchInterval: 30000,
+        staleTime: Infinity, // Realtime subscription handles updates
     });
 
     // Realtime subscription for new errors

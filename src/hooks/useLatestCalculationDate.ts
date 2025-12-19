@@ -34,7 +34,6 @@ export function useLatestCalculationDate() {
 
       return data?.calculated_at || null;
     },
-    refetchInterval: QUERY_INTERVALS.STANDARD,
-    staleTime: 60000, // Consider data fresh for 1 minute
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 }
