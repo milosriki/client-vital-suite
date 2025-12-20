@@ -1,6 +1,7 @@
 # Vercel Environment Variables Guide
 
 ## Overview
+
 This document lists all environment variables needed for each Vercel environment (Production, Preview, Development).
 
 ---
@@ -8,6 +9,7 @@ This document lists all environment variables needed for each Vercel environment
 ## Environment Variables by Type
 
 ### 🔵 Frontend Variables (VITE_* - Build-time)
+
 These are embedded into the frontend bundle at build time. Set in **all environments**.
 
 | Variable | Required | Purpose | Example |
@@ -17,6 +19,7 @@ These are embedded into the frontend bundle at build time. Set in **all environm
 | `VITE_SUPABASE_ANON_KEY` | ⚠️ Optional | Legacy anon key (if not using publishable) | `eyJhbGci...` |
 
 ### 🔴 Server-side Variables (Runtime - API Routes)
+
 These are only available in serverless functions. Set in **all environments**.
 
 | Variable | Required | Purpose | Example |
@@ -34,14 +37,17 @@ These are only available in serverless functions. Set in **all environments**.
 ## Environment Configuration
 
 ### Production Environment
+
 **Set all variables below:**
 
 **Frontend (VITE_*):**
+
 - ✅ `VITE_SUPABASE_URL`
 - ✅ `VITE_SUPABASE_PUBLISHABLE_KEY`
 - ⚠️ `VITE_SUPABASE_ANON_KEY` (optional, if not using publishable)
 
 **Server-side:**
+
 - ✅ `SUPABASE_URL`
 - ✅ `SUPABASE_SERVICE_ROLE_KEY`
 - ✅ `FB_PIXEL_ID`
@@ -53,14 +59,17 @@ These are only available in serverless functions. Set in **all environments**.
 ---
 
 ### Preview Environment
+
 **Set all variables below (same as Production):**
 
 **Frontend (VITE_*):**
+
 - ✅ `VITE_SUPABASE_URL`
 - ✅ `VITE_SUPABASE_PUBLISHABLE_KEY`
 - ⚠️ `VITE_SUPABASE_ANON_KEY` (optional)
 
 **Server-side:**
+
 - ✅ `SUPABASE_URL`
 - ✅ `SUPABASE_SERVICE_ROLE_KEY`
 - ✅ `FB_PIXEL_ID`
@@ -72,14 +81,17 @@ These are only available in serverless functions. Set in **all environments**.
 ---
 
 ### Development Environment
+
 **Set all variables below (same as Production/Preview):**
 
 **Frontend (VITE_*):**
+
 - ✅ `VITE_SUPABASE_URL`
 - ✅ `VITE_SUPABASE_PUBLISHABLE_KEY`
 - ⚠️ `VITE_SUPABASE_ANON_KEY` (optional)
 
 **Server-side:**
+
 - ✅ `SUPABASE_URL`
 - ✅ `SUPABASE_SERVICE_ROLE_KEY`
 - ✅ `FB_PIXEL_ID`
@@ -95,6 +107,7 @@ These are only available in serverless functions. Set in **all environments**.
 If you have a **staging** or **custom** environment, set the same variables as Production.
 
 **Example: Staging Environment**
+
 - Same variables as Production
 - Use `FB_TEST_EVENT_CODE` for testing
 - May use different `EVENT_SOURCE_URL` if needed
@@ -103,14 +116,16 @@ If you have a **staging** or **custom** environment, set the same variables as P
 
 ## Quick Checklist
 
-### ✅ Already Set (from previous setup):
+### ✅ Already Set (from previous setup)
+
 - [x] `SUPABASE_URL` (Production, Preview, Development)
 - [x] `SUPABASE_SERVICE_ROLE_KEY` (Production, Preview, Development)
 - [x] `VITE_SUPABASE_URL` (Production)
 - [x] `VITE_SUPABASE_ANON_KEY` (Production)
 - [x] `VITE_SUPABASE_PUBLISHABLE_KEY` (Production)
 
-### ⚠️ Need to Verify/Add:
+### ⚠️ Need to Verify/Add
+
 - [ ] `VITE_SUPABASE_URL` (Preview, Development)
 - [ ] `VITE_SUPABASE_PUBLISHABLE_KEY` (Preview, Development)
 - [ ] `FB_PIXEL_ID` (all environments)
@@ -123,7 +138,8 @@ If you have a **staging** or **custom** environment, set the same variables as P
 
 ## How to Set Variables in Vercel
 
-### Via CLI:
+### Via CLI
+
 ```bash
 # Frontend variable (Production)
 echo "https://ztjndilxurtsfqdsvfds.supabase.co" | vercel env add VITE_SUPABASE_URL production
@@ -136,8 +152,9 @@ echo "your-value" | vercel env add FB_PIXEL_ID preview
 echo "your-value" | vercel env add FB_PIXEL_ID development
 ```
 
-### Via Dashboard:
-1. Go to: https://vercel.com/milos-projects-d46729ec/client-vital-suite/settings/environments/production
+### Via Dashboard
+
+1. Go to: <https://vercel.com/milos-projects-d46729ec/client-vital-suite/settings/environments/production>
 2. Click "Add New" for each variable
 3. Select environment(s): Production ✅, Preview ✅, Development ✅
 4. Enter variable name and value
@@ -148,6 +165,7 @@ echo "your-value" | vercel env add FB_PIXEL_ID development
 ## Verification
 
 After setting variables, verify with:
+
 ```bash
 curl https://client-vital-suite.vercel.app/api/system-check
 ```
@@ -163,4 +181,3 @@ This endpoint checks all required variables and reports what's missing.
 - **Never** put `SUPABASE_SERVICE_ROLE_KEY` in a `VITE_*` variable (security risk)
 - **FB_TEST_EVENT_CODE** should be removed from Production for real events
 - All environments can use the same Supabase credentials (same project)
-

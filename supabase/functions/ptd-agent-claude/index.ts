@@ -254,7 +254,7 @@ async function searchKnowledgeDocuments(supabase: any, query: string): Promise<s
 
     const queryLower = query.toLowerCase();
     const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
-    
+
     const relevantDocs = docs
       .filter((doc: any) => {
         const content = doc.content.toLowerCase();
@@ -264,7 +264,7 @@ async function searchKnowledgeDocuments(supabase: any, query: string): Promise<s
 
     if (relevantDocs.length === 0) return '';
 
-    return relevantDocs.map((doc: any) => 
+    return relevantDocs.map((doc: any) =>
       `📄 FROM ${doc.filename}:\n${doc.content.slice(0, 2000)}`
     ).join('\n\n---\n\n');
   } catch (e) {
@@ -284,7 +284,7 @@ async function getLearnedPatterns(supabase: any): Promise<string> {
 
     if (!data || data.length === 0) return '';
 
-    return data.map((p: any) => 
+    return data.map((p: any) =>
       `• ${p.pattern_name} (${Math.round(p.confidence * 100)}% confidence): ${p.description || 'Auto-detected'}`
     ).join('\n');
   } catch (e) {
@@ -295,7 +295,7 @@ async function getLearnedPatterns(supabase: any): Promise<string> {
 // Extract knowledge from interaction
 function extractKnowledge(query: string, response: string): any {
   const combined = `${query} ${response}`.toLowerCase();
-  
+
   const patterns: Record<string, boolean> = {
     stripe_fraud: /fraud|suspicious|unknown card|dispute|chargeback/i.test(combined),
     churn_risk: /churn|red zone|critical|at.?risk|declining/i.test(combined),
@@ -306,7 +306,7 @@ function extractKnowledge(query: string, response: string): any {
     formula: /formula|calculate|equation|compute/i.test(combined),
     meta_capi: /meta|capi|facebook|pixel|conversion/i.test(combined),
   };
-  
+
   return {
     detected_patterns: Object.keys(patterns).filter(k => patterns[k]),
     timestamp: new Date().toISOString()
@@ -318,7 +318,7 @@ async function saveToMemory(supabase: any, threadId: string, query: string, resp
   try {
     const knowledge = extractKnowledge(query, response);
     const embedding = await getEmbeddings(`${query}\n${response}`);
-    
+
     await supabase.from('agent_memory').insert({
       thread_id: threadId,
       query,
@@ -547,7 +547,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         } catch (e) {
           return JSON.stringify({ error: 'Invalid email address provided' });
         }
-        
+
         if (action === "get_all") {
           const [health, calls, deals, activities] = await Promise.all([
             supabase.from('client_health_scores').select('*').eq('email', validatedEmail).single(),
@@ -562,33 +562,33 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           const { data } = await supabase.from('client_health_scores').select('*').eq('email', validatedEmail).single();
           return JSON.stringify(data);
         }
-        
+
         if (action === "get_calls") {
           const { data } = await supabase.from('call_records').select('*').order('created_at', { ascending: false }).limit(20);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_deals") {
           const { data } = await supabase.from('deals').select('*').order('created_at', { ascending: false }).limit(20);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_activities") {
           const { data } = await supabase.from('contact_activities').select('*').order('occurred_at', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         return "Unknown action";
       }
 
       case "lead_control": {
         const { action, query, status, limit = 20 } = input;
-        
+
         if (action === "get_all") {
           const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
-        
+
         if (action === "search" && query) {
           // SECURITY: Sanitize search query to prevent SQL injection
           // Remove any SQL special characters and limit to alphanumeric, @, ., -, +, space
@@ -604,26 +604,26 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             .limit(limit);
           return JSON.stringify({ count: data?.length || 0, leads: data || [] });
         }
-        
+
         if (action === "get_enhanced") {
           // Use contacts table with lead_status for scoring
           const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_by_status") {
           // SECURITY: Sanitize status input to prevent SQL injection
           const sanitizedStatus = status ? sanitizeString(status, 50) : 'new';
           const { data } = await supabase.from('contacts').select('*').eq('lead_status', sanitizedStatus).limit(limit);
           return JSON.stringify(data || []);
         }
-        
+
         return "Unknown action";
       }
 
       case "sales_flow_control": {
         const { action, stage, days = 30 } = input;
-        
+
         if (action === "get_pipeline") {
           const { data } = await supabase.from('deals').select('stage, status, deal_value, deal_name').order('created_at', { ascending: false });
           const pipeline: Record<string, any[]> = {};
@@ -634,7 +634,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           });
           return JSON.stringify({ pipeline, total_deals: data?.length || 0 });
         }
-        
+
         if (action === "get_deals") {
           let query = supabase.from('deals').select('*');
           if (stage) {
@@ -645,25 +645,25 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           const { data } = await query.order('created_at', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_appointments") {
           const { data } = await supabase.from('appointments').select('*').order('scheduled_at', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_recent_closes") {
           const since = new Date();
           since.setDate(since.getDate() - days);
           const { data } = await supabase.from('deals').select('*').gte('close_date', since.toISOString()).order('close_date', { ascending: false });
           return JSON.stringify(data || []);
         }
-        
+
         return "Unknown action";
       }
 
       case "stripe_control": {
         const { action, days = 90 } = input;
-        
+
         if (action === "fraud_scan") {
           try {
             const { data } = await supabase.functions.invoke('stripe-forensics', {
@@ -674,7 +674,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             return `Stripe forensics error: ${e}`;
           }
         }
-        
+
         if (action === "get_summary" || action === "analyze") {
           try {
             const { data } = await supabase.functions.invoke('stripe-dashboard-data', { body: {} });
@@ -683,18 +683,18 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             return `Stripe dashboard error: ${e}`;
           }
         }
-        
+
         if (action === "get_events") {
           const { data } = await supabase.from('events').select('*').order('event_time', { ascending: false }).limit(50);
           return JSON.stringify(data || []);
         }
-        
+
         return "Unknown action";
       }
 
       case "hubspot_control": {
         const { action, limit = 50 } = input;
-        
+
         if (action === "sync_now") {
           try {
             const { data } = await supabase.functions.invoke('sync-hubspot-to-supabase', { body: { force: true } });
@@ -703,17 +703,17 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             return `Sync error: ${e}`;
           }
         }
-        
+
         if (action === "get_contacts") {
           const { data } = await supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify({ count: data?.length || 0, contacts: data || [] });
         }
-        
+
         if (action === "get_activities") {
           const { data } = await supabase.from('contact_activities').select('*').order('occurred_at', { ascending: false }).limit(limit);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_lifecycle_stages") {
           const { data } = await supabase.from('contacts').select('lifecycle_stage');
           const stages: Record<string, number> = {};
@@ -723,29 +723,29 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           });
           return JSON.stringify(stages);
         }
-        
+
         return "Unknown action";
       }
 
       case "call_control": {
         const { action, limit = 20 } = input;
-        
+
         if (action === "get_all") {
           const { data } = await supabase.from('call_records').select('*').order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify({ count: data?.length || 0, calls: data || [] });
         }
-        
+
         if (action === "get_transcripts") {
           const { data } = await supabase.from('call_records').select('id, caller_number, transcription, call_outcome, duration_seconds, created_at')
             .not('transcription', 'is', null).order('created_at', { ascending: false }).limit(limit);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "get_analytics") {
           const { data } = await supabase.from('call_analytics').select('*').order('date', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         if (action === "find_patterns") {
           const { data } = await supabase.from('call_records').select('transcription, call_outcome, keywords_mentioned')
             .not('transcription', 'is', null).limit(50);
@@ -756,13 +756,13 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             calls_analyzed: data?.length || 0
           });
         }
-        
+
         return "Unknown action";
       }
 
       case "analytics_control": {
         const { dashboard } = input;
-        
+
         if (dashboard === "health") {
           const { data } = await supabase.from('client_health_scores').select('health_zone, health_score');
           const zones: Record<string, { count: number; avg_score: number; scores: number[] }> = {};
@@ -779,34 +779,34 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           });
           return JSON.stringify({ health_distribution: zones, total_clients: data?.length || 0 });
         }
-        
+
         if (dashboard === "revenue") {
           const { data } = await supabase.from('daily_summary').select('*').order('summary_date', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         if (dashboard === "coaches") {
           const { data } = await supabase.from('coach_performance').select('*').order('report_date', { ascending: false }).limit(20);
           return JSON.stringify(data || []);
         }
-        
+
         if (dashboard === "interventions") {
           const { data } = await supabase.from('intervention_log').select('*').order('created_at', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         if (dashboard === "campaigns") {
           const { data } = await supabase.from('campaign_performance').select('*').order('date', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        
+
         return "Unknown dashboard";
       }
 
       case "get_at_risk_clients": {
         const { zone = "all", limit = 20 } = input;
         let query = supabase.from('client_health_scores').select('*');
-        
+
         if (zone === 'red') {
           query = query.eq('health_zone', 'red');
         } else if (zone === 'yellow') {
@@ -814,7 +814,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         } else {
           query = query.in('health_zone', ['red', 'yellow']);
         }
-        
+
         const { data } = await query.order('health_score', { ascending: true }).limit(limit);
         return JSON.stringify({ count: data?.length || 0, at_risk_clients: data || [] });
       }
@@ -822,7 +822,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
       case "intelligence_control": {
         const { functions = ["business-intelligence"] } = input;
         const results: Record<string, any> = {};
-        
+
         for (const fn of functions) {
           try {
             const { data, error } = await supabase.functions.invoke(fn, { body: {} });
@@ -831,7 +831,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             results[fn] = `Error: ${e}`;
           }
         }
-        
+
         return `INTELLIGENCE RESULTS:\n${JSON.stringify(results, null, 2)}`;
       }
 

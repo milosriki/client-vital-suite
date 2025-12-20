@@ -5,16 +5,19 @@
 When you see the **"Connect GitHub Actions"** modal in Vercel, follow these steps:
 
 ### Step 1: Expand "Send workflow updates to Vercel"
+
 Click the arrow next to **"Send workflow updates to Vercel"** to expand it.
 
 ### Step 2: In "Select checks to add" Section
 
 **Option A: Enter a GitHub SHA (Recommended for first time)**
+
 1. Find a recent commit SHA that has run the workflow
 2. Enter it in the **"Enter a GitHub SHA"** field (e.g., `d94b5f7`)
 3. Click **"Search"** or wait for it to auto-detect checks
 
 **Option B: Search for checks**
+
 1. Use the **"Search for GitHub Checks"** field
 2. Type: `AI Code Deployment` or `validate-and-deploy`
 3. Select the checks you want
@@ -28,6 +31,7 @@ Check these boxes (they will appear after entering a SHA or searching):
   - Status: Required for production deployments
 
 **Optional checks** (if they appear):
+
 - ✅ **"TypeScript validation"** (if shown separately)
 - ✅ **"ESLint validation"** (if shown separately)
 - ✅ **"Build test"** (if shown separately)
@@ -35,11 +39,13 @@ Check these boxes (they will appear after entering a SHA or searching):
 ### Step 4: Configure Check Names
 
 The workflow uses this check name format:
+
 ```
 AI Code Deployment - validate-and-deploy
 ```
 
 If Vercel shows different names, you can:
+
 1. **Use the exact name** shown in the search results
 2. **Or update the workflow** to match what Vercel expects
 
@@ -72,19 +78,25 @@ The workflow sends these check names to Vercel:
 ## Troubleshooting
 
 ### "No configured checks found"
+
 **Solution:**
+
 1. Make sure you've run the workflow at least once
 2. Enter a specific commit SHA that has workflow runs
 3. Check GitHub Actions tab to see if workflow completed
 
 ### Checks not appearing
+
 **Solution:**
+
 1. Wait a few minutes after workflow completes
 2. Try a different commit SHA
 3. Make sure workflow uses `vercel/repository-dispatch/actions/status@v1`
 
 ### Check name mismatch
+
 **Solution:**
+
 1. Check what name Vercel expects (shown in search results)
 2. Update the workflow file to match that name
 3. Re-run the workflow
@@ -108,13 +120,14 @@ Then check the box and click **"Add"**.
 ## Next Steps
 
 After adding checks:
+
 1. ✅ Vercel will wait for checks to pass
 2. ✅ Production deployments require checks to succeed
 3. ✅ Preview deployments can proceed without checks (if configured)
 
 To test:
+
 1. Push a commit to `main` branch
 2. Watch GitHub Actions workflow run
 3. Check Vercel deployment - it should wait for checks
 4. Once checks pass, deployment promotes to production
-
