@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { 
-  MessageCircle, X, Send, Loader2, Minimize2, Paperclip, 
-  FileText, FileSpreadsheet, Brain, Sparkles, RefreshCw, 
+import {
+  MessageCircle, X, Send, Loader2, Minimize2, Paperclip,
+  FileText, FileSpreadsheet, Brain, Sparkles, RefreshCw,
   Zap, Database, ChevronDown, Mic
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { VoiceChat } from "@/components/ai/VoiceChat";
+import { getApiUrl, API_ENDPOINTS } from "@/config/api";
 
 interface Message {
   id: string;
@@ -252,7 +253,7 @@ export const FloatingChat = () => {
 
       console.log("📤 Sending to agent via /api/agent:", userMessage.slice(0, 50));
 
-      const response = await fetch("/api/agent", {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -284,7 +285,7 @@ export const FloatingChat = () => {
 
       setConnectionStatus("connected");
       loadMemoryStats();
-      
+
       toast({
         title: "Response received",
         description: `Processed in ${data?.duration_ms ? Math.round(data.duration_ms / 1000) + 's' : 'a moment'}`,
@@ -292,20 +293,20 @@ export const FloatingChat = () => {
     } catch (error: any) {
       console.error("Chat error:", error);
       const errorMsg = error?.message || "Sorry, I encountered an error. Please try again.";
-      
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMsgId
             ? {
-                ...msg,
-                content: `❌ Error: ${errorMsg}\n\nPlease try again or simplify your question.`,
-                isStreaming: false,
-              }
+              ...msg,
+              content: `❌ Error: ${errorMsg}\n\nPlease try again or simplify your question.`,
+              isStreaming: false,
+            }
             : msg
         )
       );
       setConnectionStatus("error");
-      
+
       toast({
         title: "Error",
         description: errorMsg,
@@ -436,73 +437,73 @@ export const FloatingChat = () => {
                 </div>
                 <p className="text-white/80 font-medium mb-1">PTD Super-Intelligence</p>
                 <p className="text-cyan-400/70 text-xs mb-4">Ask anything about your business data</p>
-                
+
                 {/* Quick Action Buttons - Row 1 */}
                 <div className="flex flex-wrap gap-2 justify-center mb-2">
-                  <button 
+                  <button
                     onClick={() => { setInput("Show my Stripe balance and recent payments"); }}
                     className="px-3 py-1.5 text-xs bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-300 hover:bg-purple-500/30 transition-colors"
                   >
                     💳 Stripe Balance
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setInput("Scan Stripe for fraud or suspicious activity"); }}
                     className="px-3 py-1.5 text-xs bg-red-500/20 border border-red-500/30 rounded-full text-red-300 hover:bg-red-500/30 transition-colors"
                   >
                     🔍 Fraud Scan
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setInput("Show clients at risk of churning"); }}
                     className="px-3 py-1.5 text-xs bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-300 hover:bg-orange-500/30 transition-colors"
                   >
                     ⚠️ At-Risk
                   </button>
                 </div>
-                
+
                 {/* Quick Action Buttons - Row 2 */}
                 <div className="flex flex-wrap gap-2 justify-center mb-2">
-                  <button 
+                  <button
                     onClick={() => { setInput("Coach performance ranking"); }}
                     className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 rounded-full text-green-300 hover:bg-green-500/30 transition-colors"
                   >
                     📊 Coaches
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setInput("Show sales pipeline summary"); }}
                     className="px-3 py-1.5 text-xs bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 hover:bg-blue-500/30 transition-colors"
                   >
                     💰 Pipeline
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setInput("Run business intelligence report"); }}
                     className="px-3 py-1.5 text-xs bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-300 hover:bg-cyan-500/30 transition-colors"
                   >
                     🧠 BI Report
                   </button>
                 </div>
-                
+
                 {/* Quick Action Buttons - Row 3 */}
                 <div className="flex flex-wrap gap-2 justify-center mb-4">
-                  <button 
+                  <button
                     onClick={() => { setInput("Check live calls status"); }}
                     className="px-3 py-1.5 text-xs bg-teal-500/20 border border-teal-500/30 rounded-full text-teal-300 hover:bg-teal-500/30 transition-colors"
                   >
                     📞 Live Calls
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setInput("Run proactive system scan"); }}
                     className="px-3 py-1.5 text-xs bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-300 hover:bg-yellow-500/30 transition-colors"
                   >
                     🔎 Proactive Scan
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setInput("Check system and data quality health"); }}
                     className="px-3 py-1.5 text-xs bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-300 hover:bg-pink-500/30 transition-colors"
                   >
                     ❤️ System Health
                   </button>
                 </div>
-                
+
                 <div className="space-y-1 text-[10px] text-white/40">
                   <p>💡 Search: "john@ptd.com" or "+971..."</p>
                   <p>📎 Attach files to analyze</p>

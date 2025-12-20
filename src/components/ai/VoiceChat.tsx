@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId } from "@/lib/ptd-memory";
 import { cn } from "@/lib/utils";
+import { getApiUrl, API_ENDPOINTS } from "@/config/api";
 
 interface VoiceChatProps {
   agentFunction?: string;
@@ -16,7 +17,7 @@ interface VoiceChatProps {
   onMinimize?: () => void;
 }
 
-export function VoiceChat({ 
+export function VoiceChat({
   agentFunction = "ptd-agent-gemini",
   threadId: providedThreadId,
   onClose,
@@ -30,7 +31,7 @@ export function VoiceChat({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
-  
+
   const recognitionRef = useRef<any>(null);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
   const threadIdRef = useRef<string>(providedThreadId || getThreadId());
@@ -41,7 +42,7 @@ export function VoiceChat({
       const hasRecognition = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
       const hasSynthesis = 'speechSynthesis' in window;
       setIsSupported(hasRecognition && hasSynthesis);
-      
+
       if (!hasRecognition) {
         setError("Speech recognition not supported in this browser. Use Chrome or Edge.");
       }
@@ -136,7 +137,7 @@ export function VoiceChat({
     setError(null);
 
     try {
-      const response = await fetch("/api/agent", {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -153,10 +154,10 @@ export function VoiceChat({
 
       const response = data?.response || "I didn't receive a response. Please try again.";
       setLastResponse(response);
-      
+
       // Speak the response
       speakText(response);
-      
+
       toast({
         title: "Response received",
         description: "AI response is being spoken",

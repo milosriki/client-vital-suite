@@ -5,6 +5,7 @@ import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
 import { getThreadId, startNewThread, loadConversationHistory, saveMessageToDatabase } from "@/lib/ptd-memory";
 import { toast } from "sonner";
 import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
+import { getApiUrl, API_ENDPOINTS } from "@/config/api";
 
 export default function PTDControlChat() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
@@ -130,12 +131,12 @@ export default function PTDControlChat() {
     for (const file of Array.from(files)) {
       try {
         const content = await file.text();
-        
+
         const { data, error } = await supabase.functions.invoke("process-knowledge", {
-          body: { 
-            content, 
+          body: {
+            content,
             filename: file.name,
-            metadata: { 
+            metadata: {
               type: file.type,
               size: file.size,
               uploadedAt: new Date().toISOString()
@@ -197,7 +198,7 @@ export default function PTDControlChat() {
     setInput("");
 
     try {
-      const response = await fetch("/api/agent", {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -298,7 +299,7 @@ export default function PTDControlChat() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {/* New Thread Button */}
             <button
@@ -308,7 +309,7 @@ export default function PTDControlChat() {
             >
               <RotateCcw className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
             </button>
-            
+
             {/* Upload Button */}
             <label className="cursor-pointer p-2 hover:bg-cyan-500/20 rounded-lg transition-all group">
               <input
@@ -327,14 +328,14 @@ export default function PTDControlChat() {
             </label>
           </div>
         </div>
-        
+
         {/* Thread ID indicator */}
         {threadId && (
           <div className="mt-2 text-xs text-white/30 truncate">
             Thread: {threadId.slice(0, 20)}...
           </div>
         )}
-        
+
         {/* Uploaded Files Pills */}
         {uploadedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
@@ -379,11 +380,10 @@ export default function PTDControlChat() {
 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-lg p-4 ${
-              msg.role === "user"
-                ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
-                : "bg-white/5 border border-white/10 text-white/90"
-            }`}>
+            <div className={`max-w-[85%] rounded-lg p-4 ${msg.role === "user"
+              ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
+              : "bg-white/5 border border-white/10 text-white/90"
+              }`}>
               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {msg.content}
               </p>
@@ -412,7 +412,7 @@ export default function PTDControlChat() {
             <span>Listening... {transcript && `"${transcript}"`}</span>
           </div>
         )}
-        
+
         <div className="flex gap-2">
           <input
             value={input}
@@ -422,17 +422,16 @@ export default function PTDControlChat() {
             className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
             disabled={loading}
           />
-          
+
           {/* Voice input button */}
           {voiceInputSupported && (
             <button
               onClick={toggleListening}
               disabled={loading}
-              className={`p-3 rounded-lg transition-all ${
-                isListening
-                  ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
-                  : 'bg-white/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
-              }`}
+              className={`p-3 rounded-lg transition-all ${isListening
+                ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
+                : 'bg-white/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
+                }`}
               title={isListening ? 'Stop recording' : 'Start voice input'}
             >
               {isListening ? (
@@ -442,7 +441,7 @@ export default function PTDControlChat() {
               )}
             </button>
           )}
-          
+
           {/* Voice output toggle */}
           {voiceOutputSupported && (
             <button
@@ -452,11 +451,10 @@ export default function PTDControlChat() {
                   stopSpeaking();
                 }
               }}
-              className={`p-3 rounded-lg transition-all ${
-                voiceEnabled
-                  ? 'bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30'
-                  : 'bg-white/10 border border-cyan-500/30 text-white/40 hover:bg-white/20'
-              }`}
+              className={`p-3 rounded-lg transition-all ${voiceEnabled
+                ? 'bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30'
+                : 'bg-white/10 border border-cyan-500/30 text-white/40 hover:bg-white/20'
+                }`}
               title={voiceEnabled ? 'Disable voice output' : 'Enable voice output'}
             >
               {voiceEnabled ? (
@@ -466,7 +464,7 @@ export default function PTDControlChat() {
               )}
             </button>
           )}
-          
+
           <button
             onClick={handleAsk}
             disabled={loading || !input.trim()}

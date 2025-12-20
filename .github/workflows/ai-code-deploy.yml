@@ -7,26 +7,26 @@ on:
 jobs:
   validate-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Write AI-generated files
         run: |
           FILES='${{ toJson(github.event.client_payload.files) }}'
-          
+
           echo "$FILES" | jq -c '.[]' | while read file; do
             path=$(echo "$file" | jq -r '.path')
             content=$(echo "$file" | jq -r '.content')
@@ -40,7 +40,7 @@ jobs:
             # Write file
             printf '%s' "$content" > "$path"
           done
-      
+
       - name: TypeScript validation
         id: typecheck
         continue-on-error: true
@@ -48,28 +48,28 @@ jobs:
           echo "🔍 Running TypeScript check..."
           npx tsc --noEmit 2>&1 | tee typecheck-output.txt
           echo "typecheck_exit_code=$?" >> $GITHUB_OUTPUT
-      
+
       - name: ESLint validation
         id: lint
         continue-on-error: true
         run: |
           echo "🔍 Running ESLint..."
           npx eslint --ext .ts,.tsx src/ 2>&1 | tee lint-output.txt || true
-      
+
       - name: Build test
         id: build
         run: |
           echo "🔨 Testing build..."
           npm run build
-      
+
       - name: Commit and push
         if: success()
         run: |
           git config user.name "PTD AI Agent"
           git config user.email "ai@ptdfitness.com"
-          
+
           git add .
-          
+
           # Check if there are changes
           if git diff --staged --quiet; then
             echo "No changes to commit"
@@ -77,7 +77,23 @@ jobs:
             git commit -m "${{ github.event.client_payload.commit_message }}"
             git push
           fi
-      
+
+      - name: Notify Vercel - Success
+        if: success()
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: "AI Code Deployment - validate-and-deploy"
+          status: "success"
+          description: "Code validated, built, and pushed successfully"
+
+      - name: Notify Vercel - Failure
+        if: failure()
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: "AI Code Deployment - validate-and-deploy"
+          status: "failure"
+          description: "Validation or build failed"
+
       - name: Notify Supabase - Success
         if: success()
         run: |
@@ -89,13 +105,13 @@ jobs:
               "status": "success",
               "deployed_at": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
             }'
-      
+
       - name: Notify Supabase - Failure
         if: failure()
         run: |
           # Capture error details
           ERROR_MSG=$(cat typecheck-output.txt lint-output.txt 2>/dev/null | tail -20 | jq -Rs .)
-          
+
           curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/ai-deploy-callback" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \

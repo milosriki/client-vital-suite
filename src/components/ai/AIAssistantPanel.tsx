@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { getApiUrl, API_ENDPOINTS } from "@/config/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,7 +150,7 @@ export function AIAssistantPanel() {
   // Send message to agent
   const sendMessage = useMutation({
     mutationFn: async (message: string) => {
-      const response = await fetch("/api/agent", {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,7 +166,7 @@ export function AIAssistantPanel() {
     },
     onSuccess: (data) => {
       refetchMessages();
-      
+
       // Speak the AI response if voice is enabled
       if (voiceEnabled && voiceOutputSupported && data?.response) {
         const textToSpeak = data.response.replace(/[#*`_]/g, '').substring(0, 500);
@@ -344,11 +345,10 @@ export function AIAssistantPanel() {
                       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[85%] p-3 rounded-lg ${
-                          msg.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
+                        className={`max-w-[85%] p-3 rounded-lg ${msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                          }`}
                       >
                         <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
                       </div>
@@ -423,7 +423,7 @@ export function AIAssistantPanel() {
                 <span>Listening... {transcript && `"${transcript}"`}</span>
               </div>
             )}
-            
+
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -432,7 +432,7 @@ export function AIAssistantPanel() {
               onKeyDown={handleKeyDown}
               disabled={sendMessage.isPending}
             />
-            
+
             {/* Voice input button */}
             {voiceInputSupported && (
               <Button
@@ -449,7 +449,7 @@ export function AIAssistantPanel() {
                 )}
               </Button>
             )}
-            
+
             {/* Voice output toggle */}
             {voiceOutputSupported && (
               <Button
@@ -470,7 +470,7 @@ export function AIAssistantPanel() {
                 )}
               </Button>
             )}
-            
+
             <Button
               size="icon"
               onClick={handleSend}
