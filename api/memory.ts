@@ -1,151 +1,141 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
-
-// Lazy-load Supabase client to avoid top-level throws
-function getSupabaseClient() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables");
-  }
-  
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { checkAuth, getSupabase, success, error } from './_lib/utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Content-Type", "application/json");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  const startTime = Date.now();
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-ptd-key');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Auth check
+  const auth = checkAuth(req);
+  if (!auth.authorized) {
+    return error(res, 'UNAUTHORIZED', auth.error!, 401, undefined, startTime);
   }
 
-  // Get Supabase client inside handler (not at module level)
-  const supabase = getSupabaseClient();
-
-  const { session_id } = req.query;
-  const sessionId = typeof session_id === "string" ? session_id : null;
-
-  if (!sessionId && req.method !== "POST") {
-    return res.status(400).json({ error: "session_id query parameter required" });
-  }
+  const supabase = getSupabase();
 
   try {
-    switch (req.method) {
-      case "GET": {
-        // Get all memory for a session, or specific key
-        const { key } = req.query;
-        const memoryKey = typeof key === "string" ? key : null;
+    // ========================================
+    // GET: Read memory
+    // ========================================
+    if (req.method === 'GET') {
+      const namespace = (req.query.namespace as string) || 'global';
+      const key = req.query.key as string | undefined;
 
-        let query = supabase
-          .from("server_memory")
-          .select("*")
-          .eq("session_id", sessionId)
-          .is("expires_at", null)
-          .or("expires_at.gt." + new Date().toISOString());
+      let query = supabase
+        .from('org_memory_kv')
+        .select('namespace, key, value, source, updated_at, expires_at')
+        .eq('namespace', namespace)
+        .or('expires_at.is.null,expires_at.gt.now()'); // Not expired
 
-        if (memoryKey) {
-          query = query.eq("memory_key", memoryKey);
-        }
-
-        const { data, error } = await query.order("updated_at", { ascending: false });
-
-        if (error) throw error;
-
-        return res.status(200).json({
-          ok: true,
-          session_id: sessionId,
-          memory: data || [],
-        });
+      if (key) {
+        query = query.eq('key', key);
       }
 
-      case "POST": {
-        // Store memory
-        const { session_id: bodySessionId, key, value, type, expires_in } = req.body;
+      const { data, error: dbError } = await query.order('updated_at', { ascending: false });
 
-        const finalSessionId = bodySessionId || sessionId;
-        if (!finalSessionId || !key || value === undefined) {
-          return res.status(400).json({
-            error: "session_id, key, and value are required",
-          });
-        }
+      if (dbError) throw dbError;
 
-        // Ensure session exists
-        const { data: session } = await supabase
-          .from("server_sessions")
-          .select("session_id")
-          .eq("session_id", finalSessionId)
-          .single();
-
-        if (!session) {
-          return res.status(404).json({
-            error: "Session not found. Create session first via /api/session",
-          });
-        }
-
-        const expiresAt = expires_in
-          ? new Date(Date.now() + expires_in * 1000).toISOString()
-          : null;
-
-        const { data, error } = await supabase
-          .from("server_memory")
-          .upsert(
-            {
-              session_id: finalSessionId,
-              memory_key: key,
-              memory_value: value,
-              memory_type: type || "context",
-              updated_at: new Date().toISOString(),
-              expires_at: expiresAt,
-            },
-            { onConflict: "session_id,memory_key" }
-          )
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        return res.status(200).json({
-          ok: true,
-          memory: data,
-        });
-      }
-
-      case "DELETE": {
-        // Delete memory by key or all for session
-        const { key } = req.query;
-        const memoryKey = typeof key === "string" ? key : null;
-
-        let query = supabase.from("server_memory").delete().eq("session_id", sessionId);
-
-        if (memoryKey) {
-          query = query.eq("memory_key", memoryKey);
-        }
-
-        const { error } = await query;
-
-        if (error) throw error;
-
-        return res.status(200).json({
-          ok: true,
-          deleted: memoryKey ? `key: ${memoryKey}` : "all memory for session",
-        });
-      }
-
-      default:
-        return res.status(405).json({ error: "Method not allowed" });
+      return success(res, key ? data?.[0] || null : data, startTime);
     }
-  } catch (error: any) {
-    console.error("[memory-api] Error:", error);
-    return res.status(500).json({
-      ok: false,
-      error: error.message || "Internal server error",
-    });
+
+    // ========================================
+    // POST: Write memory
+    // ========================================
+    if (req.method === 'POST') {
+      const { namespace = 'global', key, value, ttlSeconds, source = 'manual' } = req.body || {};
+
+      if (!key) return error(res, 'INVALID_INPUT', 'key is required', 400, undefined, startTime);
+      if (value === undefined) return error(res, 'INVALID_INPUT', 'value is required', 400, undefined, startTime);
+
+      // Get existing value for audit log
+      const { data: existing } = await supabase
+        .from('org_memory_kv')
+        .select('value')
+        .eq('namespace', namespace)
+        .eq('key', key)
+        .single();
+
+      // Upsert the value
+      const { data, error: dbError } = await supabase
+        .from('org_memory_kv')
+        .upsert(
+          {
+            namespace,
+            key,
+            value,
+            ttl_seconds: ttlSeconds,
+            source,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'namespace,key' },
+        )
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // Log the event
+      await supabase.from('org_memory_events').insert({
+        event_type: 'write',
+        namespace,
+        key,
+        value_before: existing?.value,
+        value_after: value,
+        source,
+      });
+
+      return success(res, data, startTime);
+    }
+
+    // ========================================
+    // DELETE: Remove memory
+    // ========================================
+    if (req.method === 'DELETE') {
+      const namespace = (req.query.namespace as string) || 'global';
+      const key = req.query.key as string | undefined;
+
+      if (!key) return error(res, 'INVALID_INPUT', 'key is required', 400, undefined, startTime);
+
+      // Get existing value for audit log
+      const { data: existing } = await supabase
+        .from('org_memory_kv')
+        .select('value')
+        .eq('namespace', namespace)
+        .eq('key', key)
+        .single();
+
+      const { error: dbError } = await supabase
+        .from('org_memory_kv')
+        .delete()
+        .eq('namespace', namespace)
+        .eq('key', key);
+
+      if (dbError) throw dbError;
+
+      // Log the event
+      if (existing) {
+        await supabase.from('org_memory_events').insert({
+          event_type: 'delete',
+          namespace,
+          key,
+          value_before: existing.value,
+          value_after: null,
+          source: 'api',
+        });
+      }
+
+      return success(res, { deleted: !!existing }, startTime);
+    }
+
+    return error(res, 'METHOD_NOT_ALLOWED', 'Use GET, POST, or DELETE', 405, undefined, startTime);
+  } catch (err: any) {
+    console.error('[MEMORY ERROR]', err?.message || err);
+    return error(res, 'MEMORY_FAILED', err?.message || 'Unknown error', 500, undefined, startTime);
   }
 }
-
