@@ -13,7 +13,7 @@ import { CoachLeaderboard } from "@/components/dashboard/CoachLeaderboard";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
-import { DashboardInterventionTracker } from "@/components/dashboard/DashboardInterventionTracker";
+import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInterventionTracker";
 import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
 import { TickerFeed } from "@/components/hubspot/TickerFeed";
 import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
@@ -22,11 +22,11 @@ import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "@/hooks/use-toast";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { 
-  Calendar, 
-  TrendingUp, 
-  Users, 
-  Zap, 
+import {
+  Calendar,
+  TrendingUp,
+  Users,
+  Zap,
   CreditCard,
   Activity,
   LayoutGrid,
@@ -128,7 +128,7 @@ export default function Dashboard() {
         .select("deal_value")
         .eq("status", "closed")
         .gte("close_date", today);
-      
+
       if (error) return 0;
       return data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
     },
@@ -145,6 +145,24 @@ export default function Dashboard() {
       const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
       return { total, count: data?.length || 0 };
     },
+    retry: 2,
+  });
+
+  // Fetch interventions for EnhancedInterventionTracker
+  const { data: interventions = [], isLoading: interventionsLoading } = useDedupedQuery({
+    queryKey: ["interventions-dashboard"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('intervention_log')
+        .select('*')
+        .neq('status', 'COMPLETED')
+        .order('priority', { ascending: true })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: Infinity,
     retry: 2,
   });
 
@@ -239,7 +257,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       {/* Live Ticker at the top */}
       <TickerFeed />
-      
+
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <MissionControlHeader
           title="Executive Dashboard"
@@ -280,9 +298,9 @@ export default function Dashboard() {
 
             {/* Quick Actions */}
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => navigate('/sales-pipeline')}
                 className="gap-2 bg-card/50 border-border/50 hover:border-primary/30"
               >
@@ -290,9 +308,9 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">Pipeline</span>
                 <ArrowUpRight className="h-3 w-3 opacity-50" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => navigate('/ptd-control')}
                 className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 text-primary"
               >
@@ -307,11 +325,11 @@ export default function Dashboard() {
             <ExecutiveBriefing summary={executiveSummary} />
             <KPIGrid data={kpiData} isLoading={isLoading} onMetricClick={handleMetricClick} />
             <PredictiveAlerts clients={clients || []} summary={dailySummary} />
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <ClientRiskMatrix clients={clients || []} isLoading={clientsLoading} />
-                <DashboardInterventionTracker />
+                <EnhancedInterventionTracker interventions={interventions} isLoading={interventionsLoading} />
               </div>
               <div className="space-y-6">
                 <CoachLeaderboard />
@@ -335,19 +353,19 @@ export default function Dashboard() {
               }))}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <QuickStatCard 
-                title="Open Deals" 
-                value={pipelineData?.count || 0} 
+              <QuickStatCard
+                title="Open Deals"
+                value={pipelineData?.count || 0}
                 onClick={() => navigate('/sales-pipeline')}
               />
-              <QuickStatCard 
-                title="Pipeline Value" 
-                value={`AED ${(pipelineData?.total || 0).toLocaleString()}`} 
+              <QuickStatCard
+                title="Pipeline Value"
+                value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
                 variant="success"
               />
-              <QuickStatCard 
-                title="Closed MTD" 
-                value={`AED ${(revenueData?.total || 0).toLocaleString()}`} 
+              <QuickStatCard
+                title="Closed MTD"
+                value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
                 variant="success"
               />
             </div>
@@ -429,27 +447,27 @@ export default function Dashboard() {
           <TabsContent value="revenue" className="space-y-6 mt-0 animate-fade-in">
             <LiveRevenueChart />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <RevenueStatCard 
-                title="Monthly Revenue" 
+              <RevenueStatCard
+                title="Monthly Revenue"
                 value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
                 trend={revenueData?.trend}
                 isPositive={revenueData?.isPositive}
               />
-              <RevenueStatCard 
-                title="Pipeline Value" 
+              <RevenueStatCard
+                title="Pipeline Value"
                 value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
                 subtitle={`${pipelineData?.count || 0} active deals`}
               />
-              <RevenueStatCard 
-                title="At-Risk Revenue" 
+              <RevenueStatCard
+                title="At-Risk Revenue"
                 value={`AED ${(clients || [])
                   .filter(c => c.health_zone === "RED" || c.health_zone === "YELLOW")
                   .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
                   .toLocaleString()}`}
                 variant="warning"
               />
-              <RevenueStatCard 
-                title="Healthy Revenue" 
+              <RevenueStatCard
+                title="Healthy Revenue"
                 value={`AED ${(clients || [])
                   .filter(c => c.health_zone === "GREEN" || c.health_zone === "PURPLE")
                   .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
@@ -465,14 +483,14 @@ export default function Dashboard() {
 }
 
 // Quick Stat Card Component
-function QuickStatCard({ 
-  title, 
-  value, 
+function QuickStatCard({
+  title,
+  value,
   variant = "default",
-  onClick 
-}: { 
-  title: string; 
-  value: string | number; 
+  onClick
+}: {
+  title: string;
+  value: string | number;
   variant?: "default" | "success" | "warning";
   onClick?: () => void;
 }) {
@@ -483,7 +501,7 @@ function QuickStatCard({
   };
 
   return (
-    <Card 
+    <Card
       className={cn(
         "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
         variantStyles[variant],
@@ -500,16 +518,16 @@ function QuickStatCard({
 }
 
 // Revenue Stat Card Component
-function RevenueStatCard({ 
-  title, 
-  value, 
+function RevenueStatCard({
+  title,
+  value,
   trend,
   isPositive,
   subtitle,
   variant = "default"
-}: { 
-  title: string; 
-  value: string; 
+}: {
+  title: string;
+  value: string;
   trend?: number;
   isPositive?: boolean;
   subtitle?: string;

@@ -41,23 +41,9 @@ export default function HealthIntelligenceTab({ mode }: HealthIntelligenceTabPro
   // Calculate health scores using edge function
   const calculateHealth = useMutation({
     mutationFn: async () => {
-      // #region debug log
-      fetch('http://127.0.0.1:7242/ingest/1ebabae3-7d84-483e-9538-7162c5fc3e7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthIntelligenceTab.tsx:43',message:'Frontend invoking health-calculator',data:{mode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H0'})}).catch(e => console.error('Log failed', e));
-      // #endregion
-
       const { data, error } = await supabase.functions.invoke('health-calculator', {
         body: { mode, action: 'calculate-all' }
       });
-      
-      // #region debug log
-      fetch('http://127.0.0.1:7242/ingest/1ebabae3-7d84-483e-9538-7162c5fc3e7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthIntelligenceTab.tsx:48',message:'Frontend invoke result',data:{data, error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H0'})}).catch(()=>{});
-      
-      if (data?.debugLogs && Array.isArray(data.debugLogs)) {
-        data.debugLogs.forEach((log: any) => {
-            fetch('http://127.0.0.1:7242/ingest/1ebabae3-7d84-483e-9538-7162c5fc3e7a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(log)}).catch(()=>{});
-        });
-      }
-      // #endregion
 
       if (error) throw error;
       return data;
@@ -130,7 +116,7 @@ export default function HealthIntelligenceTab({ mode }: HealthIntelligenceTabPro
     yellow: healthScores?.filter((c: any) => c.health_zone === 'yellow').length || 0,
     green: healthScores?.filter((c: any) => c.health_zone === 'green').length || 0,
     purple: healthScores?.filter((c: any) => c.health_zone === 'purple').length || 0,
-    avgScore: healthScores?.length ? 
+    avgScore: healthScores?.length ?
       (healthScores.reduce((acc: number, c: any) => acc + (c.health_score || 0), 0) / healthScores.length).toFixed(1) : 0,
   };
 
