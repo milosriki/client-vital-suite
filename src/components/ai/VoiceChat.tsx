@@ -152,11 +152,11 @@ export function VoiceChat({
         throw new Error(data?.error || data?.message || "Failed to get response");
       }
 
-      const response = data?.response || "I didn't receive a response. Please try again.";
-      setLastResponse(response);
+      const aiResponse = data?.response || "I didn't receive a response. Please try again.";
+      setLastResponse(aiResponse);
 
       // Speak the response
-      speakText(response);
+      speakText(aiResponse);
 
       toast({
         title: "Response received",
