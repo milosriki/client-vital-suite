@@ -12,13 +12,14 @@ These settings require **superuser** permissions and must be run in the **Supaba
 
 ## 🔗 Where to Run
 
-**Supabase Dashboard**: https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds/sql/new
+**Supabase Dashboard**: <https://supabase.com/dashboard/project/ztjndilxurtsfqdsvfds/sql/new>
 
 ---
 
 ## 📋 SQL Commands to Execute
 
 ### Step 1: Confirm Database Name
+
 ```sql
 SELECT current_database() as db_name;
 ```
@@ -28,6 +29,7 @@ SELECT current_database() as db_name;
 ---
 
 ### Step 2: Set Supabase URL
+
 ```sql
 ALTER DATABASE postgres SET app.settings.supabase_url = 'https://ztjndilxurtsfqdsvfds.supabase.co';
 ```
@@ -37,6 +39,7 @@ ALTER DATABASE postgres SET app.settings.supabase_url = 'https://ztjndilxurtsfqd
 ---
 
 ### Step 3: Set pg_cron Secret
+
 ```sql
 ALTER DATABASE postgres SET app.cron_secret = '152bd25836768729ac62122db53ad38c0d7b1d68621e8d86b4133f0521872117';
 ```
@@ -46,6 +49,7 @@ ALTER DATABASE postgres SET app.cron_secret = '152bd25836768729ac62122db53ad38c0
 **Security Note**: This secret was generated with `openssl rand -hex 32`. Keep it secure!
 
 **To generate a new secret**:
+
 ```bash
 openssl rand -hex 32
 ```
@@ -67,6 +71,7 @@ SELECT
 ```
 
 **Expected Output**:
+
 ```
 supabase_url                                    | cron_secret_status
 ------------------------------------------------|-------------------
@@ -105,6 +110,7 @@ A migration file has been created at:
 ## 🚀 Next Steps
 
 After setting these:
+
 1. Verify pg_cron jobs can access Supabase URL
 2. Test cron job execution
 3. Monitor cron logs for authentication issues
@@ -119,7 +125,7 @@ After setting these:
 **Method**: `openssl rand -hex 32`
 
 **To regenerate**:
+
 ```bash
 openssl rand -hex 32
 ```
-
