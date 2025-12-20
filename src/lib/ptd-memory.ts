@@ -229,7 +229,8 @@ export async function saveMessageToDatabase(
   threadId: string,
   query: string,
   response: string,
-  knowledgeExtracted?: Record<string, unknown> | null
+  knowledgeExtracted?: Record<string, unknown> | null,
+  userLabel?: string
 ): Promise<void> {
   try {
     await withTimeoutAndRetry(async () => {
@@ -239,7 +240,10 @@ export async function saveMessageToDatabase(
           thread_id: threadId,
           query,
           response,
-          knowledge_extracted: knowledgeExtracted || extractKnowledge(query, response)
+          knowledge_extracted: {
+            user_label: userLabel || 'anonymous',
+            ...(knowledgeExtracted || extractKnowledge(query, response))
+          }
         });
 
       if (error) throw error;

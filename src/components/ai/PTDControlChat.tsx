@@ -14,11 +14,17 @@ export default function PTDControlChat() {
   const [uploading, setUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; content: string }[]>([]);
   const [threadId, setThreadId] = useState<string>('');
+  const [chatMode, setChatMode] = useState<'global' | 'personal'>('global');
+  const [userLabel, setUserLabel] = useState<string>('anonymous');
   const [memoryStats, setMemoryStats] = useState<{ memories: number; patterns: number } | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const GLOBAL_THREAD_ID = "ptd-global";
+  const CHAT_MODE_KEY = "ptd-chat-mode";
+  const USER_LABEL_KEY = "ptd-user-label";
 
   // Voice chat hooks
   const {
@@ -44,9 +50,22 @@ export default function PTDControlChat() {
     stop: stopSpeaking,
   } = useTextToSpeech();
 
-  // Initialize thread ID and load conversation history
+  // Initialize thread ID, user label, and load conversation history
   useEffect(() => {
-    const tid = getThreadId();
+    const storedMode = (localStorage.getItem(CHAT_MODE_KEY) as 'global' | 'personal') || 'global';
+    setChatMode(storedMode);
+
+    const storedLabel = localStorage.getItem(USER_LABEL_KEY);
+    if (storedLabel) {
+      setUserLabel(storedLabel);
+    } else {
+      const prompted = window.prompt('Enter your name (used to tag global memory entries):', 'anonymous') || 'anonymous';
+      const trimmed = prompted.trim() || 'anonymous';
+      localStorage.setItem(USER_LABEL_KEY, trimmed);
+      setUserLabel(trimmed);
+    }
+
+    const tid = storedMode === 'global' ? GLOBAL_THREAD_ID : getThreadId();
     setThreadId(tid);
     loadMemoryStats();
     loadChatHistory(tid);
@@ -111,7 +130,21 @@ export default function PTDControlChat() {
     }
   };
 
+  const applyChatMode = (mode: 'global' | 'personal') => {
+    localStorage.setItem(CHAT_MODE_KEY, mode);
+    setChatMode(mode);
+    const tid = mode === 'global' ? GLOBAL_THREAD_ID : getThreadId();
+    setThreadId(tid);
+    setMessages([]);
+    loadChatHistory(tid);
+  };
+
   const handleNewThread = () => {
+    if (chatMode === 'global') {
+      toast.info('Global Brain uses a shared thread for everyone. Switch to Personal to start a new thread.');
+      return;
+    }
+
     const newId = startNewThread();
     setThreadId(newId);
     setMessages([]);
@@ -168,7 +201,7 @@ export default function PTDControlChat() {
                 file_size: file.size,
                 chunks_created: data.chunks_created,
                 preview: content.slice(0, 1000)
-              });
+              }, userLabel);
             } catch (dbError) {
               console.error('Failed to save file upload to database:', dbError);
             }
@@ -203,7 +236,8 @@ export default function PTDControlChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMessage,
-          thread_id: threadId  // Pass thread ID for memory continuity
+          thread_id: threadId,  // Pass thread ID for memory continuity
+          user_label: userLabel,
         }),
       });
 
@@ -234,7 +268,7 @@ export default function PTDControlChat() {
         // Save conversation to database in real-time with retry
         if (isOnline) {
           try {
-            await saveMessageToDatabase(threadId, userMessage, aiResponse);
+            await saveMessageToDatabase(threadId, userMessage, aiResponse, undefined, userLabel);
           } catch (dbError) {
             console.error('Failed to save message to database:', dbError);
             toast.error('Could not save conversation to database', {
@@ -254,7 +288,7 @@ export default function PTDControlChat() {
 
         if (isOnline) {
           try {
-            await saveMessageToDatabase(threadId, userMessage, errorMsg);
+            await saveMessageToDatabase(threadId, userMessage, errorMsg, undefined, userLabel);
           } catch (dbError) {
             console.error('Failed to save error to database:', dbError);
           }
@@ -266,7 +300,7 @@ export default function PTDControlChat() {
 
       if (isOnline) {
         try {
-          await saveMessageToDatabase(threadId, userMessage, errorMsg);
+          await saveMessageToDatabase(threadId, userMessage, errorMsg, undefined, userLabel);
         } catch (dbError) {
           console.error('Failed to save exception to database:', dbError);
         }
@@ -301,6 +335,22 @@ export default function PTDControlChat() {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1 text-xs text-white/70">
+              <span>Mode:</span>
+              <button
+                onClick={() => applyChatMode('global')}
+                className={`px-2 py-1 rounded ${chatMode === 'global' ? 'bg-cyan-500/40 text-white' : 'bg-transparent hover:bg-white/10'}`}
+              >
+                Global
+              </button>
+              <button
+                onClick={() => applyChatMode('personal')}
+                className={`px-2 py-1 rounded ${chatMode === 'personal' ? 'bg-cyan-500/40 text-white' : 'bg-transparent hover:bg-white/10'}`}
+              >
+                Personal
+              </button>
+            </div>
+
             {/* New Thread Button */}
             <button
               onClick={handleNewThread}
@@ -335,6 +385,21 @@ export default function PTDControlChat() {
             Thread: {threadId.slice(0, 20)}...
           </div>
         )}
+
+        <div className="mt-2 flex items-center gap-2 text-xs text-white/60">
+          <span>User label:</span>
+          <input
+            value={userLabel}
+            onChange={(e) => setUserLabel(e.target.value)}
+            onBlur={(e) => {
+              const val = e.target.value.trim() || 'anonymous';
+              setUserLabel(val);
+              localStorage.setItem(USER_LABEL_KEY, val);
+            }}
+            className="bg-white/10 border border-cyan-500/20 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            placeholder="Your name"
+          />
+        </div>
 
         {/* Uploaded Files Pills */}
         {uploadedFiles.length > 0 && (
