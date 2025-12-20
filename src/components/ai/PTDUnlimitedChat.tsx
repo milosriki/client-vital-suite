@@ -311,15 +311,19 @@ export default function PTDUnlimitedChat() {
     setInput("");
 
     try {
-      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
-        body: {
+      const response = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           message: userMessage,
           thread_id: threadId
-        },
+        }),
       });
 
-      if (error) {
-        const errorMsg = `Error: ${error.message}`;
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data?.error) {
+        const errorMsg = `Error: ${data?.error || data?.message || 'Agent error'}`;
         setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
 
         // Still try to save the error to database if online

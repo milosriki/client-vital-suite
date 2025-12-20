@@ -136,19 +136,19 @@ export function VoiceChat({
     setError(null);
 
     try {
-      const { data, error: functionError } = await supabase.functions.invoke(agentFunction, {
-        body: {
+      const response = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           message: text,
           thread_id: threadIdRef.current
-        }
+        })
       });
 
-      if (functionError) {
-        throw new Error(functionError.message || "Failed to get response");
-      }
+      const data = await response.json().catch(() => ({}));
 
-      if (data?.error) {
-        throw new Error(data.error);
+      if (!response.ok || data?.error) {
+        throw new Error(data?.error || data?.message || "Failed to get response");
       }
 
       const response = data?.response || "I didn't receive a response. Please try again.";

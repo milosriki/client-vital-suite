@@ -149,14 +149,17 @@ export function AIAssistantPanel() {
   // Send message to agent
   const sendMessage = useMutation({
     mutationFn: async (message: string) => {
-      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
-        body: {
-          message: message,
+      const response = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
           thread_id: sessionId
-        }
+        })
       });
 
-      if (error) throw error;
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || data?.message || "Agent error");
       if (data?.error) throw new Error(data.error);
       return data;
     },

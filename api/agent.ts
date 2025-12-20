@@ -1,5 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Simple in-memory rate limit (per execution environment)
+// Note: Vercel serverless functions can scale horizontally; this is a best-effort guard.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 30; // per IP per window
+const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
+
+function rateLimit(ip: string | undefined): { allowed: boolean; remaining: number } {
+  const key = ip || 'unknown';
+  const now = Date.now();
+  const bucket = rateLimitStore.get(key);
+
+  if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitStore.set(key, { count: 1, windowStart: now });
+    return { allowed: true, remaining: RATE_LIMIT_MAX - 1 };
+  }
+
+  if (bucket.count >= RATE_LIMIT_MAX) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  bucket.count += 1;
+  return { allowed: true, remaining: RATE_LIMIT_MAX - bucket.count };
+}
+
 /**
  * Vercel API Route: Proxy to Supabase Edge Function ptd-agent-claude
  * 
@@ -26,6 +50,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+  }
+
+  // Rate limit
+  const { allowed, remaining } = rateLimit(req.headers['x-forwarded-for'] as string | undefined);
+  if (!allowed) {
+    console.warn('[api/agent] Rate limit exceeded');
+    return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+  }
+
+  // Optional API key check (set AGENT_API_KEY to require it)
+  const requiredApiKey = process.env.AGENT_API_KEY;
+  if (requiredApiKey) {
+    const provided = req.headers['x-agent-api-key'] || req.headers['authorization'];
+    const token = Array.isArray(provided) ? provided[0] : provided;
+    if (!token || token !== requiredApiKey) {
+      console.warn('[api/agent] Unauthorized: missing/invalid api key');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
   }
 
   try {
@@ -59,11 +101,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Log the request (visible in Vercel logs)
+    // Log the request (visible in Vercel logs) without sensitive data
     console.log('[api/agent] Proxying request to ptd-agent-claude', {
       hasMessage: !!message,
       hasMessages: !!messages,
       threadId: thread_id || 'default',
+      remainingRequests: remaining,
       timestamp: new Date().toISOString()
     });
 

@@ -250,25 +250,28 @@ export const FloatingChat = () => {
           ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map((f) => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map((f) => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
           : userMessage;
 
-      console.log("📤 Sending to agent:", userMessage.slice(0, 50));
-      
-      const { data, error } = await supabase.functions.invoke("ptd-agent-gemini", {
-        body: {
+      console.log("📤 Sending to agent via /api/agent:", userMessage.slice(0, 50));
+
+      const response = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           message: messageWithFiles,
           thread_id: threadId,
           has_files: files.length > 0,
           file_names: files.map((f) => f.name),
-        },
+        }),
       });
 
-      console.log("📥 Agent response:", { data, error });
+      const json = await response.json().catch(() => ({}));
+      console.log("📥 Agent response:", { status: response.status, json });
 
-      if (error) {
-        console.error("Function error:", error);
-        throw new Error(error.message || "Failed to get response");
+      if (!response.ok) {
+        const errMsg = json?.error || json?.message || "Failed to get response";
+        throw new Error(errMsg);
       }
 
-      const responseText = data?.response || data?.error || "No response received. Please try again.";
+      const responseText = json?.response || json?.answer || json?.message || "No response received. Please try again.";
 
       // Update assistant message with response
       setMessages((prev) =>
