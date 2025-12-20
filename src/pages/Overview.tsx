@@ -26,7 +26,7 @@ const Overview = () => {
   const [zoneFilter, setZoneFilter] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
   // Enable real-time updates
   useRealtimeHealthScores();
 
@@ -127,7 +127,7 @@ const Overview = () => {
         .select('*')
         .order('intervention_date', { ascending: false })
         .limit(20);
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -143,7 +143,7 @@ const Overview = () => {
         .select('*')
         .order('week_start_date', { ascending: false })
         .limit(4);
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -161,12 +161,12 @@ const Overview = () => {
   const handleSetupWorkflows = async () => {
     setSetupLoading(true);
     setErrorDetails(null);
-    
+
     try {
       console.log("Starting data refresh...");
       setSetupStatus("Checking database connection...");
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Simply refresh the data from Supabase
       setSetupStatus("Fetching latest data...");
       await refetchSummary();
@@ -174,26 +174,26 @@ const Overview = () => {
       await refetchCoaches();
       await refetchInterventions();
       await refetchWeekly();
-      
+
       setSetupStatus("Success! Dashboard ready.");
       toast({
         title: "Data Refreshed",
         description: "Dashboard data has been refreshed from the database.",
       });
-      
+
       await new Promise(resolve => setTimeout(resolve, 500));
       setSetupStatus("");
-      
+
     } catch (error) {
       console.error("Refresh error:", error);
-      
+
       setErrorDetails({
         type: "Data Refresh Error",
         message: error instanceof Error ? error.message : "Unknown error",
         error,
         timestamp: new Date().toISOString()
       });
-      
+
       toast({
         title: "Refresh Failed",
         description: error instanceof Error ? error.message : "Failed to refresh data",
@@ -280,7 +280,7 @@ const Overview = () => {
                 </div>
               )}
               <div className="space-y-2">
-                <Button 
+                <Button
                   className="w-full"
                   onClick={handleSetupWorkflows}
                   disabled={setupLoading}
@@ -297,7 +297,7 @@ const Overview = () => {
                     </>
                   )}
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   className="w-full"
                   onClick={() => navigate('/hubspot-live')}
@@ -324,7 +324,7 @@ const Overview = () => {
                     {errorDetails.message}
                   </pre>
                 </div>
-                
+
                 {errorDetails.executionError && (
                   <div>
                     <h3 className="font-semibold mb-2">Execution Details</h3>
@@ -333,7 +333,7 @@ const Overview = () => {
                     </pre>
                   </div>
                 )}
-                
+
                 {errorDetails.workflowErrors && errorDetails.workflowErrors.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Workflow Errors</h3>
@@ -350,17 +350,17 @@ const Overview = () => {
                     </div>
                   </div>
                 )}
-                
+
                 <div>
                   <h3 className="font-semibold mb-2">Full Response</h3>
                   <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto">
                     {JSON.stringify(errorDetails.fullResponse || errorDetails, null, 2)}
                   </pre>
                 </div>
-                
+
                 <div className="flex gap-2">
                   <Button onClick={() => setShowErrorModal(false)}>Close</Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => {
                       navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
@@ -383,7 +383,7 @@ const Overview = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Test Data Alert - Shows when mock/test data is detected */}
         <TestDataAlert />
-        
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

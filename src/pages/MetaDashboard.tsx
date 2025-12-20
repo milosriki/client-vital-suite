@@ -10,12 +10,17 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
+// Use current origin by default to avoid localhost fallbacks in production.
+const META_API_BASE =
+  import.meta.env.VITE_META_CAPI_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "");
+
 export default function MetaDashboard() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Fetch Facebook Ads Insights from Supabase
   const { data: insights, isLoading, refetch } = useDedupedQuery({
-    queryKey: ['facebook-ads-insights'],
+    queryKey: ['facebook-ads-insights', META_API_BASE],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('facebook_ads_insights' as any) // Type assertion until types are regenerated
@@ -90,7 +95,7 @@ export default function MetaDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">

@@ -18,6 +18,7 @@ import {
   type ExecutionRequest
 } from "@/lib/ptd-unlimited-agent";
 import { toast } from "sonner";
+import { getApiUrl, API_ENDPOINTS } from "@/config/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -185,15 +186,15 @@ export default function PTDUnlimitedChat() {
     setMonitoring(true);
     try {
       const { data, error } = await supabase.functions.invoke('ptd-24x7-monitor', { body: {} });
-      
+
       if (error) {
         toast.error(`Monitoring failed: ${error.message}`);
       } else {
         const alertCount = data?.alert_count || 0;
         const criticalCount = data?.critical_count || 0;
-        
+
         toast.success(`Monitoring complete: ${alertCount} alerts (${criticalCount} critical)`);
-        
+
         // Add monitoring results to chat
         setMessages(prev => [...prev, {
           role: 'ai',
@@ -205,7 +206,7 @@ export default function PTDUnlimitedChat() {
             `⚠️ **Alerts (${alertCount}):**\n` +
             (data?.alerts || []).map((a: any) => `• [${a.severity.toUpperCase()}] ${a.message}`).join('\n')
         }]);
-        
+
         loadStats();
       }
     } catch (e) {
@@ -245,10 +246,10 @@ export default function PTDUnlimitedChat() {
     for (const file of Array.from(files)) {
       try {
         const content = await file.text();
-        
+
         const { data, error } = await supabase.functions.invoke("process-knowledge", {
-          body: { 
-            content, 
+          body: {
+            content,
             filename: file.name,
             metadata: { type: file.type, size: file.size }
           },
@@ -264,8 +265,8 @@ export default function PTDUnlimitedChat() {
           const userQuery = `[Document Upload] ${file.name}`;
 
           setMessages(prev => [...prev,
-            { role: "user", content: userQuery },
-            { role: "ai", content: responseMsg }
+          { role: "user", content: userQuery },
+          { role: "ai", content: responseMsg }
           ]);
 
           // Save to agent_memory for persistence across sessions using new utility
@@ -311,7 +312,7 @@ export default function PTDUnlimitedChat() {
     setInput("");
 
     try {
-      const response = await fetch("/api/agent", {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -440,7 +441,7 @@ export default function PTDUnlimitedChat() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-1">
             {/* Monitoring Button */}
             <button
@@ -477,7 +478,7 @@ export default function PTDUnlimitedChat() {
             >
               <RotateCcw className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
             </button>
-            
+
             <label className="cursor-pointer p-2 hover:bg-cyan-500/20 rounded-lg transition-all group">
               <input
                 ref={fileInputRef}
@@ -503,14 +504,14 @@ export default function PTDUnlimitedChat() {
             </button>
           </div>
         </div>
-        
+
         {/* Thread ID & Files */}
         {threadId && (
           <div className="mt-2 text-xs text-white/30 truncate">
             Thread: {threadId.slice(0, 20)}...
           </div>
         )}
-        
+
         {uploadedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {uploadedFiles.map((file, i) => (
@@ -538,13 +539,12 @@ export default function PTDUnlimitedChat() {
               <div key={i} className="flex items-center justify-between bg-slate-900/50 rounded-lg p-2 mb-1">
                 <div>
                   <span className="text-white text-xs">{req.action}</span>
-                  <Badge 
-                    variant="outline" 
-                    className={`ml-2 text-[9px] ${
-                      req.risk_level === 'critical' ? 'border-red-500 text-red-400' :
+                  <Badge
+                    variant="outline"
+                    className={`ml-2 text-[9px] ${req.risk_level === 'critical' ? 'border-red-500 text-red-400' :
                       req.risk_level === 'high' ? 'border-orange-500 text-orange-400' :
-                      'border-yellow-500 text-yellow-400'
-                    }`}
+                        'border-yellow-500 text-yellow-400'
+                      }`}
                   >
                     {req.risk_level}
                   </Badge>
@@ -601,11 +601,10 @@ export default function PTDUnlimitedChat() {
 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-lg p-4 ${
-              msg.role === "user"
-                ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
-                : "bg-white/5 border border-white/10 text-white/90"
-            }`}>
+            <div className={`max-w-[85%] rounded-lg p-4 ${msg.role === "user"
+              ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
+              : "bg-white/5 border border-white/10 text-white/90"
+              }`}>
               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {msg.content}
               </p>
@@ -634,7 +633,7 @@ export default function PTDUnlimitedChat() {
             <span>Listening... {transcript && `"${transcript}"`}</span>
           </div>
         )}
-        
+
         <div className="flex gap-2">
           <input
             value={input}
@@ -644,17 +643,16 @@ export default function PTDUnlimitedChat() {
             className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
             disabled={loading}
           />
-          
+
           {/* Voice input button */}
           {voiceInputSupported && (
             <button
               onClick={toggleListening}
               disabled={loading}
-              className={`p-3 rounded-lg transition-all ${
-                isListening
-                  ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
-                  : 'bg-white/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
-              }`}
+              className={`p-3 rounded-lg transition-all ${isListening
+                ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
+                : 'bg-white/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
+                }`}
               title={isListening ? 'Stop recording' : 'Start voice input'}
             >
               {isListening ? (
@@ -664,7 +662,7 @@ export default function PTDUnlimitedChat() {
               )}
             </button>
           )}
-          
+
           {/* Voice output toggle */}
           {voiceOutputSupported && (
             <button
@@ -674,11 +672,10 @@ export default function PTDUnlimitedChat() {
                   stopSpeaking();
                 }
               }}
-              className={`p-3 rounded-lg transition-all ${
-                voiceEnabled
-                  ? 'bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30'
-                  : 'bg-white/10 border border-cyan-500/30 text-white/40 hover:bg-white/20'
-              }`}
+              className={`p-3 rounded-lg transition-all ${voiceEnabled
+                ? 'bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30'
+                : 'bg-white/10 border border-cyan-500/30 text-white/40 hover:bg-white/20'
+                }`}
               title={voiceEnabled ? 'Disable voice output' : 'Enable voice output'}
             >
               {voiceEnabled ? (
@@ -688,7 +685,7 @@ export default function PTDUnlimitedChat() {
               )}
             </button>
           )}
-          
+
           <button
             onClick={handleAsk}
             disabled={loading || !input.trim()}

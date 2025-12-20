@@ -85,7 +85,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-> ⚠️ **Important**: After changing environment variables, you must **redeploy** the Vercel project for changes to take effect. Push a commit or trigger a manual redeploy from the Vercel dashboard.
+> ⚠️ **Important**: After any env var change in Vercel, a **redeploy is required** for the new values to apply (push a commit or trigger a manual redeploy).
 
 ### 4. Deploy Functions
 

@@ -55,25 +55,25 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
   const getPriorityConfig = (priority: string | null) => {
     switch (priority) {
       case "CRITICAL":
-        return { 
+        return {
           badge: <Badge variant="destructive" className="animate-pulse">CRITICAL</Badge>,
           color: "border-l-destructive",
           bg: "bg-destructive/5"
         };
       case "HIGH":
-        return { 
+        return {
           badge: <Badge className="bg-orange-500">HIGH</Badge>,
           color: "border-l-orange-500",
           bg: "bg-orange-500/5"
         };
       case "MEDIUM":
-        return { 
+        return {
           badge: <Badge className="bg-warning text-warning-foreground">MEDIUM</Badge>,
           color: "border-l-warning",
           bg: "bg-warning/5"
         };
       default:
-        return { 
+        return {
           badge: <Badge variant="secondary">LOW</Badge>,
           color: "border-l-muted",
           bg: "bg-muted/5"
@@ -83,20 +83,20 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
 
   const getStatusConfig = (status: string | null) => {
     if (status === "COMPLETED") {
-      return { 
+      return {
         icon: <CheckCircle className="h-5 w-5 text-success" />,
         label: "Completed",
         color: "text-success"
       };
     }
     if (status === "IN_PROGRESS") {
-      return { 
+      return {
         icon: <Clock className="h-5 w-5 text-primary animate-pulse" />,
         label: "In Progress",
         color: "text-primary"
       };
     }
-    return { 
+    return {
       icon: <AlertTriangle className="h-5 w-5 text-warning" />,
       label: "Pending",
       color: "text-warning"
