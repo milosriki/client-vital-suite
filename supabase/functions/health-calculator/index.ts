@@ -52,7 +52,7 @@ function calculateEngagementScore(client: any): number {
     const lastDate = new Date(client.last_activity_date);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   } else if (client.days_since_last_session) {
     daysSince = client.days_since_last_session;
   }
@@ -143,7 +143,7 @@ function calculatePredictiveRisk(client: any, healthZone: string, momentum: stri
     const lastDate = new Date(client.last_activity_date);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   } else if (client.days_since_last_session) {
     daysSince = client.days_since_last_session;
   }
@@ -190,7 +190,7 @@ serve(async (req) => {
     const { mode = "full", client_emails = [] } = await req.json().catch(() => ({}));
 
     console.log(`[Health Calculator] Starting ${mode} calculation...`);
-    debugLogs.push({location:'health-calculator/index.ts:191',message:'Starting calculation',data:{mode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'});
+    debugLogs.push({ location: 'health-calculator/index.ts:191', message: 'Starting calculation', data: { mode }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
 
     // Fetch clients from CONTACTS table (Source of Truth)
     let query = supabase
@@ -203,7 +203,7 @@ serve(async (req) => {
 
     const { data: contacts, error: fetchError } = await query;
 
-    debugLogs.push({location:'health-calculator/index.ts:202',message:'Contacts fetched',data:{count:contacts?.length, error: fetchError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'});
+    debugLogs.push({ location: 'health-calculator/index.ts:202', message: 'Contacts fetched', data: { count: contacts?.length, error: fetchError }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
 
     if (fetchError) {
       console.error("Error fetching contacts:", fetchError);
@@ -239,7 +239,7 @@ serve(async (req) => {
         const interventionPriority = getInterventionPriority(healthZone, predictiveRisk, momentum);
 
         if (results.processed === 0) {
-           debugLogs.push({location:'health-calculator/index.ts:238',message:'Calculated score for first client',data:{email:client.email, score:healthScore, zone:healthZone},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'});
+          debugLogs.push({ location: 'health-calculator/index.ts:238', message: 'Calculated score for first client', data: { email: client.email, score: healthScore, zone: healthZone }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
         }
 
         upsertPayloads.push({
@@ -337,7 +337,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    debugLogs.push({location:'health-calculator/index.ts:317',message:'Global error',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'});
+    debugLogs.push({ location: 'health-calculator/index.ts:317', message: 'Global error', data: { error: String(error) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
     console.error("[Health Calculator] Error:", error);
     return new Response(JSON.stringify({
       success: false,

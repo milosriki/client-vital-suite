@@ -171,7 +171,7 @@ export default function StripeIntelligence() {
       };
 
       const response = await fetch(
-        `https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/stripe-payouts-ai`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-payouts-ai`,
         {
           method: "POST",
           headers: {
@@ -221,7 +221,7 @@ export default function StripeIntelligence() {
                   return updated;
                 });
               }
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -249,7 +249,7 @@ export default function StripeIntelligence() {
 
   // Prepare chart data
   const chartData = stripeData?.chartData || [];
-  
+
   // Payment status breakdown for pie chart
   const statusBreakdown = [
     { name: "Successful", value: metrics.successfulPaymentsCount || 0, color: "hsl(var(--success))" },
@@ -729,14 +729,14 @@ export default function StripeIntelligence() {
                               <div
                                 className={cn(
                                   "h-9 w-9 rounded-full flex items-center justify-center",
-                                  sub.status === "active" ? "bg-success/10" : 
-                                  sub.status === "trialing" ? "bg-warning/10" : "bg-destructive/10"
+                                  sub.status === "active" ? "bg-success/10" :
+                                    sub.status === "trialing" ? "bg-warning/10" : "bg-destructive/10"
                                 )}
                               >
                                 <Repeat className={cn(
                                   "h-4 w-4",
-                                  sub.status === "active" ? "text-success" : 
-                                  sub.status === "trialing" ? "text-warning" : "text-destructive"
+                                  sub.status === "active" ? "text-success" :
+                                    sub.status === "trialing" ? "text-warning" : "text-destructive"
                                 )} />
                               </div>
                               <div>
@@ -748,7 +748,7 @@ export default function StripeIntelligence() {
                                 </p>
                               </div>
                             </div>
-                            <Badge 
+                            <Badge
                               variant={sub.status === "active" ? "default" : sub.status === "trialing" ? "secondary" : "destructive"}
                               className="text-xs"
                             >

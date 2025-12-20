@@ -9,206 +9,278 @@ const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin;
 
 // Session management
 export interface Session {
-  session_id: string;
-  device_fingerprint?: string;
-  browser_info?: Record<string, any>;
-  created_at: string;
-  last_accessed_at: string;
-  expires_at?: string;
-  metadata?: Record<string, any>;
+    session_id: string;
+    device_fingerprint?: string;
+    browser_info?: Record<string, any>;
+    created_at: string;
+    last_accessed_at: string;
+    expires_at?: string;
+    metadata?: Record<string, any>;
 }
 
-// Memory entry
+// Memory entry (session-scoped or global)
 export interface MemoryEntry {
-  id: string;
-  session_id: string;
-  memory_key: string;
-  memory_value: any;
-  memory_type: "context" | "preference" | "history";
-  created_at: string;
-  updated_at: string;
-  expires_at?: string;
+    id: string;
+    session_id?: string | null; // null for global memory
+    memory_key: string;
+    memory_value: any;
+    memory_type: "context" | "preference" | "history" | "shared" | "config" | "cache";
+    created_at: string;
+    updated_at: string;
+    expires_at?: string;
+    updated_by?: string; // For global memory
 }
 
 /**
  * Create or get a session
  */
 export async function createOrGetSession(
-  sessionId?: string,
-  options?: {
-    device_fingerprint?: string;
-    browser_info?: Record<string, any>;
-    expires_in?: number; // seconds
-  }
+    sessionId?: string,
+    options?: {
+        device_fingerprint?: string;
+        browser_info?: Record<string, any>;
+        expires_in?: number; // seconds
+    }
 ): Promise<Session> {
-  const response = await fetch(`${API_BASE}/api/session`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session_id: sessionId,
-      ...options,
-    }),
-  });
+    const response = await fetch(`${API_BASE}/api/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            session_id: sessionId,
+            ...options,
+        }),
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to create session" }));
-    throw new Error(error.error || "Failed to create session");
-  }
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to create session" }));
+        throw new Error(error.error || "Failed to create session");
+    }
 
-  const data = await response.json();
-  return data.session;
+    const data = await response.json();
+    return data.session;
 }
 
 /**
  * Get session info
  */
 export async function getSession(sessionId: string): Promise<Session | null> {
-  const response = await fetch(`${API_BASE}/api/session?session_id=${sessionId}`);
+    const response = await fetch(`${API_BASE}/api/session?session_id=${sessionId}`);
 
-  if (response.status === 404) {
-    return null;
-  }
+    if (response.status === 404) {
+        return null;
+    }
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to get session" }));
-    throw new Error(error.error || "Failed to get session");
-  }
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to get session" }));
+        throw new Error(error.error || "Failed to get session");
+    }
 
-  const data = await response.json();
-  return data.session;
+    const data = await response.json();
+    return data.session;
 }
 
 /**
- * Store memory (key-value)
+ * Store memory (key-value) - session-scoped
  */
 export async function storeMemory(
-  sessionId: string,
-  key: string,
-  value: any,
-  options?: {
-    type?: "context" | "preference" | "history";
-    expires_in?: number; // seconds
-  }
+    sessionId: string,
+    key: string,
+    value: any,
+    options?: {
+        type?: "context" | "preference" | "history";
+        expires_in?: number; // seconds
+    }
 ): Promise<MemoryEntry> {
-  const response = await fetch(`${API_BASE}/api/memory`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session_id: sessionId,
-      key,
-      value,
-      type: options?.type || "context",
-      expires_in: options?.expires_in,
-    }),
-  });
+    const response = await fetch(`${API_BASE}/api/memory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            session_id: sessionId,
+            key,
+            value,
+            type: options?.type || "context",
+            expires_in: options?.expires_in,
+        }),
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to store memory" }));
-    throw new Error(error.error || "Failed to store memory");
-  }
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to store memory" }));
+        throw new Error(error.error || "Failed to store memory");
+    }
 
-  const data = await response.json();
-  return data.memory;
+    const data = await response.json();
+    return data.memory;
 }
 
 /**
- * Get memory (all or by key)
+ * Store GLOBAL memory (shared across all devices/browsers)
+ */
+export async function storeGlobalMemory(
+    key: string,
+    value: any,
+    options?: {
+        type?: "shared" | "config" | "cache";
+        expires_in?: number; // seconds
+    }
+): Promise<MemoryEntry> {
+    const response = await fetch(`${API_BASE}/api/memory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            global: true,
+            key,
+            value,
+            type: options?.type || "shared",
+            expires_in: options?.expires_in,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to store global memory" }));
+        throw new Error(error.error || "Failed to store global memory");
+    }
+
+    const data = await response.json();
+    return data.memory;
+}
+
+/**
+ * Get memory (all or by key) - session-scoped
  */
 export async function getMemory(
-  sessionId: string,
-  key?: string
+    sessionId: string,
+    key?: string
 ): Promise<MemoryEntry[]> {
-  const url = new URL(`${API_BASE}/api/memory`);
-  url.searchParams.set("session_id", sessionId);
-  if (key) {
-    url.searchParams.set("key", key);
-  }
+    const url = new URL(`${API_BASE}/api/memory`);
+    url.searchParams.set("session_id", sessionId);
+    if (key) {
+        url.searchParams.set("key", key);
+    }
 
-  const response = await fetch(url.toString());
+    const response = await fetch(url.toString());
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to get memory" }));
-    throw new Error(error.error || "Failed to get memory");
-  }
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to get memory" }));
+        throw new Error(error.error || "Failed to get memory");
+    }
 
-  const data = await response.json();
-  return data.memory || [];
+    const data = await response.json();
+    return data.memory || [];
 }
 
 /**
- * Delete memory (by key or all for session)
+ * Get GLOBAL memory (shared across all devices) - all or by key
+ */
+export async function getGlobalMemory(key?: string): Promise<MemoryEntry[]> {
+    const url = new URL(`${API_BASE}/api/memory`);
+    url.searchParams.set("global", "true");
+    if (key) {
+        url.searchParams.set("key", key);
+    }
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to get global memory" }));
+        throw new Error(error.error || "Failed to get global memory");
+    }
+
+    const data = await response.json();
+    return data.memory || [];
+}
+
+/**
+ * Delete memory (by key or all for session) - session-scoped
  */
 export async function deleteMemory(sessionId: string, key?: string): Promise<void> {
-  const url = new URL(`${API_BASE}/api/memory`);
-  url.searchParams.set("session_id", sessionId);
-  if (key) {
+    const url = new URL(`${API_BASE}/api/memory`);
+    url.searchParams.set("session_id", sessionId);
+    if (key) {
+        url.searchParams.set("key", key);
+    }
+
+    const response = await fetch(url.toString(), {
+        method: "DELETE",
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to delete memory" }));
+        throw new Error(error.error || "Failed to delete memory");
+    }
+}
+
+/**
+ * Delete GLOBAL memory (by key) - shared across all devices
+ */
+export async function deleteGlobalMemory(key: string): Promise<void> {
+    const url = new URL(`${API_BASE}/api/memory`);
+    url.searchParams.set("global", "true");
     url.searchParams.set("key", key);
-  }
 
-  const response = await fetch(url.toString(), {
-    method: "DELETE",
-  });
+    const response = await fetch(url.toString(), {
+        method: "DELETE",
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to delete memory" }));
-    throw new Error(error.error || "Failed to delete memory");
-  }
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to delete global memory" }));
+        throw new Error(error.error || "Failed to delete global memory");
+    }
 }
 
 /**
  * Get or create session ID (with localStorage fallback)
  */
 export async function getOrCreateSessionId(): Promise<string> {
-  const STORAGE_KEY = "server_session_id";
-  
-  // Try to get from localStorage
-  let sessionId = localStorage.getItem(STORAGE_KEY);
+    const STORAGE_KEY = "server_session_id";
 
-  if (sessionId) {
-    // Verify session still exists
-    try {
-      const session = await getSession(sessionId);
-      if (session) {
-        return sessionId;
-      }
-    } catch (error) {
-      // Session invalid, create new one
-      sessionId = null;
+    // Try to get from localStorage
+    let sessionId = localStorage.getItem(STORAGE_KEY);
+
+    if (sessionId) {
+        // Verify session still exists
+        try {
+            const session = await getSession(sessionId);
+            if (session) {
+                return sessionId;
+            }
+        } catch (error) {
+            // Session invalid, create new one
+            sessionId = null;
+        }
     }
-  }
 
-  // Create new session
-  const session = await createOrGetSession(undefined, {
-    expires_in: 30 * 24 * 60 * 60, // 30 days
-  });
+    // Create new session
+    const session = await createOrGetSession(undefined, {
+        expires_in: 30 * 24 * 60 * 60, // 30 days
+    });
 
-  sessionId = session.session_id;
-  localStorage.setItem(STORAGE_KEY, sessionId);
+    sessionId = session.session_id;
+    localStorage.setItem(STORAGE_KEY, sessionId);
 
-  return sessionId;
+    return sessionId;
 }
 
 /**
  * Helper: Store conversation context
  */
 export async function storeConversation(
-  sessionId: string,
-  messages: Array<{ role: string; content: string }>
+    sessionId: string,
+    messages: Array<{ role: string; content: string }>
 ): Promise<void> {
-  await storeMemory(sessionId, "conversation_history", messages, {
-    type: "history",
-    expires_in: 7 * 24 * 60 * 60, // 7 days
-  });
+    await storeMemory(sessionId, "conversation_history", messages, {
+        type: "history",
+        expires_in: 7 * 24 * 60 * 60, // 7 days
+    });
 }
 
 /**
  * Helper: Get conversation context
  */
 export async function getConversation(sessionId: string): Promise<Array<{ role: string; content: string }>> {
-  const memory = await getMemory(sessionId, "conversation_history");
-  if (memory.length > 0) {
-    return memory[0].memory_value || [];
-  }
-  return [];
+    const memory = await getMemory(sessionId, "conversation_history");
+    if (memory.length > 0) {
+        return memory[0].memory_value || [];
+    }
+    return [];
 }
 
