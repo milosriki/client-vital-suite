@@ -255,7 +255,10 @@ export const FloatingChat = () => {
 
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+        },
         body: JSON.stringify({
           message: messageWithFiles,
           thread_id: threadId,
@@ -288,7 +291,7 @@ export const FloatingChat = () => {
 
       toast({
         title: "Response received",
-        description: `Processed in ${data?.duration_ms ? Math.round(data.duration_ms / 1000) + 's' : 'a moment'}`,
+        description: `Processed in ${json?.duration_ms ? Math.round(json.duration_ms / 1000) + 's' : 'a moment'}`,
       });
     } catch (error: any) {
       console.error("Chat error:", error);
