@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { QUERY_INTERVALS } from '@/config/queryConfig';
 import { QUERY_KEYS } from '@/config/queryKeys';
 import { useDedupedQuery } from '@/hooks/useDedupedQuery';
