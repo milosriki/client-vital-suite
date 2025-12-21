@@ -138,7 +138,7 @@ const HubSpotLiveData = () => {
   // Track current month to properly update when month changes
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const monthStart = useMemo(() => startOfMonth(new Date()), [currentMonth, currentYear]);
+  const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const { data: monthlyDealsData, refetch: refetchMonthlyDeals } = useDedupedQuery({
     queryKey: ["db-deals-monthly", currentMonth, currentYear],
     queryFn: async () => {

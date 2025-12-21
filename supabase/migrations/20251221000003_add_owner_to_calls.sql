@@ -1,4 +1,5 @@
--- Add hubspot_owner_id to call_records table
+ isi t workin chekc hwta visual studio di
+ -- Add hubspot_owner_id to call_records table
 ALTER TABLE public.call_records 
 ADD COLUMN IF NOT EXISTS hubspot_owner_id TEXT;
 

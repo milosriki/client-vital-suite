@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useClientHealthScores } from "@/hooks/useClientHealthScores";
 import { ClientTable } from "@/components/ClientTable";
 import { ZoneDistributionChart } from "@/components/ZoneDistributionChart";
@@ -11,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 
 const Clients = () => {
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
-  const [healthZoneFilter, setHealthZoneFilter] = useState("All");
+  const [healthZoneFilter, setHealthZoneFilter] = useState(searchParams.get("zone") || "All");
   const [segmentFilter, setSegmentFilter] = useState("All");
   const [coachFilter, setCoachFilter] = useState("All");
 

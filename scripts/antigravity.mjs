@@ -71,8 +71,14 @@ async function testConnection() {
     if (syncError && syncError.code !== '42P01') { // Ignore if table doesn't exist
       console.error(`❌ Failed to check sync_errors: ${syncError.message}`);
     } else if (syncErrors && syncErrors.length > 0) {
-      console.log(`⚠️ FOUND ${syncErrors.length} RECENT SYNC ERRORS:`);
-      syncErrors.forEach(e => console.log(`   - [${e.source}] ${e.error_message}`));
+      const unknownErrors = syncErrors.filter(e => !e.error_message.includes('SubtleCryptoProvider'));
+      
+      if (unknownErrors.length > 0) {
+        console.log(`⚠️ FOUND ${unknownErrors.length} OTHER RECENT SYNC ERRORS (Hidden ${syncErrors.length - unknownErrors.length} known Stripe errors):`);
+        unknownErrors.forEach(e => console.log(`   - [${e.source}] ${e.error_message}`));
+      } else {
+        console.log(`✅ No other sync errors found (Hidden ${syncErrors.length} known Stripe errors).`);
+      }
     } else {
       console.log("✅ No recent sync errors found.");
     }

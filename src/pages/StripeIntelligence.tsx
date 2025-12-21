@@ -231,7 +231,9 @@ export default function StripeIntelligence() {
                   return updated;
                 });
               }
-            } catch {}
+            } catch (e) {
+              console.error("Error parsing stream chunk:", e);
+            }
           }
         }
       }

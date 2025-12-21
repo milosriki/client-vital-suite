@@ -59,23 +59,42 @@ interface SystemState {
 // LANGSMITH TRACING (with fallback)
 // ============================================================================
 
-async function trace(name: string, data: Record<string, any>): Promise<void> {
-  if (!LANGSMITH_API_KEY) return;
+async function traceStart(name: string, inputs: Record<string, any>): Promise<string | null> {
+  if (!LANGSMITH_API_KEY) return null;
   try {
+    const runId = crypto.randomUUID();
     await fetch(`${LANGSMITH_ENDPOINT}/runs`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": LANGSMITH_API_KEY },
       body: JSON.stringify({
-        id: crypto.randomUUID(),
+        id: runId,
         name,
         run_type: "chain",
-        inputs: data,
+        inputs,
         start_time: new Date().toISOString(),
         session_name: LANGSMITH_PROJECT,
       }),
     });
+    return runId;
   } catch {
-    // LangSmith is optional - continue without tracing
+    return null;
+  }
+}
+
+async function traceEnd(runId: string | null, outputs: Record<string, any>, error?: string): Promise<void> {
+  if (!LANGSMITH_API_KEY || !runId) return;
+  try {
+    await fetch(`${LANGSMITH_ENDPOINT}/runs/${runId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-api-key": LANGSMITH_API_KEY },
+      body: JSON.stringify({
+        end_time: new Date().toISOString(),
+        outputs,
+        error,
+      }),
+    });
+  } catch {
+    // Ignore tracing errors
   }
 }
 
@@ -90,8 +109,8 @@ async function invokeWithFallback(
   body: Record<string, any> = {},
   cacheKey?: string
 ): Promise<{ data: any; source: "live" | "cached" | "default" }> {
-  const startTime = Date.now();
-
+  const runId = await traceStart(`invoke:${functionName}`, { body, cacheKey });
+  
   // Try 1: Live invocation
   try {
     const { data, error } = await supabase.functions.invoke(functionName, { body });
@@ -105,10 +124,12 @@ async function invokeWithFallback(
           expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours
         }).catch(() => {});
       }
+      await traceEnd(runId, { data, source: "live" });
       return { data, source: "live" };
     }
-  } catch {
+  } catch (e: any) {
     // Continue to fallback
+    console.error(`Live invocation failed for ${functionName}:`, e);
   }
 
   // Try 2: Cached data
@@ -120,6 +141,7 @@ async function invokeWithFallback(
         .eq("key", cacheKey)
         .single();
       if (cached?.value?.data) {
+        await traceEnd(runId, { data: cached.value.data, source: "cached" });
         return { data: cached.value.data, source: "cached" };
       }
     } catch {
@@ -128,7 +150,9 @@ async function invokeWithFallback(
   }
 
   // Try 3: Default data (never fail)
-  return { data: { status: "unavailable", message: `${functionName} temporarily unavailable` }, source: "default" };
+  const defaultResult = { status: "unavailable", message: `${functionName} temporarily unavailable` };
+  await traceEnd(runId, { data: defaultResult, source: "default" }, "Live and cache failed");
+  return { data: defaultResult, source: "default" };
 }
 
 // ============================================================================
@@ -137,6 +161,7 @@ async function invokeWithFallback(
 // ============================================================================
 
 async function checkAllConnections(supabase: any): Promise<Record<string, any>> {
+  const runId = await traceStart("check_all_connections", {});
   const connections: Record<string, any> = {};
 
   // SUPABASE (multiple table checks for redundancy)
@@ -265,6 +290,7 @@ async function checkAllConnections(supabase: any): Promise<Record<string, any>> 
     }
   }
 
+  await traceEnd(runId, { connections });
   return connections;
 }
 
@@ -274,64 +300,82 @@ async function checkAllConnections(supabase: any): Promise<Record<string, any>> 
 // ============================================================================
 
 async function discoverSystem(supabase: any): Promise<{ tables: number; functions: number; data: any }> {
+  const runId = await traceStart("discover_system", {});
   console.log("[Phase 1] Discovering system...");
 
-  // Try existing self-learn discovery
-  const { data: cached } = await supabase
-    .from("agent_context")
-    .select("value")
-    .eq("key", "system_structure")
-    .single();
-
-  if (cached?.value?.tables && cached?.value?.functions) {
-    console.log("[Phase 1] Using cached system structure");
-    return {
-      tables: cached.value.tables.length,
-      functions: cached.value.functions.length,
-      data: cached.value,
-    };
-  }
-
-  // Fresh discovery
-  let tables: any[] = [];
-  let functions: any[] = [];
-
   try {
-    const { data: tableData } = await supabase.rpc("get_all_tables");
-    tables = tableData || [];
-  } catch {
-    // Fallback: Check known critical tables
-    const criticalTables = [
-      "contacts", "leads", "deals", "client_health_scores", "call_records",
-      "sync_logs", "sync_errors", "agent_context", "agent_patterns",
-      "proactive_insights", "events", "attribution_events"
-    ];
-    for (const table of criticalTables) {
-      const { error } = await supabase.from(table).select("id").limit(1);
-      if (!error) tables.push({ name: table, status: "verified" });
+    // Try existing self-learn discovery
+    const { data: cached } = await supabase
+      .from("agent_context")
+      .select("value")
+      .eq("key", "system_structure")
+      .single();
+
+    if (cached?.value?.tables && cached?.value?.functions) {
+      console.log("[Phase 1] Using cached system structure");
+      await traceEnd(runId, { source: "cache", tables: cached.value.tables.length });
+      return {
+        tables: cached.value.tables.length,
+        functions: cached.value.functions.length,
+        data: cached.value,
+      };
     }
-  }
 
-  try {
-    const { data: funcData } = await supabase.rpc("get_all_functions");
-    functions = funcData || [];
-  } catch {
-    // Use known function list (from supabase/config.toml)
-    functions = [
-      "health-calculator", "business-intelligence", "churn-predictor",
-      "anomaly-detector", "integration-health", "data-quality",
-      "pipeline-monitor", "coach-analyzer", "intervention-recommender",
-      "stripe-forensics", "fetch-hubspot-live", "sync-hubspot-to-supabase"
-    ].map(name => ({ name, status: "known" }));
-  }
+    // Fresh discovery
+    let tables: any[] = [];
+    let functions: any[] = [];
 
-  // Cache for future use
-  await supabase.from("agent_context").upsert({
-    key: "system_structure",
-    value: { tables, functions, discovered_at: new Date().toISOString() },
-    agent_type: "super_orchestrator",
-    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-  }).catch(() => {});
+    try {
+      const { data: tableData } = await supabase.rpc("get_all_tables");
+      tables = tableData || [];
+    } catch {
+      // Fallback: Check known critical tables
+      const criticalTables = [
+        "contacts", "leads", "deals", "client_health_scores", "call_records",
+        "sync_logs", "sync_errors", "agent_context", "agent_patterns",
+        "proactive_insights", "events", "attribution_events"
+      ];
+      for (const table of criticalTables) {
+        const { error } = await supabase.from(table).select("id").limit(1);
+        if (!error) tables.push({ name: table, status: "verified" });
+      }
+    }
+
+    try {
+      const { data: funcData } = await supabase.rpc("get_all_functions");
+      functions = funcData || [];
+    } catch {
+      // Use known function list (from supabase/config.toml)
+      functions = [
+        "health-calculator", "business-intelligence", "churn-predictor",
+        "anomaly-detector", "integration-health", "data-quality",
+        "pipeline-monitor", "coach-analyzer", "intervention-recommender",
+        "stripe-forensics", "fetch-hubspot-live", "sync-hubspot-to-supabase"
+      ].map(name => ({ name, status: "known" }));
+    }
+
+    // Cache for future use
+    await supabase.from("agent_context").upsert({
+      key: "system_structure",
+      value: { tables, functions, discovered_at: new Date().toISOString() },
+      agent_type: "super_orchestrator",
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    }).catch(() => {});
+
+    const result = {
+      tables: tables.length,
+      functions: functions.length,
+      data: { tables, functions }
+    };
+
+    await traceEnd(runId, { source: "fresh", tables: tables.length, functions: functions.length });
+    return result;
+
+  } catch (error) {
+    await traceEnd(runId, { status: "error", error: String(error) });
+    throw error;
+  }
+}
 
   return { tables: tables.length, functions: functions.length, data: { tables, functions } };
 }
@@ -341,59 +385,67 @@ async function discoverSystem(supabase: any): Promise<{ tables: number; function
 // ============================================================================
 
 async function runValidation(supabase: any): Promise<Record<string, AgentResult>> {
+  const runId = await traceStart("run_validation", {});
   console.log("[Phase 2] Running validation agents...");
 
   const results: Record<string, AgentResult> = {};
 
-  // DATA QUALITY
-  const dqStart = Date.now();
-  const dqResult = await invokeWithFallback(supabase, "data-quality", {}, "data_quality_result");
-  results.data_quality = {
-    name: "data-quality",
-    status: dqResult.source === "live" ? "success" : dqResult.source === "cached" ? "cached" : "degraded",
-    data: dqResult.data,
-    fallback_used: dqResult.source !== "live" ? dqResult.source : undefined,
-    duration_ms: Date.now() - dqStart,
-  };
+  try {
+    // DATA QUALITY
+    const dqStart = Date.now();
+    const dqResult = await invokeWithFallback(supabase, "data-quality", {}, "data_quality_result");
+    results.data_quality = {
+      name: "data-quality",
+      status: dqResult.source === "live" ? "success" : dqResult.source === "cached" ? "cached" : "degraded",
+      data: dqResult.data,
+      fallback_used: dqResult.source !== "live" ? dqResult.source : undefined,
+      duration_ms: Date.now() - dqStart,
+    };
 
-  // INTEGRATION HEALTH
-  const ihStart = Date.now();
-  const ihResult = await invokeWithFallback(supabase, "integration-health", {}, "integration_health_result");
-  results.integration_health = {
-    name: "integration-health",
-    status: ihResult.source === "live" ? "success" : ihResult.source === "cached" ? "cached" : "degraded",
-    data: ihResult.data,
-    fallback_used: ihResult.source !== "live" ? ihResult.source : undefined,
-    duration_ms: Date.now() - ihStart,
-  };
+    // INTEGRATION HEALTH
+    const ihStart = Date.now();
+    const ihResult = await invokeWithFallback(supabase, "integration-health", {}, "integration_health_result");
+    results.integration_health = {
+      name: "integration-health",
+      status: ihResult.source === "live" ? "success" : ihResult.source === "cached" ? "cached" : "degraded",
+      data: ihResult.data,
+      fallback_used: ihResult.source !== "live" ? ihResult.source : undefined,
+      duration_ms: Date.now() - ihStart,
+    };
 
-  // CAPI VALIDATOR
-  const cvStart = Date.now();
-  const cvResult = await invokeWithFallback(supabase, "capi-validator", {}, "capi_validator_result");
-  results.capi_validator = {
-    name: "capi-validator",
-    status: cvResult.source === "live" ? "success" : cvResult.source === "cached" ? "cached" : "degraded",
-    data: cvResult.data,
-    fallback_used: cvResult.source !== "live" ? cvResult.source : undefined,
-    duration_ms: Date.now() - cvStart,
-  };
+    // CAPI VALIDATOR
+    const cvStart = Date.now();
+    const cvResult = await invokeWithFallback(supabase, "capi-validator", {}, "capi_validator_result");
+    results.capi_validator = {
+      name: "capi-validator",
+      status: cvResult.source === "live" ? "success" : cvResult.source === "cached" ? "cached" : "degraded",
+      data: cvResult.data,
+      fallback_used: cvResult.source !== "live" ? cvResult.source : undefined,
+      duration_ms: Date.now() - cvStart,
+    };
 
-  // DIRECT SCHEMA VALIDATION (backup)
-  const schemaStart = Date.now();
-  const criticalTables = ["contacts", "deals", "client_health_scores", "sync_logs"];
-  const schemaResults: Record<string, boolean> = {};
-  for (const table of criticalTables) {
-    const { error } = await supabase.from(table).select("id").limit(1);
-    schemaResults[table] = !error;
+    // DIRECT SCHEMA VALIDATION (backup)
+    const schemaStart = Date.now();
+    const criticalTables = ["contacts", "deals", "client_health_scores", "sync_logs"];
+    const schemaResults: Record<string, boolean> = {};
+    for (const table of criticalTables) {
+      const { error } = await supabase.from(table).select("id").limit(1);
+      schemaResults[table] = !error;
+    }
+    results.schema_validation = {
+      name: "direct-schema-check",
+      status: Object.values(schemaResults).every(v => v) ? "success" : "degraded",
+      data: schemaResults,
+      duration_ms: Date.now() - schemaStart,
+    };
+
+    await traceEnd(runId, { results });
+    return results;
+
+  } catch (error) {
+    await traceEnd(runId, { status: "error", error: String(error) });
+    throw error;
   }
-  results.schema_validation = {
-    name: "direct-schema-check",
-    status: Object.values(schemaResults).every(v => v) ? "success" : "degraded",
-    data: schemaResults,
-    duration_ms: Date.now() - schemaStart,
-  };
-
-  return results;
 }
 
 // ============================================================================
@@ -401,52 +453,60 @@ async function runValidation(supabase: any): Promise<Record<string, AgentResult>
 // ============================================================================
 
 async function runIntelligence(supabase: any): Promise<Record<string, AgentResult>> {
+  const runId = await traceStart("run_intelligence", {});
   console.log("[Phase 3] Running intelligence agents...");
 
   const results: Record<string, AgentResult> = {};
 
-  // Run all intelligence agents in parallel
-  const agents = [
-    { name: "health-calculator", key: "health_calc_result", body: { mode: "calculate" } },
-    { name: "business-intelligence", key: "bi_result", body: {} },
-    { name: "churn-predictor", key: "churn_result", body: {} },
-    { name: "anomaly-detector", key: "anomaly_result", body: {} },
-    { name: "pipeline-monitor", key: "pipeline_result", body: {} },
-    { name: "coach-analyzer", key: "coach_result", body: {} },
-  ];
+  try {
+    // Run all intelligence agents in parallel
+    const agents = [
+      { name: "health-calculator", key: "health_calc_result", body: { mode: "calculate" } },
+      { name: "business-intelligence", key: "bi_result", body: {} },
+      { name: "churn-predictor", key: "churn_result", body: {} },
+      { name: "anomaly-detector", key: "anomaly_result", body: {} },
+      { name: "pipeline-monitor", key: "pipeline_result", body: {} },
+      { name: "coach-analyzer", key: "coach_result", body: {} },
+    ];
 
-  const promises = agents.map(async (agent) => {
-    const start = Date.now();
-    const result = await invokeWithFallback(supabase, agent.name, agent.body, agent.key);
-    return {
-      name: agent.name,
-      result: {
+    const promises = agents.map(async (agent) => {
+      const start = Date.now();
+      const result = await invokeWithFallback(supabase, agent.name, agent.body, agent.key);
+      return {
         name: agent.name,
-        status: result.source === "live" ? "success" : result.source === "cached" ? "cached" : "degraded",
-        data: result.data,
-        fallback_used: result.source !== "live" ? result.source : undefined,
-        duration_ms: Date.now() - start,
-      } as AgentResult,
+        result: {
+          name: agent.name,
+          status: result.source === "live" ? "success" : result.source === "cached" ? "cached" : "degraded",
+          data: result.data,
+          fallback_used: result.source !== "live" ? result.source : undefined,
+          duration_ms: Date.now() - start,
+        } as AgentResult,
+      };
+    });
+
+    const agentResults = await Promise.all(promises);
+    for (const { name, result } of agentResults) {
+      results[name.replace(/-/g, "_")] = result;
+    }
+
+    // STRIPE FORENSICS (separate - critical for fraud detection)
+    const sfStart = Date.now();
+    const sfResult = await invokeWithFallback(supabase, "stripe-forensics", { action: "quick-scan" }, "stripe_forensics_result");
+    results.stripe_forensics = {
+      name: "stripe-forensics",
+      status: sfResult.source === "live" ? "success" : sfResult.source === "cached" ? "cached" : "degraded",
+      data: sfResult.data,
+      fallback_used: sfResult.source !== "live" ? sfResult.source : undefined,
+      duration_ms: Date.now() - sfStart,
     };
-  });
 
-  const agentResults = await Promise.all(promises);
-  for (const { name, result } of agentResults) {
-    results[name.replace(/-/g, "_")] = result;
+    await traceEnd(runId, { results });
+    return results;
+
+  } catch (error) {
+    await traceEnd(runId, { status: "error", error: String(error) });
+    throw error;
   }
-
-  // STRIPE FORENSICS (separate - critical for fraud detection)
-  const sfStart = Date.now();
-  const sfResult = await invokeWithFallback(supabase, "stripe-forensics", { action: "quick-scan" }, "stripe_forensics_result");
-  results.stripe_forensics = {
-    name: "stripe-forensics",
-    status: sfResult.source === "live" ? "success" : sfResult.source === "cached" ? "cached" : "degraded",
-    data: sfResult.data,
-    fallback_used: sfResult.source !== "live" ? sfResult.source : undefined,
-    duration_ms: Date.now() - sfStart,
-  };
-
-  return results;
 }
 
 // ============================================================================
@@ -458,66 +518,74 @@ async function crossValidate(
   intelligenceResults: Record<string, AgentResult>,
   supabase: any
 ): Promise<{ issues: string[]; improvements: string[] }> {
+  const runId = await traceStart("cross_validate", {});
   console.log("[Phase 4] Cross-validating results...");
 
   const issues: string[] = [];
   const improvements: string[] = [];
 
-  // Check if health calculator and churn predictor agree
-  const healthData = intelligenceResults.health_calculator?.data;
-  const churnData = intelligenceResults.churn_predictor?.data;
+  try {
+    // Check if health calculator and churn predictor agree
+    const healthData = intelligenceResults.health_calculator?.data;
+    const churnData = intelligenceResults.churn_predictor?.data;
 
-  if (healthData && churnData) {
-    // Cross-reference: red zone clients should appear in churn predictions
-    const redZoneClients = healthData.red_zone_count || 0;
-    const churnRiskClients = churnData.high_risk_count || 0;
+    if (healthData && churnData) {
+      // Cross-reference: red zone clients should appear in churn predictions
+      const redZoneClients = healthData.red_zone_count || 0;
+      const churnRiskClients = churnData.high_risk_count || 0;
 
-    if (redZoneClients > 0 && churnRiskClients === 0) {
-      issues.push("Red zone clients exist but churn predictor shows no high-risk clients");
-      improvements.push("Sync health scores with churn prediction model");
+      if (redZoneClients > 0 && churnRiskClients === 0) {
+        issues.push("Red zone clients exist but churn predictor shows no high-risk clients");
+        improvements.push("Sync health scores with churn prediction model");
+      }
     }
-  }
 
-  // Check if integration health matches connection status
-  const integrationData = validationResults.integration_health?.data;
-  if (integrationData) {
-    const failedIntegrations = Object.entries(integrationData)
-      .filter(([_, v]: [string, any]) => v?.status === "error" || v?.status === "failed")
+    // Check if integration health matches connection status
+    const integrationData = validationResults.integration_health?.data;
+    if (integrationData) {
+      const failedIntegrations = Object.entries(integrationData)
+        .filter(([_, v]: [string, any]) => v?.status === "error" || v?.status === "failed")
+        .map(([k]) => k);
+
+      if (failedIntegrations.length > 0) {
+        issues.push(`Failing integrations: ${failedIntegrations.join(", ")}`);
+        improvements.push(`Reconnect: ${failedIntegrations.join(", ")}`);
+      }
+    }
+
+    // Check for data quality issues
+    const dqData = validationResults.data_quality?.data;
+    if (dqData?.issues && dqData.issues.length > 0) {
+      issues.push(`Data quality issues: ${dqData.issues.length}`);
+      improvements.push("Run data cleanup job");
+    }
+
+    // Check if any agents degraded
+    const allResults = { ...validationResults, ...intelligenceResults };
+    const degradedAgents = Object.entries(allResults)
+      .filter(([_, v]) => v.status === "degraded")
       .map(([k]) => k);
 
-    if (failedIntegrations.length > 0) {
-      issues.push(`Failing integrations: ${failedIntegrations.join(", ")}`);
-      improvements.push(`Reconnect: ${failedIntegrations.join(", ")}`);
+    if (degradedAgents.length > 0) {
+      issues.push(`Degraded agents: ${degradedAgents.join(", ")}`);
+      improvements.push(`Restore: ${degradedAgents.join(", ")}`);
     }
+
+    // Store cross-validation results in agent_context
+    await supabase.from("agent_context").upsert({
+      key: "cross_validation_results",
+      value: { issues, improvements, timestamp: new Date().toISOString() },
+      agent_type: "super_orchestrator",
+      expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(), // 1 hour
+    }).catch(() => {});
+
+    await traceEnd(runId, { issues, improvements });
+    return { issues, improvements };
+
+  } catch (error) {
+    await traceEnd(runId, { status: "error", error: String(error) });
+    throw error;
   }
-
-  // Check for data quality issues
-  const dqData = validationResults.data_quality?.data;
-  if (dqData?.issues && dqData.issues.length > 0) {
-    issues.push(`Data quality issues: ${dqData.issues.length}`);
-    improvements.push("Run data cleanup job");
-  }
-
-  // Check if any agents degraded
-  const allResults = { ...validationResults, ...intelligenceResults };
-  const degradedAgents = Object.entries(allResults)
-    .filter(([_, v]) => v.status === "degraded")
-    .map(([k]) => k);
-
-  if (degradedAgents.length > 0) {
-    issues.push(`Degraded agents: ${degradedAgents.join(", ")}`);
-    improvements.push(`Restore: ${degradedAgents.join(", ")}`);
-  }
-
-  // Store cross-validation results in agent_context
-  await supabase.from("agent_context").upsert({
-    key: "cross_validation_results",
-    value: { issues, improvements, timestamp: new Date().toISOString() },
-    agent_type: "super_orchestrator",
-    expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(), // 1 hour
-  }).catch(() => {});
-
-  return { issues, improvements };
 }
 
 // ============================================================================
@@ -528,6 +596,7 @@ async function synthesize(
   state: SystemState,
   supabase: any
 ): Promise<string> {
+  const runId = await traceStart("synthesize", {});
   console.log("[Phase 5] Synthesizing report...");
 
   const geminiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
@@ -550,36 +619,72 @@ STATUS: ${state.final_status}
 
 Generate a concise summary.`;
 
-  // Try Gemini first
-  if (geminiKey) {
-    try {
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${geminiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gemini-2.0-flash",
-          messages: [
-            { role: "system", content: "You are a concise system analyst. Max 3 sentences." },
-            { role: "user", content: prompt }
-          ]
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
+  try {
+    // Try Gemini first
+    if (geminiKey) {
+      try {
+        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.0-flash",
+            messages: [
+              { role: "system", content: "You are a concise system analyst. Max 3 sentences." },
+              { role: "user", content: prompt }
+            ]
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || generateFallbackReport(state);
+        if (response.ok) {
+          const data = await response.json();
+          const report = data.choices?.[0]?.message?.content || generateFallbackReport(state);
+          await traceEnd(runId, { source: "gemini", report });
+          return report;
+        }
+      } catch {
+        // Fallback to Claude
       }
-    } catch {
-      // Fallback to Claude
     }
-  }
 
-  // Try Claude as fallback
-  if (claudeKey) {
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
+    // Try Claude as fallback
+    if (claudeKey) {
+      try {
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": claudeKey,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "claude-3-haiku-20240307",
+            max_tokens: 300,
+            messages: [{ role: "user", content: prompt }]
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const report = data.content?.[0]?.text || generateFallbackReport(state);
+          await traceEnd(runId, { source: "claude", report });
+          return report;
+        }
+      } catch {
+        // Fallback to manual
+      }
+    }
+
+    const report = generateFallbackReport(state);
+    await traceEnd(runId, { source: "fallback", report });
+    return report;
+
+  } catch (error) {
+    await traceEnd(runId, { status: "error", error: String(error) });
+    throw error;
+  }
+}
         headers: {
           "x-api-key": claudeKey,
           "anthropic-version": "2023-06-01",
@@ -620,10 +725,11 @@ function generateFallbackReport(state: SystemState): string {
 // ============================================================================
 
 async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
-  const runId = crypto.randomUUID();
+  const runId = await traceStart("bulletproof_orchestrator", {
+    type: "orchestrator_run",
+    timestamp: new Date().toISOString()
+  });
   console.log(`[Orchestrator] Starting bulletproof run: ${runId}`);
-
-  await trace("bulletproof_orchestrator_start", { run_id: runId });
 
   const state: SystemState = {
     run_id: runId,
@@ -716,7 +822,11 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
       }).catch(() => {});
     }
 
-    await trace("bulletproof_orchestrator_complete", { run_id: runId, status: state.final_status });
+    await traceEnd(runId, {
+      status: state.final_status,
+      improvements: state.improvements.length,
+      report: state.final_report
+    });
 
     console.log(`\n[Orchestrator] Completed: ${state.final_status}`);
     return state;
@@ -728,7 +838,11 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
     state.final_report = `Orchestration encountered issues but continued. Error: ${error instanceof Error ? error.message : "Unknown"}`;
     state.completed_at = new Date().toISOString();
 
-    await trace("bulletproof_orchestrator_degraded", { run_id: runId, error: String(error) });
+    await traceEnd(runId, {
+      status: "degraded",
+      error: String(error),
+      report: state.final_report
+    });
 
     return state;
   }

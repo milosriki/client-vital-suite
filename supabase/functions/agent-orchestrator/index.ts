@@ -275,6 +275,61 @@ const synthesizerNode: NodeFunction = async (state, supabase) => {
   return { ...state, currentNode: '__end__' };
 };
 
+// ============================================================================
+// LANGSMITH TRACING HELPERS
+// ============================================================================
+
+async function traceStart(name: string, inputs: any) {
+  const apiKey = Deno.env.get("LANGSMITH_API_KEY");
+  if (!apiKey) return null;
+
+  try {
+    const response = await fetch("https://api.smith.langchain.com/runs", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        run_type: "chain",
+        inputs,
+        start_time: new Date().toISOString(),
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.id;
+    }
+  } catch (e) {
+    console.error("LangSmith trace start failed:", e);
+  }
+  return null;
+}
+
+async function traceEnd(runId: string | null, outputs: any) {
+  if (!runId) return;
+  const apiKey = Deno.env.get("LANGSMITH_API_KEY");
+  if (!apiKey) return;
+
+  try {
+    await fetch(`https://api.smith.langchain.com/runs/${runId}`, {
+      method: "PATCH",
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        outputs,
+        end_time: new Date().toISOString(),
+      }),
+    });
+  } catch (e) {
+    console.error("LangSmith trace end failed:", e);
+  }
+}
+
 // ============ GRAPH DEFINITION ============
 const nodes: Record<string, NodeFunction> = {
   dataCollector: dataCollectorNode,
@@ -324,6 +379,11 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
+  const runId = await traceStart("agent_orchestrator", {
+    url: req.url,
+    method: req.method,
+  });
+
   try {
     const body = await req.json().catch(() => ({}));
     const { mode = 'full' } = body;
@@ -353,19 +413,29 @@ serve(async (req) => {
       started_at: new Date().toISOString()
     });
 
-    return new Response(JSON.stringify({
+    const responseData = {
       success: true,
       mode,
       duration: `${duration}ms`,
       summary: finalState.finalOutput,
       nodesExecuted: Object.keys(finalState.results),
       results: finalState.results
-    }), {
+    };
+
+    await traceEnd(runId, responseData);
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error) {
     console.error("[Orchestrator] Error:", error);
+    
+    await traceEnd(runId, {
+      status: "error",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
     return new Response(JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

@@ -16,7 +16,8 @@ const EXECUTION_TOOLS: Record<string, { risk: string; requires_approval: boolean
   trigger_sync: { risk: 'low', requires_approval: false },
   bulk_update: { risk: 'high', requires_approval: true },
   mark_lead_contacted: { risk: 'low', requires_approval: false },
-  schedule_followup: { risk: 'low', requires_approval: false }
+  schedule_followup: { risk: 'low', requires_approval: false },
+  code_deploy: { risk: 'high', requires_approval: true }
 };
 
 serve(async (req) => {
@@ -258,6 +259,43 @@ async function executeAction(
         
         if (error) throw error;
         result = { scheduled: true, activity_id: data?.[0]?.id };
+        break;
+      }
+
+      case 'code_deploy': {
+        const { files, commit_message, approval_id } = params;
+        const githubToken = Deno.env.get('GITHUB_TOKEN');
+        // Default to known repo if env vars missing
+        const repoOwner = Deno.env.get('GITHUB_OWNER') || 'milosriki';
+        const repoName = Deno.env.get('GITHUB_REPO') || 'client-vital-suite';
+
+        if (!githubToken) throw new Error('GITHUB_TOKEN not configured');
+
+        console.log(`🚀 Triggering GitHub Action for ${repoOwner}/${repoName}`);
+
+        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event_type: 'ai-deploy',
+            client_payload: {
+              files,
+              commit_message: commit_message || 'AI Code Deployment',
+              approval_id: approval_id || 'manual_trigger'
+            }
+          })
+        });
+
+        if (!response.ok) {
+           const errorText = await response.text();
+           throw new Error(`GitHub API error: ${response.status} ${errorText}`);
+        }
+
+        result = { deployed: true, commit_message, target: `${repoOwner}/${repoName}` };
         break;
       }
 

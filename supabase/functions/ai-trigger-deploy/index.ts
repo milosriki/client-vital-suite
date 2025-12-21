@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GITHUB_TOKEN = Deno.env.get('GITHUB_TOKEN');
-const GITHUB_REPO = Deno.env.get('GITHUB_REPO'); // e.g., 'username/client-vital-suite'
+const GITHUB_REPO = Deno.env.get('GITHUB_REPO') || 'milosriki/client-vital-suite';
 
 // =============================================================================
 // SECURITY UTILITIES - Timeout and Retry Logic

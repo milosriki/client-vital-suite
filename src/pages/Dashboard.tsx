@@ -86,7 +86,10 @@ export default function Dashboard() {
         .select("*")
         .eq("summary_date", today)
         .single();
-      if (error) return null;
+      if (error) {
+        console.error("Error fetching daily summary:", error);
+        return null;
+      }
       return data;
     },
     staleTime: Infinity, // Real-time updates via useVitalState
@@ -129,7 +132,10 @@ export default function Dashboard() {
         .eq("status", "closed")
         .gte("close_date", today);
 
-      if (error) return 0;
+      if (error) {
+        console.error("Error fetching today's revenue:", error);
+        return 0;
+      }
       return data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
     },
     staleTime: Infinity, // Real-time updates via useVitalState
@@ -141,7 +147,10 @@ export default function Dashboard() {
     queryKey: ["pipeline-value"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("deals").select("deal_value").not("status", "in", '("closed","lost")');
-      if (error) return { total: 0, count: 0 };
+      if (error) {
+        console.error("Error fetching pipeline value:", error);
+        return { total: 0, count: 0 };
+      }
       const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
       return { total, count: data?.length || 0 };
     },
