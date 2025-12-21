@@ -25,17 +25,18 @@ function rateLimit(ip: string | undefined): { allowed: boolean; remaining: numbe
 }
 
 /**
- * Vercel API Route: Proxy to Supabase Edge Function ptd-agent-claude
+ * Vercel API Route: Proxy to Supabase Edge Function
  * 
  * This allows Vercel logs to show agent calls while using Supabase Edge Functions.
  * 
  * Environment Variables Required (set in Vercel Dashboard):
  * - SUPABASE_URL: Your Supabase project URL
  * - SUPABASE_SERVICE_ROLE_KEY: Service role key (server-only, never exposed to browser)
+ * - AGENT_FUNCTION_NAME: (Optional) Default agent function name (defaults to 'ptd-agent-gemini')
  * 
  * Usage from frontend:
  *   POST /api/agent
- *   Body: { message: string, thread_id?: string, messages?: Message[] }
+ *   Body: { message: string, thread_id?: string, messages?: Message[], agent_function?: string }
  */
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -77,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!SUPABASE_URL) {
       console.error('[api/agent] SUPABASE_URL not configured');
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Server configuration error: SUPABASE_URL not set',
         hint: 'Set SUPABASE_URL in Vercel environment variables'
       });
@@ -85,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!SERVICE_KEY) {
       console.error('[api/agent] SUPABASE_SERVICE_ROLE_KEY not configured');
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY not set',
         hint: 'Set SUPABASE_SERVICE_ROLE_KEY in Vercel environment variables'
       });
@@ -95,14 +96,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { message, thread_id, messages } = req.body ?? {};
 
     if (!message && (!messages || messages.length === 0)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Bad request: message or messages required',
         hint: 'Send { message: "your question" } or { messages: [...] }'
       });
     }
 
+    // Determine which agent function to use (from env or request body, default to gemini)
+    const agentFunction = req.body?.agent_function || process.env.AGENT_FUNCTION_NAME || 'ptd-agent-gemini';
+
     // Log the request (visible in Vercel logs) without sensitive data
-    console.log('[api/agent] Proxying request to ptd-agent-claude', {
+    console.log(`[api/agent] Proxying request to ${agentFunction}`, {
       hasMessage: !!message,
       hasMessages: !!messages,
       threadId: thread_id || 'default',
@@ -111,8 +115,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // Proxy to Supabase Edge Function
-    const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/ptd-agent-claude`;
-    
+    const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/${agentFunction}`;
+
     const startTime = Date.now();
     const response = await fetch(edgeFunctionUrl, {
       method: 'POST',
@@ -153,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[api/agent] Proxy error:', errMsg);
-    
+
     return res.status(500).json({
       error: 'Proxy error',
       message: errMsg,

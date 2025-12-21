@@ -1526,7 +1526,7 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   // Use GEMINI_API_KEY (direct Google API), LOVABLE_API_KEY is optional fallback
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
+  
   const useDirectGemini = !!GEMINI_API_KEY;
   if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
     throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
@@ -1611,7 +1611,7 @@ RULES:
 
     // Call Gemini API - Direct Google API or Lovable gateway fallback
     let response: Response;
-
+    
     if (useDirectGemini) {
       // Direct Google Gemini API (OpenAI-compatible endpoint)
       response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
