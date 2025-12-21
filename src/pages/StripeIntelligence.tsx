@@ -148,10 +148,19 @@ export default function StripeIntelligence() {
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
-    setChatMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    const updatedHistory = [...chatMessages, { role: "user", content: userMessage }];
+
+    setChatMessages(updatedHistory);
     setIsStreaming(true);
 
     try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Missing Supabase configuration");
+      }
+
       const context = {
         balance: stripeData?.balance,
         metrics: stripeData?.metrics,
@@ -171,18 +180,19 @@ export default function StripeIntelligence() {
       };
 
       const response = await fetch(
-        `https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/stripe-payouts-ai`,
+        `${supabaseUrl}/functions/v1/stripe-payouts-ai`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${supabaseKey}`,
+            apikey: supabaseKey,
           },
           body: JSON.stringify({
             action: "chat",
             message: userMessage,
             context,
-            history: chatMessages,
+            history: updatedHistory,
           }),
         }
       );
