@@ -32,6 +32,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS sync_errors_updated_at ON sync_errors;
 CREATE TRIGGER sync_errors_updated_at BEFORE UPDATE ON sync_errors FOR EACH ROW EXECUTE FUNCTION update_sync_errors_updated_at();
 
 ALTER PUBLICATION supabase_realtime ADD TABLE sync_errors;
