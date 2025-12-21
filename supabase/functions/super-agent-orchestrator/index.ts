@@ -118,12 +118,16 @@ async function invokeWithFallback(
     if (!error && data) {
       // Cache successful result
       if (cacheKey) {
-        await supabase.from("agent_context").upsert({
-          key: cacheKey,
-          value: { data, timestamp: new Date().toISOString() },
-          agent_type: "super_orchestrator_cache",
-          expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours
-        }).catch(() => {});
+        try {
+          await supabase.from("agent_context").upsert({
+            key: cacheKey,
+            value: { data, timestamp: new Date().toISOString() },
+            agent_type: "super_orchestrator_cache",
+            expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours
+          });
+        } catch (e) {
+          console.error("Cache upsert failed:", e);
+        }
       }
       await traceEnd(runId, { data, source: "live" });
       return { data, source: "live" };
@@ -767,21 +771,29 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
     state.completed_at = new Date().toISOString();
 
     // Store final state
-    await supabase.from("agent_context").upsert({
-      key: `orchestrator_run_${runId}`,
-      value: state,
-      agent_type: "super_orchestrator",
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-    });
+    try {
+      await supabase.from("agent_context").upsert({
+        key: `orchestrator_run_${runId}`,
+        value: state,
+        agent_type: "super_orchestrator",
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+      });
+    } catch (e) {
+      console.error("Failed to store agent_context:", e);
+    }
 
     // Log to sync_logs
-    await supabase.from("sync_logs").insert({
-      platform: "super-agent-orchestrator",
-      sync_type: "bulletproof_run",
-      status: "success",
-      records_synced: state.total_agents_run,
-      started_at: state.started_at,
-    });
+    try {
+      await supabase.from("sync_logs").insert({
+        platform: "super-agent-orchestrator",
+        sync_type: "bulletproof_run",
+        status: "success",
+        records_synced: state.total_agents_run,
+        started_at: state.started_at,
+      });
+    } catch (e) {
+      console.error("Failed to store sync_logs:", e);
+    }
 
     // Create proactive insight if improvements needed
     if (state.improvements.length > 0) {
