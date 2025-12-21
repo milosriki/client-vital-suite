@@ -111,6 +111,38 @@ serve(async (req) => {
             throw new Error(`CallGear API error: ${JSON.stringify(data.error)}`);
         }
 
+        // Employee Mapping Configuration
+        const OWNER_MAPPING: Record<string, string> = {
+            "Yehia": "78722672",
+            "James": "80616467",
+            "Mazen": "82655976",
+            "Matthew": "452974662",
+            "Tea": "48899890",
+            "Milos": "48877837"
+        };
+
+        const getHubSpotOwnerId = (employees: any): string | null => {
+            if (!employees) return null;
+            
+            // Handle array of employees (CallGear usually returns array)
+            const employeeList = Array.isArray(employees) ? employees : [employees];
+            
+            for (const emp of employeeList) {
+                // Check for name property or string
+                const name = typeof emp === 'string' ? emp : (emp.name || emp.full_name || emp.employee_name);
+                
+                if (!name) continue;
+
+                // Check for exact or partial match
+                for (const [key, id] of Object.entries(OWNER_MAPPING)) {
+                    if (name.toLowerCase().includes(key.toLowerCase())) {
+                        return id;
+                    }
+                }
+            }
+            return null;
+        };
+
         const calls = data.result?.calls || [];
         console.log(`Received ${calls.length} calls from CallGear`);
 
@@ -119,6 +151,7 @@ serve(async (req) => {
             const isLost = call.is_lost === true || call.is_lost === 1;
             const talkDuration = call.talk_duration || 0;
             const totalDuration = call.total_duration || talkDuration;
+            const ownerId = getHubSpotOwnerId(call.employees);
 
             return {
                 provider_call_id: call.id?.toString() || null,
@@ -133,6 +166,7 @@ serve(async (req) => {
                 caller_city: call.city || null,
                 caller_country: call.country || null,
                 caller_state: call.region || null,
+                hubspot_owner_id: ownerId, // Mapped Owner ID
                 // Additional metadata
                 transcription_status: call.call_records?.[0] ? 'available' : null,
             };
