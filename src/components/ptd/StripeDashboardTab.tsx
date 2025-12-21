@@ -5,14 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { 
-  CreditCard, 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  CreditCard,
+  DollarSign,
+  Users,
+  TrendingUp,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
   XCircle,
   Wallet,
   ArrowUpRight,
@@ -46,6 +46,9 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [showAIDashboard, setShowAIDashboard] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightResult, setInsightResult] = useState<string | null>(null);
+  const [showInsight, setShowInsight] = useState(false);
 
   const { data: stripeData, isLoading, refetch, isError } = useDedupedQuery({
     queryKey: ['stripe-dashboard-data', mode],
@@ -53,7 +56,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
       const { data, error } = await supabase.functions.invoke('stripe-dashboard-data', {
         body: { mode }
       });
-      
+
       if (error) throw error;
       setIsConnected(true);
       return data;
@@ -68,9 +71,9 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
       const { data, error } = await supabase.functions.invoke('stripe-dashboard-data', {
         body: { mode }
       });
-      
+
       if (error) throw error;
-      
+
       setIsConnected(true);
       toast.success("Connected to Stripe successfully!");
       refetch();
@@ -99,9 +102,9 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
       pending: { variant: "secondary", icon: <Clock className="h-3 w-3" /> },
       incomplete: { variant: "outline", icon: <AlertCircle className="h-3 w-3" /> },
     };
-    
+
     const config = statusConfig[status] || { variant: "outline" as const, icon: null };
-    
+
     return (
       <Badge variant={config.variant} className="gap-1">
         {config.icon}
@@ -126,13 +129,13 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Connect to Stripe</h2>
           <p className="text-muted-foreground max-w-md">
-            Click the button below to connect and view your Stripe data including balance, 
+            Click the button below to connect and view your Stripe data including balance,
             customers, subscriptions, payments, and more.
           </p>
         </div>
-        <Button 
-          size="lg" 
-          onClick={handleConnect} 
+        <Button
+          size="lg"
+          onClick={handleConnect}
           disabled={isConnecting}
           className="gap-2"
         >
@@ -159,10 +162,10 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
   return (
     <div className="space-y-6">
       {/* AI Dashboard Modal */}
-      <StripeAIDashboard 
-        open={showAIDashboard} 
-        onOpenChange={setShowAIDashboard} 
-        mode={mode} 
+      <StripeAIDashboard
+        open={showAIDashboard}
+        onOpenChange={setShowAIDashboard}
+        mode={mode}
       />
 
       {/* Header with refresh */}
@@ -183,7 +186,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button 
+          <Button
             onClick={() => setShowAIDashboard(true)}
             className="gap-2"
           >
