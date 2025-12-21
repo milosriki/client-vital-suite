@@ -63,9 +63,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Optional API key check (set AGENT_API_KEY to require it)
   const requiredApiKey = process.env.AGENT_API_KEY;
   if (requiredApiKey) {
-    const provided = req.headers['x-agent-api-key'] || req.headers['authorization'];
+    // Accept x-ptd-key (frontend), x-agent-api-key, or authorization header
+    const provided = req.headers['x-ptd-key'] || req.headers['x-agent-api-key'] || req.headers['authorization'];
     const token = Array.isArray(provided) ? provided[0] : provided;
-    if (!token || token !== requiredApiKey) {
+    // Also check PTD_INTERNAL_ACCESS_KEY for internal calls
+    const ptdKey = process.env.PTD_INTERNAL_ACCESS_KEY;
+    const isValidAgentKey = token && token === requiredApiKey;
+    const isValidPtdKey = token && ptdKey && token === ptdKey;
+    
+    if (!token || (!isValidAgentKey && !isValidPtdKey)) {
       console.warn('[api/agent] Unauthorized: missing/invalid api key');
       return res.status(401).json({ error: 'Unauthorized' });
     }
