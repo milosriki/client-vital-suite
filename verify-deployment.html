@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Verification</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .btn { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #1d4ed8; }
+        .btn:disabled { background: #93c5fd; cursor: not-allowed; }
+        #result { margin-top: 20px; white-space: pre-wrap; background: #f3f4f6; padding: 16px; border-radius: 6px; display: none; }
+        .success { color: #059669; font-weight: bold; }
+        .error { color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 System Verification</h1>
+        <p>Click the button below to verify that the Super Agent Orchestrator is running independently on the cloud.</p>
+        
+        <button id="checkBtn" class="btn" onclick="checkSystem()">Check Cloud Status</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const FUNCTION_URL = "https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/super-agent-orchestrator";
+        const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo";
+
+        async function checkSystem() {
+            const btn = document.getElementById('checkBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = "Verifying...";
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = "Connecting to Supabase Edge Network...";
+
+            try {
+                const response = await fetch(FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ANON_KEY}`
+                    },
+                    body: JSON.stringify({
+                        mode: "diagnostic",
+                        query: "Browser verification check"
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<span class="success">✅ SUCCESS: Connected to Cloud!</span>\n\n` + 
+                        `Status: ${data.status || 'Operational'}\n` +
+                        `Response Time: ${new Date().toLocaleTimeString()}\n` +
+                        `Data: ${JSON.stringify(data, null, 2)}`;
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ ERROR: Connection Failed</span>\n\n${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Check Again";
+            }
+        }
+    </script>
+</body>
+</html>
