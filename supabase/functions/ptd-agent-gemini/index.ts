@@ -1697,6 +1697,16 @@ PTD SUPER-INTELLIGENCE CEO
 
 4. ACTION: If you find a leak, use 'build_feature' to write the fix code and queue it for my approval.
 
+${dynamicKnowledge}
+
+${knowledgeBase ? `## KNOWLEDGE BASE (Curated Docs)\n${knowledgeBase}` : ''}
+
+${relevantMemory ? `## CONVERSATION MEMORY (Past Interactions)\n${relevantMemory}` : ''}
+
+${learnedPatterns ? `## LEARNED PATTERNS\n${learnedPatterns}` : ''}
+
+${unifiedPrompt}
+
 RULES:
 - Be proactive. Don't wait for the user to ask "is there fraud?" Tell them "I found fraud, here is the fix."
 - Format answers with: 🔍 SUMMARY, 📊 DATA, 🚨 CRITICAL ALERTS, and 🎯 RECOMMENDATIONS.
