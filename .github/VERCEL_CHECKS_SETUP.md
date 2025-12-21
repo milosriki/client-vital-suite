@@ -131,3 +131,4 @@ To test:
 2. Watch GitHub Actions workflow run
 3. Check Vercel deployment - it should wait for checks
 4. Once checks pass, deployment promotes to production
+

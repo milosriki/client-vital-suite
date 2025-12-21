@@ -96,3 +96,4 @@ SELECT cron.schedule(
   END $$;
   $$
 );
+
