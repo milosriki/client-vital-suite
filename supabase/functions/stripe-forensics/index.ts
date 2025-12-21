@@ -383,7 +383,7 @@ serve(async (req) => {
       }
 
       // ====== CASH BALANCE (Customer Prepaid Funds) ======
-      let cashBalances: any[] = [];
+      const cashBalances: any[] = [];
       try {
         // Fetch customers with cash balance
         const customersWithCash = (customers.data || []).filter((c: any) => c.cash_balance);
