@@ -4,8 +4,8 @@ project_id = "ztjndilxurtsfqdsvfds"
 verify_jwt = true
 
 # ============================================
-# SUPABASE-NATIVE EDGE FUNCTIONS (AI Agents)
-# No n8n dependency - all run directly
+# SUPABASE EDGE FUNCTIONS (AI Agents)
+# All serverless - runs directly on Deno
 # ============================================
 
 # Health & Intelligence Agents

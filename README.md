@@ -2,7 +2,7 @@
 
 This project is a comprehensive **Agentic AI Platform** for Personal Trainers Dubai (PTD), designed to automate business intelligence, client health tracking, and sales operations.
 
-It has been migrated from a legacy n8n-based architecture to a fully serverless **Supabase Edge Functions** architecture.
+Built with a fully serverless **Supabase Edge Functions** architecture.
 
 ## 🚀 Key Features
 
@@ -24,20 +24,20 @@ It has been migrated from a legacy n8n-based architecture to a fully serverless 
 ### Backend (Supabase)
 
 - **Database**: PostgreSQL with pgvector for AI memory.
-- **Edge Functions**: Deno/TypeScript serverless functions replacing all n8n workflows.
+- **Edge Functions**: 69+ Deno/TypeScript serverless functions.
 - **Automation**: `pg_cron` handles all scheduled tasks (daily health scores, syncs, reports).
 
 ## 🤖 Active Agents & Functions
 
-| Function | Purpose | Schedule |
-| :--- | :--- | :--- |
-| `health-calculator` | Calculates client health scores (0-100) | Daily 9 AM |
-| `fetch-facebook-insights` | Syncs ad spend & ROAS from Meta | Daily 2 AM |
-| `business-intelligence` | Aggregates daily KPIs | Daily 3 AM |
-| `daily-report` | Generates & sends executive summary | Daily 6 PM |
-| `agent-analyst` | On-demand business analyst (Claude 3.5 Sonnet) | On Request |
-| `stripe-forensics` | Detects payout anomalies & fraud | On Request |
-| `callgear-sentinel` | Real-time call monitoring & anti-fraud | Webhook |
+| Function                  | Purpose                                        | Schedule   |
+| :------------------------ | :--------------------------------------------- | :--------- |
+| `health-calculator`       | Calculates client health scores (0-100)        | Daily 9 AM |
+| `fetch-facebook-insights` | Syncs ad spend & ROAS from Meta                | Daily 2 AM |
+| `business-intelligence`   | Aggregates daily KPIs                          | Daily 3 AM |
+| `daily-report`            | Generates & sends executive summary            | Daily 6 PM |
+| `agent-analyst`           | On-demand business analyst (Claude 3.5 Sonnet) | On Request |
+| `stripe-forensics`        | Detects payout anomalies & fraud               | On Request |
+| `callgear-sentinel`       | Real-time call monitoring & anti-fraud         | Webhook    |
 
 ## 🛠 Setup & Deployment
 
@@ -121,12 +121,13 @@ This endpoint checks:
 - **/sales-pipeline**: HubSpot Funnel & Call Tracking
 - **/stripe-intelligence**: Financial Forensics & Payouts
 
-## 🔄 Legacy Migration Note
+## 🔄 Architecture
 
-**n8n has been completely removed.** All workflows (Daily Calculator, Monthly Coach Review, etc.) now run natively on Supabase.
+All workflows run natively on Supabase via `pg_cron` scheduled tasks:
 
-- **Old**: n8n Webhook -> Postgres
-- **New**: pg_cron -> Edge Function -> Postgres
+- **Scheduled Jobs**: pg_cron triggers Edge Functions for daily health scores, syncs, and reports
+- **Real-time**: Supabase Realtime for live dashboard updates
+- **AI Agents**: 5 specialized AI personas (ATLAS, SHERLOCK, REVENUE, HUNTER, GUARDIAN)
 
 ## 🤝 Support
 
