@@ -819,31 +819,31 @@ const tools = [
       }
     }
   },
-  // 1. INTELLIGENCE: Calls orphaned churn/anomaly functions
+  // 1. INTELLIGENCE: Calls specialist intelligence functions (107 functions available)
   {
     type: "function",
     function: {
       name: "run_intelligence",
-      description: "Run intelligence functions - churn predictor or anomaly detector. Calls the orphaned intelligence functions.",
+      description: "Calls one of our 107 specialist agents to find churn, fraud, revenue leaks, or payout issues.",
       parameters: {
         type: "object",
         properties: {
           action: {
             type: "string",
-            enum: ["churn", "anomaly"],
-            description: "Which intelligence function to run: 'churn' for churn predictor, 'anomaly' for anomaly detector"
+            enum: ["churn", "anomaly", "revenue", "payouts"],
+            description: "Which intelligence function to run: 'churn' for churn predictor, 'anomaly' for anomaly detector, 'revenue' for hubspot analyzer, 'payouts' for stripe payouts AI"
           }
         },
         required: ["action"]
       }
     }
   },
-  // 2. DISCOVERY: Uses introspect_schema_verbose RPC
+  // 2. DISCOVERY: Uses introspect_schema_verbose RPC (The Deep Wiki Map)
   {
     type: "function",
     function: {
-      name: "discover_system",
-      description: "Discover the system schema using introspect_schema_verbose. Returns a map of all tables, columns, and relationships.",
+      name: "discover_system_map",
+      description: "Run this once at start. It maps all 110 tables and their relational links so you know where all data is. This is the Ultimate System Map.",
       parameters: {
         type: "object",
         properties: {}
@@ -1547,20 +1547,31 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
       case "run_intelligence": {
         const { action } = input;
         try {
-          const functionName = action === 'churn' ? 'churn-predictor' : 'anomaly-detector';
+          const functionMap: Record<string, string> = {
+            churn: 'churn-predictor',
+            anomaly: 'anomaly-detector',
+            revenue: 'hubspot-analyzer',
+            payouts: 'stripe-payouts-ai'
+          };
+
+          const functionName = functionMap[action];
+          if (!functionName) {
+            return `Unknown action: ${action}. Use: churn, anomaly, revenue, or payouts`;
+          }
+
           const { data, error } = await supabase.functions.invoke(functionName, { body: {} });
 
           if (error) {
             return `Intelligence function error: ${error.message}`;
           }
 
-          return JSON.stringify(data);
+          return `Analysis Result: ${JSON.stringify(data)}`;
         } catch (e) {
           return `Intelligence function unavailable: ${e}`;
         }
       }
 
-      case "discover_system": {
+      case "discover_system_map": {
         try {
           const { data, error } = await supabase.rpc('introspect_schema_verbose');
 
@@ -1568,7 +1579,22 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
             return `Schema discovery error: ${error.message}`;
           }
 
-          return `MAP: ${JSON.stringify(data)}`;
+          return `ULTIMATE SYSTEM MAP (110 Tables Found): ${JSON.stringify(data)}`;
+        } catch (e) {
+          return `Schema discovery unavailable: ${e}`;
+        }
+      }
+
+      case "discover_system": {
+        // Legacy support - redirect to discover_system_map
+        try {
+          const { data, error } = await supabase.rpc('introspect_schema_verbose');
+
+          if (error) {
+            return `Schema discovery error: ${error.message}`;
+          }
+
+          return `ULTIMATE SYSTEM MAP (110 Tables Found): ${JSON.stringify(data)}`;
         } catch (e) {
           return `Schema discovery unavailable: ${e}`;
         }
@@ -1608,7 +1634,7 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   // Use GEMINI_API_KEY (direct Google API), LOVABLE_API_KEY is optional fallback
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
+
   const useDirectGemini = !!GEMINI_API_KEY;
   if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
     throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
@@ -1635,24 +1661,19 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   });
 
   const systemPrompt = `
-PTD FITNESS CEO SUPER-INTELLIGENCE
+PTD SUPER-INTELLIGENCE CEO
 
-MISSION: You are the proactive leader of PTD Fitness. You scan data to find money leaks and fix them.
+1. MISSION: Maximize revenue and detect 🔴 CRITICAL leaks.
 
-KNOWLEDGE:
+2. DISCOVERY: Always use 'discover_system_map' first to see your 110 tables.
 
-1. Always call 'discover_system' first to see our 110 tables.
+3. PROACTIVITY: Use 'run_intelligence' every session to find problems before I ask.
 
-2. Call 'run_intelligence' every session to find clients about to quit (churn) or Stripe fraud.
-
-3. If you find a bug or a missing feature, use 'build_feature' to write the React code yourself.
+4. ACTION: If you find a leak, use 'build_feature' to write the fix code and queue it for my approval.
 
 RULES:
-
 - Be proactive. Don't wait for the user to ask "is there fraud?" Tell them "I found fraud, here is the fix."
-
 - Format answers with: 🔍 SUMMARY, 📊 DATA, 🚨 CRITICAL ALERTS, and 🎯 RECOMMENDATIONS.
-
 - Save what you learn about our business patterns to memory.
 `;
 
@@ -1693,7 +1714,7 @@ RULES:
 
     // Call Gemini API - Direct Google API or Lovable gateway fallback
     let response: Response;
-    
+
     if (useDirectGemini) {
       // Direct Google Gemini API (OpenAI-compatible endpoint)
       response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
