@@ -823,6 +823,18 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "run_intelligence_suite",
+      description: "Run both anomaly-detector and churn-predictor edge functions and return combined results.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "run_intelligence",
       description: "Calls one of our 107 specialist agents to find churn, fraud, revenue leaks, or payout issues.",
       parameters: {
@@ -1541,6 +1553,20 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
           // RPC function not configured - do not attempt direct query for security
           console.log("execute_sql_query RPC not found");
           return JSON.stringify({ error: "SQL query execution not available - RPC function not configured. Use specific tools for data queries." });
+        }
+      }
+
+      case "run_intelligence_suite": {
+        try {
+          const results: Record<string, any> = {};
+          const functionsToRun = ['anomaly-detector', 'churn-predictor'];
+          for (const fn of functionsToRun) {
+            const { data, error } = await supabase.functions.invoke(fn, { body: {} });
+            results[fn] = error ? `Error: ${error.message}` : data;
+          }
+          return `INTELLIGENCE SUITE RESULTS:\n${JSON.stringify(results, null, 2)}`;
+        } catch (e) {
+          return `Intelligence suite unavailable: ${e}`;
         }
       }
 

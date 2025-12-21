@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database, Mic, MicOff, Volume2, VolumeX, Globe, User } from "lucide-react";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
 import { getThreadId, startNewThread, loadConversationHistory, saveMessageToDatabase } from "@/lib/ptd-memory";
 import { toast } from "sonner";
 import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 import { getApiUrl, API_ENDPOINTS } from "@/config/api";
+
+// Global Brain constants
+const GLOBAL_THREAD_ID = "ptd-global";
+const GLOBAL_MODE_KEY = "ptd-global-mode";
+const USER_LABEL_KEY = "ptd-user-label";
 
 export default function PTDControlChat() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
@@ -18,6 +23,14 @@ export default function PTDControlChat() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [isGlobalMode, setIsGlobalMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem(GLOBAL_MODE_KEY);
+    return saved === 'true'; // Default to personal mode
+  });
+  const [userLabel, setUserLabel] = useState<string>(() => {
+    return localStorage.getItem(USER_LABEL_KEY) || '';
+  });
+  const [showUserPrompt, setShowUserPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice chat hooks
@@ -46,11 +59,45 @@ export default function PTDControlChat() {
 
   // Initialize thread ID and load conversation history
   useEffect(() => {
-    const tid = getThreadId();
+    // Use global thread ID if in global mode, otherwise per-browser thread
+    const tid = isGlobalMode ? GLOBAL_THREAD_ID : getThreadId();
     setThreadId(tid);
     loadMemoryStats();
     loadChatHistory(tid);
-  }, []);
+
+    // Prompt for user label if in global mode and no label set
+    if (isGlobalMode && !userLabel) {
+      setShowUserPrompt(true);
+    }
+  }, [isGlobalMode]);
+
+  // Toggle global mode
+  const handleToggleGlobalMode = () => {
+    const newMode = !isGlobalMode;
+    setIsGlobalMode(newMode);
+    localStorage.setItem(GLOBAL_MODE_KEY, String(newMode));
+
+    // Switch thread and reload history
+    const newThreadId = newMode ? GLOBAL_THREAD_ID : getThreadId();
+    setThreadId(newThreadId);
+    setMessages([]);
+    loadChatHistory(newThreadId);
+
+    toast.success(newMode ? 'Switched to Global Brain' : 'Switched to Personal Mode');
+
+    // Prompt for user label if switching to global and no label
+    if (newMode && !userLabel) {
+      setShowUserPrompt(true);
+    }
+  };
+
+  // Save user label
+  const handleSaveUserLabel = (label: string) => {
+    setUserLabel(label);
+    localStorage.setItem(USER_LABEL_KEY, label);
+    setShowUserPrompt(false);
+    toast.success(`Identified as: ${label}`);
+  };
 
   // Monitor online/offline status
   useEffect(() => {
@@ -206,7 +253,9 @@ export default function PTDControlChat() {
         },
         body: JSON.stringify({
           message: userMessage,
-          thread_id: threadId  // Pass thread ID for memory continuity
+          thread_id: threadId,  // Pass thread ID for memory continuity
+          user_label: isGlobalMode ? userLabel : undefined,  // Tag with user for global mode
+          is_global: isGlobalMode,
         }),
       });
 
@@ -304,6 +353,23 @@ export default function PTDControlChat() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Global/Personal Mode Toggle */}
+            <button
+              onClick={handleToggleGlobalMode}
+              className={`p-2 rounded-lg transition-all group ${
+                isGlobalMode
+                  ? 'bg-green-500/20 border border-green-500/50'
+                  : 'hover:bg-cyan-500/20'
+              }`}
+              title={isGlobalMode ? 'Global Brain (shared with everyone)' : 'Personal Mode (private)'}
+            >
+              {isGlobalMode ? (
+                <Globe className="w-5 h-5 text-green-400" />
+              ) : (
+                <User className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300" />
+              )}
+            </button>
+
             {/* New Thread Button */}
             <button
               onClick={handleNewThread}
@@ -334,8 +400,16 @@ export default function PTDControlChat() {
 
         {/* Thread ID indicator */}
         {threadId && (
-          <div className="mt-2 text-xs text-white/30 truncate">
-            Thread: {threadId.slice(0, 20)}...
+          <div className="mt-2 flex items-center gap-2 text-xs text-white/30">
+            {isGlobalMode ? (
+              <>
+                <Globe className="w-3 h-3 text-green-400" />
+                <span className="text-green-400">Global Brain</span>
+                {userLabel && <span className="text-white/50">({userLabel})</span>}
+              </>
+            ) : (
+              <span className="truncate">Thread: {threadId.slice(0, 20)}...</span>
+            )}
           </div>
         )}
 
@@ -481,6 +555,54 @@ export default function PTDControlChat() {
           </button>
         </div>
       </div>
+
+      {/* User Label Prompt Modal */}
+      {showUserPrompt && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-2xl z-10">
+          <div className="bg-slate-800 border border-cyan-500/30 rounded-xl p-6 max-w-xs w-full mx-4">
+            <h3 className="text-white font-bold mb-2 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-green-400" />
+              Global Brain Mode
+            </h3>
+            <p className="text-white/60 text-sm mb-4">
+              Enter your name so others know who contributed to the shared memory.
+            </p>
+            <input
+              type="text"
+              placeholder="Your name..."
+              className="w-full bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 mb-4"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLInputElement;
+                  if (target.value.trim()) {
+                    handleSaveUserLabel(target.value.trim());
+                  }
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowUserPrompt(false)}
+                className="flex-1 py-2 text-white/60 hover:text-white transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => {
+                  const input = document.querySelector('input[placeholder="Your name..."]') as HTMLInputElement;
+                  if (input?.value.trim()) {
+                    handleSaveUserLabel(input.value.trim());
+                  }
+                }}
+                className="flex-1 py-2 bg-gradient-to-r from-green-500 to-cyan-500 rounded-lg text-white font-medium"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
