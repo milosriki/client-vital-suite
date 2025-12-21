@@ -77,7 +77,7 @@ export async function discoverSystemStructure() {
         const { error } = await supabase.from('agent_context').upsert({
           key: 'system_structure',
           value: systemKnowledge,
-          agent_type: 'smart_agent',
+          agent_type: 'analyst', // Fixed: Must be one of ('analyst', 'advisor', 'watcher')
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         });
 

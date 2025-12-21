@@ -165,6 +165,8 @@ export function useRealtimeHealthScores() {
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           isSubscribed = false;
           console.warn('[RealtimeHealthScores] Subscription disconnected:', status);
+          // Note: Supabase will auto-reconnect, but we log for debugging
+          // If persistent errors occur, check Supabase connection and RLS policies
         }
       });
 

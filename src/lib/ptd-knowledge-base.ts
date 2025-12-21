@@ -59,7 +59,7 @@ export async function learnFromInteraction(query: string, response: string) {
     const { data, error } = await supabase.from('agent_context').upsert({
       key: `interaction_${Date.now()}`,
       value: { query, response, learned_at: new Date().toISOString() },
-      agent_type: 'conversation_learning',
+      agent_type: 'advisor', // Fixed: Must be one of ('analyst', 'advisor', 'watcher')
       expires_at: null // Never expires - permanent learning
     });
 

@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-ptd-key');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -118,12 +118,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/${agentFunction}`;
 
     const startTime = Date.now();
+    
+    // Forward x-ptd-key header if provided (for Supabase Edge Function auth)
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SERVICE_KEY}`,
+    };
+    
+    const ptdKey = req.headers['x-ptd-key'];
+    if (ptdKey && typeof ptdKey === 'string') {
+      headers['x-ptd-key'] = ptdKey;
+    }
+    
     const response = await fetch(edgeFunctionUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-      },
+      headers,
       body: JSON.stringify({
         message,
         thread_id,
