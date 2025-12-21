@@ -94,8 +94,7 @@ serve(async (req) => {
                     // Request specific fields for call data
                     fields: ["id", "start_time", "finish_time", "talk_duration", "total_duration",
                              "contact_phone_number", "virtual_phone_number", "employees",
-                             "finish_reason", "direction", "is_lost", "call_records", "scenario",
-                             "city", "country", "region"]
+                             "finish_reason", "direction", "is_lost", "call_records"]
                 },
                 id: 1
             })

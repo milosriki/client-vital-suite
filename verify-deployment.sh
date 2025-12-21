@@ -326,19 +326,25 @@ check_deployment_status() {
   fi
   
   # Check Supabase health
-  SUPABASE_STATUS=$(curl -s "$SUPABASE_URL/rest/v1/" -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4NjA0MTIsImV4cCI6MjAzNjQzNjQxMn0.WSbeBz9ufh7RbnLNhzxZnU_GJ1jkPx18ajgTH_6h4iI" 2>/dev/null | head -c 100)
-  
-  if [[ -n "$SUPABASE_STATUS" ]]; then
-    pass "Supabase API responding"
+  # ⚠️ SECURITY: Use environment variable for anon key
+  SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY}}"
+  if [[ -z "$SUPABASE_ANON_KEY" ]]; then
+    warn "Supabase anon key not set - skipping API check"
+    warn "Set SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY environment variable"
   else
-    fail "Supabase API not responding"
-  fi
-  
-  # Check Edge Function
-  FUNC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SUPABASE_URL/functions/v1/business-intelligence" \
-    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4NjA0MTIsImV4cCI6MjAzNjQzNjQxMn0.WSbeBz9ufh7RbnLNhzxZnU_GJ1jkPx18ajgTH_6h4iI" \
-    -H "Content-Type: application/json" \
-    -d '{"query":"health"}' 2>/dev/null)
+    SUPABASE_STATUS=$(curl -s "$SUPABASE_URL/rest/v1/" -H "apikey: $SUPABASE_ANON_KEY" 2>/dev/null | head -c 100)
+    
+    if [[ -n "$SUPABASE_STATUS" ]]; then
+      pass "Supabase API responding"
+    else
+      fail "Supabase API not responding"
+    fi
+    
+    # Check Edge Function
+    FUNC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SUPABASE_URL/functions/v1/business-intelligence" \
+      -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"query":"health"}' 2>/dev/null)
   
   if [[ "$FUNC_STATUS" == "200" ]]; then
     pass "Edge Functions operational"

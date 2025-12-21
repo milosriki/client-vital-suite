@@ -1,27 +1,52 @@
 #!/bin/bash
 
 # Set All API Keys in Supabase
-# This script sets all API keys found in documentation
+# ⚠️ SECURITY: This script uses environment variables - never hardcode secrets!
 
-PROJECT_REF="ztjndilxurtsfqdsvfds"
+PROJECT_REF="${SUPABASE_PROJECT_REF:-ztjndilxurtsfqdsvfds}"
+
+# Load values from environment
+GOOGLE_API_KEY="${GOOGLE_API_KEY:-YOUR_GOOGLE_API_KEY_HERE}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-YOUR_GEMINI_API_KEY_HERE}"
+GOOGLE_GEMINI_API_KEY="${GOOGLE_GEMINI_API_KEY:-$GEMINI_API_KEY}"
+FB_PIXEL_ID="${FB_PIXEL_ID:-YOUR_FB_PIXEL_ID_HERE}"
+FB_ACCESS_TOKEN="${FB_ACCESS_TOKEN:-YOUR_FB_ACCESS_TOKEN_HERE}"
+META_APP_ID="${META_APP_ID:-YOUR_META_APP_ID_HERE}"
+META_APP_SECRET="${META_APP_SECRET:-YOUR_META_APP_SECRET_HERE}"
+META_CLIENT_TOKEN="${META_CLIENT_TOKEN:-YOUR_META_CLIENT_TOKEN_HERE}"
+META_PAGE_ID="${META_PAGE_ID:-YOUR_META_PAGE_ID_HERE}"
+META_AD_ACCOUNT_ID="${META_AD_ACCOUNT_ID:-$FB_PIXEL_ID}"
+
+# Validate required variables
+if [[ "$GOOGLE_API_KEY" == "YOUR_GOOGLE_API_KEY_HERE" ]]; then
+    echo "⚠️  ERROR: Please set environment variables before running this script"
+    echo ""
+    echo "Usage:"
+    echo "  GOOGLE_API_KEY=your_key \\"
+    echo "  GEMINI_API_KEY=your_key \\"
+    echo "  FB_PIXEL_ID=your_id \\"
+    echo "  FB_ACCESS_TOKEN=your_token \\"
+    echo "  ./set-all-api-keys.sh"
+    exit 1
+fi
 
 echo "🔐 Setting all API keys in Supabase..."
 
 # Google/Gemini Keys
 echo "Setting Google/Gemini keys..."
-supabase secrets set GOOGLE_API_KEY=AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s --project-ref $PROJECT_REF
-supabase secrets set GEMINI_API_KEY=AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s --project-ref $PROJECT_REF
-supabase secrets set GOOGLE_GEMINI_API_KEY=AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s --project-ref $PROJECT_REF
+supabase secrets set GOOGLE_API_KEY="$GOOGLE_API_KEY" --project-ref $PROJECT_REF
+supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" --project-ref $PROJECT_REF
+supabase secrets set GOOGLE_GEMINI_API_KEY="$GOOGLE_GEMINI_API_KEY" --project-ref $PROJECT_REF
 
 # Meta/Facebook Keys
 echo "Setting Meta/Facebook keys..."
-supabase secrets set FB_PIXEL_ID=349832333681399 --project-ref $PROJECT_REF
-supabase secrets set FB_ACCESS_TOKEN=EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1 --project-ref $PROJECT_REF
-supabase secrets set META_APP_ID=223192964069489 --project-ref $PROJECT_REF
-supabase secrets set META_APP_SECRET=667a10ddcc6dffec6cc8a22a29b80684 --project-ref $PROJECT_REF
-supabase secrets set META_CLIENT_TOKEN=7626cb19dee913d36f37e24961cca09d --project-ref $PROJECT_REF
-supabase secrets set META_PAGE_ID=100334836038237 --project-ref $PROJECT_REF
-supabase secrets set META_AD_ACCOUNT_ID=349832333681399 --project-ref $PROJECT_REF
+supabase secrets set FB_PIXEL_ID="$FB_PIXEL_ID" --project-ref $PROJECT_REF
+supabase secrets set FB_ACCESS_TOKEN="$FB_ACCESS_TOKEN" --project-ref $PROJECT_REF
+supabase secrets set META_APP_ID="$META_APP_ID" --project-ref $PROJECT_REF
+supabase secrets set META_APP_SECRET="$META_APP_SECRET" --project-ref $PROJECT_REF
+supabase secrets set META_CLIENT_TOKEN="$META_CLIENT_TOKEN" --project-ref $PROJECT_REF
+supabase secrets set META_PAGE_ID="$META_PAGE_ID" --project-ref $PROJECT_REF
+supabase secrets set META_AD_ACCOUNT_ID="$META_AD_ACCOUNT_ID" --project-ref $PROJECT_REF
 
 echo "✅ All keys from documentation set!"
 echo ""

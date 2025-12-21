@@ -484,6 +484,15 @@ function tool(
 
 // ============= GEMINI TOOL DEFINITIONS =============
 const tools = [
+  // Google Search Grounding (Native Tool)
+  {
+    googleSearchRetrieval: {
+      dynamicRetrievalConfig: {
+        mode: "MODE_DYNAMIC",
+        dynamicThreshold: 0.7,
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -1713,32 +1722,36 @@ RULES:
 - Save what you learn about our business patterns to memory.
 `;
 
-  // Construct messages with history
-  const messages: any[] = [
-    { role: "system", content: systemPrompt }
+  // --- NATIVE GEMINI FORMAT CONVERSION ---
+
+  // 1. Convert Tools
+  const geminiTools = [
+    // {
+    //   googleSearch: {} // Disabled due to conflict with functionDeclarations
+    // },
+    {
+      functionDeclarations: tools
+        .filter(t => t.type === 'function')
+        .map(t => t.function)
+    }
   ];
 
-  // Add conversation history if available
+  // 2. Convert Messages
+  const contents: any[] = [];
+  
+  // Add history
   if (chatHistory && chatHistory.length > 0) {
-    // Filter out system messages and ensure correct format
-    const validHistory = chatHistory
-      .filter((m: any) => m.role !== 'system')
-      .map((m: any) => ({
-        role: m.role,
-        content: m.content
-      }));
-
-    // Check if the last message in history is the current userMessage
-    const lastMsg = validHistory[validHistory.length - 1];
-    if (lastMsg && lastMsg.role === 'user' && lastMsg.content === userMessage) {
-      messages.push(...validHistory);
-    } else {
-      messages.push(...validHistory);
-      messages.push({ role: "user", content: userMessage });
-    }
-  } else {
-    messages.push({ role: "user", content: userMessage });
+    chatHistory.forEach((msg: any) => {
+      if (msg.role === 'user') {
+        contents.push({ role: 'user', parts: [{ text: msg.content }] });
+      } else if (msg.role === 'assistant') {
+        contents.push({ role: 'model', parts: [{ text: msg.content }] });
+      }
+    });
   }
+  
+  // Add current user message
+  contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
   let iterations = 0;
   const maxIterations = 8;
@@ -1748,107 +1761,89 @@ RULES:
     iterations++;
     console.log(`🚀 Gemini iteration ${iterations}`);
 
-    // Call Gemini API - Direct Google API or Lovable gateway fallback
     let response: Response;
+    let data: any;
 
     if (useDirectGemini) {
-      // Direct Google Gemini API (OpenAI-compatible endpoint)
-      response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      // Native Gemini API
+      // Revert to gemini-2.0-flash
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gemini-2.0-flash",
-          messages,
-          tools,
-          tool_choice: "auto",
+          contents,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          tools: geminiTools,
+          toolConfig: { functionCallingConfig: { mode: "AUTO" } }
         }),
       });
     } else {
-      // Fallback to Lovable AI gateway
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages,
-          tools,
-          tool_choice: "auto",
-        }),
-      });
+       // Fallback to OpenAI format for Lovable (if needed, but we prioritize native)
+       // For now, throw error if no native key because we need grounding
+       throw new Error("Native Gemini API Key required for Super Intelligence features (Grounding).");
     }
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Gemini error:", response.status, errorText);
-
-      if (response.status === 429) {
-        throw new Error("Rate limit exceeded. Please try again in a moment.");
-      }
-      if (response.status === 402) {
-        throw new Error("API credits exhausted. Please add credits to continue.");
-      }
-      throw new Error(`Gemini API error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
-    const choice = data.choices?.[0];
-
-    if (!choice) {
-      console.error("No choice in response:", data);
-      throw new Error("Invalid response from Gemini");
+    data = await response.json();
+    
+    // Parse Native Response
+    const candidate = data.candidates?.[0];
+    const content = candidate?.content;
+    const parts = content?.parts || [];
+    
+    // Check for text response
+    const textPart = parts.find((p: any) => p.text);
+    if (textPart) {
+      finalResponse += textPart.text;
     }
 
-    const finishReason = choice.finish_reason;
-    const message = choice.message;
+    // Check for tool calls
+    const functionCalls = parts.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
 
-    console.log(`Finish reason: ${finishReason}`);
+    if (functionCalls.length > 0) {
+      console.log(`🛠️ Executing ${functionCalls.length} tool calls`);
+      
+      // Add model's tool call message to history
+      contents.push(content);
 
-    // Check if done
-    if (finishReason === "stop" || !message.tool_calls || message.tool_calls.length === 0) {
-      finalResponse = message.content || "";
+      const toolResults = await Promise.all(
+        functionCalls.map(async (call: any) => {
+          const { name, args } = call;
+          console.log(`▶️ Tool: ${name}`, args);
+          
+          let result;
+          try {
+            result = await executeTool(supabase, name, args);
+          } catch (error) {
+            console.error(`❌ Tool error ${name}:`, error);
+            result = { error: error.message };
+          }
+          
+          return {
+            functionResponse: {
+              name: name,
+              response: { name: name, content: result }
+            }
+          };
+        })
+      );
+
+      // Add tool results to history
+      contents.push({ role: 'function', parts: toolResults });
+      
+    } else {
+      // No tool calls, we are done
       break;
     }
-
-    // Process tool calls
-    const toolCalls = message.tool_calls;
-
-    // Add assistant message with tool calls
-    // Note: content must be a string (not null) to avoid "image media type is required" error
-    // Some OpenAI-compatible APIs reject null content in messages with tool_calls
-    messages.push({
-      role: "assistant",
-      content: message.content || "",
-      tool_calls: toolCalls
-    });
-
-    // Execute tools in parallel
-    const toolResults = await Promise.all(
-      toolCalls.map(async (toolCall: any) => {
-        const args = JSON.parse(toolCall.function.arguments || "{}");
-        const result = await executeTool(supabase, toolCall.function.name, args);
-        // Ensure content is always a non-empty string to avoid API errors
-        // Empty/null content can trigger "image media type is required" error in some APIs
-        const content = (typeof result === 'string' && result.trim()) ? result : "No data returned";
-        return {
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: content,
-        };
-      })
-    );
-
-    // Add all tool results to messages
-    messages.push(...toolResults);
   }
 
   if (!finalResponse) {
-    finalResponse = "Max iterations reached. Please try a more specific query.";
+    finalResponse = "Max iterations reached or empty response.";
   }
 
   // Save to persistent memory
