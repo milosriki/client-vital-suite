@@ -360,12 +360,16 @@ async function discoverSystem(supabase: any): Promise<{ tables: number; function
     }
 
     // Cache for future use
-    await supabase.from("agent_context").upsert({
-      key: "system_structure",
-      value: { tables, functions, discovered_at: new Date().toISOString() },
-      agent_type: "super_orchestrator",
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    }).catch(() => {});
+    try {
+      await supabase.from("agent_context").upsert({
+        key: "system_structure",
+        value: { tables, functions, discovered_at: new Date().toISOString() },
+        agent_type: "super_orchestrator",
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+    } catch (e) {
+      console.error("System structure cache failed:", e);
+    }
 
     const result = {
       tables: tables.length,
@@ -574,12 +578,16 @@ async function crossValidate(
     }
 
     // Store cross-validation results in agent_context
-    await supabase.from("agent_context").upsert({
-      key: "cross_validation_results",
-      value: { issues, improvements, timestamp: new Date().toISOString() },
-      agent_type: "super_orchestrator",
-      expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(), // 1 hour
-    }).catch(() => {});
+    try {
+      await supabase.from("agent_context").upsert({
+        key: "cross_validation_results",
+        value: { issues, improvements, timestamp: new Date().toISOString() },
+        agent_type: "super_orchestrator",
+        expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(), // 1 hour
+      });
+    } catch (e) {
+      console.error("Cross-validation cache failed:", e);
+    }
 
     await traceEnd(runId, { issues, improvements });
     return { issues, improvements };
