@@ -87,7 +87,8 @@ serve(async (req) => {
 
     let processedCount = 0;
 
-    for (const lead of newLeads) {
+    // Parallel processing with Promise.all
+    const results = await Promise.all(newLeads.map(async (lead) => {
       try {
         const prompt = `You are a sales consultant for PTD Fitness, Dubai's premium personal training service.
 
@@ -112,7 +113,7 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
             "anthropic-version": "2023-06-01"
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-5-20250929",
+            model: "claude-3-5-sonnet-20241022",
             max_tokens: 200,
             messages: [{ role: "user", content: prompt }]
           })
@@ -138,10 +139,12 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
 
           if (updateError) {
             console.error(`Failed to update ${sourceTable} record ${lead.id}:`, updateError);
+            return false;
           } else {
-            processedCount++;
+            return true;
           }
         }
+        return false;
       } catch (error: any) {
         console.error(`Failed to generate reply for lead ${lead.id}:`, error);
 
@@ -153,8 +156,11 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
           error_message: `Lead reply generation failed: ${error.message}`,
           error_details: { lead_data: { id: lead.id, name: lead.name || lead.email } }
         });
+        return false;
       }
-    }
+    }));
+
+    processedCount = results.filter(Boolean).length;
 
     return jsonResponse({
       success: true,
