@@ -200,7 +200,10 @@ export default function PTDControlChat() {
     try {
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+        },
         body: JSON.stringify({
           message: userMessage,
           thread_id: threadId  // Pass thread ID for memory continuity
