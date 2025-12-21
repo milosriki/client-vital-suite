@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -349,6 +350,56 @@ async function saveToMemory(supabase: any, threadId: string, query: string, resp
   }
 }
 
+// ============= TOOL HELPER FUNCTION =============
+// Helper to create tools with async functions and zod schemas
+function tool(
+  handler: (args: any) => Promise<string>,
+  options: { name: string; description?: string; schema?: z.ZodType<any> }
+): any {
+  const schema = options.schema || z.object({});
+  const schemaShape = schema._def?.shape || {};
+
+  // Convert zod schema to JSON schema format
+  const properties: Record<string, any> = {};
+  const required: string[] = [];
+
+  for (const [key, value] of Object.entries(schemaShape)) {
+    const zodType = value as any;
+    if (zodType._def?.typeName === 'ZodString') {
+      properties[key] = { type: "string", description: zodType.description || "" };
+    } else if (zodType._def?.typeName === 'ZodNumber') {
+      properties[key] = { type: "number", description: zodType.description || "" };
+    } else if (zodType._def?.typeName === 'ZodEnum') {
+      properties[key] = {
+        type: "string",
+        enum: zodType._def.values,
+        description: zodType.description || ""
+      };
+    } else if (zodType._def?.typeName === 'ZodBoolean') {
+      properties[key] = { type: "boolean", description: zodType.description || "" };
+    }
+
+    // Check if field is required (not optional)
+    if (!zodType.isOptional()) {
+      required.push(key);
+    }
+  }
+
+  return {
+    type: "function",
+    function: {
+      name: options.name,
+      description: options.description || "",
+      parameters: {
+        type: "object",
+        properties,
+        required: required.length > 0 ? required : undefined,
+      },
+    },
+    handler, // Store handler for execution
+  };
+}
+
 // ============= GEMINI TOOL DEFINITIONS =============
 const tools = [
   {
@@ -683,6 +734,59 @@ const tools = [
           test_caller: { type: "string", description: "Phone number to test routing for" }
         },
         required: ["action"]
+      }
+    }
+  },
+  // 1. INTELLIGENCE: Calls orphaned churn/anomaly functions
+  {
+    type: "function",
+    function: {
+      name: "run_intelligence",
+      description: "Run intelligence functions - churn predictor or anomaly detector. Calls the orphaned intelligence functions.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            enum: ["churn", "anomaly"],
+            description: "Which intelligence function to run: 'churn' for churn predictor, 'anomaly' for anomaly detector"
+          }
+        },
+        required: ["action"]
+      }
+    }
+  },
+  // 2. DISCOVERY: Uses introspect_schema_verbose RPC
+  {
+    type: "function",
+    function: {
+      name: "discover_system",
+      description: "Discover the system schema using introspect_schema_verbose. Returns a map of all tables, columns, and relationships.",
+      parameters: {
+        type: "object",
+        properties: {}
+      }
+    }
+  },
+  // 3. BUILDER: Writes code to ai_agent_approvals
+  {
+    type: "function",
+    function: {
+      name: "build_feature",
+      description: "Build a feature by writing code changes to the ai_agent_approvals table. Creates a fix request that can be reviewed and approved.",
+      parameters: {
+        type: "object",
+        properties: {
+          code: {
+            type: "string",
+            description: "The code content to write (e.g., React component code)"
+          },
+          impact: {
+            type: "string",
+            description: "Description of the impact or purpose of this code change"
+          }
+        },
+        required: ["code", "impact"]
       }
     }
   }
@@ -1358,6 +1462,55 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         }
       }
 
+      case "run_intelligence": {
+        const { action } = input;
+        try {
+          const functionName = action === 'churn' ? 'churn-predictor' : 'anomaly-detector';
+          const { data, error } = await supabase.functions.invoke(functionName, { body: {} });
+
+          if (error) {
+            return `Intelligence function error: ${error.message}`;
+          }
+
+          return JSON.stringify(data);
+        } catch (e) {
+          return `Intelligence function unavailable: ${e}`;
+        }
+      }
+
+      case "discover_system": {
+        try {
+          const { data, error } = await supabase.rpc('introspect_schema_verbose');
+
+          if (error) {
+            return `Schema discovery error: ${error.message}`;
+          }
+
+          return `MAP: ${JSON.stringify(data)}`;
+        } catch (e) {
+          return `Schema discovery unavailable: ${e}`;
+        }
+      }
+
+      case "build_feature": {
+        const { code, impact } = input;
+        try {
+          const { data, error } = await supabase.from('ai_agent_approvals').insert({
+            request_type: 'UI_FIX',
+            code_changes: [{ path: 'src/DynamicFix.tsx', content: code }],
+            description: impact
+          });
+
+          if (error) {
+            return `Build feature error: ${error.message}`;
+          }
+
+          return "Fix prepared in Approvals dashboard.";
+        } catch (e) {
+          return `Build feature unavailable: ${e}`;
+        }
+      }
+
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -1373,7 +1526,7 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   // Use GEMINI_API_KEY (direct Google API), LOVABLE_API_KEY is optional fallback
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
+
   const useDirectGemini = !!GEMINI_API_KEY;
   if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
     throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
@@ -1565,7 +1718,7 @@ ${learnedPatterns || 'No patterns learned yet.'}
 
     // Call Gemini API - Direct Google API or Lovable gateway fallback
     let response: Response;
-    
+
     if (useDirectGemini) {
       // Direct Google Gemini API (OpenAI-compatible endpoint)
       response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
