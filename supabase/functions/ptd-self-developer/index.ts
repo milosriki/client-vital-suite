@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RunTree } from "https://esm.sh/langsmith";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
@@ -86,6 +87,21 @@ Always respond with a JSON object containing:
 - Use lucide-react for icons`;
 
     // Call Claude API
+    const parentRun = new RunTree({
+      name: "ptd_self_developer",
+      run_type: "chain",
+      inputs: { command, context },
+      project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+    });
+    await parentRun.postRun();
+
+    const childRun = await parentRun.createChild({
+      name: "anthropic_call",
+      run_type: "llm",
+      inputs: { command, model: "claude-3-5-sonnet-20241022" },
+    });
+    await childRun.postRun();
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -109,11 +125,18 @@ Always respond with a JSON object containing:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Anthropic API error:', errorText);
+      await childRun.end({ error: `Anthropic API error: ${response.status} - ${errorText}` });
+      await childRun.patchRun();
+      await parentRun.end({ error: `Anthropic API error: ${response.status}` });
+      await parentRun.patchRun();
       throw new Error(`AI API error: ${response.status}`);
     }
 
     const aiResponse = await response.json();
     const responseText = aiResponse.content?.[0]?.text || '';
+
+    await childRun.end({ outputs: { response: responseText } });
+    await childRun.patchRun();
 
     console.log('🤖 AI Response received, length:', responseText.length);
 
@@ -165,6 +188,9 @@ Always respond with a JSON object containing:
     }
 
     console.log('✅ Action prepared:', insertedAction?.id);
+
+    await parentRun.end({ outputs: { action: insertedAction } });
+    await parentRun.patchRun();
 
     return new Response(JSON.stringify({
       success: true,

@@ -1,6 +1,7 @@
 // supabase/functions/ai-ceo-master/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RunTree } from "https://esm.sh/langsmith";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 const GEMINI_API_KEY = Deno.env.get('GOOGLE_API_KEY');
@@ -70,11 +71,20 @@ serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     try {
-        const { command } = await req.json();
+        const { command, session_id } = await req.json();
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL')!,
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
+
+        // Save user command if session_id is present
+        if (session_id) {
+            await supabase.from('agent_conversations').insert({
+                session_id,
+                role: 'user',
+                content: command
+            });
+        }
 
         // 1. Gather Context
         const { data: goals } = await supabase.from('business_goals').select('*').eq('status', 'active');
@@ -97,10 +107,26 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
 
         // 3. Generate Response
         let response;
-        if (isCodeRequest) {
-            response = await generateWithClaude(command, businessContext, persona);
-        } else {
-            response = await generateWithGemini(command, businessContext, persona);
+        const parentRun = new RunTree({
+            name: "ai_ceo_master",
+            run_type: "chain",
+            inputs: { command, persona: persona.name },
+            project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+        });
+        await parentRun.postRun();
+
+        try {
+            if (isCodeRequest) {
+                response = await generateWithClaude(command, businessContext, persona, parentRun);
+            } else {
+                response = await generateWithGemini(command, businessContext, persona, parentRun);
+            }
+            await parentRun.end({ outputs: { response } });
+            await parentRun.patchRun();
+        } catch (error: any) {
+            await parentRun.end({ error: error.message });
+            await parentRun.patchRun();
+            throw error;
         }
 
         // 4. Save Action
@@ -124,7 +150,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
 
         if (insertError) throw insertError;
 
-        return new Response(JSON.stringify({
+        const apiResponse = new Response(JSON.stringify({
             success: true,
             status: 'awaiting_approval',
             action_id: action.id,
@@ -135,6 +161,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
             }
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+
     } catch (error: unknown) {
         console.error('Error:', error);
         const message = error instanceof Error ? error.message : 'Unknown error';
@@ -142,7 +169,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
     }
 });
 
-async function generateWithClaude(command: string, context: string, persona: any) {
+async function generateWithClaude(command: string, context: string, persona: any, parentRun: any) {
     const systemPrompt = `${persona.systemPrompt}
     
 ${context}
@@ -160,23 +187,40 @@ RESPOND WITH VALID JSON ONLY:
   "payload": { "files": [] }
 }`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 4000,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: command }]
-        })
+    const childRun = await parentRun.createChild({
+        name: "anthropic_call",
+        run_type: "llm",
+        inputs: { command, model: "claude-3-5-sonnet-20241022" },
     });
-    const result = await response.json();
-    const text = result.content[0].text;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    await childRun.postRun();
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+            body: JSON.stringify({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 4000,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: command }]
+            })
+        });
+        const result = await response.json();
+        const text = result.content[0].text;
+        
+        await childRun.end({ outputs: { response: text } });
+        await childRun.patchRun();
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch (error: any) {
+        await childRun.end({ error: error.message });
+        await childRun.patchRun();
+        throw error;
+    }
 }
 
-async function generateWithGemini(command: string, context: string, persona: any) {
+async function generateWithGemini(command: string, context: string, persona: any, parentRun: any) {
     const systemPrompt = `${persona.systemPrompt}
     
 ${context}
@@ -194,18 +238,35 @@ RESPOND WITH VALID JSON ONLY:
   "payload": { "findings": [] }
 }`;
 
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: `${systemPrompt}\n\nQUERY: ${command}` }] }]
-            })
-        }
-    );
-    const result = await response.json();
-    const text = result.candidates[0].content.parts[0].text;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    const childRun = await parentRun.createChild({
+        name: "gemini_call",
+        run_type: "llm",
+        inputs: { command, model: "gemini-1.5-flash" },
+    });
+    await childRun.postRun();
+
+    try {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `${systemPrompt}\n\nQUERY: ${command}` }] }]
+                })
+            }
+        );
+        const result = await response.json();
+        const text = result.candidates[0].content.parts[0].text;
+        
+        await childRun.end({ outputs: { response: text } });
+        await childRun.patchRun();
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch (error: any) {
+        await childRun.end({ error: error.message });
+        await childRun.patchRun();
+        throw error;
+    }
 }

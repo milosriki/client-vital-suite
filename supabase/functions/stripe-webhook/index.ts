@@ -84,8 +84,11 @@ serve(async (req) => {
     if (STRIPE_WEBHOOK_SECRET && signature) {
       try {
         // Import Stripe for signature verification
-        const Stripe = (await import("https://esm.sh/stripe@18.5.0")).default;
-        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+        const Stripe = (await import("https://esm.sh/stripe@18.5.0?target=deno")).default;
+        const stripe = new Stripe(STRIPE_SECRET_KEY, {
+          apiVersion: "2024-12-18.acacia",
+          httpClient: Stripe.createFetchHttpClient(),
+        });
 
         // Verify the webhook signature
         event = stripe.webhooks.constructEvent(

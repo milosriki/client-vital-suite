@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RunTree } from "https://esm.sh/langsmith";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -133,6 +134,21 @@ serve(async (req) => {
 
         if (ANTHROPIC_API_KEY) {
             try {
+                const parentRun = new RunTree({
+                    name: "business_intelligence_analysis",
+                    run_type: "chain",
+                    inputs: { prompt },
+                    project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+                });
+                await parentRun.postRun();
+
+                const childRun = await parentRun.createChild({
+                    name: "anthropic_call",
+                    run_type: "llm",
+                    inputs: { prompt, model: "claude-3-5-sonnet-20241022" },
+                });
+                await childRun.postRun();
+
                 const response = await fetch("https://api.anthropic.com/v1/messages", {
                     method: "POST",
                     headers: {
@@ -141,7 +157,7 @@ serve(async (req) => {
                         "anthropic-version": "2023-06-01"
                     },
                     body: JSON.stringify({
-                        model: "claude-sonnet-4-5-20250929",
+                        model: "claude-3-5-sonnet-20241022",
                         max_tokens: 500,
                         messages: [{ role: "user", content: prompt }]
                     })
@@ -149,10 +165,18 @@ serve(async (req) => {
                 const data = await response.json();
 
                 if (data.error) {
+                    await childRun.end({ error: data.error.message });
+                    await childRun.patchRun();
+                    await parentRun.end({ error: data.error.message });
+                    await parentRun.patchRun();
                     throw new Error(data.error.message || 'API error');
                 }
 
                 const text = data.content[0]?.text;
+                await childRun.end({ outputs: { response: text } });
+                await childRun.patchRun();
+                await parentRun.end({ outputs: { response: text } });
+                await parentRun.patchRun();
                 try {
                     const jsonMatch = text.match(/\{[\s\S]*\}/);
                     const jsonString = jsonMatch ? jsonMatch[0] : text;

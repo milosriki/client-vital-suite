@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RunTree } from "https://esm.sh/langsmith";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,6 +90,14 @@ serve(async (req) => {
 
     // Parallel processing with Promise.all
     const results = await Promise.all(newLeads.map(async (lead) => {
+      const parentRun = new RunTree({
+        name: "generate_lead_reply",
+        run_type: "chain",
+        inputs: { lead_id: lead.id, lead_name: lead.name || lead.email },
+        project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+      });
+      await parentRun.postRun();
+
       try {
         const prompt = `You are a sales consultant for PTD Fitness, Dubai's premium personal training service.
 
@@ -105,6 +114,13 @@ Write a SHORT (2-3 sentences) personalized initial reply that:
 
 Be warm, professional, and specific. No generic templates. Do not use markdown or formatting.`;
 
+        const childRun = await parentRun.createChild({
+          name: "anthropic_call",
+          run_type: "llm",
+          inputs: { prompt, model: "claude-3-5-sonnet-20241022" },
+        });
+        await childRun.postRun();
+
         const response = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
@@ -120,11 +136,17 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          await childRun.end({ error: `Claude API returned ${response.status}: ${errorText}` });
+          await childRun.patchRun();
           throw new Error(`Claude API returned ${response.status}`);
         }
 
         const data = await response.json();
         const suggestedReply = data.content?.[0]?.text;
+
+        await childRun.end({ outputs: { response: suggestedReply } });
+        await childRun.patchRun();
 
         if (suggestedReply) {
           const updatePayload: Record<string, any> = { ai_suggested_reply: suggestedReply };
@@ -139,14 +161,23 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
 
           if (updateError) {
             console.error(`Failed to update ${sourceTable} record ${lead.id}:`, updateError);
+            await parentRun.end({ error: updateError.message });
+            await parentRun.patchRun();
             return false;
           } else {
+            await parentRun.end({ outputs: { success: true, reply: suggestedReply } });
+            await parentRun.patchRun();
             return true;
           }
         }
+        await parentRun.end({ outputs: { success: false, reason: "No reply generated" } });
+        await parentRun.patchRun();
         return false;
       } catch (error: any) {
         console.error(`Failed to generate reply for lead ${lead.id}:`, error);
+        
+        await parentRun.end({ error: error.message });
+        await parentRun.patchRun();
 
         await supabase.from("sync_errors").insert({
           error_type: "timeout",

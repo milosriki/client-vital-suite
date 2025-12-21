@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +42,10 @@ serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, {
+      apiVersion: "2024-12-18.acacia",
+      httpClient: Stripe.createFetchHttpClient(),
+    });
     const { action, days = 30, includeSetupIntents = true } = await req.json();
 
     console.log("[STRIPE-FORENSICS] Action:", action);
@@ -1241,6 +1245,23 @@ serve(async (req) => {
     throw new Error("Invalid action: " + action);
   } catch (error) {
     console.error("[STRIPE-FORENSICS] Error:", error);
+
+    // Log to sync_errors for Antigravity visibility
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      await supabase.from("sync_errors").insert({
+        error_type: "forensics_error",
+        source: "stripe-forensics",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+        metadata: { stack: error instanceof Error ? error.stack : null }
+      });
+    } catch (logError) {
+      console.error("Failed to log to sync_errors:", logError);
+    }
+
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

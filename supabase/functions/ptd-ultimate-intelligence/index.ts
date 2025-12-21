@@ -3,6 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RunTree } from "https://esm.sh/langsmith";
 import { 
   LEAD_LIFECYCLE_PROMPT, 
   UNIFIED_SCHEMA_PROMPT, 
@@ -403,12 +404,21 @@ serve(async (req) => {
     }
 
     try {
-        const { query, persona_override } = await req.json();
+        const { query, persona_override, session_id } = await req.json();
 
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL')!,
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
+
+        // Save user message if session_id is present
+        if (session_id) {
+            await supabase.from('agent_conversations').insert({
+                session_id,
+                role: 'user',
+                content: query
+            });
+        }
 
         // 1. Build business context
         const businessContext = await buildBusinessContext(supabase);
@@ -421,10 +431,36 @@ serve(async (req) => {
 
         // 3. Generate Response
         let response;
-        if (persona.model === 'claude') {
-            response = await generateWithClaude(query, persona, businessContext);
-        } else {
-            response = await generateWithGemini(query, persona, businessContext);
+        const parentRun = new RunTree({
+            name: "ptd_ultimate_intelligence",
+            run_type: "chain",
+            inputs: { query, persona: selectedPersona },
+            project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+        });
+        await parentRun.postRun();
+
+        try {
+            if (persona.model === 'claude') {
+                response = await generateWithClaude(query, persona, businessContext, parentRun);
+            } else {
+                response = await generateWithGemini(query, persona, businessContext, parentRun);
+            }
+            
+            await parentRun.end({ outputs: { response } });
+            await parentRun.patchRun();
+
+            // Save assistant response if session_id is present
+            if (session_id) {
+                await supabase.from('agent_conversations').insert({
+                    session_id,
+                    role: 'assistant',
+                    content: typeof response === 'string' ? response : JSON.stringify(response)
+                });
+            }
+        } catch (error: any) {
+            await parentRun.end({ error: error.message });
+            await parentRun.patchRun();
+            throw error;
         }
 
         return new Response(JSON.stringify({
@@ -450,51 +486,85 @@ serve(async (req) => {
 // LLM FUNCTIONS
 // ============================================
 
-async function generateWithClaude(query: string, persona: any, context: any) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'x-api-key': ANTHROPIC_API_KEY!,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: 'claude-sonnet-4-5-20250929',
-            max_tokens: 4000,
-            system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
-            messages: [{
-                role: 'user',
-                content: query
-            }]
-        })
+async function generateWithClaude(query: string, persona: any, context: any, parentRun: any) {
+    const childRun = await parentRun.createChild({
+        name: "anthropic_call",
+        run_type: "llm",
+        inputs: { query, model: "claude-3-5-sonnet-20241022" },
     });
+    await childRun.postRun();
 
-    const result = await response.json();
-    if (result.error) throw new Error(result.error.message);
-    return result.content[0].text;
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': ANTHROPIC_API_KEY!,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 4000,
+                system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
+                messages: [{
+                    role: 'user',
+                    content: query
+                }]
+            })
+        });
+
+        const result = await response.json();
+        if (result.error) throw new Error(result.error.message);
+        
+        const text = result.content[0].text;
+        await childRun.end({ outputs: { response: text } });
+        await childRun.patchRun();
+        return text;
+    } catch (error: any) {
+        await childRun.end({ error: error.message });
+        await childRun.patchRun();
+        throw error;
+    }
 }
 
-async function generateWithGemini(query: string, persona: any, context: any) {
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 4000
-                }
-            })
-        }
-    );
+async function generateWithGemini(query: string, persona: any, context: any, parentRun: any) {
+    const childRun = await parentRun.createChild({
+        name: "gemini_call",
+        run_type: "llm",
+        inputs: { query, model: "gemini-1.5-flash" },
+    });
+    await childRun.postRun();
 
-    const result = await response.json();
-    if (result.error) throw new Error(result.error.message);
-    return result.candidates[0].content.parts[0].text;
+    try {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.2,
+                        maxOutputTokens: 4000
+                    }
+                })
+            }
+        );
+
+        const result = await response.json();
+        if (result.error) throw new Error(result.error.message);
+        
+        const text = result.candidates[0].content.parts[0].text;
+        await childRun.end({ outputs: { response: text } });
+        await childRun.patchRun();
+        return text;
+    } catch (error: any) {
+        await childRun.end({ error: error.message });
+        await childRun.patchRun();
+        throw error;
+    }
 }

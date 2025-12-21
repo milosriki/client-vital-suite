@@ -1,0 +1,3 @@
+{
+  "query": "SELECT * FROM get_all_functions() LIMIT 1;"
+}

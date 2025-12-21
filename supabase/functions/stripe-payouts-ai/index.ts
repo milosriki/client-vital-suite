@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { RunTree } from "https://esm.sh/langsmith";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,6 +66,16 @@ serve(async (req) => {
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
 
+      const parentRun = new RunTree({
+        name: "stripe_payouts_chat",
+        run_type: "chain",
+        inputs: { message, context, history },
+        project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+      });
+      await parentRun.postRun();
+
+      try {
+
       // Use direct Gemini API (LOVABLE_API_KEY is optional, only for fallback)
       const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -109,6 +120,13 @@ If asked about authorized persons or suspicious activity, analyze the transfer d
       const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
       const aiModel = useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash";
 
+      const childRun = await parentRun.createChild({
+        name: "ai_gateway_call",
+        run_type: "llm",
+        inputs: { messages, model: aiModel },
+      });
+      await childRun.postRun();
+
       const response = await fetch(aiUrl, {
         method: "POST",
         headers: {
@@ -126,6 +144,11 @@ If asked about authorized persons or suspicious activity, analyze the transfer d
         const errorText = await response.text();
         console.error("[STRIPE-PAYOUTS-AI] AI Gateway error:", response.status, errorText);
         
+        await childRun.end({ error: `AI Gateway error: ${response.status} - ${errorText}` });
+        await childRun.patchRun();
+        await parentRun.end({ error: `AI Gateway error: ${response.status}` });
+        await parentRun.patchRun();
+        
         if (response.status === 429) {
           return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
             status: 429,
@@ -141,9 +164,19 @@ If asked about authorized persons or suspicious activity, analyze the transfer d
         throw new Error(`AI Gateway error: ${response.status}`);
       }
 
+      await childRun.end({ outputs: { status: "streaming_started" } });
+      await childRun.patchRun();
+      await parentRun.end({ outputs: { status: "streaming_started" } });
+      await parentRun.patchRun();
+
       return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
+      } catch (error: any) {
+        await parentRun.end({ error: error.message });
+        await parentRun.patchRun();
+        throw error;
+      }
     }
 
     throw new Error("Invalid action");

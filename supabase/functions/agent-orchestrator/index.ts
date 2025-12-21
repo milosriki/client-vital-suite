@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -431,6 +432,22 @@ serve(async (req) => {
   } catch (error) {
     console.error("[Orchestrator] Error:", error);
     
+    // Log to sync_errors for Antigravity visibility
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      await supabase.from("sync_errors").insert({
+        error_type: "orchestrator_error",
+        source: "agent-orchestrator",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+        metadata: { stack: error instanceof Error ? error.stack : null }
+      });
+    } catch (logError) {
+      console.error("Failed to log to sync_errors:", logError);
+    }
+
     await traceEnd(runId, {
       status: "error",
       error: error instanceof Error ? error.message : 'Unknown error'
