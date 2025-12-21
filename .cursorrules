@@ -1,0 +1,10 @@
+- We are building a "Living Being" architecture for PTD Fitness.
+
+- Always check 'WIRING_ANALYSIS.md' before writing new code.
+
+- Every time you create a new database table, you MUST update the 'introspect_schema_verbose' SQL function in Supabase so the agent can see it.
+
+- When generating UI, use Tailwind CSS and Shadcn.
+
+- Never hardcode client data; always use the 'client_control' tool to fetch it.
+
