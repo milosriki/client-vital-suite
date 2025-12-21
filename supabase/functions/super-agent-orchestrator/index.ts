@@ -805,15 +805,19 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
 
     // Create proactive insight if improvements needed
     if (state.improvements.length > 0) {
-      await supabase.from("proactive_insights").insert({
-        insight_type: "orchestrator_improvements",
-        priority: state.improvements.length > 3 ? "high" : "medium",
-        title: `Super-Agent: ${state.improvements.length} improvements identified`,
-        description: state.improvements.join("; "),
-        source_agent: "super-agent-orchestrator",
-        is_actionable: true,
-        data: { run_id: runId, improvements: state.improvements },
-      }).catch(() => {});
+      try {
+        await supabase.from("proactive_insights").insert({
+          insight_type: "orchestrator_improvements",
+          priority: state.improvements.length > 3 ? "high" : "medium",
+          title: `Super-Agent: ${state.improvements.length} improvements identified`,
+          description: state.improvements.join("; "),
+          source_agent: "super-agent-orchestrator",
+          is_actionable: true,
+          data: { run_id: runId, improvements: state.improvements },
+        });
+      } catch (e) {
+        console.error("Failed to create proactive insight:", e);
+      }
     }
 
     await traceEnd(runId, {
