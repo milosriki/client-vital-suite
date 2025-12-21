@@ -10,6 +10,7 @@ interface QueryInput {
   question: string;
   mode?: 'fast' | 'deep';
   threadId?: string;
+  userLabel?: string;
   includeEvidence?: boolean;
 }
 
@@ -43,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Parse input
-  const { question, mode = 'fast', threadId, includeEvidence = true }: QueryInput = req.body || {};
+  const { question, mode = 'fast', threadId, userLabel, includeEvidence = true }: QueryInput = req.body || {};
 
   if (!question || typeof question !== 'string') {
     return error(res, 'INVALID_INPUT', 'question is required', 400, undefined, startTime);
@@ -55,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const supabase = getSupabase();
+    const resolvedThreadId = threadId || 'ptd-global';
     const evidence: Evidence = { tables: [], filters: {}, rowCount: 0 };
     const contextBlocks: string[] = [];
 
@@ -149,11 +151,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const agentPayload = {
         message: question,
+        thread_id: resolvedThreadId,
         context: contextBlocks.join('\n\n'),
-        instructions: `Answer the question using the provided context. 
+        instructions: `Answer the question using the provided context.
 ${includeEvidence ? 'Include an EVIDENCE section listing the data sources used.' : ''}
 Be specific with numbers and dates when available.
 If you cannot answer from the context, say so clearly.`,
+        metadata: userLabel ? { user_label: userLabel } : undefined,
       };
 
       const agentResponse = await withRetry(
@@ -190,13 +194,16 @@ If you cannot answer from the context, say so clearly.`,
       // STEP 4: Store in thread if provided
       // ========================================
 
-      if (threadId) {
+      if (resolvedThreadId) {
         await supabase.from('org_messages').insert([
-          { thread_id: threadId, role: 'user', content: question },
-          { thread_id: threadId, role: 'assistant', content: answer, evidence, sources_used: evidence.tables },
+          { thread_id: resolvedThreadId, role: 'user', content: question },
+          { thread_id: resolvedThreadId, role: 'assistant', content: answer, evidence, sources_used: evidence.tables },
         ]);
 
-        await supabase.from('org_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
+        await supabase
+          .from('org_threads')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', resolvedThreadId);
       }
 
       return {
