@@ -83,7 +83,8 @@ serve(async (req) => {
       charges,
       payouts,
       refunds,
-      account
+      account,
+      treasuryTransfers
     ] = await Promise.all([
       stripe.balance.retrieve().catch((e: Error) => {
         console.error("Error fetching balance:", e.message);
@@ -146,6 +147,13 @@ serve(async (req) => {
       stripe.accounts.retrieve().catch((e: Error) => {
         console.error("Error fetching account:", e.message);
         return null;
+      }),
+      stripe.treasury.outboundTransfers.list({
+        limit: Math.min(limit, 100),
+        ...(hasDateFilter && { created: createdFilter })
+      }).catch((e: Error) => {
+        console.error("Error fetching treasury transfers:", e.message);
+        return { data: [] };
       })
     ]);
 
@@ -258,6 +266,7 @@ serve(async (req) => {
         products: products.data || [],
         invoices: invoices.data || [],
         account: account,
+        treasuryTransfers: treasuryTransfers.data || [],
         metrics: {
           // All amounts in AED (fils - smallest unit)
           totalRevenue,
