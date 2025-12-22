@@ -88,9 +88,10 @@ export function useDedupedQuery<
     lastCallRef.current = { key: keyString, timestamp: now };
 
     // Create the promise and track it globally
+    const queryFn = options.queryFn as QueryFunction<TQueryFnData, TQueryKey>;
     const fetchPromise = (async () => {
       try {
-        return await options.queryFn!(ctx);
+        return await queryFn(ctx);
       } catch (error) {
         // Log error for debugging (but don't swallow it)
         console.error(`[Query Error] ${keyString}:`, error);

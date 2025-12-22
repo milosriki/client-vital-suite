@@ -148,7 +148,7 @@ export default function StripeIntelligence() {
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
-    const updatedHistory = [...chatMessages, { role: "user", content: userMessage }];
+    const updatedHistory: ChatMessage[] = [...chatMessages, { role: "user" as const, content: userMessage }];
 
     setChatMessages(updatedHistory);
     setIsStreaming(true);

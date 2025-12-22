@@ -235,12 +235,12 @@ export async function saveMessageToDatabase(
     await withTimeoutAndRetry(async () => {
       const { error } = await supabase
         .from('agent_memory')
-        .insert({
+        .insert([{
           thread_id: threadId,
           query,
           response,
           knowledge_extracted: knowledgeExtracted || extractKnowledge(query, response)
-        });
+        }]);
 
       if (error) throw error;
     });

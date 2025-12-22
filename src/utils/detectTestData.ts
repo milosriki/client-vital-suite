@@ -80,7 +80,7 @@ export async function detectTestData(): Promise<TestDataReport> {
     for (const pattern of FAKE_EMAIL_PATTERNS.slice(0, 10)) { // Limit to avoid too many queries
       const { data, count } = await supabase
         .from('contacts')
-        .select('id, email, firstname, lastname', { count: 'exact' })
+        .select('id, email, first_name, last_name', { count: 'exact' })
         .ilike('email', pattern)
         .limit(5);
 
@@ -95,7 +95,7 @@ export async function detectTestData(): Promise<TestDataReport> {
           sampleRecords: (data || []).map(d => ({
             id: d.id,
             email: d.email,
-            name: `${d.firstname} ${d.lastname}`
+            name: `${d.first_name} ${d.last_name}`
           }))
         });
       }
@@ -104,8 +104,8 @@ export async function detectTestData(): Promise<TestDataReport> {
     // Check contacts for fake names
     const { data: fakeNameContacts, count: fakeNameCount } = await supabase
       .from('contacts')
-      .select('id, email, firstname, lastname', { count: 'exact' })
-      .or('firstname.ilike.test%,firstname.ilike.fake%,lastname.ilike.test%,lastname.ilike.fake%')
+      .select('id, email, first_name, last_name', { count: 'exact' })
+      .or('first_name.ilike.test%,first_name.ilike.fake%,last_name.ilike.test%,last_name.ilike.fake%')
       .limit(5);
 
     if (fakeNameCount && fakeNameCount > 0) {
@@ -119,7 +119,7 @@ export async function detectTestData(): Promise<TestDataReport> {
         sampleRecords: (fakeNameContacts || []).map(d => ({
           id: d.id,
           email: d.email,
-          name: `${d.firstname} ${d.lastname}`
+          name: `${d.first_name} ${d.last_name}`
         }))
       });
     }
