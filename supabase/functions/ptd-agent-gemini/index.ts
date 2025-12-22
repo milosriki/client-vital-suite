@@ -1665,7 +1665,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 }
 
 // ============= MAIN AGENT WITH GEMINI 2.5 PRO =============
-async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default'): Promise<string> {
+async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default', context?: any): Promise<string> {
   // Use GEMINI_API_KEY (direct Google API), LOVABLE_API_KEY is optional fallback
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -1697,6 +1697,23 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
 
   const systemPrompt = `
 PTD SUPER-INTELLIGENCE CEO
+
+${context ? `## 🔬 LIVE SYSTEM INTELLIGENCE SCAN RESULTS
+Status: ${context.system_status?.toUpperCase() || 'UNKNOWN'}
+Intelligence Agents Run: ${context.intelligence_findings ? Object.keys(context.intelligence_findings).length : 0}
+
+### Critical Issues Found:
+${context.improvements?.length > 0 ? context.improvements.map((imp: string) => `🚨 ${imp}`).join('\n') : '✅ No critical issues detected'}
+
+### Intelligence Results:
+${context.intelligence_findings ? Object.entries(context.intelligence_findings).map(([name, result]: [string, any]) => 
+  `• ${name}: ${result?.status?.toUpperCase() || 'UNKNOWN'} (${result?.duration_ms || 0}ms)`
+).join('\n') : 'No intelligence scan results available'}
+
+### Final Report Summary:
+${context.final_report || 'No final report available'}
+
+---` : ''}
 
 1. MISSION: Maximize revenue and detect 🔴 CRITICAL leaks.
 
@@ -1862,7 +1879,7 @@ serve(async (req) => {
   console.log(`🚀 Request received at ${new Date().toISOString()}`);
 
   try {
-    const { message, messages: chatHistory, thread_id } = await req.json();
+    const { message, messages: chatHistory, thread_id, context } = await req.json();
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -1912,7 +1929,7 @@ serve(async (req) => {
 
     // Run agent with timeout protection
     const response = await Promise.race([
-      runAgent(supabase, userMessage, chatHistory || [], threadId),
+      runAgent(supabase, userMessage, chatHistory || [], threadId, context),
       new Promise<string>((_, reject) =>
         setTimeout(() => reject(new Error("Request timeout after 55s")), 55000)
       )

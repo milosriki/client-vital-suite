@@ -312,6 +312,27 @@ export default function PTDUnlimitedChat() {
     setInput("");
 
     try {
+      // FIRST: Always run super-agent-orchestrator for intelligence
+      console.log("🧠 Running super-agent-orchestrator for proactive intelligence...");
+      const orchestratorResponse = await fetch(getApiUrl('/api/agent'), {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+        },
+        body: JSON.stringify({
+          message: "Run full system orchestration and intelligence scan",
+          thread_id: threadId,
+          agent_function: "super-agent-orchestrator"
+        }),
+      });
+
+      let orchestratorData = null;
+      if (orchestratorResponse.ok) {
+        orchestratorData = await orchestratorResponse.json().catch(() => null);
+      }
+
+      // SECOND: Process user question with full context
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { 
@@ -320,7 +341,14 @@ export default function PTDUnlimitedChat() {
         },
         body: JSON.stringify({
           message: userMessage,
-          thread_id: threadId
+          thread_id: threadId,
+          // Include orchestrator results as context
+          context: orchestratorData ? {
+            system_status: orchestratorData.status,
+            intelligence_findings: orchestratorData.agents?.intelligence,
+            improvements_needed: orchestratorData.improvements,
+            final_report: orchestratorData.final_report
+          } : null
         }),
       });
 
@@ -339,7 +367,33 @@ export default function PTDUnlimitedChat() {
           }
         }
       } else if (data?.response) {
-        const aiResponse = data.response;
+        let aiResponse = data.response;
+
+        // ENHANCE RESPONSE: Include orchestrator intelligence if available
+        if (orchestratorData) {
+          const intelligenceSummary = `
+🚀 **SYSTEM INTELLIGENCE SCAN COMPLETE**
+
+**Status:** ${orchestratorData.status?.toUpperCase() || 'UNKNOWN'}
+**Agents Run:** ${orchestratorData.agents?.total || 0} (${orchestratorData.agents?.successful || 0} successful)
+
+${orchestratorData.improvements?.length > 0 ? `⚠️ **Critical Issues Found:** ${orchestratorData.improvements.length}\n${orchestratorData.improvements.map((imp: string) => `• ${imp}`).join('\n')}\n\n` : ''}
+
+**Intelligence Results:**
+${Object.entries(orchestratorData.agents?.intelligence || {}).map(([name, result]: [string, any]) => 
+  `• ${name}: ${result?.status?.toUpperCase() || 'UNKNOWN'} (${result?.duration_ms || 0}ms)`
+).join('\n')}
+
+---
+
+**Your Question:** ${userMessage}
+
+${aiResponse}
+          `.trim();
+
+          aiResponse = intelligenceSummary;
+        }
+
         setMessages(prev => [...prev, { role: "ai", content: aiResponse }]);
 
         // Speak the AI response if voice is enabled
