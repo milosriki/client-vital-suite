@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,21 +19,44 @@ import {
   XCircle,
   Clock,
   ArrowUpRight,
-  Ban
+  Ban,
+  Calendar,
+  Download,
+  TrendingUp,
+  AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { subMonths } from "date-fns";
+
+interface OutboundTransfer {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  destination_payment_method: string;
+  created: number;
+  expected_arrival_date?: number;
+  description?: string;
+  statement_descriptor?: string;
+}
 
 export function StripeTreasuryTab() {
   const queryClient = useQueryClient();
   const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [allTransfers, setAllTransfers] = useState<OutboundTransfer[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   
   // Form state
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("usd");
   const [destinationMethod, setDestinationMethod] = useState("");
   const [description, setDescription] = useState("");
+
+  // Calculate 12 months ago timestamp
+  const twelveMonthsAgo = Math.floor(subMonths(new Date(), 12).getTime() / 1000);
 
   // Fetch Financial Accounts
   const { data: accounts, isLoading: accountsLoading } = useDedupedQuery({
@@ -48,22 +71,83 @@ export function StripeTreasuryTab() {
   });
 
   // Set default account
-  if (accounts && accounts.length > 0 && !selectedAccount) {
-    setSelectedAccount(accounts[0].id);
-  }
+  useEffect(() => {
+    if (accounts && accounts.length > 0 && !selectedAccount) {
+      setSelectedAccount(accounts[0].id);
+    }
+  }, [accounts, selectedAccount]);
 
-  // Fetch Outbound Transfers
-  const { data: transfers, isLoading: transfersLoading, refetch: refetchTransfers } = useDedupedQuery({
+  // Reset transfers when account changes
+  useEffect(() => {
+    setAllTransfers([]);
+    setHasMore(true);
+  }, [selectedAccount]);
+
+  // Fetch all transfers for last 12 months with pagination
+  const fetchAllTransfers = async () => {
+    if (!selectedAccount) return;
+    
+    setIsLoadingMore(true);
+    let fetchedTransfers: OutboundTransfer[] = [];
+    let startingAfter: string | undefined = undefined;
+    let keepFetching = true;
+
+    try {
+      while (keepFetching) {
+        const { data, error } = await supabase.functions.invoke("stripe-treasury", {
+          body: { 
+            action: "list-outbound-transfers",
+            financial_account: selectedAccount,
+            limit: 100,
+            starting_after: startingAfter,
+            created: { gte: twelveMonthsAgo }
+          },
+        });
+
+        if (error) throw error;
+
+        const transfers = data.transfers || [];
+        fetchedTransfers = [...fetchedTransfers, ...transfers];
+
+        if (!data.has_more || transfers.length === 0) {
+          keepFetching = false;
+          setHasMore(false);
+        } else {
+          startingAfter = transfers[transfers.length - 1].id;
+        }
+
+        // Safety limit - prevent infinite loops
+        if (fetchedTransfers.length > 1000) {
+          keepFetching = false;
+        }
+      }
+
+      setAllTransfers(fetchedTransfers);
+      toast.success(`Loaded ${fetchedTransfers.length} transfers from last 12 months`);
+    } catch (error) {
+      console.error("Error fetching transfers:", error);
+      toast.error("Failed to load transfers");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Initial fetch
+  const { isLoading: transfersLoading, refetch: refetchTransfers } = useDedupedQuery({
     queryKey: ["stripe-treasury-transfers", selectedAccount],
     queryFn: async () => {
       if (!selectedAccount) return [];
       const { data, error } = await supabase.functions.invoke("stripe-treasury", {
         body: { 
           action: "list-outbound-transfers",
-          financial_account: selectedAccount
+          financial_account: selectedAccount,
+          limit: 100,
+          created: { gte: twelveMonthsAgo }
         },
       });
       if (error) throw error;
+      setAllTransfers(data.transfers || []);
+      setHasMore(data.has_more || false);
       return data.transfers || [];
     },
     enabled: !!selectedAccount,
