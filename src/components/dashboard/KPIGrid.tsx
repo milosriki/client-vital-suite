@@ -49,7 +49,7 @@ export function KPIGrid({ data, isLoading = false, onMetricClick }: KPIGridProps
           value={formatCurrency(data.revenueToday || 0)}
           icon={DollarSign}
           variant="default"
-          trend={{ value: 0, isPositive: true, label: "Daily" }}
+          trend={{ value: 0, isPositive: true }}
           isLoading={isLoading}
           onClick={() => onMetricClick?.("revenue")}
         />

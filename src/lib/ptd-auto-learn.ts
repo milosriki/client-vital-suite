@@ -202,7 +202,7 @@ export async function learnRecentData() {
         const { error } = await supabase.from('agent_context').upsert({
           key: 'data_patterns',
           value: patterns,
-          agent_type: 'smart_agent',
+          agent_type: 'analyst',
           expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
         });
 
@@ -260,7 +260,7 @@ Avg Health Score: ${patternData.avg_health || 'N/A'}
 Avg Deal Value: ${patternData.avg_deal_value || 'N/A'}
 
 ### RECENT LEARNINGS
-${memories.map((m: { query?: string; knowledge_extracted?: Record<string, unknown> }) => `- Q: "${m.query?.slice(0, 50)}..." → Learned: ${JSON.stringify(m.knowledge_extracted || {}).slice(0, 100)}`).join('\n')}
+${memories.map((m) => `- Q: "${(m.query || '').slice(0, 50)}..." → Learned: ${JSON.stringify(m.knowledge_extracted || {}).slice(0, 100)}`).join('\n')}
 
 ### BEHAVIOR RULES
 1. Use discovered tables/functions for queries
@@ -368,8 +368,8 @@ function extractKnowledge(query: string, response: string) {
 // Helper functions
 function countBy(data: Record<string, unknown>[] | null, key: string): Record<string, number> {
   if (!data) return {};
-  return data.reduce((acc, item) => {
-    const val = item[key] || 'unknown';
+  return data.reduce((acc: Record<string, number>, item) => {
+    const val = String(item[key] || 'unknown');
     acc[val] = (acc[val] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);

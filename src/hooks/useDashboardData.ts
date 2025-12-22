@@ -23,6 +23,7 @@ interface DashboardFilters {
   filterMode?: 'all' | 'test' | 'live';
   selectedCoach?: string;
   selectedZone?: string;
+  [key: string]: unknown;
 }
 
 export function useDashboardData(filters: DashboardFilters = {}) {
