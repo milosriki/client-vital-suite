@@ -26,7 +26,7 @@ serve(async (req) => {
     if (action === "fetch-data") {
       console.log("[STRIPE-PAYOUTS] Fetching payout data...");
       
-      const [balance, payouts, transfers, balanceTransactions] = await Promise.all([
+      const [balance, payouts, transfers, balanceTransactions, treasuryTransfers] = await Promise.all([
         stripe.balance.retrieve().catch((e: Error) => {
           console.error("Balance error:", e);
           return null;
@@ -43,12 +43,18 @@ serve(async (req) => {
           console.error("Balance transactions error:", e);
           return { data: [] };
         }),
+
+        stripe.treasury.outboundTransfers.list({ limit: 50 }).catch((e: Error) => {
+          console.error("Treasury transfers error:", e);
+          return { data: [] };
+        }),
       ]);
 
       console.log("[STRIPE-PAYOUTS] Data fetched:", {
         payoutsCount: payouts.data?.length || 0,
         transfersCount: transfers.data?.length || 0,
         transactionsCount: balanceTransactions.data?.length || 0,
+        treasuryTransfersCount: treasuryTransfers.data?.length || 0,
       });
 
       return new Response(
@@ -57,6 +63,7 @@ serve(async (req) => {
           payouts: payouts.data || [],
           transfers: transfers.data || [],
           balanceTransactions: balanceTransactions.data || [],
+          treasuryTransfers: treasuryTransfers.data || [],
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -91,6 +98,7 @@ You have access to the user's Stripe data including:
 - Balance: Available and pending amounts
 - Payouts: Money sent from Stripe to bank accounts
 - Transfers: Money moved between Stripe accounts (Connect)
+- Treasury Outbound Transfers: Money sent from Stripe Treasury to external accounts
 - Balance Transactions: All money movements including charges, refunds, fees
 
 Current Stripe Data Context:
@@ -103,6 +111,7 @@ Your job is to:
 4. Explain payout schedules and statuses
 5. Alert about any failed or pending payouts
 6. Help investigate if someone transferred money without authorization
+7. If the user asks for "deep history" or older data (e.g., 12 months), explain that you can analyze the provided data but for a full 12-month export they should check the Treasury tab or request a specific date range report.
 
 Be concise but thorough. Format amounts properly. Highlight any concerns.
 If asked about authorized persons or suspicious activity, analyze the transfer destinations and patterns.`;
