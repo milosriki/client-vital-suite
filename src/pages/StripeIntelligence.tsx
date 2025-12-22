@@ -38,6 +38,7 @@ import {
   Clock,
   Percent,
 } from "lucide-react";
+import { StripeTreasuryTab } from "@/components/ptd/StripeTreasuryTab";
 import { cn } from "@/lib/utils";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, subMonths } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
@@ -591,6 +592,7 @@ export default function StripeIntelligence() {
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
               <TabsTrigger value="payouts">Payouts</TabsTrigger>
+              <TabsTrigger value="treasury">Treasury</TabsTrigger>
               <TabsTrigger value="customers">Customers</TabsTrigger>
             </TabsList>
 
@@ -810,6 +812,12 @@ export default function StripeIntelligence() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="treasury">
+              <StripeTreasuryTab />
+            </TabsContent>
+
+
 
             <TabsContent value="customers">
               <Card className="card-dashboard">
