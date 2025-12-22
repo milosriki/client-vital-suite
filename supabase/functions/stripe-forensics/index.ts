@@ -43,7 +43,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: "2024-12-18.acacia",
+      apiVersion: "2024-06-20",
       httpClient: Stripe.createFetchHttpClient(),
     });
     const { action, days = 30, includeSetupIntents = true } = await req.json();

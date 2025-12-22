@@ -53,7 +53,7 @@ serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
     // Parse request body for date range and filters
     const body = await req.json().catch(() => ({}));

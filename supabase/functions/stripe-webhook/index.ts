@@ -86,7 +86,7 @@ serve(async (req) => {
         // Import Stripe for signature verification
         const Stripe = (await import("https://esm.sh/stripe@18.5.0?target=deno")).default;
         const stripe = new Stripe(STRIPE_SECRET_KEY, {
-          apiVersion: "2024-12-18.acacia",
+          apiVersion: "2024-06-20",
           httpClient: Stripe.createFetchHttpClient(),
         });
 
@@ -111,6 +111,17 @@ serve(async (req) => {
         );
       }
     } else {
+      if (STRIPE_WEBHOOK_SECRET && !signature) {
+        return handleError(
+          new Error("Missing Stripe-Signature header for verified webhook"),
+          FUNCTION_NAME,
+          {
+            supabase,
+            errorCode: ErrorCode.VALIDATION_ERROR,
+            context: { hasSignature: false, webhookSecretConfigured: true },
+          }
+        );
+      }
       // Parse without verification (not recommended for production)
       console.log("⚠️ Webhook signature verification skipped");
       try {

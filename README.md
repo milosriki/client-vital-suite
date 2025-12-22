@@ -114,6 +114,12 @@ This endpoint checks:
 - Edge Functions are reachable
 - No localhost references in production URLs
 
+### LangGraph Cloud deployments
+
+- LangGraph Cloud requires a `langgraph.json` file in the repo root to discover your agent server entrypoint.
+- This repo uses the existing `/api/agent` proxy as the default entrypoint. If you wire up a dedicated LangGraph agent server later, update `langgraph.json` with the new path (for example, `src/agents/server.ts:app`).
+- Redeploy after editing `langgraph.json` so the LangGraph dashboard sees the config.
+
 ## 📊 Dashboards
 
 - **/dashboard**: Main Executive View (Health, Revenue, Alerts)
@@ -151,3 +157,8 @@ See [MOCK_DATA_CLEANUP_GUIDE.md](./MOCK_DATA_CLEANUP_GUIDE.md) for detailed inst
 - **Build Failures**: Run `npm install` to ensure all dependencies are installed
 - **Supabase Connection**: Check environment variables in `.env`
 - **Edge Function Errors**: Check logs in Supabase Dashboard > Edge Functions
+
+
+## GitLens remote access
+
+See [GITLENS_CONNECTION.md](./GITLENS_CONNECTION.md) for instructions to open this repository via GitLens Cloud using workspace ID `dbcfff91-ceb2-4390-9949-c53c7689c8ab`.
