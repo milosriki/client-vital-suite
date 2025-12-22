@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +19,7 @@ import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
 import { KanbanBoard } from "@/components/sales/KanbanBoard";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useOptimizedDashboardData, useDashboardMetrics } from "@/hooks/useOptimizedDashboardData";
 import { toast } from "@/hooks/use-toast";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import {
@@ -37,207 +37,63 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function Dashboard() {
   useRealtimeHealthScores();
   useNotifications();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("today");
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch clients with retry logic
-  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useDedupedQuery({
-    queryKey: ["client-health-scores-dashboard"],
-    queryFn: async () => {
-      const { data: latestDateRows } = await supabase
-        .from("client_health_scores")
-        .select("calculated_on")
-        .order("calculated_on", { ascending: false })
-        .limit(1);
+  // Use optimized dashboard data hook
+  const { 
+    data: dashboardData, 
+    isLoading: dashboardLoading,
+    refetch: refetchDashboard 
+  } = useOptimizedDashboardData();
 
-      const latestDate = latestDateRows?.[0]?.calculated_on;
-      let query = supabase
-        .from("client_health_scores")
-        .select("*")
-        .order("health_score", { ascending: true });
+  // Extract data from optimized hook
+  const clients = dashboardData?.clients || [];
+  const dailySummary = dashboardData?.summary || null;
+  const interventions = dashboardData?.interventions || [];
+  const revenueData = dashboardData?.revenue || { total: 0, trend: 0, isPositive: true };
+  const revenueToday = dashboardData?.revenueToday || 0;
+  const pipelineData = dashboardData?.pipeline || { total: 0, count: 0 };
+  const leadsToday = dashboardData?.leadsToday || 0;
+  const callsToday = dashboardData?.callsToday || 0;
 
-      if (latestDate) {
-        query = query.eq("calculated_on", latestDate);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: Infinity, // Real-time updates via useVitalState
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-
-  // Fetch daily summary with retry
-  const { data: dailySummary } = useDedupedQuery({
-    queryKey: ["daily-summary-briefing"],
-    queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { data, error } = await supabase
-        .from("daily_summary")
-        .select("*")
-        .eq("summary_date", today)
-        .single();
-      if (error) {
-        console.error("Error fetching daily summary:", error);
-        return null;
-      }
-      return data;
-    },
-    staleTime: Infinity, // Real-time updates via useVitalState
-    retry: 2,
-  });
-
-  // Fetch revenue with retry
-  const { data: revenueData, isLoading: revenueLoading } = useDedupedQuery({
-    queryKey: ["monthly-revenue"],
-    queryFn: async () => {
-      const now = new Date();
-      const thisMonthStart = format(startOfMonth(now), "yyyy-MM-dd");
-      const thisMonthEnd = format(endOfMonth(now), "yyyy-MM-dd");
-      const lastMonthStart = format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
-      const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
-
-      const [thisMonth, lastMonth] = await Promise.all([
-        (supabase as any).from("deals").select("deal_value").eq("status", "closed").gte("close_date", thisMonthStart).lte("close_date", thisMonthEnd),
-        (supabase as any).from("deals").select("deal_value").eq("status", "closed").gte("close_date", lastMonthStart).lte("close_date", lastMonthEnd),
-      ]);
-
-      const thisTotal = thisMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-      const lastTotal = lastMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-      const trend = lastTotal > 0 ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0;
-      return { total: thisTotal, trend, isPositive: trend >= 0 };
-    },
-    staleTime: Infinity, // Real-time updates via useVitalState
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-
-  // Fetch today's revenue
-  const { data: revenueToday } = useDedupedQuery({
-    queryKey: ["revenue-today"],
-    queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { data, error } = await (supabase as any)
-        .from("deals")
-        .select("deal_value")
-        .eq("status", "closed")
-        .gte("close_date", today);
-
-      if (error) {
-        console.error("Error fetching today's revenue:", error);
-        return 0;
-      }
-      return data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-    },
-    staleTime: Infinity, // Real-time updates via useVitalState
-    retry: 2,
-  });
-
-  // Fetch pipeline with retry
-  const { data: pipelineData } = useDedupedQuery({
-    queryKey: ["pipeline-value"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from("deals").select("deal_value").not("status", "in", '("closed","lost")');
-      if (error) {
-        console.error("Error fetching pipeline value:", error);
-        return { total: 0, count: 0 };
-      }
-      const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-      return { total, count: data?.length || 0 };
-    },
-    retry: 2,
-  });
-
-  // Fetch interventions for EnhancedInterventionTracker
-  const { data: interventions = [], isLoading: interventionsLoading } = useDedupedQuery({
-    queryKey: ["interventions-dashboard"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('intervention_log')
-        .select('*')
-        .neq('status', 'COMPLETED')
-        .order('priority', { ascending: true })
-        .limit(10);
-
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: Infinity,
-    retry: 2,
-  });
-
-  // Fetch today's leads with retry
-  const { data: leadsToday } = useDedupedQuery({
-    queryKey: ["leads-today"],
-    queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { count } = await supabase.from("contacts").select("*", { count: "exact", head: true }).gte("created_at", today);
-      return count || 0;
-    },
-    retry: 2,
-  });
-
-  // Fetch today's calls with retry
-  const { data: callsToday } = useDedupedQuery({
-    queryKey: ["calls-today"],
-    queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { count } = await supabase.from("call_records").select("*", { count: "exact", head: true }).gte("created_at", today);
-      return count || 0;
-    },
-    retry: 2,
-  });
-
-  // Computed stats
-  const stats = useMemo(() => {
-    const allClients = clients || [];
-    const atRisk = allClients.filter((c) => c.health_zone === "RED" || c.health_zone === "YELLOW").length;
-    return { totalClients: allClients.length, atRiskClients: atRisk };
-  }, [clients]);
+  // Calculate metrics using the helper function
+  const { criticalMetrics } = useDashboardMetrics(dashboardData);
 
   // KPI Data
   const kpiData = {
     revenue: { value: revenueData?.total || 0, trend: revenueData?.trend },
     revenueToday: revenueToday || 0,
-    clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
+    clients: { total: criticalMetrics.totalClients, atRisk: criticalMetrics.atRiskClients },
     pipeline: { value: pipelineData?.total || 0, count: pipelineData?.count || 0 },
     leads: leadsToday || 0,
     calls: callsToday || 0,
     appointments: dailySummary?.interventions_recommended || 0,
-    criticalAlerts: dailySummary?.critical_interventions || 0,
+    criticalAlerts: criticalMetrics.criticalAlerts,
   };
 
   // Executive summary
   const executiveSummary = useMemo(() => {
-    const atRiskRevenue = (clients || [])
-      .filter((c) => c.health_zone === "RED" || c.health_zone === "YELLOW")
-      .reduce((sum, c) => sum + (c.package_value_aed || 0), 0);
-
     return {
       executive_briefing: dailySummary?.patterns_detected
-        ? `${stats.totalClients} active clients tracked. ${stats.atRiskClients} require immediate attention with AED ${atRiskRevenue.toLocaleString()} at risk.`
-        : `Monitoring ${stats.totalClients} clients. ${stats.atRiskClients} in warning/critical zones.`,
-      max_utilization_rate: stats.totalClients > 0 ? Math.round(((stats.totalClients - stats.atRiskClients) / stats.totalClients) * 100) : 0,
-      system_health_status: stats.atRiskClients > 10 ? "Attention Required" : "Healthy",
-      action_plan: stats.atRiskClients > 0 ? [`Review ${stats.atRiskClients} at-risk clients`, "Schedule intervention calls", "Update client engagement scores"] : [],
-      sla_breach_count: dailySummary?.critical_interventions || 0,
+        ? `${criticalMetrics.totalClients} active clients tracked. ${criticalMetrics.atRiskClients} require immediate attention with AED ${criticalMetrics.revenueAtRisk.toLocaleString()} at risk.`
+        : `Monitoring ${criticalMetrics.totalClients} clients. ${criticalMetrics.atRiskClients} in warning/critical zones.`,
+      max_utilization_rate: criticalMetrics.totalClients > 0 ? Math.round(((criticalMetrics.totalClients - criticalMetrics.atRiskClients) / criticalMetrics.totalClients) * 100) : 0,
+      system_health_status: criticalMetrics.atRiskClients > 10 ? "Attention Required" : "Healthy",
+      action_plan: criticalMetrics.atRiskClients > 0 ? [`Review ${criticalMetrics.atRiskClients} at-risk clients`, "Schedule intervention calls", "Update client engagement scores"] : [],
+      sla_breach_count: criticalMetrics.criticalAlerts,
     };
-  }, [clients, dailySummary, stats]);
+  }, [criticalMetrics, dailySummary]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refetchClients();
-      setLastUpdated(new Date());
+      await refetchDashboard();
       toast({ title: "Data refreshed", description: "Dashboard updated with latest data" });
     } catch (error) {
       toast({ title: "Refresh failed", variant: "destructive" });
@@ -245,6 +101,8 @@ export default function Dashboard() {
       setIsRefreshing(false);
     }
   };
+
+  const lastUpdated = dashboardData?.lastUpdated || new Date();
 
   const handleMetricClick = (metric: string) => {
     const routes: Record<string, string> = {
@@ -260,7 +118,7 @@ export default function Dashboard() {
     if (routes[metric]) navigate(routes[metric]);
   };
 
-  const isLoading = clientsLoading || revenueLoading;
+  const isLoading = dashboardLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -337,8 +195,8 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <ClientRiskMatrix clients={clients || []} isLoading={clientsLoading} />
-                <EnhancedInterventionTracker interventions={interventions} isLoading={interventionsLoading} />
+                <ClientRiskMatrix clients={clients} isLoading={dashboardLoading} />
+                <EnhancedInterventionTracker interventions={interventions} isLoading={dashboardLoading} />
               </div>
               <div className="space-y-6">
                 <CoachLeaderboard />
