@@ -292,6 +292,60 @@ async function getLearnedPatterns(supabase: any): Promise<string> {
   }
 }
 
+// Get global workspace memory (org-wide, shared across all users/devices)
+async function getGlobalMemory(supabase: any, query: string): Promise<string> {
+  try {
+    // Search global_memory for relevant org-wide knowledge
+    const { data: globalMemories, error } = await supabase
+      .from('global_memory')
+      .select('memory_key, memory_value, memory_type')
+      .or('memory_type.eq.shared,memory_type.eq.config')
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    if (error || !globalMemories || globalMemories.length === 0) {
+      return '';
+    }
+
+    // Filter by query relevance (simple keyword matching)
+    const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/).filter((w: string) => w.length > 3);
+
+    const relevant = globalMemories.filter((m: any) => {
+      const key = m.memory_key.toLowerCase();
+      const value = JSON.stringify(m.memory_value).toLowerCase();
+      return keywords.some((kw: string) => key.includes(kw) || value.includes(kw));
+    }).slice(0, 5);
+
+    if (relevant.length === 0) return '';
+
+    return relevant.map((m: any) =>
+      `🌐 [ORG-WIDE] ${m.memory_key}: ${JSON.stringify(m.memory_value).slice(0, 500)}`
+    ).join('\n\n');
+  } catch (e) {
+    console.log('Global memory search skipped:', e);
+    return '';
+  }
+}
+
+// Save important knowledge to global memory (org-wide)
+async function saveToGlobalMemory(supabase: any, key: string, value: any, type: string = 'shared'): Promise<void> {
+  try {
+    await supabase
+      .from('global_memory')
+      .upsert({
+        memory_key: key,
+        memory_value: value,
+        memory_type: type,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'memory_key' });
+
+    console.log(`✅ Saved to global memory: ${key}`);
+  } catch (e) {
+    console.log('Global memory save error:', e);
+  }
+}
+
 // Extract knowledge from interaction
 function extractKnowledge(query: string, response: string): any {
   const combined = `${query} ${response}`.toLowerCase();
@@ -354,6 +408,16 @@ async function saveToMemory(supabase: any, threadId: string, query: string, resp
             usage_count: 1
           });
       }
+    }
+
+    // Save important patterns to global memory (org-wide)
+    if (knowledge.detected_patterns.length > 0) {
+      await saveToGlobalMemory(supabase, `pattern:${knowledge.detected_patterns[0]}`, {
+        pattern: knowledge.detected_patterns[0],
+        query: query.slice(0, 200),
+        response_summary: response.slice(0, 500),
+        timestamp: new Date().toISOString(),
+      }, 'shared');
     }
 
     console.log('✅ Saved to persistent memory');
@@ -848,12 +912,13 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 // Main agent function with agentic loop + learning + RAG
 async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string, threadId: string = 'default'): Promise<string> {
   // ============= PERSISTENT MEMORY + RAG MIDDLEWARE: Before =============
-  const [relevantMemory, ragKnowledge, learnedPatterns] = await Promise.all([
+  const [relevantMemory, ragKnowledge, learnedPatterns, globalMemory] = await Promise.all([
     searchMemory(supabase, userMessage, threadId),
     searchKnowledgeDocuments(supabase, userMessage),
-    getLearnedPatterns(supabase)
+    getLearnedPatterns(supabase),
+    getGlobalMemory(supabase, userMessage) // Org-wide memory
   ]);
-  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}`);
+  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}, Global: ${globalMemory.length > 0 ? 'found' : 'none'}`);
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 
@@ -866,6 +931,10 @@ async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string
     knowledge: ragKnowledge || '',
     memory: relevantMemory || '',
   }) + `
+
+=== GLOBAL WORKSPACE MEMORY (ORG-WIDE) ===
+${globalMemory || 'No org-wide memory found yet.'}
+
 
 === SYSTEM KNOWLEDGE BASE ===
 ${PTD_SYSTEM_KNOWLEDGE}
