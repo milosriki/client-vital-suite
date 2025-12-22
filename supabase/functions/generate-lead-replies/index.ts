@@ -64,12 +64,17 @@ serve(async (req) => {
                 .eq("status", "NEW")
                 .limit(limit);
 
-            if (error) return { data: null, error };
-            return { data: data || [], error: null, table: "leads" as const };
+            if (error) return { data: null, error, table: undefined };
+            // Map leads fields to match contacts schema
+            const mappedData = (data || []).map((lead: any) => ({
+                ...lead,
+                lead_status: lead.status,
+            }));
+            return { data: mappedData, error: null, table: "leads" as const };
         };
 
         // Prefer unified contacts schema; fallback to legacy leads table
-        let leadSource = await selectContacts();
+        let leadSource: { data: any[] | null; error: any; table?: "contacts" | "leads" } = await selectContacts();
         if (!leadSource.table) {
             leadSource = await selectLeads();
         }
@@ -92,7 +97,7 @@ serve(async (req) => {
                 const prompt = `You are a sales consultant for PTD Fitness, Dubai's premium personal training service.
 
 Lead Details:
-- Name: ${lead.first_name || lead.last_name ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : lead.name || "Prospect"}
+- Name: ${lead.first_name || lead.last_name ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : (lead as any).name || "Prospect"}
 - Goal: ${lead.fitness_goal || lead?.metadata?.fitness_goal || "Not specified"}
 - Budget: ${lead.budget_range || lead?.metadata?.budget_range || "Not specified"}
 - Location: ${lead.location || lead?.metadata?.location || "Dubai"}
@@ -151,7 +156,7 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
                     object_type: "lead",
                     object_id: lead.id,
                     error_message: `Lead reply generation failed: ${error.message}`,
-                    error_details: { lead_data: { id: lead.id, name: lead.name || lead.email } }
+                    error_details: { lead_data: { id: lead.id, name: (lead as any).name || lead.email } }
                 });
             }
         }
