@@ -18,7 +18,7 @@ import {
   type ExecutionRequest
 } from "@/lib/ptd-unlimited-agent";
 import { toast } from "sonner";
-import { getApiUrl, API_ENDPOINTS } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, SUPABASE_ANON_KEY } from "@/config/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -318,7 +318,7 @@ export default function PTDUnlimitedChat() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           message: "Run full system orchestration and intelligence scan",
@@ -337,7 +337,7 @@ export default function PTDUnlimitedChat() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           message: userMessage,
