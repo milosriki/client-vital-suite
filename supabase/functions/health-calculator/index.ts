@@ -52,7 +52,7 @@ function calculateEngagementScore(client: any): number {
     const lastDate = new Date(client.last_activity_date);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   } else if (client.days_since_last_session) {
     daysSince = client.days_since_last_session;
   }
@@ -143,7 +143,7 @@ function calculatePredictiveRisk(client: any, healthZone: string, momentum: stri
     const lastDate = new Date(client.last_activity_date);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   } else if (client.days_since_last_session) {
     daysSince = client.days_since_last_session;
   }
@@ -178,10 +178,6 @@ function getInterventionPriority(zone: string, risk: number, momentum: string): 
 // MAIN HANDLER
 // ============================================
 
-// ============================================
-// MAIN HANDLER
-// ============================================
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -191,100 +187,31 @@ serve(async (req) => {
   const debugLogs: any[] = [];
 
   try {
-    const { mode = "full", client_emails = [], offset = 0, limit = 500 } = await req.json().catch(() => ({}));
+    const { mode = "full", client_emails = [] } = await req.json().catch(() => ({}));
 
-    console.log(`[Health Calculator] Starting ${mode} execution...`);
-    debugLogs.push({location:'health-calculator/index.ts:191',message:'Starting execution',data:{mode, offset, limit},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'});
+    console.log(`[Health Calculator] Starting ${mode} calculation...`);
+    debugLogs.push({ location: 'health-calculator/index.ts:191', message: 'Starting calculation', data: { mode }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
 
-    // --------------------------------------------
-    // ORCHESTRATOR MODE
-    // --------------------------------------------
-    if (mode === "full" && client_emails.length === 0) {
-      console.log("[Health Calculator] Running in ORCHESTRATOR mode");
-      
-      // 1. Get total count
-      const { count, error: countError } = await supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true });
-
-      if (countError) throw countError;
-
-      const totalRecords = count || 0;
-      const batchSize = 500;
-      const batches = Math.ceil(totalRecords / batchSize);
-
-      console.log(`[Health Calculator] Found ${totalRecords} contacts. Triggering ${batches} batches.`);
-
-      // 2. Trigger worker batches
-      const functionUrl = `${SUPABASE_URL}/functions/v1/health-calculator`;
-      const authHeader = req.headers.get("Authorization") || `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
-
-      const triggerPromises = [];
-
-      for (let i = 0; i < batches; i++) {
-        const batchOffset = i * batchSize;
-        
-        // Fire and forget (don't await response body, just the dispatch)
-        const p = fetch(functionUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": authHeader,
-          },
-          body: JSON.stringify({
-            mode: "batch",
-            offset: batchOffset,
-            limit: batchSize
-          })
-        }).then(res => {
-            console.log(`[Health Calculator] Triggered batch ${i+1}/${batches} (Offset: ${batchOffset}) - Status: ${res.status}`);
-            return res.text(); // Consume body to close connection
-        }).catch(err => {
-            console.error(`[Health Calculator] Failed to trigger batch ${i+1}:`, err);
-        });
-
-        triggerPromises.push(p);
-      }
-
-      // Wait for all triggers to be sent (fast)
-      await Promise.all(triggerPromises);
-
-      return new Response(JSON.stringify({
-        success: true,
-        message: `Orchestration complete. Triggered ${batches} batches for ${totalRecords} records.`,
-        batches,
-        totalRecords
-      }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
-    }
-
-    // --------------------------------------------
-    // WORKER / BATCH MODE
-    // --------------------------------------------
-    console.log(`[Health Calculator] Running in WORKER mode (Offset: ${offset}, Limit: ${limit})`);
-
-    // Fetch clients from CONTACTS table with pagination
+    // Fetch clients from CONTACTS table (Source of Truth)
     let query = supabase
       .from("contacts")
-      .select("*")
-      .range(offset, offset + limit - 1);
+      .select("*");
 
     if (client_emails.length > 0) {
-      query = supabase.from("contacts").select("*").in("email", client_emails);
+      query = query.in("email", client_emails);
     }
 
     const { data: contacts, error: fetchError } = await query;
 
-    debugLogs.push({location:'health-calculator/index.ts:202',message:'Contacts fetched',data:{count:contacts?.length, error: fetchError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'});
+    debugLogs.push({ location: 'health-calculator/index.ts:202', message: 'Contacts fetched', data: { count: contacts?.length, error: fetchError }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
 
     if (fetchError) {
       console.error("Error fetching contacts:", fetchError);
       throw fetchError;
     }
 
-    // Process contacts
-    console.log(`[Health Calculator] Processing ${contacts?.length || 0} clients`);
+    // Process all contacts
+    console.log(`[Health Calculator] Processing ${contacts?.length || 0} clients from contacts table`);
 
     const results = {
       processed: 0,
@@ -311,6 +238,10 @@ serve(async (req) => {
         const predictiveRisk = calculatePredictiveRisk(client, healthZone, momentum);
         const interventionPriority = getInterventionPriority(healthZone, predictiveRisk, momentum);
 
+        if (results.processed === 0) {
+          debugLogs.push({ location: 'health-calculator/index.ts:238', message: 'Calculated score for first client', data: { email: client.email, score: healthScore, zone: healthZone }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
+        }
+
         upsertPayloads.push({
           email: client.email,
           firstname: client.first_name,
@@ -332,7 +263,7 @@ serve(async (req) => {
           assigned_coach: client.assigned_coach,
           calculated_at: new Date().toISOString(),
           calculated_on: new Date().toISOString().split("T")[0],
-          calculation_version: "AGENT_BATCH_v1"
+          calculation_version: "AGENT_v2"
         });
 
         results.processed++;
@@ -351,13 +282,14 @@ serve(async (req) => {
     }
 
     // Batch upsert for performance
-    const upsertBatchSize = 100;
+    const batchSize = 100;
     let batchIndex = 0;
     let batchFailures = 0;
-    while (batchIndex * upsertBatchSize < upsertPayloads.length) {
-      const start = batchIndex * upsertBatchSize;
-      const batch = upsertPayloads.slice(start, start + upsertBatchSize);
-      
+    while (batchIndex * batchSize < upsertPayloads.length) {
+      const start = batchIndex * batchSize;
+      const batch = upsertPayloads.slice(start, start + batchSize);
+      console.log(`[Health Calculator] Upserting batch ${batchIndex + 1} with ${batch.length} records`);
+
       const { error: upsertError } = await supabase
         .from("client_health_scores")
         .upsert(batch, { onConflict: "email" });
@@ -372,30 +304,40 @@ serve(async (req) => {
       batchIndex++;
     }
 
-    console.log(`[Health Calculator] Batch complete. Processed ${results.processed}, Updated ${results.updated}, Failures ${batchFailures}`);
+    console.log(`[Health Calculator] Processed ${results.processed} contacts across ${batchIndex} batches with ${batchFailures} failures`);
 
-    // Only update daily summary if we are in "full" mode (orchestrator) OR if explicitly requested
-    // But since we are in worker mode, we might skip this or do a partial update.
-    // For now, workers don't update the daily summary to avoid race conditions.
-    // The daily summary should ideally be a separate aggregation step.
-    // However, to keep it simple, we will SKIP daily summary update in worker mode
-    // and assume a separate "aggregator" job runs, OR we accept that daily summary might be slightly off until all batches finish.
-    
-    // Let's rely on the database aggregation or a separate call for summary.
-    // For now, we return the results.
+    results.avgHealthScore = results.processed > 0
+      ? Math.round(totalScore / results.processed)
+      : 0;
+
+    // Update daily summary
+    const today = new Date().toISOString().split("T")[0];
+    await supabase.from("daily_summary").upsert({
+      summary_date: today,
+      total_clients: results.processed,
+      avg_health_score: results.avgHealthScore,
+      red_count: results.zones.RED,
+      yellow_count: results.zones.YELLOW,
+      green_count: results.zones.GREEN,
+      purple_count: results.zones.PURPLE,
+      critical_interventions: results.criticalInterventions,
+      generated_at: new Date().toISOString()
+    }, { onConflict: "summary_date" });
 
     const duration = Date.now() - startTime;
+    console.log(`[Health Calculator] Complete in ${duration}ms:`, results);
+
     return new Response(JSON.stringify({
       success: true,
       duration_ms: duration,
       results,
-      batch: { offset, limit }
+      debugLogs
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
   } catch (error) {
-    debugLogs.push({location:'health-calculator/index.ts:317',message:'Global error',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'});
+    debugLogs.push({ location: 'health-calculator/index.ts:317', message: 'Global error', data: { error: String(error) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
     console.error("[Health Calculator] Error:", error);
     return new Response(JSON.stringify({
       success: false,
