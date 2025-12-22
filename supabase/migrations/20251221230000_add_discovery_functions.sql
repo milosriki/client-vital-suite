@@ -1,4 +1,5 @@
 -- Function to get all tables with metadata
+DROP FUNCTION IF EXISTS get_all_tables();
 CREATE OR REPLACE FUNCTION get_all_tables()
 RETURNS TABLE (
   table_name text,
@@ -25,6 +26,7 @@ END;
 $$;
 
 -- Function to get all functions with metadata
+DROP FUNCTION IF EXISTS get_all_functions();
 CREATE OR REPLACE FUNCTION get_all_functions()
 RETURNS TABLE (
   function_name text,

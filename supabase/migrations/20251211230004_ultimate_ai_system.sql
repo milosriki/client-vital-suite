@@ -41,6 +41,19 @@ CREATE TABLE IF NOT EXISTS business_calibration (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure columns exist (in case table already existed with different schema)
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS scenario_type TEXT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS scenario_description TEXT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS ai_recommendation TEXT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS ai_reasoning TEXT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS ai_confidence FLOAT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS your_decision TEXT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS your_reasoning TEXT;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS was_ai_correct BOOLEAN;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS learning_weight INT DEFAULT 3;
+ALTER TABLE business_calibration ADD COLUMN IF NOT EXISTS action_id UUID REFERENCES prepared_actions(id);
+
+
 -- 3. LEARNED PATTERNS
 CREATE TABLE IF NOT EXISTS learned_patterns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,6 +85,17 @@ CREATE TABLE IF NOT EXISTS business_goals (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure columns exist
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS goal_name TEXT;
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS metric_name TEXT;
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS baseline_value FLOAT;
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS current_value FLOAT;
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS target_value FLOAT;
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS deadline DATE;
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS constraints JSONB DEFAULT '{}';
+ALTER TABLE business_goals ADD COLUMN IF NOT EXISTS progress_history JSONB DEFAULT '[]';
+
 -- 5. PROACTIVE INSIGHTS
 CREATE TABLE IF NOT EXISTS proactive_insights (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,6 +109,17 @@ CREATE TABLE IF NOT EXISTS proactive_insights (
   actioned_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure columns exist
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS insight_type TEXT;
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}';
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS source_agent TEXT DEFAULT 'proactive_scanner';
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS is_dismissed BOOLEAN DEFAULT FALSE;
+ALTER TABLE proactive_insights ADD COLUMN IF NOT EXISTS actioned_at TIMESTAMPTZ;
+
 
 -- INDEXES
 CREATE INDEX IF NOT EXISTS idx_prepared_actions_status ON prepared_actions(status);
