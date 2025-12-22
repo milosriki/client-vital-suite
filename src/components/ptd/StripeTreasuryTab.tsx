@@ -331,41 +331,106 @@ export function StripeTreasuryTab() {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Transfers</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
+              </div>
+              <TrendingUp className="h-5 w-5 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Amount</p>
+                <p className="text-2xl font-bold font-mono">{formatCurrency(stats.totalAmount, "usd")}</p>
+              </div>
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Posted</p>
+                <p className="text-2xl font-bold text-green-600">{stats.posted}</p>
+              </div>
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Processing</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
+              </div>
+              <Clock className="h-5 w-5 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Failed/Returned</p>
+                <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
+              </div>
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Transfers Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Transfers</CardTitle>
+          <CardTitle>Transfer History (Last 12 Months)</CardTitle>
           <CardDescription>
-            History of outbound transfers from {selectedAccount}
+            {allTransfers.length} outbound transfers from {selectedAccount || "..."}
+            {hasMore && " (click 'Load All' to fetch more)"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[500px]">
+          <ScrollArea className="h-[600px]">
             {transfersLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : transfers && transfers.length > 0 ? (
+            ) : allTransfers.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Destination</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Arrival Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transfers.map((transfer: any) => (
+                  {allTransfers.map((transfer) => (
                     <TableRow key={transfer.id}>
                       <TableCell className="font-bold font-mono">
                         {formatCurrency(transfer.amount, transfer.currency)}
                       </TableCell>
                       <TableCell>{getStatusBadge(transfer.status)}</TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="font-mono text-xs max-w-[150px] truncate">
                         {transfer.destination_payment_method}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                        {transfer.description || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(transfer.created * 1000).toLocaleDateString()}
@@ -382,7 +447,7 @@ export function StripeTreasuryTab() {
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Building2 className="h-12 w-12 mb-4 opacity-20" />
-                <p>No transfers found for this account</p>
+                <p>No transfers found for this account in the last 12 months</p>
               </div>
             )}
           </ScrollArea>
