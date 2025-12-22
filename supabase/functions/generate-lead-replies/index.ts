@@ -1,120 +1,95 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { RunTree } from "https://esm.sh/langsmith";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const payload = await req.json().catch(() => ({}));
-    const limit = typeof payload?.limit === "number" && payload.limit > 0 ? Math.min(payload.limit, 50) : 10;
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-
-    const missingEnv = [
-      !supabaseUrl && "SUPABASE_URL",
-      !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
-      !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
-    ].filter(Boolean) as string[];
-
-    if (missingEnv.length > 0) {
-      return jsonResponse({ error: "Missing required environment variables", missing: missingEnv }, 400);
+    if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders });
     }
 
-    const supabase = createClient(supabaseUrl!, serviceRoleKey!);
+    try {
+        const payload = await req.json().catch(() => ({}));
+        const limit = typeof payload?.limit === "number" && payload.limit > 0 ? Math.min(payload.limit, 50) : 10;
 
-    const selectContacts = async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("id,email,first_name,last_name,lead_status,ai_suggested_reply,fitness_goal,budget_range,location,metadata")
-        .is("ai_suggested_reply", null)
-        .eq("lead_status", "NEW")
-        .limit(limit);
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-      if (error) {
-        if (error.message?.includes("ai_suggested_reply")) {
-          return { data: null, error: null };
+        const missingEnv = [
+            !supabaseUrl && "SUPABASE_URL",
+            !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
+            !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
+        ].filter(Boolean) as string[];
+
+        if (missingEnv.length > 0) {
+            return jsonResponse({ error: "Missing required environment variables", missing: missingEnv }, 400);
         }
-        return { data: null, error };
-      }
 
-      return { data: data || [], error: null, table: "contacts" as const };
-    };
+        const supabase = createClient(supabaseUrl!, serviceRoleKey!);
 
-    const selectLeads = async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("id,email,first_name,last_name,name,fitness_goal,budget_range,location,ai_suggested_reply,status,metadata")
-        .is("ai_suggested_reply", null)
-        .eq("status", "NEW")
-        .limit(limit);
+        const selectContacts = async () => {
+            const { data, error } = await supabase
+                .from("contacts")
+                .select("id,email,first_name,last_name,lead_status,ai_suggested_reply,fitness_goal,budget_range,location,metadata")
+                .is("ai_suggested_reply", null)
+                .eq("lead_status", "NEW")
+                .limit(limit);
 
-      if (error) return { data: null, error };
-      return { data: data || [], error: null, table: "leads" as const };
-    };
+            if (error) {
+                if (error.message?.includes("ai_suggested_reply")) {
+                    return { data: null, error: null };
+                }
+                return { data: null, error };
+            }
 
-    // Prefer unified contacts schema; fallback to legacy leads table
-    type LeadData = {
-      id: string;
-      email: string;
-      first_name?: string;
-      last_name?: string;
-      name?: string;
-      lead_status?: string;
-      status?: string;
-      ai_suggested_reply?: string;
-      fitness_goal?: string;
-      budget_range?: string;
-      location?: string;
-      metadata?: Record<string, unknown>;
-    };
-    
-    let leadSource: { data: LeadData[] | null; error: unknown; table?: string } = await selectContacts();
-    if (!leadSource.table) {
-      leadSource = await selectLeads();
-    }
+            return { data: data || [], error: null, table: "contacts" as const };
+        };
 
-    if (leadSource.error) {
-      throw leadSource.error;
-    }
+        const selectLeads = async () => {
+            const { data, error } = await supabase
+                .from("leads")
+                .select("id,email,first_name,last_name,name,fitness_goal,budget_range,location,ai_suggested_reply,status,metadata")
+                .is("ai_suggested_reply", null)
+                .eq("status", "NEW")
+                .limit(limit);
 
-    const newLeads = leadSource.data || [];
-    const sourceTable = leadSource.table || "leads";
+            if (error) return { data: null, error };
+            return { data: data || [], error: null, table: "leads" as const };
+        };
 
-    if (!newLeads || newLeads.length === 0) {
-      return jsonResponse({ message: "No new leads to process", processed: 0, sourceTable });
-    }
+        // Prefer unified contacts schema; fallback to legacy leads table
+        let leadSource = await selectContacts();
+        if (!leadSource.table) {
+            leadSource = await selectLeads();
+        }
 
-    let processedCount = 0;
+        if (leadSource.error) {
+            throw leadSource.error;
+        }
 
-    // Parallel processing with Promise.all
-    const results = await Promise.all(newLeads.map(async (lead) => {
-      const parentRun = new RunTree({
-        name: "generate_lead_reply",
-        run_type: "chain",
-        inputs: { lead_id: lead.id, lead_name: lead.name || lead.first_name || lead.email },
-        project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
-      });
-      await parentRun.postRun();
+        const newLeads = leadSource.data || [];
+        const sourceTable = leadSource.table || "leads";
 
-      try {
-        const prompt = `You are a sales consultant for PTD Fitness, Dubai's premium personal training service.
+        if (!newLeads || newLeads.length === 0) {
+            return jsonResponse({ message: "No new leads to process", processed: 0, sourceTable });
+        }
+
+        let processedCount = 0;
+
+        for (const lead of newLeads) {
+            try {
+                const prompt = `You are a sales consultant for PTD Fitness, Dubai's premium personal training service.
 
 Lead Details:
 - Name: ${lead.first_name || lead.last_name ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : lead.name || "Prospect"}
@@ -129,97 +104,70 @@ Write a SHORT (2-3 sentences) personalized initial reply that:
 
 Be warm, professional, and specific. No generic templates. Do not use markdown or formatting.`;
 
-        const childRun = await parentRun.createChild({
-          name: "anthropic_call",
-          run_type: "llm",
-          inputs: { prompt, model: "claude-3-5-sonnet-20241022" },
-        });
-        await childRun.postRun();
+                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-api-key": ANTHROPIC_API_KEY!,
+                        "anthropic-version": "2023-06-01"
+                    },
+                    body: JSON.stringify({
+                        model: "claude-sonnet-4-5-20250929",
+                        max_tokens: 200,
+                        messages: [{ role: "user", content: prompt }]
+                    })
+                });
 
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": ANTHROPIC_API_KEY!,
-            "anthropic-version": "2023-06-01"
-          },
-          body: JSON.stringify({
-            model: "claude-3-5-sonnet-20241022",
-            max_tokens: 200,
-            messages: [{ role: "user", content: prompt }]
-          })
-        });
+                if (!response.ok) {
+                    throw new Error(`Claude API returned ${response.status}`);
+                }
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          await childRun.end({ error: `Claude API returned ${response.status}: ${errorText}` });
-          await childRun.patchRun();
-          throw new Error(`Claude API returned ${response.status}`);
+                const data = await response.json();
+                const suggestedReply = data.content?.[0]?.text;
+
+                if (suggestedReply) {
+                    const updatePayload: Record<string, any> = { ai_suggested_reply: suggestedReply };
+                    if ("ai_reply_generated_at" in lead) {
+                        updatePayload.ai_reply_generated_at = new Date().toISOString();
+                    }
+
+                    const { error: updateError } = await supabase
+                        .from(sourceTable)
+                        .update(updatePayload)
+                        .eq("id", lead.id);
+
+                    if (updateError) {
+                        console.error(`Failed to update ${sourceTable} record ${lead.id}:`, updateError);
+                    } else {
+                        processedCount++;
+                    }
+                }
+            } catch (error: any) {
+                console.error(`Failed to generate reply for lead ${lead.id}:`, error);
+
+                await supabase.from("sync_errors").insert({
+                    error_type: "timeout",
+                    source: "internal",
+                    object_type: "lead",
+                    object_id: lead.id,
+                    error_message: `Lead reply generation failed: ${error.message}`,
+                    error_details: { lead_data: { id: lead.id, name: lead.name || lead.email } }
+                });
+            }
         }
 
-        const data = await response.json();
-        const suggestedReply = data.content?.[0]?.text;
-
-        await childRun.end({ outputs: { response: suggestedReply } });
-        await childRun.patchRun();
-
-        if (suggestedReply) {
-          const updatePayload: Record<string, any> = { ai_suggested_reply: suggestedReply };
-          if ("ai_reply_generated_at" in lead) {
-            updatePayload.ai_reply_generated_at = new Date().toISOString();
-          }
-
-          const { error: updateError } = await supabase
-            .from(sourceTable)
-            .update(updatePayload)
-            .eq("id", lead.id);
-
-          if (updateError) {
-            console.error(`Failed to update ${sourceTable} record ${lead.id}:`, updateError);
-            await parentRun.end({ error: updateError.message });
-            await parentRun.patchRun();
-            return false;
-          } else {
-            await parentRun.end({ outputs: { success: true, reply: suggestedReply } });
-            await parentRun.patchRun();
-            return true;
-          }
-        }
-        await parentRun.end({ outputs: { success: false, reason: "No reply generated" } });
-        await parentRun.patchRun();
-        return false;
-      } catch (error: any) {
-        console.error(`Failed to generate reply for lead ${lead.id}:`, error);
-        
-        await parentRun.end({ error: error.message });
-        await parentRun.patchRun();
-
-        await supabase.from("sync_errors").insert({
-          error_type: "timeout",
-          source: "internal",
-          object_type: "lead",
-          object_id: lead.id,
-          error_message: `Lead reply generation failed: ${error.message}`,
-          error_details: { lead_data: { id: lead.id, name: lead.name || lead.first_name || lead.email } }
+        return jsonResponse({
+            success: true,
+            processed: processedCount,
+            total: newLeads.length,
+            sourceTable,
         });
-        return false;
-      }
-    }));
+    } catch (error: any) {
+        console.error("Function error:", error);
 
-    processedCount = results.filter(Boolean).length;
-
-    return jsonResponse({
-      success: true,
-      processed: processedCount,
-      total: newLeads.length,
-      sourceTable,
-    });
-  } catch (error: any) {
-    console.error("Function error:", error);
-
-    return jsonResponse({
-      error: error.message,
-      processed: 0
-    }, 500);
-  }
+        return jsonResponse({
+            error: error.message,
+            processed: 0
+        }, 500);
+    }
 });
