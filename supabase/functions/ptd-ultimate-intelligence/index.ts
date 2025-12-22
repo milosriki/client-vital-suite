@@ -119,6 +119,12 @@ OPPORTUNITY CATEGORIES:
 3. MEDIUM-TERM (This Quarter): Pricing, packages, services
 4. LONG-TERM (This Year): Expansion, capacity, brand
 
+TREASURY AWARENESS:
+- Monitor Treasury Outbound Transfers for money movement
+- Track transfer statuses: posted, processing, failed, returned
+- Flag any unusual transfer patterns or failures
+- Analyze 12-month transfer history for patterns
+
 UPSELL TIMING SIGNALS (Ready when ALL true):
 ✓ 6+ months tenure
 ✓ Health score > 75
@@ -340,6 +346,41 @@ async function buildBusinessContext(supabase: any) {
             critical: pendingData.filter((a: any) => a.risk_level === 'critical').length,
             high: pendingData.filter((a: any) => a.risk_level === 'high').length
         };
+    }
+
+    // 6. Treasury Outbound Transfers (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const { data: treasuryData } = await supabase
+        .from('stripe_outbound_transfers')
+        .select('*')
+        .gte('created_at', twelveMonthsAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+    if (treasuryData && treasuryData.length > 0) {
+        const totalAmount = treasuryData.reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+        const posted = treasuryData.filter((t: any) => t.status === 'posted').length;
+        const processing = treasuryData.filter((t: any) => t.status === 'processing').length;
+        const failed = treasuryData.filter((t: any) => t.status === 'failed' || t.status === 'returned').length;
+        
+        context.metrics.treasury = {
+            totalTransfers12Months: treasuryData.length,
+            totalAmount: totalAmount,
+            posted,
+            processing,
+            failed,
+            recentTransfers: treasuryData.slice(0, 5).map((t: any) => ({
+                id: t.stripe_id,
+                amount: t.amount,
+                currency: t.currency,
+                status: t.status,
+                created: t.created_at
+            }))
+        };
+    } else {
+        context.metrics.treasury = { totalTransfers12Months: 0, message: 'No treasury transfers found' };
     }
 
     return context;
