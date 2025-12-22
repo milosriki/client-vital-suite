@@ -1,40 +1,100 @@
 /**
  * API Configuration
  * 
- * Centralized API configuration for Supabase Edge Functions.
- * In Lovable, we call Supabase edge functions directly instead of Vercel API routes.
+ * Works in BOTH environments:
+ * - Lovable: Calls Supabase edge functions directly
+ * - Vercel: Uses /api/* serverless routes
  */
 
-// Supabase project URL (public - safe to include)
+// Supabase project credentials (public - safe to include)
 const SUPABASE_URL = "https://ztjndilxurtsfqdsvfds.supabase.co";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo";
+
+/**
+ * Detect if running in Lovable preview environment
+ */
+function isLovableEnvironment(): boolean {
+    if (typeof window === 'undefined') return false;
+    const hostname = window.location.hostname;
+    return hostname.includes('lovableproject.com') || 
+           hostname.includes('lovable.app') ||
+           hostname === 'localhost';
+}
+
+/**
+ * Detect if running in Vercel environment
+ */
+function isVercelEnvironment(): boolean {
+    if (typeof window === 'undefined') return false;
+    const hostname = window.location.hostname;
+    return hostname.includes('vercel.app') || 
+           hostname.includes('client-vital-suite');
+}
+
+/**
+ * Map Vercel API routes to Supabase edge functions
+ */
+const ROUTE_TO_EDGE_FUNCTION: Record<string, string> = {
+    "/api/agent": "ptd-agent-claude",
+    "/api/system-check": "system-check",
+    "/api/events": "meta-capi",
+    "/api/events/batch": "meta-capi",
+};
 
 /**
  * Get full URL for a Supabase edge function
- * @param functionName - Edge function name (e.g., 'ptd-agent-claude')
- * @returns Full URL (e.g., 'https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/ptd-agent-claude')
  */
 export function getEdgeFunctionUrl(functionName: string): string {
     return `${SUPABASE_URL}/functions/v1/${functionName}`;
 }
 
 /**
- * Legacy API URL function for backward compatibility
- * Maps old Vercel API routes to Supabase edge functions
+ * Get API URL - works in BOTH Vercel and Lovable
+ * - In Lovable: Returns Supabase edge function URL
+ * - In Vercel: Returns relative /api/* path
  */
 export function getApiUrl(endpoint: string): string {
-    // Map old Vercel API routes to Supabase edge functions
-    const routeMap: Record<string, string> = {
-        "/api/agent": getEdgeFunctionUrl("ptd-agent-claude"),
-        "/api/system-check": getEdgeFunctionUrl("system-check"),
-        "/api/events": getEdgeFunctionUrl("meta-capi"),
-        "/api/events/batch": getEdgeFunctionUrl("meta-capi"),
-    };
+    // In Lovable environment, always use Supabase edge functions
+    if (isLovableEnvironment()) {
+        const functionName = ROUTE_TO_EDGE_FUNCTION[endpoint];
+        if (functionName) {
+            return getEdgeFunctionUrl(functionName);
+        }
+    }
     
-    return routeMap[endpoint] || endpoint;
+    // In Vercel environment, use relative API routes
+    if (isVercelEnvironment()) {
+        return endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    }
+    
+    // Default: Use Supabase edge functions (safest fallback)
+    const functionName = ROUTE_TO_EDGE_FUNCTION[endpoint];
+    if (functionName) {
+        return getEdgeFunctionUrl(functionName);
+    }
+    
+    return endpoint;
 }
 
 /**
- * Common API endpoints - now mapped to edge functions
+ * Get auth headers for API calls
+ * - In Lovable: Use Supabase anon key
+ * - In Vercel: Headers handled by serverless function
+ */
+export function getAuthHeaders(): Record<string, string> {
+    if (isLovableEnvironment()) {
+        return {
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+        };
+    }
+    return {
+        "Content-Type": "application/json",
+    };
+}
+
+/**
+ * Common API endpoints
  */
 export const API_ENDPOINTS = {
     agent: "/api/agent",
@@ -44,6 +104,14 @@ export const API_ENDPOINTS = {
 } as const;
 
 /**
- * Supabase anon key for authentication
+ * Environment info for debugging
  */
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo";
+export function getEnvironmentInfo(): { env: string; apiMode: string } {
+    if (isVercelEnvironment()) {
+        return { env: "vercel", apiMode: "serverless" };
+    }
+    if (isLovableEnvironment()) {
+        return { env: "lovable", apiMode: "edge-functions" };
+    }
+    return { env: "unknown", apiMode: "edge-functions" };
+}

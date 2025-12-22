@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { VoiceChat } from "@/components/ai/VoiceChat";
-import { getApiUrl, API_ENDPOINTS, SUPABASE_ANON_KEY } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
 interface Message {
   id: string;
@@ -255,10 +255,7 @@ export const FloatingChat = () => {
 
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           message: messageWithFiles,
           thread_id: threadId,

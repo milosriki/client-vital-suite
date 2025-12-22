@@ -18,7 +18,7 @@ import {
   type ExecutionRequest
 } from "@/lib/ptd-unlimited-agent";
 import { toast } from "sonner";
-import { getApiUrl, API_ENDPOINTS, SUPABASE_ANON_KEY } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -316,10 +316,7 @@ export default function PTDUnlimitedChat() {
       console.log("🧠 Running super-agent-orchestrator for proactive intelligence...");
       const orchestratorResponse = await fetch(getApiUrl('/api/agent'), {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           message: "Run full system orchestration and intelligence scan",
           thread_id: threadId,
@@ -335,10 +332,7 @@ export default function PTDUnlimitedChat() {
       // SECOND: Process user question with full context
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           message: userMessage,
           thread_id: threadId,
