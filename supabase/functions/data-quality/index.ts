@@ -257,30 +257,32 @@ async function checkDuplicates(): Promise<DataIssue[]> {
 
   try {
     // Check for duplicate emails in client_health_scores using RPC or direct query
-    const { data: duplicateClients, error: dupError } = await supabase.rpc('get_duplicate_emails', {
-      table_name: 'client_health_scores'
-    }).catch(async () => {
+    let duplicateClients: { email: string; count: number }[] | null = null;
+    try {
+      const { data: rpcData } = await supabase.rpc('get_duplicate_emails', {
+        table_name: 'client_health_scores'
+      });
+      duplicateClients = rpcData;
+    } catch {
       // Fallback: Use aggregation query
       const { data } = await supabase
         .from("client_health_scores")
         .select("email");
 
-      if (!data) return { data: null, error: null };
-
-      const emailCounts = new Map<string, number>();
-      for (const client of data) {
-        const email = client.email?.toLowerCase();
-        if (email) {
-          emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+      if (data) {
+        const emailCounts = new Map<string, number>();
+        for (const client of data) {
+          const email = client.email?.toLowerCase();
+          if (email) {
+            emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+          }
         }
+
+        duplicateClients = Array.from(emailCounts.entries())
+          .filter(([_, count]) => count > 1)
+          .map(([email, count]) => ({ email, count }));
       }
-
-      const duplicates = Array.from(emailCounts.entries())
-        .filter(([_, count]) => count > 1)
-        .map(([email, count]) => ({ email, count }));
-
-      return { data: duplicates, error: null };
-    });
+    }
 
     if (duplicateClients && duplicateClients.length > 0) {
       issues.push({
@@ -415,7 +417,7 @@ async function checkRequiredFields(): Promise<DataIssue[]> {
     const { count: contactsMissingName } = await supabase
       .from("contacts")
       .select("*", { count: "exact", head: true })
-      .or("firstname.is.null,lastname.is.null");
+      .or("first_name.is.null,last_name.is.null");
 
     if (contactsMissingName && contactsMissingName > 0) {
       issues.push({

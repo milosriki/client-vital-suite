@@ -219,10 +219,10 @@ serve(async (req) => {
     }
 
     return handleError(
-      error,
+      error as Error,
       FUNCTION_NAME,
       {
-        supabase,
+        supabase: supabase ?? undefined,
         errorCode,
         context: { method: req.method },
       }

@@ -59,21 +59,21 @@ serve(async (req) => {
       );
     }
 
-    const body = parseResult.data;
+    const body = parseResult.data as Record<string, unknown>;
     console.log("[Calendly Webhook] Payload:", JSON.stringify(body).slice(0, 500));
 
     // Calendly webhook structure
-    const event = body.event || body;
-    const eventType = event.event_type || event.type;
-    const invitee = event.invitee || event.payload?.invitee;
-    const eventDetails = event.event || event.payload?.event;
+    const event = (body.event || body) as Record<string, any>;
+    const eventType = ((event.event_type || event.type) as string) || '';
+    const invitee = (event.invitee || event.payload?.invitee) as Record<string, any>;
+    const eventDetails = (event.event || event.payload?.event) as Record<string, any>;
 
     if (!invitee || !eventDetails) {
       return handleError(
         new Error("Missing invitee or event data"),
         FUNCTION_NAME,
         {
-          supabase,
+          supabase: supabase ?? undefined,
           errorCode: ErrorCode.VALIDATION_ERROR,
           context: { hasInvitee: !!invitee, hasEventDetails: !!eventDetails },
         }
@@ -86,7 +86,7 @@ serve(async (req) => {
       description: invitee.questions_and_answers?.map((q: any) => `${q.question}: ${q.answer}`).join("\n") || null,
       start_time: invitee.event_start_time || invitee.start_time,
       end_time: invitee.event_end_time || invitee.end_time,
-      status: mapCalendlyStatus(eventType, invitee.status),
+      status: mapCalendlyStatus(eventType, invitee.status as string),
       contact_id: null as string | null,
       deal_id: null as string | null,
       assigned_to: eventDetails.host_email || null,
@@ -235,7 +235,7 @@ serve(async (req) => {
       error as Error,
       FUNCTION_NAME,
       {
-        supabase,
+        supabase: supabase ?? undefined,
         errorCode,
         context: { method: req.method },
       }

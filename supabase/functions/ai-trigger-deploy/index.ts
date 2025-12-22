@@ -252,7 +252,7 @@ serve(async (req) => {
                 }
 
                 // Additional security: Check for multiple statements
-                const statementCount = sql.split(';').filter(s => s.trim().length > 0).length;
+                const statementCount = sql.split(';').filter((s: string) => s.trim().length > 0).length;
                 if (statementCount > 1) {
                     throw new Error('SQL validation failed: Multiple statements not allowed. Execute one statement at a time.');
                 }

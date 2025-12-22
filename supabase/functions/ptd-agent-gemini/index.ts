@@ -439,7 +439,7 @@ function tool(
   options: { name: string; description?: string; schema?: z.ZodType<any> }
 ): any {
   const schema = options.schema || z.object({});
-  const schemaShape = schema._def?.shape || {};
+  const schemaShape = (schema._def as any)?.shape?.() || {};
 
   // Convert zod schema to JSON schema format
   const properties: Record<string, any> = {};
@@ -1819,9 +1819,9 @@ RULES:
           let result;
           try {
             result = await executeTool(supabase, name, args);
-          } catch (error) {
+          } catch (error: unknown) {
             console.error(`❌ Tool error ${name}:`, error);
-            result = { error: error.message };
+            result = { error: (error as Error).message };
           }
           
           return {

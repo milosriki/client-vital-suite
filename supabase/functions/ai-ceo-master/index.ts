@@ -150,7 +150,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
 
         if (insertError) throw insertError;
 
-        const apiResponse = new Response(JSON.stringify({
+        return new Response(JSON.stringify({
             success: true,
             status: 'awaiting_approval',
             action_id: action.id,
@@ -160,7 +160,6 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
                 emoji: persona.emoji
             }
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
 
     } catch (error: unknown) {
         console.error('Error:', error);

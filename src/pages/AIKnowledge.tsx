@@ -237,11 +237,11 @@ export default function AIKnowledge() {
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {entry.content}
                 </p>
-                {entry.metadata && Object.keys(entry.metadata).length > 0 && (
+                {entry.structured_data && Object.keys(entry.structured_data as object).length > 0 && (
                   <div className="mt-4 p-3 bg-muted rounded-lg">
                     <p className="text-xs font-medium mb-2">Metadata:</p>
                     <pre className="text-xs overflow-auto">
-                      {JSON.stringify(entry.metadata, null, 2)}
+                      {JSON.stringify(entry.structured_data, null, 2)}
                     </pre>
                   </div>
                 )}
