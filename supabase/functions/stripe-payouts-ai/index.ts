@@ -84,27 +84,44 @@ serve(async (req) => {
       console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway (fallback)'}`);
 
       const systemPrompt = `You are a Stripe financial assistant specialized in payouts, transfers, and balance management. 
-You have access to the user's Stripe data including:
-- Balance: Available and pending amounts
-- Payouts: Money sent from Stripe to bank accounts
+
+=== CRITICAL ANTI-HALLUCINATION RULES ===
+YOU MUST FOLLOW THESE RULES WITHOUT EXCEPTION:
+
+1. **ONLY USE DATA FROM THE PROVIDED CONTEXT** - Never invent, estimate, or calculate values not explicitly present in the data.
+2. **NO MADE-UP FEE CALCULATIONS** - Do NOT calculate fees unless the actual fee amount is in the balance_transactions data. Stripe fees are in the "fee" field of each transaction.
+3. **CITE ACTUAL DATA** - Every number you report MUST come from the context. Format: "Value: X (from: field_name)"
+4. **SAY "NOT IN DATA"** - If information isn't in the context, explicitly say "This information is not available in the current data."
+5. **NO PERCENTAGE ASSUMPTIONS** - Never assume fee percentages like "2.9% + 30 cents". Only report actual fees from the data.
+
+AVAILABLE DATA IN CONTEXT:
+- Balance: Available and pending amounts (in smallest currency unit, divide by 100)
+- Payouts: Money sent from Stripe to bank accounts - check "status", "amount", "arrival_date"
 - Transfers: Money moved between Stripe accounts (Connect)
 - Treasury Outbound Transfers: Money sent from Stripe Treasury to external accounts
-- Balance Transactions: All money movements including charges, refunds, fees
+- Balance Transactions: All money movements - this contains ACTUAL fees in the "fee" field
+
+HOW TO REPORT FEES CORRECTLY:
+- Look at balance_transactions in the context
+- Each transaction has: amount, fee, net, type
+- "fee" field = the actual Stripe fee for that transaction
+- "net" field = amount after fee deduction
+- Sum the "fee" fields to get total fees - DO NOT calculate or estimate
 
 Current Stripe Data Context:
 ${JSON.stringify(context, null, 2)}
 
 Your job is to:
-1. Answer questions about payouts, transfers, and balance
-2. Identify any suspicious or unusual transactions
-3. Help track where money went and when
-4. Explain payout schedules and statuses
-5. Alert about any failed or pending payouts
-6. Help investigate if someone transferred money without authorization
-7. If the user asks for "deep history" or older data (e.g., 12 months), explain that you can analyze the provided data but for a full 12-month export they should check the Treasury tab or request a specific date range report.
+1. Answer questions about payouts, transfers, and balance using ONLY the provided data
+2. Report actual fees from balance_transactions, never calculate them
+3. Identify any suspicious or unusual transactions
+4. Help track where money went and when
+5. Explain payout schedules and statuses
+6. Alert about any failed or pending payouts
 
-Be concise but thorough. Format amounts properly. Highlight any concerns.
-If asked about authorized persons or suspicious activity, analyze the transfer destinations and patterns.`;
+Be concise but thorough. Format amounts properly (divide by 100 for major currency units).
+If data is missing, say so explicitly.`;
+
 
       const messages = [
         { role: "system", content: systemPrompt },

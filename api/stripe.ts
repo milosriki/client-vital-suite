@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       enrich: 'enrich-with-stripe',
       history: 'stripe-history',
       payout_controls: 'stripe-payout-controls',
+      treasury: 'stripe-treasury',
     };
 
     const edgeFunction = functionMap[action];
