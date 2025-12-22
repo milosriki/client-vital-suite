@@ -122,6 +122,8 @@ async function logErrorToDatabase(
     return;
   }
 
+  const err = error as Error | null;
+
   try {
     const errorLog = {
       error_type: mapErrorCodeToType(errorCode),
@@ -129,11 +131,11 @@ async function logErrorToDatabase(
       object_type: context?.objectType || null,
       object_id: context?.objectId || null,
       operation: context?.operation || null,
-      error_message: error?.message || String(error),
+      error_message: err?.message || String(error),
       error_details: {
         function_name: functionName,
         error_code: errorCode,
-        error_stack: error?.stack || null,
+        error_stack: err?.stack || null,
         context: context || {},
       },
       request_payload: context?.requestPayload || null,
@@ -204,10 +206,11 @@ export async function handleError(
   await logErrorToDatabase(supabase, functionName, error, errorCode, context);
 
   // Create error response
+  const err = error as Error | null;
   const errorResponse = createErrorResponse(
     errorCode,
-    error?.message || "An unexpected error occurred",
-    includeStack ? { stack: error?.stack, ...context } : context
+    err?.message || "An unexpected error occurred",
+    includeStack ? { stack: err?.stack, ...context } : context
   );
 
   // Get appropriate status code
@@ -258,6 +261,10 @@ export function validateRequestBody(
   functionName: string
 ): { valid: boolean; missing: string[] } {
   const missing: string[] = [];
+
+  if (!body) {
+    return { valid: false, missing: requiredFields };
+  }
 
   for (const field of requiredFields) {
     if (!(field in body) || body[field] === null || body[field] === undefined) {

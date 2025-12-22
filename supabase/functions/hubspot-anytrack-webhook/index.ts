@@ -230,7 +230,7 @@ serve(async (req) => {
       error as Error,
       FUNCTION_NAME,
       {
-        supabase,
+        supabase: supabase ?? undefined,
         errorCode,
         context: { method: req.method },
       }

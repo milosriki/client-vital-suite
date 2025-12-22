@@ -368,11 +368,12 @@ function extractKnowledge(query: string, response: string) {
 // Helper functions
 function countBy(data: Record<string, unknown>[] | null, key: string): Record<string, number> {
   if (!data) return {};
-  return data.reduce((acc: Record<string, number>, item) => {
+  const result: Record<string, number> = {};
+  for (const item of data) {
     const val = String(item[key] || 'unknown');
-    acc[val] = (acc[val] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+    result[val] = (result[val] || 0) + 1;
+  }
+  return result;
 }
 
 function calculateAvg(data: Record<string, unknown>[] | null, key: string): number | null {

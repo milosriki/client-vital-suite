@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       'agent_memory'
     ];
 
-    const results = {};
+    const results: Record<string, { status: string; count?: number; error?: string }> = {};
     let allHealthy = true;
 
     for (const table of tablesToCheck) {
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         allHealthy = false;
       } else {
         console.log(`✅ Table '${table}': Verified (Count: ${count})`);
-        results[table] = { status: 'ok', count };
+        results[table] = { status: 'ok', count: count ?? 0 };
       }
     }
 
@@ -64,9 +64,9 @@ Deno.serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,

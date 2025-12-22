@@ -70,7 +70,22 @@ serve(async (req) => {
     };
 
     // Prefer unified contacts schema; fallback to legacy leads table
-    let leadSource = await selectContacts();
+    type LeadData = {
+      id: string;
+      email: string;
+      first_name?: string;
+      last_name?: string;
+      name?: string;
+      lead_status?: string;
+      status?: string;
+      ai_suggested_reply?: string;
+      fitness_goal?: string;
+      budget_range?: string;
+      location?: string;
+      metadata?: Record<string, unknown>;
+    };
+    
+    let leadSource: { data: LeadData[] | null; error: unknown; table?: string } = await selectContacts();
     if (!leadSource.table) {
       leadSource = await selectLeads();
     }
@@ -93,7 +108,7 @@ serve(async (req) => {
       const parentRun = new RunTree({
         name: "generate_lead_reply",
         run_type: "chain",
-        inputs: { lead_id: lead.id, lead_name: lead.name || lead.email },
+        inputs: { lead_id: lead.id, lead_name: lead.name || lead.first_name || lead.email },
         project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
       });
       await parentRun.postRun();
@@ -185,7 +200,7 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
           object_type: "lead",
           object_id: lead.id,
           error_message: `Lead reply generation failed: ${error.message}`,
-          error_details: { lead_data: { id: lead.id, name: lead.name || lead.email } }
+          error_details: { lead_data: { id: lead.id, name: lead.name || lead.first_name || lead.email } }
         });
         return false;
       }

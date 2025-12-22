@@ -29,7 +29,6 @@ serve(async (req) => {
         new Error(`Missing required environment variables: ${envValidation.missing.join(", ")}`),
         FUNCTION_NAME,
         {
-          supabase,
           errorCode: ErrorCode.MISSING_API_KEY,
           context: { missingVars: envValidation.missing },
         }
@@ -39,6 +38,17 @@ serve(async (req) => {
     const HUBSPOT_API_KEY = Deno.env.get('HUBSPOT_API_KEY')!;
 
     // Initialize unified HubSpot sync manager
+    if (!supabase) {
+      return handleError(
+        new Error("Failed to create Supabase client"),
+        FUNCTION_NAME,
+        {
+          errorCode: ErrorCode.INTERNAL_ERROR,
+          context: { message: "Supabase client is null" },
+        }
+      );
+    }
+
     const syncManager = new HubSpotSyncManager(supabase, HUBSPOT_API_KEY);
 
     // Parse request body with error handling
@@ -55,11 +65,11 @@ serve(async (req) => {
       );
     }
 
-    const body = parseResult.data;
+    const body = parseResult.data as Record<string, unknown>;
     // Support both old and new parameter names
-    const type = body.type || body.action || 'all';
-    const timeframe = body.timeframe || 'last_week';
-    const setter = body.setter;
+    const type = (body.type || body.action || 'all') as string;
+    const timeframe = (body.timeframe || 'last_week') as string;
+    const setter = body.setter as string | undefined;
     
     const now = new Date();
     let filterDate = new Date();
@@ -252,9 +262,9 @@ serve(async (req) => {
       new Error('Invalid type parameter'),
       FUNCTION_NAME,
       {
-        supabase,
+        supabase: supabase ?? undefined,
         errorCode: ErrorCode.VALIDATION_ERROR,
-        context: { providedType: body.type || body.action },
+        context: { providedType: type },
       }
     );
 
@@ -274,11 +284,10 @@ serve(async (req) => {
       error as Error,
       FUNCTION_NAME,
       {
-        supabase,
+        supabase: supabase ?? undefined,
         errorCode,
         context: {
           method: req.method,
-          requestType: body?.type || body?.action
         },
       }
     );

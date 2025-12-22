@@ -239,7 +239,7 @@ export async function saveMessageToDatabase(
           thread_id: threadId,
           query,
           response,
-          knowledge_extracted: knowledgeExtracted || extractKnowledge(query, response)
+          knowledge_extracted: JSON.parse(JSON.stringify(knowledgeExtracted || extractKnowledge(query, response)))
         }]);
 
       if (error) throw error;

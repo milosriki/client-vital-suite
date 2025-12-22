@@ -52,7 +52,7 @@ serve(async (req) => {
         next_payout: null as any,
       };
 
-      recentPayouts.data.forEach(p => {
+      recentPayouts.data.forEach((p: Stripe.Payout) => {
         if (p.status === 'paid') {
           payoutStats.total_paid += p.amount;
           payoutStats.count_paid++;
@@ -67,11 +67,11 @@ serve(async (req) => {
       });
 
       // Find last completed payout
-      payoutStats.last_payout = recentPayouts.data.find(p => p.status === 'paid');
+      payoutStats.last_payout = recentPayouts.data.find((p: Stripe.Payout) => p.status === 'paid');
 
       // Categorize balance transactions
       const transactionsByType: Record<string, { count: number; amount: number }> = {};
-      pendingTransactions.data.forEach(t => {
+      pendingTransactions.data.forEach((t: Stripe.BalanceTransaction) => {
         if (!transactionsByType[t.type]) {
           transactionsByType[t.type] = { count: 0, amount: 0 };
         }
@@ -84,17 +84,17 @@ serve(async (req) => {
           success: true,
           mode: "READ_ONLY",
           balance: {
-            available: balance.available.map(b => ({
+            available: balance.available.map((b: Stripe.Balance.Available) => ({
               amount: b.amount,
               currency: b.currency,
               formatted: `${(b.amount / 100).toFixed(2)} ${b.currency.toUpperCase()}`,
             })),
-            pending: balance.pending.map(b => ({
+            pending: balance.pending.map((b: Stripe.Balance.Pending) => ({
               amount: b.amount,
               currency: b.currency,
               formatted: `${(b.amount / 100).toFixed(2)} ${b.currency.toUpperCase()}`,
             })),
-            instant_available: balance.instant_available?.map(b => ({
+            instant_available: balance.instant_available?.map((b: Stripe.Balance.InstantAvailable) => ({
               amount: b.amount,
               currency: b.currency,
               formatted: `${(b.amount / 100).toFixed(2)} ${b.currency.toUpperCase()}`,
@@ -122,7 +122,7 @@ serve(async (req) => {
             has_more: recentPayouts.has_more,
           },
           transactions: {
-            recent: pendingTransactions.data.slice(0, 20).map(t => ({
+            recent: pendingTransactions.data.slice(0, 20).map((t: Stripe.BalanceTransaction) => ({
               id: t.id,
               amount: t.amount,
               formatted_amount: `${(t.amount / 100).toFixed(2)} ${t.currency.toUpperCase()}`,
@@ -161,14 +161,14 @@ serve(async (req) => {
       // Calculate statistics
       const stats = {
         total_count: payouts.data.length,
-        total_amount: payouts.data.reduce((sum, p) => sum + p.amount, 0),
+        total_amount: payouts.data.reduce((sum: number, p: Stripe.Payout) => sum + p.amount, 0),
         by_status: {} as Record<string, { count: number; amount: number }>,
         by_method: {} as Record<string, { count: number; amount: number }>,
         failed_count: 0,
         pending_count: 0,
       };
 
-      payouts.data.forEach(p => {
+      payouts.data.forEach((p: Stripe.Payout) => {
         // By status
         if (!stats.by_status[p.status]) {
           stats.by_status[p.status] = { count: 0, amount: 0 };
@@ -190,7 +190,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          payouts: payouts.data.map(p => ({
+          payouts: payouts.data.map((p: Stripe.Payout) => ({
             id: p.id,
             amount: p.amount,
             currency: p.currency,
@@ -227,27 +227,27 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           balance: {
-            available: balance.available.map(b => ({
+            available: balance.available.map((b: Stripe.Balance.Available) => ({
               amount: b.amount,
               currency: b.currency,
               source_types: b.source_types,
             })),
-            pending: balance.pending.map(b => ({
+            pending: balance.pending.map((b: Stripe.Balance.Pending) => ({
               amount: b.amount,
               currency: b.currency,
               source_types: b.source_types,
             })),
-            instant_available: balance.instant_available?.map(b => ({
+            instant_available: balance.instant_available?.map((b: Stripe.Balance.InstantAvailable) => ({
               amount: b.amount,
               currency: b.currency,
               net_available: b.net_available,
             })) || [],
-            connect_reserved: balance.connect_reserved?.map(b => ({
+            connect_reserved: balance.connect_reserved?.map((b: Stripe.Balance.ConnectReserved) => ({
               amount: b.amount,
               currency: b.currency,
             })) || [],
           },
-          recent_transactions: pendingTransactions.data.slice(0, 10).map(t => ({
+          recent_transactions: pendingTransactions.data.slice(0, 10).map((t: Stripe.BalanceTransaction) => ({
             id: t.id,
             amount: t.amount,
             net: t.net,
@@ -275,7 +275,7 @@ serve(async (req) => {
 
       // Calculate daily totals
       const dailyTotals: Record<string, { count: number; amount: number; refunded: number }> = {};
-      charges.data.forEach(c => {
+      charges.data.forEach((c: Stripe.Charge) => {
         const date = new Date(c.created * 1000).toLocaleDateString();
         if (!dailyTotals[date]) {
           dailyTotals[date] = { count: 0, amount: 0, refunded: 0 };
@@ -288,7 +288,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          charges: charges.data.map(c => ({
+          charges: charges.data.map((c: Stripe.Charge) => ({
             id: c.id,
             amount: c.amount,
             formatted_amount: `${(c.amount / 100).toFixed(2)} ${c.currency.toUpperCase()}`,
@@ -324,7 +324,7 @@ serve(async (req) => {
 
       // Calculate MRR (Monthly Recurring Revenue)
       let totalMRR = 0;
-      subscriptions.data.forEach(s => {
+      subscriptions.data.forEach((s: Stripe.Subscription) => {
         if (s.status === 'active' || s.status === 'trialing') {
           const item = s.items.data[0];
           if (item?.price?.recurring) {
@@ -343,7 +343,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          subscriptions: subscriptions.data.map(s => ({
+          subscriptions: subscriptions.data.map((s: Stripe.Subscription) => ({
             id: s.id,
             status: s.status,
             customer: s.customer,
@@ -351,7 +351,7 @@ serve(async (req) => {
             current_period_end: s.current_period_end,
             cancel_at_period_end: s.cancel_at_period_end,
             created: s.created,
-            items: s.items.data.map(i => ({
+            items: s.items.data.map((i: Stripe.SubscriptionItem) => ({
               price_id: i.price?.id,
               product_id: i.price?.product,
               amount: i.price?.unit_amount,
@@ -364,9 +364,9 @@ serve(async (req) => {
           stats: {
             total_mrr: totalMRR,
             formatted_mrr: `${(totalMRR / 100).toFixed(2)}`,
-            active_count: subscriptions.data.filter(s => s.status === 'active').length,
-            trialing_count: subscriptions.data.filter(s => s.status === 'trialing').length,
-            canceled_count: subscriptions.data.filter(s => s.status === 'canceled').length,
+            active_count: subscriptions.data.filter((s: Stripe.Subscription) => s.status === 'active').length,
+            trialing_count: subscriptions.data.filter((s: Stripe.Subscription) => s.status === 'trialing').length,
+            canceled_count: subscriptions.data.filter((s: Stripe.Subscription) => s.status === 'canceled').length,
           },
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
