@@ -176,7 +176,7 @@ export function StripeTreasuryTab() {
       setDescription("");
       refetchTransfers();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(`Failed to create transfer: ${error.message}`);
     },
   });
@@ -219,7 +219,7 @@ export function StripeTreasuryTab() {
                 <SelectValue placeholder="Select Financial Account" />
               </SelectTrigger>
               <SelectContent>
-                {accounts?.map((acc: any) => (
+                {accounts?.map((acc: { id: string; supported_currencies?: string[] }) => (
                   <SelectItem key={acc.id} value={acc.id}>
                     {acc.id} ({acc.supported_currencies?.join(", ")})
                   </SelectItem>
