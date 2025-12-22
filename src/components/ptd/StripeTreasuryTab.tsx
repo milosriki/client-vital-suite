@@ -239,6 +239,23 @@ export function StripeTreasuryTab() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1">
+            <Calendar className="h-3 w-3" />
+            Last 12 Months
+          </Badge>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fetchAllTransfers}
+            disabled={isLoadingMore || !selectedAccount}
+          >
+            {isLoadingMore ? (
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Load All
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetchTransfers()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
