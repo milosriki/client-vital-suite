@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { VoiceChat } from "@/components/ai/VoiceChat";
-import { getApiUrl, API_ENDPOINTS } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, SUPABASE_ANON_KEY } from "@/config/api";
 
 interface Message {
   id: string;
@@ -251,13 +251,13 @@ export const FloatingChat = () => {
           ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map((f) => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map((f) => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
           : userMessage;
 
-      console.log("📤 Sending to agent via /api/agent:", userMessage.slice(0, 50));
+      console.log("📤 Sending to agent via edge function:", userMessage.slice(0, 50));
 
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           message: messageWithFiles,
