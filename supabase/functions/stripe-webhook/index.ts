@@ -242,6 +242,11 @@ serve(async (req) => {
       result = await handleAccountLinkEvent(supabase, event);
       await checkAccountFraud(supabase, event);
     }
+    // Treasury Outbound Transfer Events
+    else if (event.type.includes("treasury.outbound_transfer")) {
+      result = await handleTreasuryOutboundTransferEvent(supabase, event);
+      await checkMoneyManagementFraud(supabase, event);
+    }
     // Default handler
     else {
       console.log(`ℹ️  Event type ${event.type} received but no specific handler`);
@@ -532,6 +537,35 @@ async function handlePayoutEvent(supabase: any, event: StripeEvent) {
     });
 
   return { processed: true, action: "payout_processed" };
+}
+
+async function handleTreasuryOutboundTransferEvent(supabase: any, event: StripeEvent) {
+  const transfer = event.data.object;
+  
+  console.log(`💸 Treasury Outbound Transfer ${event.type}: ${transfer.id}`);
+  
+  await supabase
+    .from("stripe_outbound_transfers")
+    .upsert({
+      stripe_id: transfer.id,
+      financial_account_id: transfer.financial_account,
+      amount: transfer.amount,
+      currency: transfer.currency,
+      status: transfer.status,
+      description: transfer.description,
+      statement_descriptor: transfer.statement_descriptor,
+      destination_payment_method_id: transfer.destination_payment_method,
+      destination_payment_method_details: transfer.destination_payment_method_details,
+      expected_arrival_date: transfer.expected_arrival_date ? new Date(transfer.expected_arrival_date * 1000).toISOString() : null,
+      created_at: new Date(transfer.created * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: transfer.metadata,
+      raw_response: transfer,
+    }, {
+      onConflict: "stripe_id"
+    });
+
+  return { processed: true, action: "treasury_outbound_transfer_processed" };
 }
 
 // ============= FRAUD DETECTION HANDLERS =============
