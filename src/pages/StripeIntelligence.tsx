@@ -803,7 +803,9 @@ export default function StripeIntelligence() {
                                 </p>
                               </div>
                             </div>
-                            <Badge className="text-xs">{payout.status}</Badge>
+                            <Badge variant={payout.status === "paid" ? "default" : "secondary"} className="text-xs">
+                              {payout.status}
+                            </Badge>
                           </div>
                         ))}
                       </div>
