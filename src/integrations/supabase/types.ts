@@ -5028,6 +5028,60 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_outbound_transfers: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string
+          description: string | null
+          destination_payment_method_details: Json | null
+          destination_payment_method_id: string | null
+          expected_arrival_date: string | null
+          financial_account_id: string
+          id: string
+          metadata: Json | null
+          raw_response: Json | null
+          statement_descriptor: string | null
+          status: string
+          stripe_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency: string
+          description?: string | null
+          destination_payment_method_details?: Json | null
+          destination_payment_method_id?: string | null
+          expected_arrival_date?: string | null
+          financial_account_id: string
+          id?: string
+          metadata?: Json | null
+          raw_response?: Json | null
+          statement_descriptor?: string | null
+          status: string
+          stripe_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          destination_payment_method_details?: Json | null
+          destination_payment_method_id?: string | null
+          expected_arrival_date?: string | null
+          financial_account_id?: string
+          id?: string
+          metadata?: Json | null
+          raw_response?: Json | null
+          statement_descriptor?: string | null
+          status?: string
+          stripe_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       stripe_payouts: {
         Row: {
           amount: number
