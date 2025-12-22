@@ -1,141 +1,237 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkAuth, getSupabase, success, error } from './_lib/utils';
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createClient } from "@supabase/supabase-js";
+
+// Lazy-load Supabase client to avoid top-level throws
+function getSupabaseClient() {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!url || !key) {
+        throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables");
+    }
+
+    return createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false },
+    });
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const startTime = Date.now();
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-ptd-key');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  // Auth check
-  const auth = checkAuth(req);
-  if (!auth.authorized) {
-    return error(res, 'UNAUTHORIZED', auth.error!, 401, undefined, startTime);
-  }
-
-  const supabase = getSupabase();
-
-  try {
-    // ========================================
-    // GET: Read memory
-    // ========================================
-    if (req.method === 'GET') {
-      const namespace = (req.query.namespace as string) || 'global';
-      const key = req.query.key as string | undefined;
-
-      let query = supabase
-        .from('org_memory_kv')
-        .select('namespace, key, value, source, updated_at, expires_at')
-        .eq('namespace', namespace)
-        .or('expires_at.is.null,expires_at.gt.now()'); // Not expired
-
-      if (key) {
-        query = query.eq('key', key);
-      }
-
-      const { data, error: dbError } = await query.order('updated_at', { ascending: false });
-
-      if (dbError) throw dbError;
-
-      return success(res, key ? data?.[0] || null : data, startTime);
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
     }
 
-    // ========================================
-    // POST: Write memory
-    // ========================================
-    if (req.method === 'POST') {
-      const { namespace = 'global', key, value, ttlSeconds, source = 'manual' } = req.body || {};
+    // Get Supabase client inside handler (not at module level)
+    const supabase = getSupabaseClient();
 
-      if (!key) return error(res, 'INVALID_INPUT', 'key is required', 400, undefined, startTime);
-      if (value === undefined) return error(res, 'INVALID_INPUT', 'value is required', 400, undefined, startTime);
+    const { session_id, global } = req.query;
+    const sessionId = typeof session_id === "string" ? session_id : null;
+    const isGlobal = global === "true" || global === "1";
 
-      // Get existing value for audit log
-      const { data: existing } = await supabase
-        .from('org_memory_kv')
-        .select('value')
-        .eq('namespace', namespace)
-        .eq('key', key)
-        .single();
-
-      // Upsert the value
-      const { data, error: dbError } = await supabase
-        .from('org_memory_kv')
-        .upsert(
-          {
-            namespace,
-            key,
-            value,
-            ttl_seconds: ttlSeconds,
-            source,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'namespace,key' },
-        )
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      // Log the event
-      await supabase.from('org_memory_events').insert({
-        event_type: 'write',
-        namespace,
-        key,
-        value_before: existing?.value,
-        value_after: value,
-        source,
-      });
-
-      return success(res, data, startTime);
+    // Global memory doesn't require session_id
+    if (!isGlobal && !sessionId && req.method !== "POST") {
+        return res.status(400).json({ error: "session_id query parameter required (or use ?global=true)" });
     }
 
-    // ========================================
-    // DELETE: Remove memory
-    // ========================================
-    if (req.method === 'DELETE') {
-      const namespace = (req.query.namespace as string) || 'global';
-      const key = req.query.key as string | undefined;
+    try {
+        switch (req.method) {
+            case "GET": {
+                // Get memory - global or session-scoped
+                const { key } = req.query;
+                const memoryKey = typeof key === "string" ? key : null;
 
-      if (!key) return error(res, 'INVALID_INPUT', 'key is required', 400, undefined, startTime);
+                if (isGlobal) {
+                    // Global memory from global_memory table
+                    let query = supabase
+                        .from("global_memory")
+                        .select("*")
+                        .is("expires_at", null)
+                        .or("expires_at.gt." + new Date().toISOString());
 
-      // Get existing value for audit log
-      const { data: existing } = await supabase
-        .from('org_memory_kv')
-        .select('value')
-        .eq('namespace', namespace)
-        .eq('key', key)
-        .single();
+                    if (memoryKey) {
+                        query = query.eq("memory_key", memoryKey);
+                    }
 
-      const { error: dbError } = await supabase
-        .from('org_memory_kv')
-        .delete()
-        .eq('namespace', namespace)
-        .eq('key', key);
+                    const { data, error } = await query.order("updated_at", { ascending: false });
+                    if (error) throw error;
 
-      if (dbError) throw dbError;
+                    return res.status(200).json({
+                        ok: true,
+                        global: true,
+                        memory: data || [],
+                    });
+                } else {
+                    // Session-scoped memory
+                    let query = supabase
+                        .from("server_memory")
+                        .select("*")
+                        .eq("session_id", sessionId)
+                        .is("expires_at", null)
+                        .or("expires_at.gt." + new Date().toISOString());
 
-      // Log the event
-      if (existing) {
-        await supabase.from('org_memory_events').insert({
-          event_type: 'delete',
-          namespace,
-          key,
-          value_before: existing.value,
-          value_after: null,
-          source: 'api',
+                    if (memoryKey) {
+                        query = query.eq("memory_key", memoryKey);
+                    }
+
+                    const { data, error } = await query.order("updated_at", { ascending: false });
+                    if (error) throw error;
+
+                    return res.status(200).json({
+                        ok: true,
+                        session_id: sessionId,
+                        memory: data || [],
+                    });
+                }
+            }
+
+            case "POST": {
+                // Store memory - global or session-scoped
+                const { session_id: bodySessionId, key, value, type, expires_in, global: bodyGlobal } = req.body;
+
+                const isGlobalMemory = bodyGlobal === true || bodyGlobal === "true" || isGlobal;
+                const finalSessionId = bodySessionId || sessionId;
+
+                if (!key || value === undefined) {
+                    return res.status(400).json({
+                        error: "key and value are required",
+                    });
+                }
+
+                if (isGlobalMemory) {
+                    // Store in global_memory table (accessible from all devices)
+                    const expiresAt = expires_in
+                        ? new Date(Date.now() + expires_in * 1000).toISOString()
+                        : null;
+
+                    const { data, error } = await supabase
+                        .from("global_memory")
+                        .upsert(
+                            {
+                                memory_key: key,
+                                memory_value: value,
+                                memory_type: type || "shared",
+                                updated_at: new Date().toISOString(),
+                                expires_at: expiresAt,
+                                updated_by: req.headers["user-agent"] || "unknown",
+                            },
+                            { onConflict: "memory_key" }
+                        )
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+
+                    return res.status(200).json({
+                        ok: true,
+                        global: true,
+                        memory: data,
+                    });
+                } else {
+                    // Session-scoped memory
+                    if (!finalSessionId) {
+                        return res.status(400).json({
+                            error: "session_id required for session-scoped memory (or set global: true)",
+                        });
+                    }
+
+                    // Ensure session exists
+                    const { data: session } = await supabase
+                        .from("server_sessions")
+                        .select("session_id")
+                        .eq("session_id", finalSessionId)
+                        .single();
+
+                    if (!session) {
+                        return res.status(404).json({
+                            error: "Session not found. Create session first via /api/session",
+                        });
+                    }
+
+                    const expiresAt = expires_in
+                        ? new Date(Date.now() + expires_in * 1000).toISOString()
+                        : null;
+
+                    const { data, error } = await supabase
+                        .from("server_memory")
+                        .upsert(
+                            {
+                                session_id: finalSessionId,
+                                memory_key: key,
+                                memory_value: value,
+                                memory_type: type || "context",
+                                updated_at: new Date().toISOString(),
+                                expires_at: expiresAt,
+                            },
+                            { onConflict: "session_id,memory_key" }
+                        )
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+
+                    return res.status(200).json({
+                        ok: true,
+                        memory: data,
+                    });
+                }
+            }
+
+            case "DELETE": {
+                // Delete memory - global or session-scoped
+                const { key } = req.query;
+                const memoryKey = typeof key === "string" ? key : null;
+
+                if (isGlobal) {
+                    // Delete from global_memory
+                    let query = supabase.from("global_memory").delete();
+
+                    if (memoryKey) {
+                        query = query.eq("memory_key", memoryKey);
+                    } else {
+                        return res.status(400).json({
+                            error: "key parameter required for global memory deletion",
+                        });
+                    }
+
+                    const { error } = await query;
+                    if (error) throw error;
+
+                    return res.status(200).json({
+                        ok: true,
+                        global: true,
+                        deleted: `global key: ${memoryKey}`,
+                    });
+                } else {
+                    // Delete session-scoped memory
+                    let query = supabase.from("server_memory").delete().eq("session_id", sessionId);
+
+                    if (memoryKey) {
+                        query = query.eq("memory_key", memoryKey);
+                    }
+
+                    const { error } = await query;
+                    if (error) throw error;
+
+                    return res.status(200).json({
+                        ok: true,
+                        deleted: memoryKey ? `key: ${memoryKey}` : "all memory for session",
+                    });
+                }
+            }
+
+            default:
+                return res.status(405).json({ error: "Method not allowed" });
+        }
+    } catch (error: any) {
+        console.error("[memory-api] Error:", error);
+        return res.status(500).json({
+            ok: false,
+            error: error.message || "Internal server error",
         });
-      }
-
-      return success(res, { deleted: !!existing }, startTime);
     }
-
-    return error(res, 'METHOD_NOT_ALLOWED', 'Use GET, POST, or DELETE', 405, undefined, startTime);
-  } catch (err: any) {
-    console.error('[MEMORY ERROR]', err?.message || err);
-    return error(res, 'MEMORY_FAILED', err?.message || 'Unknown error', 500, undefined, startTime);
-  }
 }
+
