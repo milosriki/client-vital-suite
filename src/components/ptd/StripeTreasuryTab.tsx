@@ -205,8 +205,18 @@ export function StripeTreasuryTab() {
     }).format(amount / 100);
   };
 
+  // Calculate stats
+  const stats = {
+    total: allTransfers.length,
+    totalAmount: allTransfers.reduce((sum, t) => sum + t.amount, 0),
+    posted: allTransfers.filter(t => t.status === "posted").length,
+    processing: allTransfers.filter(t => t.status === "processing").length,
+    failed: allTransfers.filter(t => t.status === "failed" || t.status === "returned").length,
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-bold tracking-tight">Treasury Outbound Transfers</h2>
