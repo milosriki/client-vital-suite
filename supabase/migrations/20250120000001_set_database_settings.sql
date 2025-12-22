@@ -3,7 +3,7 @@
 -- ============================================
 -- 
 -- IMPORTANT: This must be run in Supabase Dashboard SQL Editor
--- with superuser permissions (not via MCP or regular migrations)
+-- with superuser permissions (not via regular migrations)
 --
 -- Run this in: Supabase Dashboard > SQL Editor > New Query
 -- ============================================

@@ -18,8 +18,6 @@ function getSupabaseClient() {
 /**
  * Unified HubSpot API Route
  * 
- * Replaces local MCP server dependency - works independently of Cursor IDE.
- * 
  * Actions supported:
  * - create_engagement: Create notes, emails, tasks, meetings, calls
  * - search_contacts: Search HubSpot contacts
