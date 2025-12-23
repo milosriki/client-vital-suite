@@ -251,3 +251,7 @@ verify_jwt = false
 # Comprehensive System Health Check
 [functions.system-health-check]
 verify_jwt = false
+
+# Deep Research Agent (LangGraph-style)
+[functions.deep-research]
+verify_jwt = true
