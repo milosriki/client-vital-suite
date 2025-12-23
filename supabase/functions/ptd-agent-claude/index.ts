@@ -924,8 +924,27 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
   }
 }
 
+// Token budget helper - rough estimate (4 chars per token)
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+// Truncate text to fit token budget
+function truncateToTokens(text: string, maxTokens: number): string {
+  const maxChars = maxTokens * 4;
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars) + '\n... [truncated for token limit]';
+}
+
 // Main agent function with agentic loop + learning + RAG
 async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string, threadId: string = 'default'): Promise<string> {
+  // Token budgets (Claude has 200K limit, reserve 50K for response/tools)
+  const MAX_SYSTEM_TOKENS = 120000;
+  const MAX_MEMORY_TOKENS = 5000;
+  const MAX_RAG_TOKENS = 8000;
+  const MAX_GLOBAL_TOKENS = 3000;
+  const MAX_PATTERNS_TOKENS = 2000;
+
   // ============= PERSISTENT MEMORY + RAG MIDDLEWARE: Before =============
   const [relevantMemory, ragKnowledge, learnedPatterns, globalMemory] = await Promise.all([
     searchMemory(supabase, userMessage, threadId),
@@ -935,42 +954,53 @@ async function runAgent(supabase: any, anthropic: Anthropic, userMessage: string
   ]);
   console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}, Global: ${globalMemory.length > 0 ? 'found' : 'none'}`);
 
+  // Truncate context to fit token budgets
+  const truncatedMemory = truncateToTokens(relevantMemory || '', MAX_MEMORY_TOKENS);
+  const truncatedRAG = truncateToTokens(ragKnowledge || '', MAX_RAG_TOKENS);
+  const truncatedGlobal = truncateToTokens(globalMemory || '', MAX_GLOBAL_TOKENS);
+  const truncatedPatterns = truncateToTokens(learnedPatterns || '', MAX_PATTERNS_TOKENS);
+
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 
-  // Build unified prompt with all components
-  const systemPrompt = buildUnifiedPromptForEdgeFunction({
-    includeLifecycle: true,
-    includeUltimateTruth: true,
-    includeWorkflows: true,
-    includeROI: true,
-    knowledge: ragKnowledge || '',
-    memory: relevantMemory || '',
-  }) + `
+  // Build COMPACT unified prompt - only include essential sections
+  // Skip includeLifecycle, includeUltimateTruth, includeWorkflows for token savings
+  const basePrompt = buildUnifiedPromptForEdgeFunction({
+    includeLifecycle: false,      // Skip - reduces ~3K tokens
+    includeUltimateTruth: false,  // Skip - reduces ~3K tokens  
+    includeWorkflows: false,       // Skip - reduces ~5K tokens
+    includeROI: true,              // Keep ROI for managerial queries
+    knowledge: truncatedRAG,
+    memory: truncatedMemory,
+  });
 
-=== GLOBAL WORKSPACE MEMORY (ORG-WIDE) ===
-${globalMemory || 'No org-wide memory found yet.'}
+  // Build compact system prompt
+  const systemPrompt = `${basePrompt}
 
+=== CONTEXT ===
+${truncatedGlobal ? `GLOBAL MEMORY:\n${truncatedGlobal}\n` : ''}
+${truncatedPatterns ? `PATTERNS:\n${truncatedPatterns}\n` : ''}
 
-=== SYSTEM KNOWLEDGE BASE ===
-${PTD_SYSTEM_KNOWLEDGE}
-
-=== LEARNED PATTERNS ===
-${learnedPatterns || 'No patterns learned yet.'}
+=== PTD QUICK REFERENCE ===
+TABLES: client_health_scores, contacts, deals, call_records, coach_performance, intervention_log, campaign_performance
+HEALTH ZONES: Purple(85-100)=Champion, Green(70-84)=Healthy, Yellow(50-69)=AtRisk, Red(0-49)=Critical
+STAGES: lead→mql→sql→opportunity→customer
 
 === CAPABILITIES ===
-✅ Client data (health scores, calls, deals, activities)
-✅ Lead management (search, score, track)
-✅ Sales pipeline (deals, appointments, closes)
-✅ Stripe intelligence (fraud scan, payments)
-✅ HubSpot (sync, contacts, lifecycle)
-✅ Call analytics (transcripts, patterns)
-✅ Dashboards (health, revenue, coaches)
-✅ AI functions (churn predictor, anomaly detector)
+✅ Client/Lead/Sales/Stripe/HubSpot/Calls/Dashboards/AI functions
 
-=== ADDITIONAL MANDATORY INSTRUCTIONS ===
-1. For fraud scans, run stripe_control with fraud_scan
-2. For at-risk clients, use get_at_risk_clients
-3. Be concise but thorough - data must be REAL-TIME`;
+=== RULES ===
+1. Use tools to get LIVE data - never guess
+2. Be concise but accurate
+3. For fraud: stripe_control(fraud_scan)
+4. For at-risk: client_control or dashboard_control`;
+
+  // Log token estimate
+  const tokenEstimate = estimateTokens(systemPrompt);
+  console.log(`📊 System prompt estimated tokens: ${tokenEstimate} (budget: ${MAX_SYSTEM_TOKENS})`);
+
+  if (tokenEstimate > MAX_SYSTEM_TOKENS) {
+    console.warn(`⚠️ System prompt exceeds budget! Tokens: ${tokenEstimate}`);
+  }
 
   let iterations = 0;
   const maxIterations = 8;
