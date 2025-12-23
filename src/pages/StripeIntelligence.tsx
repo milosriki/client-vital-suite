@@ -160,9 +160,14 @@ export default function StripeIntelligence() {
         customers: stripeData?.customers?.length,
         subscriptions: stripeData?.subscriptions?.length,
         account: stripeData?.account,
+        // ENHANCED: Clear period information for AI
         dateRange: {
+          preset: selectedPreset, // "All time", "Last 7 days", etc.
           from: dateRange.from?.toISOString(),
           to: dateRange.to?.toISOString(),
+          description: dateRange.from && dateRange.to 
+            ? `${format(dateRange.from, "MMM d, yyyy")} to ${format(dateRange.to, "MMM d, yyyy")}`
+            : selectedPreset === "All time" ? "All time (no date filter)" : selectedPreset,
         },
         forensics: forensicData ? {
           anomalies: forensicData.anomalies?.slice(0, 5),
