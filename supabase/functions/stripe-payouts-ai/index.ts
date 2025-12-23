@@ -115,6 +115,110 @@ serve(async (req) => {
       );
     }
 
+    // Action: trace - Full transaction trace with payout discovery
+    if (action === "trace") {
+      const { chargeId } = await req.json().catch(() => ({}));
+      console.log("[STRIPE-PAYOUTS-AI] Full trace for charge:", chargeId);
+      
+      if (!chargeId) {
+        return new Response(
+          JSON.stringify({ error: "chargeId required" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+      
+      try {
+        // Get charge with all expansions
+        const charge = await stripe.charges.retrieve(chargeId, {
+          expand: ['customer', 'balance_transaction', 'payment_intent', 'invoice']
+        });
+        
+        const balanceTxn = charge.balance_transaction as any;
+        let payoutInfo = null;
+        
+        // Find payout if balance transaction exists
+        if (balanceTxn?.available_on) {
+          const availableOn = balanceTxn.available_on;
+          // Search payouts around that date
+          const payouts = await stripe.payouts.list({ 
+            limit: 20,
+            arrival_date: { gte: availableOn - 86400, lte: availableOn + 86400 * 7 }
+          });
+          
+          // Try to find which payout contains this transaction
+          for (const payout of payouts.data) {
+            const txns = await stripe.balanceTransactions.list({
+              payout: payout.id,
+              limit: 100
+            });
+            if (txns.data.find((t: any) => t.id === balanceTxn?.id)) {
+              payoutInfo = {
+                id: payout.id,
+                amount: payout.amount,
+                currency: payout.currency,
+                status: payout.status,
+                arrival_date: new Date(payout.arrival_date * 1000).toISOString().split('T')[0],
+                created: new Date(payout.created * 1000).toISOString(),
+                transactionCount: txns.data.length
+              };
+              break;
+            }
+          }
+        }
+        
+        const card = charge.payment_method_details?.card as any;
+        const customer = charge.customer as any;
+        
+        const trace = {
+          charge: {
+            id: charge.id,
+            amount: charge.amount / 100,
+            currency: charge.currency.toUpperCase(),
+            status: charge.status,
+            created: new Date(charge.created * 1000).toISOString()
+          },
+          customer: customer ? {
+            id: customer.id,
+            name: customer.name,
+            email: customer.email
+          } : null,
+          paymentMethod: {
+            brand: card?.brand?.toUpperCase(),
+            last4: card?.last4,
+            fingerprint: card?.fingerprint,
+            wallet: card?.wallet?.type || null,
+            walletNote: card?.wallet?.type === 'apple_pay' ? 
+              '⚠️ Apple Pay tokenizes cards - physical card number may be different!' : null
+          },
+          balanceTransaction: balanceTxn ? {
+            id: balanceTxn.id,
+            gross: balanceTxn.amount / 100,
+            fee: balanceTxn.fee / 100,
+            net: balanceTxn.net / 100,
+            currency: balanceTxn.currency?.toUpperCase(),
+            availableOn: new Date(balanceTxn.available_on * 1000).toISOString().split('T')[0]
+          } : null,
+          payout: payoutInfo,
+          timeline: [
+            { event: 'Charge Created', date: new Date(charge.created * 1000).toISOString(), details: card?.wallet?.type ? `via ${card.wallet.type}` : 'Direct card' },
+            balanceTxn ? { event: 'Funds Available', date: new Date(balanceTxn.available_on * 1000).toISOString().split('T')[0] } : null,
+            payoutInfo ? { event: 'Included in Payout', date: payoutInfo.arrival_date, details: `Payout ${payoutInfo.id} (${payoutInfo.transactionCount} transactions)` } : null,
+            payoutInfo?.status === 'paid' ? { event: 'Paid to Bank', date: payoutInfo.arrival_date, details: '✅ Complete' } : null
+          ].filter(Boolean)
+        };
+        
+        return new Response(
+          JSON.stringify({ success: true, trace }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e: any) {
+        return new Response(
+          JSON.stringify({ error: e.message }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+    }
+
     // Action: chat - AI chat about payouts
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
