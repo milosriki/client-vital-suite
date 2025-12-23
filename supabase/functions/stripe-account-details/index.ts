@@ -102,7 +102,7 @@ serve(async (req) => {
         success: true,
         type: "connected-accounts-list",
         count: accounts.data.length,
-        accounts: accounts.data.map(acc => ({
+        accounts: accounts.data.map((acc: any) => ({
           id: acc.id,
           email: acc.email,
           business_profile: acc.business_profile,
@@ -127,14 +127,14 @@ serve(async (req) => {
       const [mainAccount, balance, connectedAccounts, payoutSchedule] = await Promise.all([
         stripe.accounts.retrieve({
           expand: ["external_accounts", "settings.payouts"]
-        }).catch(e => ({ error: e.message })),
+        }).catch((e: any) => ({ error: e.message })),
         
-        stripe.balance.retrieve().catch(e => ({ error: e.message })),
+        stripe.balance.retrieve().catch((e: any) => ({ error: e.message })),
         
-        stripe.accounts.list({ limit: 20 }).catch(e => ({ data: [], error: e.message })),
+        stripe.accounts.list({ limit: 20 }).catch((e: any) => ({ data: [], error: e.message })),
         
         // Get recent payouts to understand schedule
-        stripe.payouts.list({ limit: 5 }).catch(e => ({ data: [], error: e.message })),
+        stripe.payouts.list({ limit: 5 }).catch((e: any) => ({ data: [], error: e.message })),
       ]);
 
       // If specific account requested, fetch it too
