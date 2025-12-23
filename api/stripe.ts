@@ -44,6 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       history: 'stripe-history',
       payout_controls: 'stripe-payout-controls',
       treasury: 'stripe-treasury',
+      issuing_tokens: 'stripe-issuing-tokens',
     };
 
     const edgeFunction = functionMap[action];
