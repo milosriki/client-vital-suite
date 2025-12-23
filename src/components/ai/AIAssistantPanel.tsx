@@ -407,6 +407,15 @@ export function AIAssistantPanel() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
+                onClick={() => handleQuickAction("Show me deleted wallets and bank accounts history")}
+              >
+                <TrendingDown className="h-3 w-3 mr-1 text-purple-500" />
+                Deleted Wallets
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7"
                 onClick={() => handleQuickAction("Explain how the health score is calculated")}
               >
                 <Lightbulb className="h-3 w-3 mr-1 text-blue-500" />
