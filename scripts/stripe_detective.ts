@@ -68,6 +68,81 @@ async function audit() {
             console.log("   ℹ️ Issuing API not enabled or accessible (Good sign if you don't use it).");
         }
 
+        // 3b. ISSUING TOKENS (Tokenized card theft - Apple/Google Pay wallets)
+        console.log("\n🔐 CHECKING ISSUING TOKENS (Wallet Provisioning)...");
+        try {
+            // List ALL tokens including deleted/canceled ones
+            const allTokens = await stripe.issuing.tokens.list({ 
+                limit: 100,
+            });
+            
+            if (allTokens.data.length === 0) {
+                console.log("   ✅ No issuing tokens found.");
+            } else {
+                console.log(`   ⚠️ FOUND ${allTokens.data.length} TOKENS:`);
+                
+                // Group by status
+                const byStatus: Record<string, any[]> = {};
+                allTokens.data.forEach((token: any) => {
+                    const status = token.status || 'unknown';
+                    if (!byStatus[status]) byStatus[status] = [];
+                    byStatus[status].push(token);
+                });
+
+                // Report by status
+                Object.entries(byStatus).forEach(([status, tokens]) => {
+                    const emoji = status === 'active' ? '🚨' : status === 'suspended' ? '⚠️' : '📝';
+                    console.log(`\n   ${emoji} ${status.toUpperCase()} TOKENS (${tokens.length}):`);
+                    
+                    tokens.forEach((token: any) => {
+                        const created = new Date(token.created * 1000).toISOString().split('T')[0];
+                        const cardLast4 = token.card ? `****${typeof token.card === 'string' ? token.card.slice(-4) : '????'}` : 'N/A';
+                        
+                        console.log(`      - Token: ${token.id}`);
+                        console.log(`        Card: ${cardLast4}`);
+                        console.log(`        Created: ${created}`);
+                        console.log(`        Status: ${token.status}`);
+                        
+                        // Network data (wallet type)
+                        if (token.network_data) {
+                            const walletType = token.network_data.wallet_provider?.type || 
+                                              token.network_data.device?.type || 
+                                              'Unknown wallet';
+                            console.log(`        Wallet: ${walletType}`);
+                        }
+                        
+                        // Device info
+                        if (token.wallet_provider) {
+                            console.log(`        Provider: ${token.wallet_provider}`);
+                        }
+                        
+                        // Last used
+                        if (token.last_four) {
+                            console.log(`        Token Last4: ${token.last_four}`);
+                        }
+                    });
+                });
+
+                // Check for suspicious patterns
+                const activeTokens = byStatus['active'] || [];
+                const suspendedTokens = byStatus['suspended'] || [];
+                const deletedTokens = byStatus['deleted'] || [];
+                
+                if (activeTokens.length > 5) {
+                    console.log(`\n   🚨 ALERT: ${activeTokens.length} active tokens - review for unauthorized wallet provisioning!`);
+                }
+                if (deletedTokens.length > 0) {
+                    console.log(`\n   📊 ${deletedTokens.length} deleted/canceled tokens found (evidence of past activity)`);
+                }
+            }
+        } catch (e: any) {
+            if (e.code === 'resource_missing' || e.type === 'invalid_request_error') {
+                console.log("   ℹ️ Issuing Tokens API not enabled (Normal if not using Stripe Issuing).");
+            } else {
+                console.log(`   ⚠️ Could not list tokens: ${e.message}`);
+            }
+        }
+
         // 4. RECENT PAYOUTS (Follow the money)
         console.log("\n💸 CHECKING PAYOUT HISTORY (Last 100)...");
         const payouts = await stripe.payouts.list({ limit: 100, expand: ['data.destination'] });
