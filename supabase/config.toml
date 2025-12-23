@@ -1,5 +1,8 @@
 project_id = "ztjndilxurtsfqdsvfds"
 
+[functions.stripe-deep-agent]
+verify_jwt = false
+
 [functions.ptd-agent-gemini]
 verify_jwt = true
 
