@@ -29,8 +29,7 @@ export default function AIKnowledge() {
       let query = supabase
         .from("knowledge_base")
         .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
 
       if (categoryFilter !== "all") {
         query = query.eq("category", categoryFilter);

@@ -116,8 +116,7 @@ export async function learnRecentData() {
       retryWithBackoff(async () => {
         const { data, error } = await supabase.from('client_health_scores')
           .select('health_zone, health_score, assigned_coach, package_type')
-          .gte('calculated_at', sevenDaysAgo)
-          .limit(100);
+          .gte('calculated_at', sevenDaysAgo);
 
         if (error) throw new Error(`Health data error: ${error.message}`);
         return data;
@@ -126,8 +125,7 @@ export async function learnRecentData() {
       retryWithBackoff(async () => {
         const { data, error } = await supabase.from('events')
           .select('event_name, source, status')
-          .gte('event_time', sevenDaysAgo)
-          .limit(100);
+          .gte('event_time', sevenDaysAgo);
 
         if (error) throw new Error(`Events data error: ${error.message}`);
         return data;
@@ -136,8 +134,7 @@ export async function learnRecentData() {
       retryWithBackoff(async () => {
         const { data, error } = await supabase.from('call_records')
           .select('call_status, call_outcome, lead_quality')
-          .gte('created_at', sevenDaysAgo)
-          .limit(100);
+          .gte('created_at', sevenDaysAgo);
 
         if (error) throw new Error(`Call data error: ${error.message}`);
         return data;
@@ -146,8 +143,7 @@ export async function learnRecentData() {
       retryWithBackoff(async () => {
         const { data, error } = await supabase.from('deals')
           .select('stage, status, deal_value, pipeline')
-          .gte('created_at', sevenDaysAgo)
-          .limit(100);
+          .gte('created_at', sevenDaysAgo);
 
         if (error) throw new Error(`Deals data error: ${error.message}`);
         return data;
