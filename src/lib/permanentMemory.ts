@@ -22,9 +22,7 @@
  *   const history = await memory.getConversation();
  */
 
-const API_BASE = typeof window !== 'undefined' 
-  ? (import.meta.env?.VITE_API_BASE || window.location.origin)
-  : '';
+const API_BASE = "https://client-vital-suite.vercel.app";
 
 // Default user for PTD internal use
 const DEFAULT_USER = 'ptd_team';

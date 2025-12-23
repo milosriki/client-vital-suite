@@ -27,7 +27,7 @@ export interface ConnectionStatus {
  * Verify Supabase connection
  */
 export async function verifySupabaseConnection(): Promise<ConnectionStatus['supabase']> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "unknown";
+  const supabaseUrl = "https://ztjndilxurtsfqdsvfds.supabase.co";
   try {
     // Test connection by querying a simple table
     const { error } = await supabase
