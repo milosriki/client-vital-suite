@@ -25,8 +25,7 @@ export default function HealthIntelligenceTab({ mode }: HealthIntelligenceTabPro
       let query = supabase
         .from("client_health_scores")
         .select("*")
-        .order("health_score", { ascending: true })
-        .limit(100);
+        .order("health_score", { ascending: true });
 
       if (zoneFilter !== "all") {
         query = query.eq("health_zone", zoneFilter);

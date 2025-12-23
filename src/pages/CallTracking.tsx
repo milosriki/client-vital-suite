@@ -32,8 +32,7 @@ export default function CallTracking() {
       const { data, error } = await supabase
         .from("call_records")
         .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
