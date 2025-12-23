@@ -46,9 +46,29 @@ serve(async (req) => {
       apiVersion: "2024-12-18.acacia",
       httpClient: Stripe.createFetchHttpClient(),
     });
-    const { action, days = 30, includeSetupIntents = true } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+    const { action = "health-check", days = 30, includeSetupIntents = true } = body;
 
     console.log("[STRIPE-FORENSICS] Action:", action);
+
+    // Quick health check for system monitoring
+    if (action === "health-check") {
+      const account = await stripe.accounts.retrieve().catch(() => null);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          connected: !!account,
+          accountId: account?.id,
+          timestamp: new Date().toISOString()
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Calculate timestamps
     const now = Math.floor(Date.now() / 1000);
@@ -1237,6 +1257,241 @@ serve(async (req) => {
             disputes: events.data.filter((e: any) => e.type.includes('dispute'))
           },
           total: events.data.length
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ==================== DEEP LLM ANALYSIS ====================
+    if (action === "deep-llm-analysis") {
+      console.log("[STRIPE-FORENSICS] Running Deep LLM Analysis...");
+
+      // Fetch comprehensive data
+      const [
+        balance,
+        payouts,
+        charges,
+        refunds,
+        transfers,
+        account,
+        disputes,
+        events,
+        customers
+      ] = await Promise.all([
+        stripe.balance.retrieve().catch(() => null),
+        fetchAllStripe(stripe.payouts, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.charges, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.refunds, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.transfers, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
+        stripe.accounts.retrieve().catch(() => null),
+        fetchAllStripe(stripe.disputes, {}).catch(() => ({ data: [] })),
+        stripe.events.list({ limit: 100, created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] })),
+        stripe.customers.list({ limit: 50 }).catch(() => ({ data: [] }))
+      ]);
+
+      // Check Issuing
+      let issuing = { enabled: false, cards: 0, transactions: 0, totalSpend: 0 };
+      try {
+        const [cards, txns] = await Promise.all([
+          stripe.issuing.cards.list({ limit: 100 }),
+          stripe.issuing.transactions.list({ limit: 100, created: { gte: daysAgo } })
+        ]);
+        issuing = {
+          enabled: true,
+          cards: cards.data.length,
+          transactions: txns.data.length,
+          totalSpend: txns.data.reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0) / 100
+        };
+      } catch {}
+
+      // Check Treasury
+      let treasury = { enabled: false, accounts: 0, totalBalance: 0 };
+      try {
+        const fas = await stripe.treasury.financialAccounts.list({ limit: 100 });
+        if (fas.data.length > 0) {
+          treasury = {
+            enabled: true,
+            accounts: fas.data.length,
+            totalBalance: fas.data.reduce((sum: number, fa: any) => 
+              sum + (fa.balance?.cash?.usd || 0) + (fa.balance?.inbound_pending?.usd || 0), 0) / 100
+          };
+        }
+      } catch {}
+
+      // Calculate key metrics
+      const totalPayments = (charges.data || [])
+        .filter((c: any) => c.status === 'succeeded')
+        .reduce((sum: number, c: any) => sum + c.amount, 0) / 100;
+      const totalPayouts = (payouts.data || [])
+        .reduce((sum: number, p: any) => sum + p.amount, 0) / 100;
+      const totalRefunds = (refunds.data || [])
+        .reduce((sum: number, r: any) => sum + r.amount, 0) / 100;
+      const refundRate = totalPayments > 0 ? (totalRefunds / totalPayments * 100).toFixed(2) : 0;
+      
+      // Instant payout analysis
+      const instantPayouts = (payouts.data || []).filter((p: any) => p.method === 'instant');
+      const instantPayoutTotal = instantPayouts.reduce((sum: number, p: any) => sum + p.amount, 0) / 100;
+      
+      // Dispute analysis
+      const openDisputes = (disputes.data || []).filter((d: any) => d.status === 'needs_response' || d.status === 'warning_needs_response');
+      const totalDisputeAmount = (disputes.data || []).reduce((sum: number, d: any) => sum + (d.amount || 0), 0) / 100;
+
+      // High-risk indicators
+      const highRiskCharges = (charges.data || []).filter((c: any) => 
+        c.outcome?.risk_level === 'highest' || c.outcome?.risk_level === 'elevated'
+      );
+      
+      // Prepare context for LLM
+      const analysisContext = {
+        period: `Last ${days} days`,
+        account: {
+          id: account?.id,
+          country: account?.country,
+          payoutsEnabled: account?.payouts_enabled,
+          chargesEnabled: account?.charges_enabled,
+          requirements: account?.requirements?.currently_due?.length || 0,
+          capabilities: account?.capabilities
+        },
+        balance: {
+          available: balance?.available?.map((b: any) => ({ currency: b.currency, amount: b.amount / 100 })),
+          pending: balance?.pending?.map((b: any) => ({ currency: b.currency, amount: b.amount / 100 }))
+        },
+        metrics: {
+          totalPayments,
+          totalPayouts,
+          totalRefunds,
+          refundRate: `${refundRate}%`,
+          instantPayouts: { count: instantPayouts.length, total: instantPayoutTotal },
+          disputes: { open: openDisputes.length, total: disputes.data?.length || 0, amount: totalDisputeAmount },
+          highRiskCharges: highRiskCharges.length,
+          customers: customers.data?.length || 0
+        },
+        issuing,
+        treasury,
+        recentEvents: {
+          total: events.data?.length || 0,
+          byType: (events.data || []).reduce((acc: any, e: any) => {
+            const type = e.type.split('.')[0];
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+          }, {})
+        },
+        transfers: {
+          count: transfers.data?.length || 0,
+          total: (transfers.data || []).reduce((sum: number, t: any) => sum + t.amount, 0) / 100
+        }
+      };
+
+      // Call Lovable AI for deep analysis
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      
+      if (!LOVABLE_API_KEY) {
+        console.log("[STRIPE-FORENSICS] No LOVABLE_API_KEY, returning data without LLM analysis");
+        return new Response(
+          JSON.stringify({
+            analysisContext,
+            llmAnalysis: null,
+            message: "LLM analysis unavailable - LOVABLE_API_KEY not configured"
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("[STRIPE-FORENSICS] Calling Lovable AI for deep analysis...");
+      
+      const llmResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert Stripe forensic analyst and fraud investigator. Analyze the provided Stripe account data and provide a comprehensive security and financial health assessment.
+
+Your analysis MUST include:
+1. EXECUTIVE SUMMARY: One paragraph overview of account health
+2. CRITICAL FINDINGS: Any immediate security concerns (fraud patterns, unauthorized access, suspicious activity)
+3. FINANCIAL FLOW ANALYSIS: Money movement patterns, payout velocity, refund patterns
+4. RISK INDICATORS: High-risk transactions, dispute patterns, unusual behavior
+5. ISSUING/TREASURY ANALYSIS: If enabled, analyze card spend and treasury flows
+6. RECOMMENDATIONS: Prioritized actions to improve security and efficiency
+7. RISK SCORE: 0-100 (100 = perfect health)
+
+Be specific and actionable. Flag anything that could indicate:
+- Internal fraud (employee theft, unauthorized payouts)
+- External fraud (card testing, chargebacks)
+- Money laundering (structuring, rapid movement)
+- Account takeover (unusual patterns)
+
+Format your response as JSON with this structure:
+{
+  "executiveSummary": "string",
+  "criticalFindings": ["array of findings"],
+  "financialAnalysis": {
+    "cashFlowHealth": "string",
+    "payoutPattern": "string",
+    "refundAnalysis": "string"
+  },
+  "riskIndicators": [
+    { "type": "string", "severity": "critical|high|medium|low", "description": "string", "recommendation": "string" }
+  ],
+  "issuingTreasuryAnalysis": "string or null",
+  "recommendations": [
+    { "priority": 1-5, "action": "string", "impact": "string" }
+  ],
+  "riskScore": number,
+  "overallAssessment": "healthy|warning|critical"
+}`
+            },
+            {
+              role: "user",
+              content: `Analyze this Stripe account data:\n\n${JSON.stringify(analysisContext, null, 2)}`
+            }
+          ],
+          max_tokens: 4000
+        })
+      });
+
+      if (!llmResponse.ok) {
+        const errorText = await llmResponse.text();
+        console.error("[STRIPE-FORENSICS] LLM API error:", errorText);
+        return new Response(
+          JSON.stringify({
+            analysisContext,
+            llmAnalysis: null,
+            error: `LLM analysis failed: ${llmResponse.status}`
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const llmData = await llmResponse.json();
+      let llmAnalysis = null;
+      
+      try {
+        const content = llmData.choices?.[0]?.message?.content || "";
+        // Try to parse JSON from the response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          llmAnalysis = JSON.parse(jsonMatch[0]);
+        } else {
+          llmAnalysis = { rawAnalysis: content };
+        }
+      } catch (e) {
+        llmAnalysis = { rawAnalysis: llmData.choices?.[0]?.message?.content || "Analysis unavailable" };
+      }
+
+      console.log("[STRIPE-FORENSICS] Deep LLM analysis complete");
+
+      return new Response(
+        JSON.stringify({
+          analysisContext,
+          llmAnalysis,
+          timestamp: new Date().toISOString()
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
