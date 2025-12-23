@@ -10,10 +10,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
-// Use current origin by default to avoid localhost fallbacks in production.
-const META_API_BASE =
-  import.meta.env.VITE_META_CAPI_URL ||
-  (typeof window !== "undefined" ? window.location.origin : "");
+const META_API_BASE = "https://client-vital-suite.vercel.app/api";
 
 export default function MetaDashboard() {
   const [isSyncing, setIsSyncing] = useState(false);

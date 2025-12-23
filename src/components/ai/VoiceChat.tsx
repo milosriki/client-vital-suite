@@ -141,7 +141,7 @@ export function VoiceChat({
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-ptd-key": import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY || ""
+          "x-ptd-key": "ptd-secure-internal-2025-key-v2"
         },
         body: JSON.stringify({
           message: text,

@@ -5,7 +5,7 @@
  * This ensures all data persistence happens server-side only.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin;
+const API_BASE = "https://client-vital-suite.vercel.app";
 
 // Session management
 export interface Session {
