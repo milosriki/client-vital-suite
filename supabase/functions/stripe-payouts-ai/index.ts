@@ -73,6 +73,59 @@ serve(async (req) => {
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
 
+      // Auto-fetch Stripe data if no context provided
+      let stripeContext = context;
+      if (!stripeContext || Object.keys(stripeContext).length === 0) {
+        console.log("[STRIPE-PAYOUTS-AI] No context provided, auto-fetching Stripe data...");
+        const [balance, payouts, transfers, balanceTransactions, treasuryTransfers, charges, customers] = await Promise.all([
+          stripe.balance.retrieve().catch((e: Error) => {
+            console.error("Balance error:", e);
+            return { available: [], pending: [] };
+          }),
+          stripe.payouts.list({ limit: 20 }).catch((e: Error) => {
+            console.error("Payouts error:", e);
+            return { data: [] };
+          }),
+          stripe.transfers.list({ limit: 20 }).catch((e: Error) => {
+            console.error("Transfers error:", e);
+            return { data: [] };
+          }),
+          stripe.balanceTransactions.list({ limit: 100 }).catch((e: Error) => {
+            console.error("Balance transactions error:", e);
+            return { data: [] };
+          }),
+          stripe.treasury.outboundTransfers.list({ limit: 50 }).catch((e: Error) => {
+            console.error("Treasury transfers error:", e);
+            return { data: [] };
+          }),
+          // Add charges for detailed transaction data
+          stripe.charges.list({ limit: 100, expand: ['data.customer'] }).catch((e: Error) => {
+            console.error("Charges error:", e);
+            return { data: [] };
+          }),
+          // Add customers for customer lookup
+          stripe.customers.list({ limit: 100 }).catch((e: Error) => {
+            console.error("Customers error:", e);
+            return { data: [] };
+          }),
+        ]);
+        stripeContext = {
+          balance,
+          payouts: payouts.data || [],
+          transfers: transfers.data || [],
+          balanceTransactions: balanceTransactions.data || [],
+          treasuryTransfers: treasuryTransfers.data || [],
+          charges: charges.data || [],
+          customers: customers.data || [],
+        };
+        console.log("[STRIPE-PAYOUTS-AI] Auto-fetched data:", {
+          payoutsCount: stripeContext.payouts.length,
+          transactionsCount: stripeContext.balanceTransactions.length,
+          chargesCount: stripeContext.charges.length,
+          customersCount: stripeContext.customers.length,
+        });
+      }
+
       // Use direct Gemini API (LOVABLE_API_KEY is optional, only for fallback)
       const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -124,6 +177,8 @@ AVAILABLE DATA IN CONTEXT:
 - Treasury Outbound Transfers: Money sent from Stripe Treasury to external accounts
 - Balance Transactions: All money movements - this contains ACTUAL fees in the "fee" field
 - Metrics: totalRevenue, totalRefunded, netRevenue, totalPayouts, successfulPaymentsCount, etc.
+- Charges: Individual payment transactions with charge IDs (ch_xxx), amounts, customer info, card details
+- Customers: Customer records with IDs (cus_xxx), names, emails, and metadata
 
 HOW TO REPORT FEES CORRECTLY:
 - Look at balance_transactions in the context
@@ -133,7 +188,7 @@ HOW TO REPORT FEES CORRECTLY:
 - Sum the "fee" fields to get total fees - DO NOT calculate or estimate
 
 Current Stripe Data Context:
-${JSON.stringify(context, null, 2)}
+${JSON.stringify(stripeContext, null, 2)}
 
 Your job is to:
 1. Answer questions about payouts, transfers, and balance using ONLY the provided data
