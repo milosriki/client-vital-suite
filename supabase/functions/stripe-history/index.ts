@@ -115,6 +115,36 @@ serve(async (req) => {
         payload: e.raw_event?.data?.object || e.data || {},
       }));
 
+    // Track deleted external accounts (bank accounts, cards, wallets)
+    const deletedWallets = rows
+      .filter((e) => 
+        e.event_type === "account.external_account.deleted" ||
+        e.event_type === "external_account.deleted" ||
+        e.event_type.includes("bank_account.deleted") ||
+        e.event_type.includes("card.deleted")
+      )
+      .map((e) => {
+        const obj = e.raw_event?.data?.object || e.data || {};
+        const prevAttrs = e.raw_event?.data?.previous_attributes || {};
+        return {
+          event_id: e.event_id,
+          event_type: e.event_type,
+          created_at: e.created_at,
+          request_id: e.request_id,
+          account_id: obj.account || obj.id,
+          object_type: obj.object, // "bank_account", "card", etc.
+          bank_name: obj.bank_name,
+          last4: obj.last4,
+          country: obj.country,
+          currency: obj.currency,
+          routing_number: obj.routing_number,
+          fingerprint: obj.fingerprint,
+          status: obj.status,
+          default_for_currency: prevAttrs.default_for_currency || obj.default_for_currency,
+          metadata: obj.metadata,
+        };
+      });
+
     const radarFindings = rows
       .filter((e) => e.event_type.startsWith("charge.") || e.event_type.startsWith("payment_intent."))
       .map((e) => {
@@ -214,6 +244,7 @@ serve(async (req) => {
           window_days: days,
           today_sales: todaySales,
           today_renewals: todayRenewals,
+          deleted_wallets_count: deletedWallets.length,
         },
         capabilityChanges,
         payouts,
@@ -221,6 +252,7 @@ serve(async (req) => {
         treasuryEvents,
         issuingEvents,
         radarFindings,
+        deletedWallets,
         dailySales,
         renewals,
         salesByDate,
