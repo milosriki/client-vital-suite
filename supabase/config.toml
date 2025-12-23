@@ -79,6 +79,9 @@ verify_jwt = true
 [functions.enrich-with-stripe]
 verify_jwt = true
 
+[functions.stripe-issuing-tokens]
+verify_jwt = true
+
 # Proactive AI Insights
 [functions.proactive-insights-generator]
 verify_jwt = true
