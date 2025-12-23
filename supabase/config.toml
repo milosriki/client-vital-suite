@@ -71,7 +71,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.stripe-forensics]
-verify_jwt = true
+verify_jwt = false
 
 [functions.stripe-payouts-ai]
 verify_jwt = true
@@ -80,7 +80,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.stripe-issuing-tokens]
-verify_jwt = true
+verify_jwt = false
 
 # Proactive AI Insights
 [functions.proactive-insights-generator]
