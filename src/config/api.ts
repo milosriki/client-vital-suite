@@ -35,7 +35,7 @@ function isVercelEnvironment(): boolean {
  * Map Vercel API routes to Supabase edge functions
  */
 const ROUTE_TO_EDGE_FUNCTION: Record<string, string> = {
-    "/api/agent": "ptd-agent-claude",
+    "/api/agent": "ptd-agent-gemini",
     "/api/system-check": "system-check",
     "/api/events": "meta-capi",
     "/api/events/batch": "meta-capi",
