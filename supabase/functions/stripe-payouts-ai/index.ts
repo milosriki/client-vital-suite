@@ -69,6 +69,52 @@ serve(async (req) => {
       );
     }
 
+    // Action: lookup - Lookup specific charge, customer, or payout by ID
+    if (action === "lookup") {
+      const { chargeId, customerId, payoutId, invoiceId } = await req.json().catch(() => ({}));
+      console.log("[STRIPE-PAYOUTS-AI] Looking up:", { chargeId, customerId, payoutId, invoiceId });
+      
+      const results: Record<string, unknown> = {};
+      
+      if (chargeId) {
+        try {
+          results.charge = await stripe.charges.retrieve(chargeId, { expand: ['customer', 'invoice', 'balance_transaction'] });
+        } catch (e) {
+          results.chargeError = `Charge not found: ${chargeId}`;
+        }
+      }
+      
+      if (customerId) {
+        try {
+          results.customer = await stripe.customers.retrieve(customerId);
+          results.customerCharges = (await stripe.charges.list({ customer: customerId, limit: 20 })).data;
+        } catch (e) {
+          results.customerError = `Customer not found: ${customerId}`;
+        }
+      }
+      
+      if (payoutId) {
+        try {
+          results.payout = await stripe.payouts.retrieve(payoutId);
+        } catch (e) {
+          results.payoutError = `Payout not found: ${payoutId}`;
+        }
+      }
+      
+      if (invoiceId) {
+        try {
+          results.invoice = await stripe.invoices.retrieve(invoiceId);
+        } catch (e) {
+          results.invoiceError = `Invoice not found: ${invoiceId}`;
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ success: true, ...results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Action: chat - AI chat about payouts
     if (action === "chat") {
       console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
