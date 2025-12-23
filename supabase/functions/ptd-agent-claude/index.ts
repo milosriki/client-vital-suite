@@ -481,14 +481,14 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "stripe_control",
-    description: "Stripe intelligence - fraud scan, payment history, transaction analysis",
+    description: "Stripe intelligence - fraud scan, payment history, transaction analysis, deleted wallets/bank accounts history",
     input_schema: {
       type: "object" as const,
       properties: {
         action: {
           type: "string",
-          enum: ["fraud_scan", "get_summary", "get_events", "analyze"],
-          description: "Action to perform"
+          enum: ["fraud_scan", "get_summary", "get_events", "analyze", "get_deleted_wallets"],
+          description: "Action to perform. Use get_deleted_wallets for history of deleted bank accounts, cards, and wallets."
         },
         days: { type: "number", description: "Days back to analyze (default 90)" },
       },
@@ -751,6 +751,21 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
         if (action === "get_events") {
           const { data } = await supabase.from('events').select('*').order('event_time', { ascending: false }).limit(50);
           return JSON.stringify(data || []);
+        }
+
+        if (action === "get_deleted_wallets") {
+          try {
+            const { data } = await supabase.functions.invoke('stripe-history', {
+              body: { days }
+            });
+            const deletedWallets = data?.deletedWallets || [];
+            if (deletedWallets.length === 0) {
+              return `No deleted wallets/bank accounts found in the last ${days} days.`;
+            }
+            return `🗑️ DELETED WALLETS/BANK ACCOUNTS (${deletedWallets.length} found):\n${JSON.stringify(deletedWallets, null, 2)}`;
+          } catch (e) {
+            return `Error fetching deleted wallets: ${e}`;
+          }
         }
 
         return "Unknown action";
