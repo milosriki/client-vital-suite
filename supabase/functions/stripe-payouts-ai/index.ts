@@ -83,7 +83,21 @@ serve(async (req) => {
       }
       console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway (fallback)'}`);
 
+      // Check LangSmith configuration status
+      const langsmithKey = Deno.env.get("LANGSMITH_API_KEY");
+      const langsmithConfigured = !!langsmithKey;
+
       const systemPrompt = `You are a Stripe financial assistant specialized in payouts, transfers, and balance management. 
+
+=== SYSTEM INTEGRATION STATUS ===
+When users ask about "LangSmith", "LangChain", "tracing", or "AI connection status":
+- LangSmith/LangChain Tracing: ${langsmithConfigured ? "✅ CONFIGURED AND ACTIVE" : "❌ NOT CONFIGURED"}
+- This AI is powered by: ${GEMINI_API_KEY ? "Google Gemini API (Direct)" : "Lovable AI Gateway"}
+- AI Model: gemini-2.0-flash / gemini-2.5-flash
+
+If asked about LangSmith/LangChain: ${langsmithConfigured 
+  ? "Tell the user: 'Yes! LangSmith is configured and active. All AI conversations are being traced for monitoring and debugging.'"
+  : "Tell the user: 'LangSmith is NOT configured. The LANGSMITH_API_KEY secret needs to be added to enable tracing.'"}
 
 === CRITICAL ANTI-HALLUCINATION RULES ===
 YOU MUST FOLLOW THESE RULES WITHOUT EXCEPTION:
