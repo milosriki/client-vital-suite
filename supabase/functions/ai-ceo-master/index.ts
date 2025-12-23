@@ -3,8 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RunTree } from "https://esm.sh/langsmith";
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const GEMINI_API_KEY = Deno.env.get('GOOGLE_API_KEY');
+const GEMINI_API_KEY = Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GEMINI_API_KEY');
 
 // ============================================
 // PERSONA DEFINITIONS (The Brains)
@@ -116,11 +115,8 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
         await parentRun.postRun();
 
         try {
-            if (isCodeRequest) {
-                response = await generateWithClaude(command, businessContext, persona, parentRun);
-            } else {
-                response = await generateWithGemini(command, businessContext, persona, parentRun);
-            }
+            // Always use Gemini - no Claude dependency
+            response = await generateWithGemini(command, businessContext, persona, parentRun, isCodeRequest);
             await parentRun.end({ outputs: { response } });
             await parentRun.patchRun();
         } catch (error: any) {
@@ -168,85 +164,37 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
     }
 });
 
-async function generateWithClaude(command: string, context: string, persona: any, parentRun: any) {
+async function generateWithGemini(command: string, context: string, persona: any, parentRun: any, isCodeRequest: boolean = false) {
+    const actionType = isCodeRequest ? 'code_deploy' : 'analysis';
+    const payloadType = isCodeRequest ? '{ "files": [] }' : '{ "findings": [] }';
+    
     const systemPrompt = `${persona.systemPrompt}
     
 ${context}
 
-You are generating a JSON action plan.
+You are generating a JSON ${isCodeRequest ? 'action plan' : 'analysis/action'}.
 RESPOND WITH VALID JSON ONLY:
 {
-  "action_type": "code_deploy",
-  "title": "Brief title",
+  "action_type": "${actionType}",
+  "title": "Title",
   "description": "Description",
-  "reasoning": "Why this solves it",
+  "reasoning": "${isCodeRequest ? 'Why this solves it' : 'Analysis'}",
   "expected_impact": "Impact",
   "risk_level": "low|medium|high",
   "confidence": 0.9,
-  "payload": { "files": [] }
-}`;
-
-    const childRun = await parentRun.createChild({
-        name: "anthropic_call",
-        run_type: "llm",
-        inputs: { command, model: "claude-3-5-sonnet-20241022" },
-    });
-    await childRun.postRun();
-
-    try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-            body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
-                max_tokens: 4000,
-                system: systemPrompt,
-                messages: [{ role: 'user', content: command }]
-            })
-        });
-        const result = await response.json();
-        const text = result.content[0].text;
-        
-        await childRun.end({ outputs: { response: text } });
-        await childRun.patchRun();
-
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        return JSON.parse(jsonMatch ? jsonMatch[0] : text);
-    } catch (error: any) {
-        await childRun.end({ error: error.message });
-        await childRun.patchRun();
-        throw error;
-    }
-}
-
-async function generateWithGemini(command: string, context: string, persona: any, parentRun: any) {
-    const systemPrompt = `${persona.systemPrompt}
-    
-${context}
-
-You are generating a JSON analysis/action.
-RESPOND WITH VALID JSON ONLY:
-{
-  "action_type": "analysis",
-  "title": "Title",
-  "description": "Description",
-  "reasoning": "Analysis",
-  "expected_impact": "Impact",
-  "risk_level": "low",
-  "confidence": 0.9,
-  "payload": { "findings": [] }
+  "payload": ${payloadType}
 }`;
 
     const childRun = await parentRun.createChild({
         name: "gemini_call",
         run_type: "llm",
-        inputs: { command, model: "gemini-1.5-flash" },
+        inputs: { command, model: "gemini-2.0-flash" },
     });
     await childRun.postRun();
 
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
