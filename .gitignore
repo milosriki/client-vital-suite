@@ -37,6 +37,11 @@ dist-ssr
 .env.*
 !.env.example
 
+# Local environment documentation - NEVER commit to remote
+LOCAL_ENV_CONFIG/
+LOCAL_ENV_CONFIG/.env.real
+LOCAL_ENV_CONFIG/.env.*
+
 # Playwright
 /test-results/
 /playwright-report/

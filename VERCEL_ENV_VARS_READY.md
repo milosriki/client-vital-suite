@@ -68,13 +68,13 @@ eyJhbGci... (your Supabase service role key)
 
 ## 📋 QUICK COPY TABLE
 
-| Variable | Value |
-|----------|-------|
-| `VITE_SUPABASE_URL` | `https://ztjndilxurtsfqdsvfds.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `eyJhbGci...` |
-| `VITE_SUPABASE_ANON_KEY` | (same as above) |
-| `SUPABASE_URL` | `https://ztjndilxurtsfqdsvfds.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGci...` |
+| Variable                        | Value                                      |
+| ------------------------------- | ------------------------------------------ |
+| `VITE_SUPABASE_URL`             | `https://ztjndilxurtsfqdsvfds.supabase.co` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | `eyJhbGci...`                              |
+| `VITE_SUPABASE_ANON_KEY`        | (same as above)                            |
+| `SUPABASE_URL`                  | `https://ztjndilxurtsfqdsvfds.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY`     | `eyJhbGci...`                              |
 
 ---
 
@@ -89,8 +89,8 @@ eyJhbGci... (your Supabase service role key)
 
 ## ⚠️ OPTIONAL VARIABLES (for extra features)
 
-| Variable | Purpose | Where to Get |
-|----------|---------|--------------|
-| `FB_PIXEL_ID` | Facebook CAPI | Facebook Business Manager |
-| `FB_ACCESS_TOKEN` | Facebook CAPI | Facebook Marketing API |
-| `AGENT_API_KEY` | API security | Generate your own |
+| Variable          | Purpose       | Where to Get              |
+| ----------------- | ------------- | ------------------------- |
+| `FB_PIXEL_ID`     | Facebook CAPI | Facebook Business Manager |
+| `FB_ACCESS_TOKEN` | Facebook CAPI | Facebook Marketing API    |
+| `AGENT_API_KEY`   | API security  | Generate your own         |

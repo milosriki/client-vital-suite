@@ -36,6 +36,7 @@ import WarRoom from "./pages/WarRoom";
 import MarketingStressTest from "./pages/MarketingStressTest";
 import AIDevConsole from "./pages/AIDevConsole";
 import GlobalBrain from "./pages/GlobalBrain";
+import DebugStatus from "./pages/DebugStatus";
 import "./index.css";
 
 // Start background learning on app init
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
       { path: "/marketing-stress-test", element: <MarketingStressTest /> },
       { path: "/ai-dev", element: <AIDevConsole /> },
       { path: "/global-brain", element: <GlobalBrain /> },
+      { path: "/debug-status", element: <DebugStatus /> },
       { path: "*", element: <NotFound /> },
     ],
   },
