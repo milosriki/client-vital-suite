@@ -34,6 +34,8 @@ dist-ssr
 # Environment variables - NEVER commit secrets
 .env
 .env.local
+.env.*
+!.env.example
 
 # Playwright
 /test-results/
