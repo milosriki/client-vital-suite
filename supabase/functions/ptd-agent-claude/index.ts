@@ -755,14 +755,27 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
 
         if (action === "get_deleted_wallets") {
           try {
+            // Use source: 'api' to query Stripe directly for deep history/audit logs
             const { data } = await supabase.functions.invoke('stripe-history', {
-              body: { days }
+              body: { days, source: 'api' }
             });
+            
             const deletedWallets = data?.deletedWallets || [];
+            const suspiciousPayouts = data?.suspiciousPayouts || [];
+            
+            let report = `🔎 DEEP HISTORY SCAN (Stripe API Direct - Last ${days} days):\n`;
+            
             if (deletedWallets.length === 0) {
-              return `No deleted wallets/bank accounts found in the last ${days} days.`;
+              report += `✅ No deleted wallets/bank accounts found in the last 30 days (API limit for events).\n`;
+            } else {
+              report += `🗑️ DELETED WALLETS/BANK ACCOUNTS (${deletedWallets.length} found):\n${JSON.stringify(deletedWallets, null, 2)}\n`;
             }
-            return `🗑️ DELETED WALLETS/BANK ACCOUNTS (${deletedWallets.length} found):\n${JSON.stringify(deletedWallets, null, 2)}`;
+
+            if (suspiciousPayouts.length > 0) {
+              report += `⚠️ SUSPICIOUS INSTANT PAYOUTS (${suspiciousPayouts.length} found):\n${JSON.stringify(suspiciousPayouts.slice(0, 5), null, 2)}\n`;
+            }
+
+            return report;
           } catch (e) {
             return `Error fetching deleted wallets: ${e}`;
           }
