@@ -38,7 +38,7 @@
 | Field | Value |
 |-------|-------|
 | **Name** | `VITE_SUPABASE_PUBLISHABLE_KEY` |
-| **Value** | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo` |
+| **Value** | `your_jwt_here` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
 | **Sensitive** | ☐ No |
 
@@ -55,7 +55,7 @@
 | Field | Value |
 |-------|-------|
 | **Name** | `VITE_SUPABASE_ANON_KEY` |
-| **Value** | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo` |
+| **Value** | `your_jwt_here` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
 | **Sensitive** | ☐ No |
 
@@ -89,7 +89,7 @@
 | Field | Value |
 |-------|-------|
 | **Name** | `SUPABASE_SERVICE_ROLE_KEY` |
-| **Value** | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY` |
+| **Value** | `your_jwt_here` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
 | **Sensitive** | ☑️ **YES - Mark as Sensitive!** |
 
@@ -109,7 +109,7 @@
 | Field | Value |
 |-------|-------|
 | **Name** | `VITE_GEMINI_API_KEY` |
-| **Value** | `AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s` |
+| **Value** | `your_gemini_api_key_here` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
 | **Sensitive** | ☐ No |
 | **Purpose** | Google Gemini AI features |
@@ -133,7 +133,7 @@
 | Field | Value |
 |-------|-------|
 | **Name** | `FB_ACCESS_TOKEN` |
-| **Value** | `EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1` |
+| **Value** | `your_fb_access_token_here` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
 | **Sensitive** | ☑️ **YES - Mark as Sensitive!** |
 | **Purpose** | Facebook Marketing API authentication |
@@ -239,18 +239,18 @@
 
 ```
 VITE_SUPABASE_URL=https://ztjndilxurtsfqdsvfds.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo
+VITE_SUPABASE_PUBLISHABLE_KEY=your_jwt_here
+VITE_SUPABASE_ANON_KEY=your_jwt_here
 SUPABASE_URL=https://ztjndilxurtsfqdsvfds.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY
+SUPABASE_SERVICE_ROLE_KEY=your_jwt_here
 ```
 
 ### Optional - Gemini & Facebook (5)
 
 ```
-VITE_GEMINI_API_KEY=AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 FB_PIXEL_ID=349832333681399
-FB_ACCESS_TOKEN=EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1
+FB_ACCESS_TOKEN=your_fb_access_token_here
 FB_TEST_EVENT_CODE=TEST123
 EVENT_SOURCE_URL=https://www.personaltrainersdubai.com
 ```

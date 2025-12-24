@@ -37,7 +37,7 @@ Use the checklist: [VERCEL_ENV_SETUP_CHECKLIST.md](./VERCEL_ENV_SETUP_CHECKLIST.
 | 5 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbG...uNCY` | All 3 | **YES** |
 | 6 | `VITE_GEMINI_API_KEY` | `AIzaSy...5_i_s` | All 3 | No |
 | 7 | `FB_PIXEL_ID` | `349832333681399` | All 3 | No |
-| 8 | `FB_ACCESS_TOKEN` | `EAADKZ...pAtZC1` | All 3 | **YES** |
+| 8 | `FB_ACCESS_TOKEN` | `your_fb_access_token_here...pAtZC1` | All 3 | **YES** |
 | 9 | `FB_TEST_EVENT_CODE` | `TEST123` | Preview + Dev | No |
 | 10 | `EVENT_SOURCE_URL` | `https://www.personaltrainersdubai.com` | All 3 | No |
 | 11 | `VITE_META_CAPI_URL` | `https://client-vital-suite.vercel.app/api` | All 3 | No |

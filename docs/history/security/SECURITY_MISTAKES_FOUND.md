@@ -16,15 +16,15 @@
 - **Status:** ❌ Still has hardcoded secrets
 - **Secrets Found:**
   - Supabase publishable key (JWT): `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
-  - Gemini API key: `AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s`
-  - Facebook Access Token: `EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1`
+  - Gemini API key: `your_gemini_api_key_here`
+  - Facebook Access Token: `your_fb_access_token_here`
 - **Line Numbers:** 17, 18, 23
 
 ### 3. ❌ **NEEDS FIX:** `set-all-api-keys.sh`
 - **Status:** ❌ Still has hardcoded secrets
 - **Secrets Found:**
-  - Gemini API key (3 times): `AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s`
-  - Facebook Access Token: `EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1`
+  - Gemini API key (3 times): `your_gemini_api_key_here`
+  - Facebook Access Token: `your_fb_access_token_here`
   - Meta App Secret: `667a10ddcc6dffec6cc8a22a29b80684`
   - Meta Client Token: `7626cb19dee913d36f37e24961cca09d`
 - **Line Numbers:** 12, 13, 14, 19, 21, 22
@@ -32,7 +32,7 @@
 ### 4. ❌ **NEEDS FIX:** `verify-deployment.sh`
 - **Status:** ❌ Still has hardcoded JWT tokens
 - **Secrets Found:**
-  - Supabase anon key (JWT): `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4NjA0MTIsImV4cCI6MjAzNjQzNjQxMn0.WSbeBz9ufh7RbnLNhzxZnU_GJ1jkPx18ajgTH_6h4iI`
+  - Supabase anon key (JWT): `your_jwt_here`
 - **Line Numbers:** 329, 339
 - **Note:** This is used for testing/verification, but should still use env vars
 

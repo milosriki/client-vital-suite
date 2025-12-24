@@ -30,15 +30,15 @@ Follow checklist below.
 
 ### 2. VITE_SUPABASE_PUBLISHABLE_KEY
 
-- [ ] Production: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`
-- [ ] Preview: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`
-- [ ] Development: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`
+- [ ] Production: `your_jwt_here`
+- [ ] Preview: `your_jwt_here`
+- [ ] Development: `your_jwt_here`
 
 ### 3. VITE_SUPABASE_ANON_KEY
 
-- [ ] Production: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`
-- [ ] Preview: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`
-- [ ] Development: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`
+- [ ] Production: `your_jwt_here`
+- [ ] Preview: `your_jwt_here`
+- [ ] Development: `your_jwt_here`
 
 ### 4. SUPABASE_URL
 
@@ -48,9 +48,9 @@ Follow checklist below.
 
 ### 5. SUPABASE_SERVICE_ROLE_KEY ⚠️ SENSITIVE
 
-- [ ] Production: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY` + ☑️ Sensitive
-- [ ] Preview: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY` + ☑️ Sensitive
-- [ ] Development: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY` + ☑️ Sensitive
+- [ ] Production: `your_jwt_here` + ☑️ Sensitive
+- [ ] Preview: `your_jwt_here` + ☑️ Sensitive
+- [ ] Development: `your_jwt_here` + ☑️ Sensitive
 
 ---
 
@@ -58,9 +58,9 @@ Follow checklist below.
 
 ### 6. VITE_GEMINI_API_KEY
 
-- [ ] Production: `AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s`
-- [ ] Preview: `AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s`
-- [ ] Development: `AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s`
+- [ ] Production: `your_gemini_api_key_here`
+- [ ] Preview: `your_gemini_api_key_here`
+- [ ] Development: `your_gemini_api_key_here`
 
 ### 7. FB_PIXEL_ID
 
@@ -70,9 +70,9 @@ Follow checklist below.
 
 ### 8. FB_ACCESS_TOKEN ⚠️ SENSITIVE
 
-- [ ] Production: `EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1` + ☑️ Sensitive
-- [ ] Preview: `EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1` + ☑️ Sensitive
-- [ ] Development: `EAADKZCilWZBHEBQMFcIgF9iTEPeXBmOvExm0HFIXDzcRQA1DPOWoieespOjXQdr2wdsJlZBx4W3IJyIcwZC3mXw0ZBvnIUTTYagAiLaTN4ohBuuVTwDlVTEgrW0z85LSIEmHx2wtOzItBxsPtYVcJoTZBkZBZAFFPEUIoRo86Tok9YdJzhqwgPd5mTESjnjFxzDGtDPpAtZC1` + ☑️ Sensitive
+- [ ] Production: `your_fb_access_token_here` + ☑️ Sensitive
+- [ ] Preview: `your_fb_access_token_here` + ☑️ Sensitive
+- [ ] Development: `your_fb_access_token_here` + ☑️ Sensitive
 
 ### 9. FB_TEST_EVENT_CODE
 

@@ -37,7 +37,7 @@ Found **3 critical security leaks** with hardcoded API keys and JWT tokens:
 **Before:**
 ```bash
 vercel env add VITE_SUPABASE_PUBLISHABLE_KEY production <<< "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-vercel env add VITE_GEMINI_API_KEY production <<< "AIzaSyBbHpPCMl_QOmvPRvop4656CcfqqA5_i_s"
+vercel env add VITE_GEMINI_API_KEY production <<< "your_gemini_api_key_here"
 ```
 
 **After:**
