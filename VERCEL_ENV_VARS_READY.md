@@ -26,7 +26,7 @@ https://ztjndilxurtsfqdsvfds.supabase.co
 ### 2. `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo
+eyJhbGci... (your Supabase anon/publishable key)
 ```
 
 **Environments**: ☑️ Production ☑️ Preview ☑️ Development
@@ -36,7 +36,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx
 ### 3. `VITE_SUPABASE_ANON_KEY`
 
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo
+eyJhbGci... (your Supabase anon key)
 ```
 
 **Environments**: ☑️ Production ☑️ Preview ☑️ Development
@@ -58,7 +58,7 @@ https://ztjndilxurtsfqdsvfds.supabase.co
 ### 5. `SUPABASE_SERVICE_ROLE_KEY`
 
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY
+eyJhbGci... (your Supabase service role key)
 ```
 
 **Environments**: ☑️ Production ☑️ Preview ☑️ Development  
@@ -71,10 +71,10 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx
 | Variable | Value |
 |----------|-------|
 | `VITE_SUPABASE_URL` | `https://ztjndilxurtsfqdsvfds.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | `eyJhbGci...` |
 | `VITE_SUPABASE_ANON_KEY` | (same as above) |
 | `SUPABASE_URL` | `https://ztjndilxurtsfqdsvfds.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGci...` |
 
 ---
 

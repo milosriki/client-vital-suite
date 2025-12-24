@@ -6,9 +6,14 @@
  * - Vercel: Uses /api/* serverless routes
  */
 
-// Supabase project credentials (public - safe to include)
-const SUPABASE_URL = "https://ztjndilxurtsfqdsvfds.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo";
+// Supabase project credentials (public/publishable)
+const DEFAULT_SUPABASE_URL = "https://ztjndilxurtsfqdsvfds.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
+
+export const SUPABASE_ANON_KEY =
+    import.meta.env.VITE_SUPABASE_ANON_KEY ??
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    "";
 
 /**
  * Detect if running in Lovable preview environment
@@ -82,15 +87,15 @@ export function getApiUrl(endpoint: string): string {
  * - In Vercel: Headers handled by serverless function
  */
 export function getAuthHeaders(): Record<string, string> {
-    if (isLovableEnvironment()) {
-        return {
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-            "Content-Type": "application/json",
-        };
-    }
-    return {
+    const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
+
+    if (SUPABASE_ANON_KEY) {
+        headers["Authorization"] = `Bearer ${SUPABASE_ANON_KEY}`;
+    }
+
+    return headers;
 }
 
 /**

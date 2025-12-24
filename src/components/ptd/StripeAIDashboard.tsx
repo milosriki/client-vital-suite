@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { getAuthHeaders, getEdgeFunctionUrl } from "@/config/api";
 import {
   Bot,
   Send,
@@ -82,12 +83,9 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
     setIsStreaming(true);
 
     try {
-      const response = await fetch(`https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/stripe-payouts-ai`, {
+      const response = await fetch(getEdgeFunctionUrl("stripe-payouts-ai"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           mode,
           action: 'chat',
