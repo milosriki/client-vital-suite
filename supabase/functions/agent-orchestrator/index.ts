@@ -67,6 +67,68 @@ const dataCollectorNode: NodeFunction = async (state, supabase) => {
   return { ...state, currentNode: 'router' };
 };
 
+// Node 1.5: Stripe Integration Checker
+const stripeIntegrationCheckerNode: NodeFunction = async (state, _supabase) => {
+  console.log("[Orchestrator] Running: stripeIntegrationChecker");
+  
+  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+  const targetMeterId = 'mtr_61TquSjXV8RjbC0V441GJY406nXobA5g';
+
+  const results = {
+    hasStripeKey: !!stripeKey,
+    hasWebhookSecret: !!webhookSecret,
+    meterCheck: {
+      targetId: targetMeterId,
+      found: false,
+      status: 'unknown',
+      details: null,
+      error: null
+    }
+  };
+
+  if (stripeKey) {
+    try {
+      // Use raw fetch for reliability in Edge Runtime
+      const resp = await fetch(`https://api.stripe.com/v1/billing/meters/${targetMeterId}`, {
+        headers: {
+          'Authorization': `Bearer ${stripeKey}`,
+          'Stripe-Version': '2023-10-16'
+        }
+      });
+      
+      if (resp.ok) {
+        const meter = await resp.json();
+        results.meterCheck.found = true;
+        results.meterCheck.status = meter.status;
+        results.meterCheck.details = {
+            displayName: meter.display_name,
+            eventName: meter.event_name,
+        };
+      } else {
+        const err = await resp.json();
+        console.error("Stripe Meter Check Error:", err);
+        results.meterCheck.found = false;
+        results.meterCheck.error = err.error?.message || 'Unknown error';
+      }
+
+    } catch (e) {
+      console.error("Stripe Init Error:", e);
+      results.meterCheck.error = e.message;
+    }
+  }
+
+  state.results.stripeIntegration = results;
+
+  // Move to next planned node
+  const remainingNodes = state.results.router.nextNodes.filter(
+    (n: string) => n !== 'stripeIntegrationChecker'
+  );
+  const nextNode = remainingNodes[0] || 'synthesizer';
+  
+  return { ...state, currentNode: nextNode };
+};
+
 // Node 2: Router - Decides which agents need to run
 const routerNode: NodeFunction = async (state, _supabase) => {
   console.log("[Orchestrator] Running: router");
@@ -87,6 +149,7 @@ const routerNode: NodeFunction = async (state, _supabase) => {
   };
 
   // Build execution plan
+  state.results.router.nextNodes.push('stripeIntegrationChecker');
   if (hasErrors) {
     state.results.router.nextNodes.push('errorHandler');
   }
@@ -334,6 +397,7 @@ async function traceEnd(runId: string | null, outputs: any) {
 // ============ GRAPH DEFINITION ============
 const nodes: Record<string, NodeFunction> = {
   dataCollector: dataCollectorNode,
+  stripeIntegrationChecker: stripeIntegrationCheckerNode,
   router: routerNode,
   healthCalculator: healthCalculatorNode,
   businessIntelligence: businessIntelligenceNode,
