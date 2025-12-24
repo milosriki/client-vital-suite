@@ -14,7 +14,7 @@ import {
 } from "../_shared/unified-prompts.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY'); // Used for Gemini API
+const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
 
 // ============================================
 // PERSONA DEFINITIONS
