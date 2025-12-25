@@ -26,13 +26,16 @@ dist-ssr
 *.sw?
 .vercel
 
-# Environment variables
+# Environment variables - NEVER commit secrets
 .env
 .env.local
+.env.*
 .env.*.local
 .env.development
 .env.production
 .env.test
+.env.vercel
+!.env.example
 
 # Secrets
 *.key
@@ -41,14 +44,6 @@ secrets.json
 
 # Lovable protection
 .lovableignore
-.env.vercel
-.env*.local
-
-# Environment variables - NEVER commit secrets
-.env
-.env.local
-.env.*
-!.env.example
 
 # Local environment documentation - NEVER commit to remote
 LOCAL_ENV_CONFIG/
