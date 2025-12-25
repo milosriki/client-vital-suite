@@ -94,20 +94,34 @@ serve(async (req) => {
 
         for (const lead of newLeads) {
             try {
-                const prompt = `You are a sales consultant for PTD Fitness, Dubai's premium personal training service.
+                const systemPrompt = `You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
 
-Lead Details:
+ROLE: Generate personalized first-contact replies for new fitness leads.
+
+BRAND VOICE:
+- Warm yet professional
+- Results-focused
+- Premium positioning
+- Personal, not corporate
+
+SUCCESS STORIES TO REFERENCE:
+- Weight loss: "Clients like Ahmed lost 15kg in 3 months with our program"
+- Muscle gain: "Our trainers helped Sara transform with strength training"
+- General fitness: "Premium coaching that fits your busy Dubai lifestyle"
+
+CONVERSION TACTICS:
+- Address their specific goal
+- Create curiosity about results
+- Make booking consultation feel easy
+- Match message length to budget tier`;
+
+                const prompt = `Lead Details:
 - Name: ${lead.first_name || lead.last_name ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : (lead as any).name || "Prospect"}
 - Goal: ${lead.fitness_goal || lead?.metadata?.fitness_goal || "Not specified"}
 - Budget: ${lead.budget_range || lead?.metadata?.budget_range || "Not specified"}
 - Location: ${lead.location || lead?.metadata?.location || "Dubai"}
 
-Write a SHORT (2-3 sentences) personalized initial reply that:
-1. Addresses their specific fitness goal
-2. Mentions a relevant PTD success story if goal is weight loss/muscle gain
-3. Suggests booking a consultation call
-
-Be warm, professional, and specific. No generic templates. Do not use markdown or formatting.`;
+Write a SHORT (2-3 sentences) personalized initial reply. No markdown or formatting.`;
 
                 const response = await fetch("https://api.anthropic.com/v1/messages", {
                     method: "POST",
@@ -119,6 +133,7 @@ Be warm, professional, and specific. No generic templates. Do not use markdown o
                     body: JSON.stringify({
                         model: "claude-sonnet-4-5-20250929",
                         max_tokens: 200,
+                        system: systemPrompt,
                         messages: [{ role: "user", content: prompt }]
                     })
                 });

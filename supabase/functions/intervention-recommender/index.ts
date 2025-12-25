@@ -116,6 +116,28 @@ async function generateMessageDraft(client: any, interventionType: string): Prom
   }
 
   try {
+    const systemPrompt = `You are a caring fitness coach at PTD Fitness Dubai - a premium mobile personal training service.
+
+ROLE: Write personalized client outreach messages that feel genuine, not automated.
+
+TONE GUIDELINES:
+- Warm and supportive, never pushy
+- Focus on their journey and wellbeing
+- Acknowledge life gets busy
+- Make it easy to respond
+
+BUSINESS CONTEXT:
+- PTD coaches visit clients at home/office
+- Premium service (AED 3,520-41,616 packages)
+- Dubai/Abu Dhabi market - professional clientele
+- Goal: Re-engage without pressure
+
+FORBIDDEN:
+- Guilt-tripping language
+- Aggressive sales tactics
+- Generic "we miss you" clichés
+- Overly formal business language`;
+
     const prompt = `Generate a personalized, warm outreach message for a fitness client.
 
 Context:
@@ -151,6 +173,7 @@ Write the message:`;
         body: JSON.stringify({
           model: "claude-sonnet-4-5-20250929",
           max_tokens: 200,
+          system: systemPrompt,
           messages: [{ role: "user", content: prompt }]
         }),
         signal: controller.signal

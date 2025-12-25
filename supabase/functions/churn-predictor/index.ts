@@ -170,6 +170,22 @@ async function getAIInsight(client: any, factors: string[]): Promise<string | nu
   }
 
   try {
+    const systemPrompt = `You are a senior fitness retention specialist at PTD Fitness Dubai.
+
+ROLE: Analyze client data and provide actionable churn prevention insights.
+
+COMMUNICATION STYLE:
+- Be direct and specific - no fluff
+- Focus on ONE actionable recommendation
+- Use urgency for high-risk clients
+- Reference specific data points
+
+BUSINESS CONTEXT:
+- PTD is a premium mobile personal training service in Dubai
+- Clients pay AED 3,520-41,616 for training packages
+- Each client lost = significant revenue impact
+- Coaches need clear, immediate action items`;
+
     const prompt = `Analyze this fitness client's churn risk and provide a 1-2 sentence actionable insight:
 
 Client: ${client.firstname} ${client.lastname}
@@ -195,6 +211,7 @@ Provide a brief, actionable insight for the coach.`;
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 150,
+        system: systemPrompt,
         messages: [{ role: "user", content: prompt }]
       })
     });

@@ -75,22 +75,34 @@ serve(async (req) => {
                 let suggestedReply = "";
 
                 if (ANTHROPIC_API_KEY) {
+                    const systemPrompt = `You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
+
+ROLE: Generate high-converting SMS responses for new fitness leads.
+
+CONVERSION PSYCHOLOGY:
+- Create urgency without pressure
+- Match energy to their stated goals
+- Premium clients respond to exclusivity
+- Budget-conscious clients respond to value
+
+PRICING CONTEXT:
+- Budget >15k AED = Premium tier (mention exclusive/VIP)
+- Budget 8-15k AED = Standard tier
+- Budget <8k AED = Focus on value and results
+
+SMS BEST PRACTICES:
+- Keep under 160 characters when possible
+- Always end with an engaging question
+- Use their name naturally
+- Sound human, not templated`;
+
                     const prompt = `
-                    You are a senior fitness consultant at PTD Fitness. Draft a short, personalized, and high-converting SMS reply for a new lead.
-                    
                     LEAD DETAILS:
                     Name: ${lead.firstname || 'there'}
                     Goal: ${lead.fitness_goal || 'fitness goals'}
                     Budget: ${lead.budget_range || 'not specified'}
 
-                    RULES:
-                    - Keep it under 160 characters if possible.
-                    - End with a question to encourage response.
-                    - Be friendly but professional.
-                    - If budget is high (>15k), mention premium/exclusive coaching.
-                    - If budget is not specified, keep it general.
-                    
-                    Reply with ONLY the SMS text, no quotes or explanation.
+                    Write an SMS reply. Output ONLY the message text, nothing else.
                     `;
 
                     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -103,6 +115,7 @@ serve(async (req) => {
                         body: JSON.stringify({
                             model: "claude-sonnet-4-5-20250929",
                             max_tokens: 200,
+                            system: systemPrompt,
                             messages: [{ role: "user", content: prompt }]
                         })
                     });
