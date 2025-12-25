@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkAuth, getSupabase, withRetry, success, error, openCircuit } from './_lib/utils';
+import { checkAuth, getSupabase, withRetry, success, error, openCircuit } from './_lib/utils.js';
 
 // Constants
 const SIMILARITY_THRESHOLD = 0.7;
