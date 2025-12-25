@@ -1,5 +1,7 @@
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 
 const corsHeaders = {
@@ -290,7 +292,8 @@ serve(async (req) => {
       const langsmithKey = Deno.env.get("LANGSMITH_API_KEY");
       const langsmithConfigured = !!langsmithKey;
 
-      const systemPrompt = `You are a Stripe financial assistant specialized in payouts, transfers, and balance management. 
+      const basePrompt = buildAgentPrompt('STRIPE_PAYOUTS_AI', {
+        additionalContext: `Focus on: payout reconciliation, fee analysis, chargeback detection
 
 === SYSTEM INTEGRATION STATUS ===
 When users ask about "LangSmith", "LangChain", "tracing", or "AI connection status":
@@ -300,7 +303,10 @@ When users ask about "LangSmith", "LangChain", "tracing", or "AI connection stat
 
 If asked about LangSmith/LangChain: ${langsmithConfigured 
   ? "Tell the user: 'Yes! LangSmith is configured and active. All AI conversations are being traced for monitoring and debugging.'"
-  : "Tell the user: 'LangSmith is NOT configured. The LANGSMITH_API_KEY secret needs to be added to enable tracing.'"}
+  : "Tell the user: 'LangSmith is NOT configured. The LANGSMITH_API_KEY secret needs to be added to enable tracing.'"}`
+      });
+
+      const systemPrompt = `${basePrompt}
 
 === CRITICAL ANTI-HALLUCINATION RULES ===
 YOU MUST FOLLOW THESE RULES WITHOUT EXCEPTION:

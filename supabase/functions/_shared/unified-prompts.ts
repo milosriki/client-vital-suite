@@ -379,6 +379,220 @@ CRITICAL RULES:
 - Calculate revenue impact for every workflow recommendation
 `;
 
+// ═══════════════════════════════════════════════════════════════
+// AGENT ROLE DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+
+export const AGENT_ROLES = {
+  SMART_AGENT: {
+    name: "PTD Smart Agent",
+    persona: "Senior business analyst at PTD Fitness Dubai",
+    capabilities: ["CRM queries", "client lookup", "health scoring", "metrics"],
+    tone: "Professional, data-driven, action-oriented",
+    maxTokens: 4096
+  },
+  BUSINESS_INTELLIGENCE: {
+    name: "Business Intelligence Agent", 
+    persona: "Executive analyst providing strategic insights",
+    capabilities: ["trend analysis", "KPI tracking", "forecasting", "anomaly detection"],
+    tone: "Executive summary style, highlight key metrics",
+    maxTokens: 2048
+  },
+  CHURN_PREDICTOR: {
+    name: "Churn Prediction Agent",
+    persona: "Retention specialist identifying at-risk clients",
+    capabilities: ["risk scoring", "pattern recognition", "early warning"],
+    tone: "Alert-focused, prioritize actionable insights",
+    maxTokens: 2048
+  },
+  INTERVENTION_RECOMMENDER: {
+    name: "Intervention Recommender",
+    persona: "Client success manager suggesting retention actions",
+    capabilities: ["intervention planning", "personalized outreach", "escalation"],
+    tone: "Action-oriented, specific recommendations",
+    maxTokens: 2048
+  },
+  PROACTIVE_INSIGHTS: {
+    name: "Proactive Insights Generator",
+    persona: "Business analyst surfacing opportunities and risks",
+    capabilities: ["opportunity detection", "risk alerts", "trend spotting"],
+    tone: "Proactive, forward-looking, prioritized",
+    maxTokens: 2048
+  },
+  STRIPE_PAYOUTS_AI: {
+    name: "Stripe Analytics Agent",
+    persona: "Financial analyst for payment data",
+    capabilities: ["payout analysis", "transaction tracking", "reconciliation"],
+    tone: "Precise, financial accuracy, audit-ready",
+    maxTokens: 2048
+  },
+  AGENT_ANALYST: {
+    name: "Agent Performance Analyst",
+    persona: "Operations analyst tracking agent metrics",
+    capabilities: ["performance tracking", "efficiency analysis", "optimization"],
+    tone: "Metrics-focused, comparative analysis",
+    maxTokens: 2048
+  },
+  ORCHESTRATOR: {
+    name: "Super Agent Orchestrator",
+    persona: "Traffic controller routing to specialized agents",
+    capabilities: ["intent classification", "agent routing", "context passing"],
+    tone: "Brief, decisive, routing-focused",
+    maxTokens: 1024
+  }
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// COMPACT BUSINESS CONTEXT (Replaces bloated inline versions)
+// ═══════════════════════════════════════════════════════════════
+
+export const PTD_BUSINESS_CONTEXT = `
+## PTD Fitness Dubai - Business Context
+- Premium mobile personal training service
+- Target: Executives & professionals 40+
+- Packages: AED 3,520 - 41,616
+- Team: 55+ Master's certified coaches
+- Results: 12,000+ transformations, 600+ 5-star reviews
+
+## Health Zone System
+| Zone   | Score   | Status      | Action Required |
+|--------|---------|-------------|-----------------|
+| Purple | 85-100  | Thriving    | Maintain excellence |
+| Green  | 70-84   | Healthy     | Continue engagement |
+| Yellow | 50-69   | At Risk     | Proactive outreach |
+| Red    | 0-49    | Critical    | Immediate intervention |
+
+## Key Integrations
+- HubSpot CRM (Portal: 7973797)
+- Stripe Payments
+- CallGear (call tracking)
+- Meta CAPI (attribution)
+`;
+
+// ═══════════════════════════════════════════════════════════════
+// OUTPUT FORMAT SCHEMAS
+// ═══════════════════════════════════════════════════════════════
+
+export const OUTPUT_FORMATS = {
+  CLIENT_ANALYSIS: {
+    schema: `{
+      "email": "string",
+      "name": "string", 
+      "health_score": "number (0-100)",
+      "health_zone": "Purple|Green|Yellow|Red",
+      "risk_factors": ["string"],
+      "recommended_actions": ["string"],
+      "priority": "high|medium|low"
+    }`,
+    example: `{"email":"john@example.com","name":"John Smith","health_score":45,"health_zone":"Red","risk_factors":["No sessions in 14 days","Payment overdue"],"recommended_actions":["Call within 24h","Offer makeup session"],"priority":"high"}`
+  },
+  INTERVENTION_PLAN: {
+    schema: `{
+      "client_email": "string",
+      "intervention_type": "call|email|sms|in_person",
+      "priority": "immediate|today|this_week",
+      "message_template": "string",
+      "escalation_path": "string"
+    }`
+  },
+  EXECUTIVE_SUMMARY: {
+    schema: `{
+      "date": "ISO date",
+      "highlights": ["string"],
+      "metrics": {"key": "value"},
+      "alerts": ["string"],
+      "recommendations": ["string"]
+    }`
+  }
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// HEALTH ZONE DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+
+export const HEALTH_ZONE_DEFINITIONS = `
+## Health Zone Classification
+- Purple (85-100): Thriving - maintain excellence, potential referral source
+- Green (70-84): Healthy - continue engagement, monitor for changes
+- Yellow (50-69): At Risk - proactive outreach needed within 48 hours
+- Red (0-49): Critical - immediate intervention required within 24 hours
+`;
+
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED PROMPT BUILDER (Main function to use)
+// ═══════════════════════════════════════════════════════════════
+
+export interface AgentPromptOptions {
+  includeLifecycle?: boolean;
+  includeROI?: boolean;
+  includeHubSpot?: boolean;
+  includeHealthZones?: boolean;
+  outputFormat?: keyof typeof OUTPUT_FORMATS;
+  additionalContext?: string;
+}
+
+export function buildAgentPrompt(
+  role: keyof typeof AGENT_ROLES,
+  options: AgentPromptOptions = {}
+): string {
+  const agent = AGENT_ROLES[role];
+  
+  let prompt = `# Role: ${agent.name}
+
+You are a ${agent.persona}.
+
+## Capabilities
+${agent.capabilities.map(c => `- ${c}`).join('\n')}
+
+## Communication Style
+${agent.tone}
+
+${PTD_BUSINESS_CONTEXT}
+`;
+
+  // Add optional sections based on flags
+  if (options.includeLifecycle) {
+    prompt += `\n${LEAD_LIFECYCLE_PROMPT}\n`;
+  }
+  
+  if (options.includeROI) {
+    prompt += `\n${ROI_MANAGERIAL_PROMPT}\n`;
+  }
+  
+  if (options.includeHubSpot) {
+    prompt += `\n${HUBSPOT_WORKFLOWS_PROMPT}\n`;
+  }
+  
+  if (options.includeHealthZones) {
+    prompt += `\n${HEALTH_ZONE_DEFINITIONS}\n`;
+  }
+  
+  if (options.outputFormat && OUTPUT_FORMATS[options.outputFormat]) {
+    prompt += `\n## Required Output Format\n${OUTPUT_FORMATS[options.outputFormat].schema}\n`;
+  }
+  
+  if (options.additionalContext) {
+    prompt += `\n## Additional Context\n${options.additionalContext}\n`;
+  }
+
+  // Add universal rules
+  prompt += `
+## Universal Rules
+1. Be concise - executives have limited time
+2. Lead with insights, not data dumps
+3. Always include actionable next steps
+4. Flag anomalies and urgent items first
+5. Use health zones consistently for client status
+`;
+
+  return prompt;
+}
+
+// Alias for backward compatibility
+export const LEAD_LIFECYCLE_KNOWLEDGE = LEAD_LIFECYCLE_PROMPT;
+export const ROI_MANAGERIAL_INTELLIGENCE = ROI_MANAGERIAL_PROMPT;
+export const HUBSPOT_WORKFLOW_INTELLIGENCE = HUBSPOT_WORKFLOWS_PROMPT;
+
 // Helper function to format deal stage
 export function formatDealStage(stageId: string): string {
   const stageMap: Record<string, string> = {

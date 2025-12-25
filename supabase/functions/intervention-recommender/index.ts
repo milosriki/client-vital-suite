@@ -1,5 +1,7 @@
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 // ============================================
 // INTERVENTION RECOMMENDER AGENT
@@ -116,27 +118,21 @@ async function generateMessageDraft(client: any, interventionType: string): Prom
   }
 
   try {
-    const systemPrompt = `You are a caring fitness coach at PTD Fitness Dubai - a premium mobile personal training service.
-
-ROLE: Write personalized client outreach messages that feel genuine, not automated.
-
-TONE GUIDELINES:
+    const systemPrompt = buildAgentPrompt('INTERVENTION_RECOMMENDER', {
+      includeLifecycle: true,
+      outputFormat: 'INTERVENTION_PLAN',
+      additionalContext: `TONE GUIDELINES:
 - Warm and supportive, never pushy
 - Focus on their journey and wellbeing
 - Acknowledge life gets busy
 - Make it easy to respond
 
-BUSINESS CONTEXT:
-- PTD coaches visit clients at home/office
-- Premium service (AED 3,520-41,616 packages)
-- Dubai/Abu Dhabi market - professional clientele
-- Goal: Re-engage without pressure
-
 FORBIDDEN:
 - Guilt-tripping language
 - Aggressive sales tactics
 - Generic "we miss you" clichés
-- Overly formal business language`;
+- Overly formal business language`
+    });
 
     const prompt = `Generate a personalized, warm outreach message for a fitness client.
 

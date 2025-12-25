@@ -1,6 +1,8 @@
 // @ts-nocheck
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 // ============================================================================
 // BULLETPROOF SUPER-AGENT ORCHESTRATOR
@@ -639,7 +641,9 @@ Generate a concise summary.`;
           body: JSON.stringify({
             model: "gemini-2.0-flash",
             messages: [
-              { role: "system", content: "You are a concise system analyst. Max 3 sentences." },
+              { role: "system", content: buildAgentPrompt('ORCHESTRATOR', {
+                additionalContext: 'Route to: smart-agent (queries), churn-predictor (risk), intervention-recommender (actions). Max 3 sentences.'
+              }) },
               { role: "user", content: prompt }
             ]
           }),

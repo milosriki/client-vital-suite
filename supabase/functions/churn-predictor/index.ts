@@ -1,5 +1,7 @@
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 // ============================================
 // CHURN PREDICTOR AGENT
@@ -170,21 +172,11 @@ async function getAIInsight(client: any, factors: string[]): Promise<string | nu
   }
 
   try {
-    const systemPrompt = `You are a senior fitness retention specialist at PTD Fitness Dubai.
-
-ROLE: Analyze client data and provide actionable churn prevention insights.
-
-COMMUNICATION STYLE:
-- Be direct and specific - no fluff
-- Focus on ONE actionable recommendation
-- Use urgency for high-risk clients
-- Reference specific data points
-
-BUSINESS CONTEXT:
-- PTD is a premium mobile personal training service in Dubai
-- Clients pay AED 3,520-41,616 for training packages
-- Each client lost = significant revenue impact
-- Coaches need clear, immediate action items`;
+    const systemPrompt = buildAgentPrompt('CHURN_PREDICTOR', {
+      includeLifecycle: true,
+      includeHealthZones: true,
+      outputFormat: 'CLIENT_ANALYSIS'
+    });
 
     const prompt = `Analyze this fitness client's churn risk and provide a 1-2 sentence actionable insight:
 
