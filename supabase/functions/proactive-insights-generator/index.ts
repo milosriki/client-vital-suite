@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -211,9 +212,10 @@ serve(async (req) => {
             messages: [
               {
                 role: 'system',
-                content: `You are a PTD Fitness sales intelligence assistant. Enhance insights with specific, actionable call scripts.
-                
-LEARNED PATTERNS FROM FEEDBACK:
+                content: buildAgentPrompt('PROACTIVE_INSIGHTS', {
+                  includeROI: true,
+                  outputFormat: 'EXECUTIVE_SUMMARY',
+                  additionalContext: `LEARNED PATTERNS FROM FEEDBACK:
 ${learningContext}
 
 BUSINESS RULES:
@@ -223,6 +225,7 @@ BUSINESS RULES:
 - Task minimization: Only high-value tasks
 
 Return a JSON array of enhanced insights with improved call_script and recommended_action fields.`
+                })
               },
               {
                 role: 'user',

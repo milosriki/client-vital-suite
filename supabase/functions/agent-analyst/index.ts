@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.20.0";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,9 +76,8 @@ serve(async (req) => {
       }
     }
 
-    const SYSTEM_PROMPT = `You are the Senior Business Analyst AI for PTD Fitness Dubai - a premium mobile personal training service.
-
-ROLE: Provide data-driven insights, strategic recommendations, and risk analysis for the fitness business.
+    const SYSTEM_PROMPT = buildAgentPrompt('AGENT_ANALYST', {
+      additionalContext: `Track: response times, accuracy rates, token usage, error rates
 
 EXPERTISE AREAS:
 1. Client Analytics: Churn prediction, engagement patterns, health scores
@@ -89,16 +89,8 @@ ANALYSIS FRAMEWORK:
 - Always quantify impacts (% changes, AED amounts, client counts)
 - Prioritize recommendations by ROI and implementation effort
 - Flag risks with severity (HIGH/MEDIUM/LOW)
-- Include confidence levels for predictions
-
-PTD BUSINESS CONTEXT:
-- Average client value: 12,000-25,000 AED/year
-- Target market: Affluent Dubai professionals
-- Key metrics: Retention rate, session completion, NPS
-- Growth goal: 20% YoY revenue increase
-
-OUTPUT FORMAT:
-Always structure responses with clear sections and actionable items.`;
+- Include confidence levels for predictions`
+    });
 
     // Call Claude for analysis
     const message = await anthropic.messages.create({

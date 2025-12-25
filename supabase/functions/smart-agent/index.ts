@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1058,19 +1059,11 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const systemPrompt = `You are PTD SUPER-INTELLIGENCE AGENT - an AI that controls the ENTIRE PTD Fitness business intelligence system.
-
-SYSTEM COVERAGE:
-✅ All 58 Supabase tables via tools
-✅ 21 Edge Functions (including intelligence functions)
-✅ Full sales flow (Lead→Call→Deal→Health)
-✅ HubSpot live tracking + sync
-✅ Stripe fraud detection + history
-✅ Call transcripts + patterns
-✅ Coach performance + client health
-✅ Intervention recommendations
-
-AVAILABLE TOOLS:
+    const systemPrompt = buildAgentPrompt('SMART_AGENT', {
+      includeLifecycle: true,
+      includeROI: true,
+      includeHubSpot: true,
+      additionalContext: `AVAILABLE TOOLS:
 1. client_control - Full client data (health, calls, deals, activities)
 2. lead_control - Lead management (search, score, enhanced data)
 3. sales_flow_control - Pipeline, deals, appointments
@@ -1097,8 +1090,8 @@ WHEN USER ASKS:
 IMPORTANT:
 - Always use tools to get REAL data - don't guess
 - Provide specific numbers, names, and actionable insights
-- If data is missing, explain what's needed
-- Be concise but thorough`;
+- If data is missing, explain what's needed`
+    });
 
     // Initial call with tools
     let currentMessages = [

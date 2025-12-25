@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 // Note: LangSmith/LangGraph not used in Deno edge functions - use direct AI calls instead
 
 const corsHeaders = {
@@ -105,28 +106,31 @@ serve(async (req) => {
         const highErrors = recentErrors?.filter(e => e.severity === 'high').length || 0;
 
         // 3. THE "BRAIN" (AI Analysis)
-        const prompt = `
-        You are the COO of PTD Fitness. Analyze yesterday's business performance.
+        const basePrompt = buildAgentPrompt('BUSINESS_INTELLIGENCE', {
+            includeROI: true,
+            outputFormat: 'EXECUTIVE_SUMMARY'
+        });
         
-        ${staleWarning ? `\n${staleWarning}\n` : ''}
-        
-        DATA CONTEXT:
-        - Utilization: ${utilizationRate}% (${totalClients} active clients managed by ${activeTrainers} coaches).
-        - Growth: ${newLeads} new leads. ${missedFollowUps} are potentially waiting for follow-up.
-        - Revenue: ${revenueData?.length || 0} deals processed recently.
-        - System Health: ${criticalErrors} critical errors, ${highErrors} high-priority errors.
-        
-        RECENT SYSTEM ERRORS:
-        ${JSON.stringify(recentErrors?.slice(0, 5) || [])}
+        const prompt = `${basePrompt}
 
-        OUTPUT FORMAT (JSON):
-        {
-          "executive_summary": "A 3-sentence summary of the business health. Be direct. ${staleWarning ? 'MENTION THE STALE DATA WARNING!' : ''}",
-          "system_status": "${staleWarning ? 'STALE DATA WARNING - ' : ''}${(criticalErrors + highErrors) > 0 ? `${criticalErrors} critical, ${highErrors} high errors` : 'Healthy'}",
-          "data_freshness": "${dataIsStale ? 'STALE' : 'FRESH'}",
-          "action_plan": ["Action 1", "Action 2", "Action 3"]
-        }
-      `;
+${staleWarning ? `\n${staleWarning}\n` : ''}
+
+DATA CONTEXT:
+- Utilization: ${utilizationRate}% (${totalClients} active clients managed by ${activeTrainers} coaches).
+- Growth: ${newLeads} new leads. ${missedFollowUps} are potentially waiting for follow-up.
+- Revenue: ${revenueData?.length || 0} deals processed recently.
+- System Health: ${criticalErrors} critical errors, ${highErrors} high-priority errors.
+
+RECENT SYSTEM ERRORS:
+${JSON.stringify(recentErrors?.slice(0, 5) || [])}
+
+OUTPUT FORMAT (JSON):
+{
+  "executive_summary": "A 3-sentence summary of the business health. Be direct. ${staleWarning ? 'MENTION THE STALE DATA WARNING!' : ''}",
+  "system_status": "${staleWarning ? 'STALE DATA WARNING - ' : ''}${(criticalErrors + highErrors) > 0 ? `${criticalErrors} critical, ${highErrors} high errors` : 'Healthy'}",
+  "data_freshness": "${dataIsStale ? 'STALE' : 'FRESH'}",
+  "action_plan": ["Action 1", "Action 2", "Action 3"]
+}`;
 
         // Call Claude
         const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
