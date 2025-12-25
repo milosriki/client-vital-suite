@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -30,33 +31,53 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const TEST_EMAIL_PATTERNS = ["%@example.com", "%@test.com", "%@email.com"];
 
 // ============================================
-// SCORING ALGORITHMS
+// SCORING ALGORITHMS (PENALTY-BASED FORMULA - OWNER APPROVED)
+// BASE: 100 points, then subtract penalties and add bonuses
 // ============================================
 
+interface ScoreFactors {
+  inactivityPenalty: number;
+  frequencyDropPenalty: number;
+  utilizationPenalty: number;
+  commitmentBonus: number;
+}
+
+// Helper function to calculate days since a date
+function getDaysSince(dateValue: string | number | null | undefined): number {
+  if (!dateValue) return 999;
+  
+  let date: Date;
+  if (typeof dateValue === 'number') {
+    // HubSpot sometimes returns millisecond timestamps
+    date = new Date(dateValue);
+  } else if (typeof dateValue === 'string') {
+    // Try parsing as ISO string or timestamp
+    const parsed = Date.parse(dateValue);
+    if (isNaN(parsed)) return 999;
+    date = new Date(parsed);
+  } else {
+    return 999;
+  }
+  
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// Calculate engagement score (kept for backwards compatibility with UI)
 function calculateEngagementScore(client: any): number {
   let score = 50;
-
-  // Recent activity bonus (using sessions or meetings count if available)
-  // Fallback to 0 if data missing
   const sessions7d = client.sessions_last_7d || 0;
   if (sessions7d >= 3) score += 30;
   else if (sessions7d >= 2) score += 20;
   else if (sessions7d >= 1) score += 10;
 
-  // Consistency bonus (30 days)
   const sessions30d = client.sessions_last_30d || 0;
   if (sessions30d >= 12) score += 15;
   else if (sessions30d >= 8) score += 10;
 
-  // Recency penalty
-  // Calculate days since last activity if we have a date
-  let daysSince = 999;
-  if (client.last_activity_date) {
-    const lastDate = new Date(client.last_activity_date);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  } else if (client.days_since_last_session) {
+  let daysSince = getDaysSince(client.last_paid_session_date || client.last_activity_date);
+  if (client.days_since_last_session && client.days_since_last_session < daysSince) {
     daysSince = client.days_since_last_session;
   }
 
@@ -67,9 +88,10 @@ function calculateEngagementScore(client: any): number {
   return Math.max(0, Math.min(100, score));
 }
 
+// Calculate package health score (kept for backwards compatibility with UI)
 function calculatePackageHealthScore(client: any): number {
   const outstanding = client.outstanding_sessions || 0;
-  const purchased = client.sessions_purchased || 1; // Prevent division by zero
+  const purchased = client.sessions_purchased || 1;
   const remainingPct = (outstanding / purchased) * 100;
 
   if (remainingPct >= 50) return 90;
@@ -78,28 +100,27 @@ function calculatePackageHealthScore(client: any): number {
   return 30;
 }
 
+// Calculate momentum score (kept for backwards compatibility with UI)
 function calculateMomentumScore(client: any): number {
   const avgWeekly7d = client.sessions_last_7d || 0;
   const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
 
-  // Handle division by zero - check before calculating rate of change
   if (avgWeekly30d === 0) {
     return client.sessions_last_7d > 0 ? 70 : 30;
   }
 
   const rateOfChange = ((avgWeekly7d - avgWeekly30d) / avgWeekly30d) * 100;
 
-  if (rateOfChange > 20) return 90;  // ACCELERATING
-  if (rateOfChange > 0) return 70;   // SLIGHTLY UP
-  if (rateOfChange > -20) return 50; // STABLE
-  return 30;                          // DECLINING
+  if (rateOfChange > 20) return 90;
+  if (rateOfChange > 0) return 70;
+  if (rateOfChange > -20) return 50;
+  return 30;
 }
 
 function getMomentumIndicator(client: any): string {
   const avgWeekly7d = client.sessions_last_7d || 0;
   const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
 
-  // Handle division by zero - check before calculating rate of change
   if (avgWeekly30d === 0) {
     return client.sessions_last_7d > 0 ? "STABLE" : "DECLINING";
   }
@@ -111,12 +132,85 @@ function getMomentumIndicator(client: any): string {
   return "DECLINING";
 }
 
-function calculateHealthScore(client: any): number {
-  const engagement = calculateEngagementScore(client);
-  const packageHealth = calculatePackageHealthScore(client);
-  const momentum = calculateMomentumScore(client);
+// NEW: Penalty-based health score calculation (Owner Approved Formula)
+function calculateHealthScoreWithFactors(client: any): { score: number; factors: ScoreFactors } {
+  let score = 100;
+  const factors: ScoreFactors = {
+    inactivityPenalty: 0,
+    frequencyDropPenalty: 0,
+    utilizationPenalty: 0,
+    commitmentBonus: 0,
+  };
 
-  return Math.round(engagement * 0.40 + packageHealth * 0.30 + momentum * 0.30);
+  // 1. INACTIVITY PENALTY (max -40)
+  let daysSinceSession = getDaysSince(client.last_paid_session_date || client.last_activity_date);
+  if (client.days_since_last_session && client.days_since_last_session < daysSinceSession) {
+    daysSinceSession = client.days_since_last_session;
+  }
+  
+  if (daysSinceSession > 30) {
+    factors.inactivityPenalty = 40;
+  } else if (daysSinceSession > 14) {
+    factors.inactivityPenalty = 30;
+  } else if (daysSinceSession > 7) {
+    factors.inactivityPenalty = 20;
+  } else if (daysSinceSession > 2) {
+    factors.inactivityPenalty = 10;
+  }
+  score -= factors.inactivityPenalty;
+
+  // 2. FREQUENCY DROP PENALTY (max -25)
+  const sessions7d = client.sessions_last_7d || 0;
+  const sessions30d = client.sessions_last_30d || 0;
+  const expectedWeekly = sessions30d / 4;
+  
+  if (expectedWeekly > 0) {
+    const dropPercent = ((expectedWeekly - sessions7d) / expectedWeekly) * 100;
+    if (dropPercent >= 50) {
+      factors.frequencyDropPenalty = 25;
+    } else if (dropPercent >= 25) {
+      factors.frequencyDropPenalty = 15;
+    }
+  }
+  score -= factors.frequencyDropPenalty;
+
+  // 3. PACKAGE UTILIZATION PENALTY (max -15)
+  const purchased = client.sessions_purchased || 0;
+  const remaining = client.outstanding_sessions || 0;
+  const used = purchased - remaining;
+  const utilization = purchased > 0 ? (used / purchased) * 100 : 0;
+  
+  if (utilization < 20) {
+    factors.utilizationPenalty = 15;
+  } else if (utilization < 50) {
+    factors.utilizationPenalty = 5;
+  }
+  score -= factors.utilizationPenalty;
+
+  // 4. COMMITMENT BONUS (max +10)
+  const nextSessionBooked = client.next_session_is_booked;
+  const isBooked = nextSessionBooked === true || 
+                   nextSessionBooked === 'Y' || 
+                   nextSessionBooked === 'Yes' || 
+                   nextSessionBooked === 'true' || 
+                   nextSessionBooked === '1';
+  
+  if (isBooked) {
+    const futureBooked = client.future_booked_sessions || 0;
+    factors.commitmentBonus = futureBooked > 1 ? 10 : 5;
+  }
+  score += factors.commitmentBonus;
+
+  // Cap 0-100
+  const finalScore = Math.max(0, Math.min(100, Math.round(score)));
+
+  return { score: finalScore, factors };
+}
+
+// Main health score function (uses new penalty-based formula)
+function calculateHealthScore(client: any): number {
+  const { score } = calculateHealthScoreWithFactors(client);
+  return score;
 }
 
 function getHealthZone(score: number): string {
@@ -271,7 +365,7 @@ serve(async (req) => {
           assigned_coach: client.assigned_coach,
           calculated_at: new Date().toISOString(),
           calculated_on: new Date().toISOString().split("T")[0],
-          calculation_version: "AGENT_v2"
+          calculation_version: "PENALTY_v3"
         });
 
         results.processed++;

@@ -190,6 +190,10 @@ serve(async (req) => {
               'assigned_coach', 'assessment_scheduled', 'assessment_date',
               'package_type', 'sessions_purchased', 'outstanding_sessions',
               'coach_notes', 'preferred_location', 'fitness_goals',
+              // Session Activity Fields (for Health Score Calculation)
+              'of_sessions_conducted__last_7_days_', 'of_conducted_sessions__last_30_days_',
+              'of_sessions_conducted__last_90_days_', 'last_paid_session_date',
+              'next_session_is_booked', 'of_future_booked_sessions', 'last_package_cost',
               // Engagement Scores
               'hs_analytics_score', 'hs_social_facebook_clicks', 'hs_social_twitter_clicks',
               'hs_social_linkedin_clicks', 'num_notes', 'num_meetings', 'num_emails',
@@ -281,6 +285,14 @@ serve(async (req) => {
                 coach_notes: props.coach_notes || null,
                 preferred_location: props.preferred_location || null,
                 fitness_goals: props.fitness_goals || null,
+                // Session Activity Fields (for Health Score Calculation)
+                sessions_last_7d: parseInt(props.of_sessions_conducted__last_7_days_) || 0,
+                sessions_last_30d: parseInt(props.of_conducted_sessions__last_30_days_) || 0,
+                sessions_last_90d: parseInt(props.of_sessions_conducted__last_90_days_) || 0,
+                last_paid_session_date: props.last_paid_session_date || null,
+                next_session_is_booked: props.next_session_is_booked === 'Y' || props.next_session_is_booked === 'Yes' || props.next_session_is_booked === 'true' || false,
+                future_booked_sessions: parseInt(props.of_future_booked_sessions) || 0,
+                last_package_cost: parseFloat(props.last_package_cost) || 0,
                 // Engagement Scores
                 analytics_score: parseInt(props.hs_analytics_score) || 0,
                 facebook_clicks: parseInt(props.hs_social_facebook_clicks) || 0,
