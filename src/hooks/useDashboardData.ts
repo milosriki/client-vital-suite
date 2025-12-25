@@ -56,7 +56,7 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         supabase
           .from('daily_summary')
           .select('*')
-          .order('calculation_date', { ascending: false })
+          .order('summary_date', { ascending: false })
           .limit(1)
           .single(),
 
