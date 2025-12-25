@@ -85,6 +85,16 @@ verify_jwt = true
 [functions.stripe-issuing-tokens]
 verify_jwt = false
 
+# Stripe Advanced Features
+[functions.stripe-checkout]
+verify_jwt = true
+
+[functions.stripe-connect]
+verify_jwt = true
+
+[functions.stripe-issuing]
+verify_jwt = true
+
 # Proactive AI Insights
 [functions.proactive-insights-generator]
 verify_jwt = true
