@@ -507,6 +507,18 @@ export const OUTPUT_FORMATS = {
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
+// HEALTH ZONE DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+
+export const HEALTH_ZONE_DEFINITIONS = `
+## Health Zone Classification
+- Purple (85-100): Thriving - maintain excellence, potential referral source
+- Green (70-84): Healthy - continue engagement, monitor for changes
+- Yellow (50-69): At Risk - proactive outreach needed within 48 hours
+- Red (0-49): Critical - immediate intervention required within 24 hours
+`;
+
+// ═══════════════════════════════════════════════════════════════
 // UNIFIED PROMPT BUILDER (Main function to use)
 // ═══════════════════════════════════════════════════════════════
 
@@ -549,6 +561,10 @@ ${PTD_BUSINESS_CONTEXT}
   
   if (options.includeHubSpot) {
     prompt += `\n${HUBSPOT_WORKFLOWS_PROMPT}\n`;
+  }
+  
+  if (options.includeHealthZones) {
+    prompt += `\n${HEALTH_ZONE_DEFINITIONS}\n`;
   }
   
   if (options.outputFormat && OUTPUT_FORMATS[options.outputFormat]) {
