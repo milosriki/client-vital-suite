@@ -268,3 +268,7 @@ verify_jwt = false
 # Deep Research Agent (LangGraph-style)
 [functions.deep-research]
 verify_jwt = true
+
+# Health Score Calculator - Calculates client health scores from HubSpot data
+[functions.calculate-health-scores]
+verify_jwt = true
