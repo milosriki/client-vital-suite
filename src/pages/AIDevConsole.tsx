@@ -83,7 +83,7 @@ export default function AIDevConsole() {
       if (error) throw error;
       return data as PreparedAction[];
     },
-    refetchInterval: 5000, // Auto-refresh every 5 seconds
+    staleTime: Infinity, // Real-time updates via useVitalState
   });
 
   // Execute command mutation

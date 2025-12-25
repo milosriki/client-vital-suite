@@ -36,7 +36,7 @@ export function StressTestDashboard() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 3600000, // Every hour
+    staleTime: Infinity, // Real-time updates via useVitalState - manual refresh available
   });
 
   const getStatusBadge = (status: string) => {

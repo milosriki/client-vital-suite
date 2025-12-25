@@ -284,7 +284,7 @@ export default function SalesPipeline() {
       
       return { leads: leadsWithStatus, statusCounts, sourceCounts, total: leadsWithStatus.length };
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch enhanced leads
@@ -301,7 +301,7 @@ export default function SalesPipeline() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch contacts
@@ -318,7 +318,7 @@ export default function SalesPipeline() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch deals data
@@ -346,7 +346,7 @@ export default function SalesPipeline() {
         avgDealValue: closedDeals.length ? totalValue / closedDeals.length : 0,
       };
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch call records
@@ -370,7 +370,7 @@ export default function SalesPipeline() {
       
       return { calls: data || [], statusCounts, total: data?.length || 0 };
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch appointments
@@ -391,7 +391,7 @@ export default function SalesPipeline() {
       
       return { appointments: data || [], scheduled, completed };
     },
-    refetchInterval: false,
+    staleTime: Infinity, // Real-time subscription handles updates
   });
 
   // Fetch KPIs
