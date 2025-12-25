@@ -34,7 +34,7 @@
 **Status:** ✅ **ALL DEAD CODE REMOVED**
 
 ### 4. API Versions ✅ FIXED
-- ✅ **Stripe API** - All 3 files use `2024-12-18.acacia` (correct)
+- ✅ **Stripe API** - All 3 files use `2024-06-20` (current)
   - stripe-forensics/index.ts
   - stripe-dashboard-data/index.ts
   - enrich-with-stripe/index.ts

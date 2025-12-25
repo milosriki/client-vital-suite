@@ -1,0 +1,9 @@
+{
+  "note": "LangGraph Cloud expects this file. Update the 'graphs.agent-proxy.entrypoint' when wiring a real LangGraph agent server.",
+  "graphs": {
+    "agent-proxy": {
+      "entrypoint": "api/agent.ts",
+      "description": "HTTP proxy handler that forwards requests to the Supabase agent function."
+    }
+  }
+}

@@ -9,7 +9,7 @@ Generated: $(date)
 - **Purpose**: Fetches Stripe balance, customers, subscriptions, payments, invoices
 - **Environment Variable**: `STRIPE_SECRET_KEY` ✅ Required
 - **Location**: `supabase/functions/stripe-dashboard-data/index.ts`
-- **API Version**: 2024-12-18.acacia
+- **API Version**: 2024-06-20
 
 ### 2. `stripe-forensics` ✅
 - **Status**: WORKING (200 OK)
@@ -17,7 +17,7 @@ Generated: $(date)
 - **Purpose**: Complete money intelligence, anomaly detection, fraud detection
 - **Environment Variable**: `STRIPE_SECRET_KEY` ✅ Required
 - **Location**: `supabase/functions/stripe-forensics/index.ts`
-- **API Version**: 2024-12-18.acacia
+- **API Version**: 2024-06-20
 
 ### 3. `stripe-payouts-ai` ✅
 - **Status**: CONFIGURED (code exists)

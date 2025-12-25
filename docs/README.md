@@ -23,6 +23,8 @@ For current/active documentation, see:
 - **Wiki:** `wiki/` folder (217+ pages)
 - **Root:** `*.md` files in project root
 - **API Docs:** `api/` folder
+- **Evaluation Guide:** `docs/EVALUATING_LLM_APPLICATIONS_WITH_LANGSMITH.md`
+- **Dataset Setup:** `docs/SETTING_UP_LANGSMITH_DATASETS.md`
 
 ---
 
