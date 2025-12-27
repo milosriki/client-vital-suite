@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // supabase/functions/ptd-ultimate-intelligence/index.ts
 // THE ULTIMATE AI SYSTEM WITH PERSONAS & BUSINESS INTELLIGENCE
 

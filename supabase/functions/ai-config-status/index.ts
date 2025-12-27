@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // AI Configuration Status Endpoint
 // Verifies the status of LangSmith, provider keys, and Stripe connectivity
 // Enables operators to quickly check configuration before running forensic or agent tasks

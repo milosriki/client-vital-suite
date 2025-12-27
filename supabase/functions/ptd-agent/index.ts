@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 /**
  * @deprecated This is the legacy PTD agent. Use `ptd-agent-gemini` or `smart-agent` instead.
  * 
