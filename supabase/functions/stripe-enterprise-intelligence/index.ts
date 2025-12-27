@@ -6,7 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
-import { pullPrompt, interpolatePrompt } from "../_shared/prompt-manager.ts";
+import { pullPrompt } from "../_shared/prompt-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -203,6 +203,9 @@ serve(async (req) => {
         currency: context.metrics.currency
       });
 
+      // End trace with success
+      await traceEnd(traceRun, { action: "fetch-enterprise-data", transactionCount: transactions.length, dataQuality: context.dataQuality });
+
       return new Response(JSON.stringify(context), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -218,9 +221,9 @@ serve(async (req) => {
       const context = message.context as EnterpriseContext;
       
       // Try to pull prompt from LangSmith (ptdbooking or stripe-enterprise)
-      let langsmithPrompt = await pullLangSmithPrompt("ptdbooking");
+      let langsmithPrompt = await pullPrompt("ptdbooking");
       if (!langsmithPrompt) {
-        langsmithPrompt = await pullLangSmithPrompt("stripe-enterprise");
+        langsmithPrompt = await pullPrompt("stripe-enterprise");
       }
       
       // Build context data for injection
@@ -328,6 +331,9 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
         const err = await response.text();
         throw new Error(`AI error: ${response.status} - ${err}`);
       }
+
+      // End trace before streaming (can't track stream completion easily)
+      await traceEnd(traceRun, { streaming: true, action: "enterprise-chat" });
 
       return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
