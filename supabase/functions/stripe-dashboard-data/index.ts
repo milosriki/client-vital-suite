@@ -48,7 +48,8 @@ serve(async (req) => {
 
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
-    
+    const langsmithConfigured = !!Deno.env.get("LANGSMITH_API_KEY");
+
     if (!STRIPE_SECRET_KEY) {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }
@@ -167,6 +168,28 @@ serve(async (req) => {
     const successfulPayments = paymentsData.filter((p: any) => p.status === "succeeded");
     const failedPayments = paymentsData.filter((p: any) => p.status === "canceled" || p.status === "requires_payment_method");
 
+    // Identify customers who have actually paid (successful payments or paid charges)
+    const payingCustomerIds = new Set<string>();
+
+    successfulPayments.forEach((payment: any) => {
+      const customerId = typeof payment.customer === "string" ? payment.customer : payment.customer?.id;
+      if (customerId) {
+        payingCustomerIds.add(customerId);
+      }
+    });
+
+    chargesData
+      .filter((charge: any) => charge.status === "succeeded" && charge.paid)
+      .forEach((charge: any) => {
+        const customerId = typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
+        if (customerId) {
+          payingCustomerIds.add(customerId);
+        }
+      });
+
+    const customersData = customers.data || [];
+    const payingCustomers = customersData.filter((customer: any) => payingCustomerIds.has(customer.id));
+
     // Convert all amounts to AED for consistent reporting
     const totalRevenue = successfulPayments.reduce(
       (sum: number, p: any) => sum + convertToAED(p.amount || 0, p.currency || "aed"),
@@ -231,7 +254,8 @@ serve(async (req) => {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     console.log("Stripe data fetched successfully (all amounts normalized to AED):", {
-      customersCount: (customers.data || []).length,
+      customersCount: customersData.length,
+      payingCustomersCount: payingCustomers.length,
       subscriptionsCount: subscriptionsData.length,
       paymentsCount: paymentsData.length,
       chargesCount: chargesData.length,
@@ -257,7 +281,8 @@ serve(async (req) => {
           pending: [{ amount: balancePendingAED, currency: "aed" }],
           _original: balance, // Keep original for reference
         },
-        customers: customers.data || [],
+        customers: customersData,
+        payingCustomers,
         subscriptions: subscriptionsData,
         payments: paymentsData,
         charges: chargesData,
@@ -267,6 +292,9 @@ serve(async (req) => {
         invoices: invoices.data || [],
         account: account,
         treasuryTransfers: treasuryTransfers.data || [],
+        observability: {
+          langsmithConfigured,
+        },
         metrics: {
           // All amounts in AED (fils - smallest unit)
           totalRevenue,
@@ -275,6 +303,7 @@ serve(async (req) => {
           totalPayouts,
           successfulPaymentsCount: successfulPayments.length,
           failedPaymentsCount: failedPayments.length,
+          payingCustomersCount: payingCustomers.length,
           activeSubscriptions: activeSubscriptions.length,
           canceledSubscriptions: canceledSubscriptions.length,
           trialSubscriptions: trialSubscriptions.length,

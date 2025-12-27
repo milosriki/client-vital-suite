@@ -158,7 +158,7 @@ export default function StripeIntelligence() {
         balance: stripeData?.balance,
         metrics: stripeData?.metrics,
         recentPayments: stripeData?.payments?.slice(0, 10),
-        customers: stripeData?.customers?.length,
+        customers: stripeData?.payingCustomers?.length ?? stripeData?.customers?.length,
         subscriptions: stripeData?.subscriptions?.length,
         account: stripeData?.account,
         // ENHANCED: Clear period information for AI
@@ -250,6 +250,9 @@ export default function StripeIntelligence() {
   const pendingBalance = balance?.pending?.[0]?.amount || 0;
   const currency = balance?.available?.[0]?.currency || "aed";
   const metrics = stripeData?.metrics || {};
+  const payingCustomers = stripeData?.payingCustomers ?? stripeData?.customers ?? [];
+  const payingCustomerCount = payingCustomers.length;
+  const langsmithConfigured = stripeData?.observability?.langsmithConfigured ?? false;
 
   // Prepare chart data
   const chartData = stripeData?.chartData || [];
@@ -637,8 +640,8 @@ export default function StripeIntelligence() {
                         <p className="text-xl font-bold">{metrics.activeSubscriptions || 0}</p>
                       </div>
                       <div className="p-4 rounded-lg bg-muted/30">
-                        <p className="text-sm text-muted-foreground">Customers</p>
-                        <p className="text-xl font-bold">{stripeData?.customers?.length || 0}</p>
+                        <p className="text-sm text-muted-foreground">Paying Customers</p>
+                        <p className="text-xl font-bold">{payingCustomerCount || 0}</p>
                       </div>
                     </div>
                   )}
@@ -824,27 +827,30 @@ export default function StripeIntelligence() {
 
 
 
-            <TabsContent value="customers">
-              <Card className="card-dashboard">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Customers ({stripeData?.customers?.length || 0})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[400px]">
-                    {isLoading ? (
+              <TabsContent value="customers">
+                <Card className="card-dashboard">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Paying Customers ({payingCustomerCount || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Showing only customers with successful payments for clearer forensic review.
+                    </p>
+                    <ScrollArea className="h-[400px]">
+                      {isLoading ? (
                       <div className="space-y-3">
                         {[1, 2, 3].map((i) => (
                           <Skeleton key={i} className="h-16 w-full" />
                         ))}
                       </div>
-                    ) : stripeData?.customers?.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">No customers found</p>
+                    ) : payingCustomers.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No paying customers found</p>
                     ) : (
                       <div className="space-y-2">
-                        {stripeData?.customers?.map((customer: any) => (
+                        {payingCustomers.map((customer: any) => (
                           <div
                             key={customer.id}
                             className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
@@ -881,6 +887,11 @@ export default function StripeIntelligence() {
                 Stripe AI Assistant
               </CardTitle>
               <p className="text-sm text-muted-foreground">Ask anything about your data</p>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant={langsmithConfigured ? "default" : "destructive"} className="text-xs gap-1">
+                  {langsmithConfigured ? "LangSmith tracing active" : "LangSmith not configured"}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
               {/* Quick Questions */}
