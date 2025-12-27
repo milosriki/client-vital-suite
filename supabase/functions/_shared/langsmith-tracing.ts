@@ -266,5 +266,152 @@ export function createStripeTraceMetadata(action: string, additionalMeta?: Recor
   };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PROVIDER METADATA - For LangSmith cost tracking
+// ═══════════════════════════════════════════════════════════════
+
+export type AIProvider = "anthropic" | "openai" | "google" | "unknown";
+
+export interface ProviderMetadata {
+  ls_provider: AIProvider;
+  ls_model_name: string;
+  ls_model_type?: "chat" | "completion" | "embedding";
+  ls_temperature?: number;
+  ls_max_tokens?: number;
+}
+
+// Model to provider mapping
+const MODEL_PROVIDER_MAP: Record<string, AIProvider> = {
+  // Anthropic
+  "claude-3-opus": "anthropic",
+  "claude-3-sonnet": "anthropic", 
+  "claude-3-haiku": "anthropic",
+  "claude-3-5-sonnet": "anthropic",
+  "claude-3-5-haiku": "anthropic",
+  "claude-2": "anthropic",
+  // OpenAI
+  "gpt-4": "openai",
+  "gpt-4-turbo": "openai",
+  "gpt-4o": "openai",
+  "gpt-4o-mini": "openai",
+  "gpt-3.5-turbo": "openai",
+  "o1": "openai",
+  "o1-mini": "openai",
+  "o1-preview": "openai",
+  // Google
+  "gemini-pro": "google",
+  "gemini-1.5-pro": "google",
+  "gemini-1.5-flash": "google",
+  "gemini-2.0-flash": "google",
+};
+
+/**
+ * Get provider from model name
+ */
+export function getProviderFromModel(model: string): AIProvider {
+  const normalizedModel = model.toLowerCase();
+  
+  for (const [pattern, provider] of Object.entries(MODEL_PROVIDER_MAP)) {
+    if (normalizedModel.includes(pattern.toLowerCase())) {
+      return provider;
+    }
+  }
+  
+  // Fallback detection
+  if (normalizedModel.includes("claude")) return "anthropic";
+  if (normalizedModel.includes("gpt") || normalizedModel.includes("o1")) return "openai";
+  if (normalizedModel.includes("gemini")) return "google";
+  
+  return "unknown";
+}
+
+/**
+ * Create provider metadata for LangSmith traces
+ * LangSmith uses these fields for cost tracking and analytics
+ */
+export function createProviderMetadata(
+  model: string,
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+    modelType?: "chat" | "completion" | "embedding";
+  }
+): ProviderMetadata {
+  return {
+    ls_provider: getProviderFromModel(model),
+    ls_model_name: model,
+    ls_model_type: options?.modelType || "chat",
+    ls_temperature: options?.temperature,
+    ls_max_tokens: options?.maxTokens,
+  };
+}
+
+/**
+ * Create function-level trace tags
+ * Use these tags for filtering in LangSmith dashboard
+ */
+export function createFunctionTags(
+  functionName: string,
+  options?: {
+    category?: string;
+    provider?: AIProvider;
+    environment?: string;
+  }
+): string[] {
+  const tags: string[] = [
+    `function:${functionName}`,
+  ];
+  
+  if (options?.category) {
+    tags.push(`category:${options.category}`);
+  }
+  
+  if (options?.provider) {
+    tags.push(`provider:${options.provider}`);
+  }
+  
+  tags.push(`env:${options?.environment || Deno.env.get("ENVIRONMENT") || "production"}`);
+  
+  return tags;
+}
+
+/**
+ * Create complete trace config with all metadata
+ */
+export function createAITraceConfig(
+  functionName: string,
+  model: string,
+  options?: {
+    category?: string;
+    sessionId?: string;
+    parentRunId?: string;
+    temperature?: number;
+    maxTokens?: number;
+    additionalMetadata?: Record<string, unknown>;
+  }
+): TraceConfig {
+  const provider = getProviderFromModel(model);
+  const providerMeta = createProviderMetadata(model, {
+    temperature: options?.temperature,
+    maxTokens: options?.maxTokens,
+  });
+  
+  return {
+    name: functionName,
+    runType: "llm",
+    tags: createFunctionTags(functionName, {
+      category: options?.category,
+      provider,
+    }),
+    metadata: {
+      ...providerMeta,
+      function_name: functionName,
+      session_id: options?.sessionId,
+      ...options?.additionalMetadata,
+    },
+    parentRunId: options?.parentRunId,
+  };
+}
+
 // Export types for use in other modules
-export type { TraceConfig, TraceRun, LangSmithStatus };
+export type { TraceConfig, TraceRun, LangSmithStatus, ProviderMetadata, AIProvider };
