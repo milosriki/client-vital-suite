@@ -2,7 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
-
+import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
+import { pullPrompt, interpolatePrompt } from "../_shared/prompt-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,8 +15,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Parse request body early for tracing
+  const { mode, action, message, context, history } = await req.json();
+  
+  // Start LangSmith trace for the entire request
+  const traceRun = await traceStart(
+    {
+      name: `stripe-payouts-ai:${action || "chat"}`,
+      runType: "chain",
+      metadata: createStripeTraceMetadata(action || "chat", { mode, hasMessage: !!message }),
+      tags: ["stripe", "payouts-ai", action || "chat"],
+    },
+    { mode, action, message, context }
+  );
+
   try {
-    const { mode, action, message, context, history } = await req.json();
     
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
@@ -417,6 +431,10 @@ If data is missing, say so explicitly.`;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[STRIPE-PAYOUTS-AI] Error:", errorMessage);
+    
+    // End trace with error
+    await traceEnd(traceRun, { error: errorMessage }, errorMessage);
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

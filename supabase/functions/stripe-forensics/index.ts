@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
+import { pullPrompt, interpolatePrompt } from "../_shared/prompt-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +37,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Start LangSmith trace for the entire request
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+  const { action = "health-check", days = 30, includeSetupIntents = true } = body;
+
+  const traceRun = await traceStart(
+    {
+      name: `stripe-forensics:${action}`,
+      runType: "chain",
+      metadata: createStripeTraceMetadata(action, { days, includeSetupIntents }),
+      tags: ["stripe", "forensics", action],
+    },
+    { action, days, includeSetupIntents }
+  );
+
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
@@ -46,13 +67,6 @@ serve(async (req) => {
       apiVersion: "2024-06-20",
       httpClient: Stripe.createFetchHttpClient(),
     });
-    let body;
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
-    }
-    const { action = "health-check", days = 30, includeSetupIntents = true } = body;
 
     console.log("[STRIPE-FORENSICS] Action:", action);
 
@@ -1500,6 +1514,9 @@ Format your response as JSON with this structure:
     throw new Error("Invalid action: " + action);
   } catch (error) {
     console.error("[STRIPE-FORENSICS] Error:", error);
+
+    // End trace with error
+    await traceEnd(traceRun, { error: error instanceof Error ? error.message : "Unknown error" }, error instanceof Error ? error.message : "Unknown error");
 
     // Log to sync_errors for Antigravity visibility
     try {

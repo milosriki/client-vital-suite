@@ -11,6 +11,10 @@ verify_jwt = true
 # All serverless - runs directly on Deno
 # ============================================
 
+# AI Configuration Status Endpoint (LangSmith/Provider Health Check)
+[functions.ai-config-status]
+verify_jwt = false
+
 # Health & Intelligence Agents
 [functions.health-calculator]
 verify_jwt = true
