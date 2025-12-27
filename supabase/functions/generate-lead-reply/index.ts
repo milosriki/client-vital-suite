@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 /**
  * @deprecated This function is deprecated. Use `generate-lead-replies` (plural) instead.
  * This version is kept for backward compatibility only.
