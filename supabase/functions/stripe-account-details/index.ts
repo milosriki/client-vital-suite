@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // stripe-account-details - Diagnostic endpoint for Stripe account investigation
 // Fetches detailed account info including connected accounts and external accounts
 

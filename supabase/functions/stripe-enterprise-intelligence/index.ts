@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // stripe-enterprise-intelligence - ENTERPRISE GRADE
 // Uses ALL available agents for multi-million dollar accuracy
 // Integrates with LangSmith for prompt management and tracing
