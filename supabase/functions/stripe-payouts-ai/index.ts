@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
-
+import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,8 +14,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Parse request body early for tracing
+  const { mode, action, message, context, history } = await req.json();
+  
+  // Start LangSmith trace for the entire request
+  const traceRun = await traceStart(
+    {
+      name: `stripe-payouts-ai:${action || "chat"}`,
+      runType: "chain",
+      metadata: createStripeTraceMetadata(action || "chat", { mode, hasMessage: !!message }),
+      tags: ["stripe", "payouts-ai", action || "chat"],
+    },
+    { mode, action, message, context }
+  );
+
   try {
-    const { mode, action, message, context, history } = await req.json();
     
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
@@ -59,14 +72,19 @@ serve(async (req) => {
         treasuryTransfersCount: treasuryTransfers.data?.length || 0,
       });
 
+      const responseData = {
+        balance,
+        payouts: payouts.data || [],
+        transfers: transfers.data || [],
+        balanceTransactions: balanceTransactions.data || [],
+        treasuryTransfers: treasuryTransfers.data || [],
+      };
+
+      // End trace with success
+      await traceEnd(traceRun, { action: "fetch-data", counts: { payouts: payouts.data?.length || 0, transfers: transfers.data?.length || 0 } });
+
       return new Response(
-        JSON.stringify({
-          balance,
-          payouts: payouts.data || [],
-          transfers: transfers.data || [],
-          balanceTransactions: balanceTransactions.data || [],
-          treasuryTransfers: treasuryTransfers.data || [],
-        }),
+        JSON.stringify(responseData),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -111,6 +129,9 @@ serve(async (req) => {
         }
       }
       
+      // End trace with success
+      await traceEnd(traceRun, { action: "lookup", found: Object.keys(results).filter(k => !k.includes("Error")).length });
+
       return new Response(
         JSON.stringify({ success: true, ...results }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -209,11 +230,17 @@ serve(async (req) => {
           ].filter(Boolean)
         };
         
+        // End trace with success
+        await traceEnd(traceRun, { action: "trace", chargeId, payoutFound: !!payoutInfo });
+
         return new Response(
           JSON.stringify({ success: true, trace }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (e: any) {
+        // End trace with error for trace action
+        await traceEnd(traceRun, { action: "trace", error: e.message }, e.message);
+
         return new Response(
           JSON.stringify({ error: e.message }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -408,6 +435,9 @@ If data is missing, say so explicitly.`;
 
       console.log("[STRIPE-PAYOUTS-AI] Streaming response started");
 
+      // End trace before streaming (can't track stream completion easily)
+      await traceEnd(traceRun, { streaming: true, action: "chat" });
+
       return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
@@ -417,6 +447,10 @@ If data is missing, say so explicitly.`;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[STRIPE-PAYOUTS-AI] Error:", errorMessage);
+    
+    // End trace with error
+    await traceEnd(traceRun, { error: errorMessage }, errorMessage);
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

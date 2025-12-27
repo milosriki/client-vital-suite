@@ -1,51 +1,17 @@
 // stripe-enterprise-intelligence - ENTERPRISE GRADE
 // Uses ALL available agents for multi-million dollar accuracy
-// Integrates with LangSmith for prompt management
+// Integrates with LangSmith for prompt management and tracing
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
+import { pullPrompt } from "../_shared/prompt-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// LangSmith Configuration
-const LANGSMITH_API_KEY = Deno.env.get("LANGSMITH_API_KEY");
-const LANGSMITH_ENDPOINT = "https://api.smith.langchain.com";
-
-// Pull prompt from LangSmith Hub
-async function pullLangSmithPrompt(promptName: string): Promise<string | null> {
-  if (!LANGSMITH_API_KEY) {
-    console.log("[LANGSMITH] No API key, using local prompt");
-    return null;
-  }
-  
-  try {
-    const response = await fetch(`${LANGSMITH_ENDPOINT}/prompts/${promptName}/current`, {
-      headers: {
-        "x-api-key": LANGSMITH_API_KEY,
-        "Content-Type": "application/json"
-      },
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (!response.ok) {
-      console.log(`[LANGSMITH] Prompt ${promptName} not found, using local`);
-      return null;
-    }
-    
-    const data = await response.json();
-    // Extract the prompt template from LangSmith response
-    const template = data.manifest?.template || data.template || null;
-    console.log(`[LANGSMITH] Pulled prompt: ${promptName}`);
-    return template;
-  } catch (e) {
-    console.log(`[LANGSMITH] Error pulling prompt: ${e}`);
-    return null;
-  }
-}
 
 interface EnterpriseContext {
   // Live Stripe Data
@@ -87,8 +53,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Parse request body early for tracing
+  const { action, message, dateRange, history } = await req.json();
+  
+  // Start LangSmith trace for the entire request
+  const traceRun = await traceStart(
+    {
+      name: `stripe-enterprise-intelligence:${action || "chat"}`,
+      runType: "chain",
+      metadata: createStripeTraceMetadata(action || "chat", { hasDateRange: !!dateRange, hasMessage: !!message }),
+      tags: ["stripe", "enterprise-intelligence", action || "chat"],
+    },
+    { action, message, dateRange }
+  );
+
   try {
-    const { action, message, dateRange, history } = await req.json();
     
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -224,6 +203,9 @@ serve(async (req) => {
         currency: context.metrics.currency
       });
 
+      // End trace with success
+      await traceEnd(traceRun, { action: "fetch-enterprise-data", transactionCount: transactions.length, dataQuality: context.dataQuality });
+
       return new Response(JSON.stringify(context), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -239,9 +221,9 @@ serve(async (req) => {
       const context = message.context as EnterpriseContext;
       
       // Try to pull prompt from LangSmith (ptdbooking or stripe-enterprise)
-      let langsmithPrompt = await pullLangSmithPrompt("ptdbooking");
+      let langsmithPrompt = await pullPrompt("ptdbooking");
       if (!langsmithPrompt) {
-        langsmithPrompt = await pullLangSmithPrompt("stripe-enterprise");
+        langsmithPrompt = await pullPrompt("stripe-enterprise");
       }
       
       // Build context data for injection
@@ -350,6 +332,9 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
         throw new Error(`AI error: ${response.status} - ${err}`);
       }
 
+      // End trace before streaming (can't track stream completion easily)
+      await traceEnd(traceRun, { streaming: true, action: "enterprise-chat" });
+
       return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
       });
@@ -360,6 +345,10 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[ENTERPRISE] Error:", msg);
+    
+    // End trace with error
+    await traceEnd(traceRun, { error: msg }, msg);
+    
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
