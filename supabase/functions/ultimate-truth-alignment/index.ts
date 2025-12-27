@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // Ultimate Truth Alignment Engine
 // Aligns events from Facebook CAPI, HubSpot, and AnyTrack to find single source of truth
 
