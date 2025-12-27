@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_execution_metrics: {
+        Row: {
+          id: string
+          request_id: string | null
+          correlation_id: string
+          trace_id: string | null
+          function_name: string
+          run_type: string | null
+          provider: string | null
+          model: string | null
+          latency_ms: number | null
+          tokens_in: number | null
+          tokens_out: number | null
+          cost_usd_est: number | null
+          status: string
+          http_status: number | null
+          error_message: string | null
+          error_type: string | null
+          metadata: Json | null
+          tags: string[] | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          request_id?: string | null
+          correlation_id: string
+          trace_id?: string | null
+          function_name: string
+          run_type?: string | null
+          provider?: string | null
+          model?: string | null
+          latency_ms?: number | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          cost_usd_est?: number | null
+          status: string
+          http_status?: number | null
+          error_message?: string | null
+          error_type?: string | null
+          metadata?: Json | null
+          tags?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          request_id?: string | null
+          correlation_id?: string
+          trace_id?: string | null
+          function_name?: string
+          run_type?: string | null
+          provider?: string | null
+          model?: string | null
+          latency_ms?: number | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          cost_usd_est?: number | null
+          status?: string
+          http_status?: number | null
+          error_message?: string | null
+          error_type?: string | null
+          metadata?: Json | null
+          tags?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       account_review_history: {
         Row: {
           account_id: string
