@@ -61,6 +61,7 @@ export const Navigation = () => {
 
   const moreItems = [
     { path: "/ai-dev", label: "AI Dev Console", icon: Cpu },
+    { path: "/observability", label: "AI Observability", icon: Activity },
     { path: "/war-room", label: "CEO War Room", icon: Crown },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/marketing-stress-test", label: "Marketing Stress Test", icon: TestTube },
