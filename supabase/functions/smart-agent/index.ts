@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1038,7 +1039,10 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
 }
 
 // ============= MAIN SERVER =============
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  const correlationId = getCorrelationId(req);
+  structuredLog("info", "[smart-agent] Request received", { correlationId });
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -1256,4 +1260,11 @@ IMPORTANT:
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+};
+
+// Serve with tracing wrapper
+serve(withTracing(handler, { 
+  functionName: "smart-agent",
+  runType: "chain",
+  tags: ["ai-agent", "gemini", "critical"]
+}));
