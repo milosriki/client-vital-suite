@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // CallGear Live Monitor - Real-time call monitoring Edge Function
 // Implements Supervisor Workplace functionality using CallGear's list.calls API
 

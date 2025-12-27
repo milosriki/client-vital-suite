@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 /**
  * CallGear Sentinel - Real-time Impersonation Detection
  * 

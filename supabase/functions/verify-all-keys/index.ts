@@ -1,3 +1,4 @@
+import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // API Key Verification Function
 // Verifies all API keys in Supabase and Vercel, checks which functions use them
 
