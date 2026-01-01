@@ -47,7 +47,7 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch clients with retry logic
+  // Fetch clients with retry logic - Optimized selection
   const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useDedupedQuery({
     queryKey: ["client-health-scores-dashboard"],
     queryFn: async () => {
@@ -60,7 +60,7 @@ export default function Dashboard() {
       const latestDate = latestDateRows?.[0]?.calculated_on;
       let query = supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, firstname, lastname, email, health_zone, health_score, package_value_aed, assigned_coach, created_at, calculated_on")
         .order("health_score", { ascending: true });
 
       if (latestDate) {
@@ -96,64 +96,28 @@ export default function Dashboard() {
     retry: 2,
   });
 
-  // Fetch revenue with retry
-  const { data: revenueData, isLoading: revenueLoading } = useDedupedQuery({
-    queryKey: ["monthly-revenue"],
+  interface DashboardStats {
+    revenue_this_month: number;
+    revenue_last_month: number;
+    revenue_today: number;
+    revenue_trend: number;
+    pipeline_value: number;
+    pipeline_count: number;
+    is_positive_trend: boolean;
+  }
+
+  // Fetch consolidated dashboard stats (Revenue, Pipeline, Trends) via RPC
+  const { data: dashboardStats, isLoading: statsLoading } = useDedupedQuery({
+    queryKey: ["dashboard-stats-rpc"],
     queryFn: async () => {
-      const now = new Date();
-      const thisMonthStart = format(startOfMonth(now), "yyyy-MM-dd");
-      const thisMonthEnd = format(endOfMonth(now), "yyyy-MM-dd");
-      const lastMonthStart = format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
-      const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
-
-      const [thisMonth, lastMonth] = await Promise.all([
-        (supabase as any).from("deals").select("deal_value").eq("status", "closed").gte("close_date", thisMonthStart).lte("close_date", thisMonthEnd),
-        (supabase as any).from("deals").select("deal_value").eq("status", "closed").gte("close_date", lastMonthStart).lte("close_date", lastMonthEnd),
-      ]);
-
-      const thisTotal = thisMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-      const lastTotal = lastMonth.data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-      const trend = lastTotal > 0 ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0;
-      return { total: thisTotal, trend, isPositive: trend >= 0 };
-    },
-    staleTime: Infinity, // Real-time updates via useVitalState
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-
-  // Fetch today's revenue
-  const { data: revenueToday } = useDedupedQuery({
-    queryKey: ["revenue-today"],
-    queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { data, error } = await (supabase as any)
-        .from("deals")
-        .select("deal_value")
-        .eq("status", "closed")
-        .gte("close_date", today);
-
+      const { data, error } = await (supabase as any).rpc('get_dashboard_stats');
       if (error) {
-        console.error("Error fetching today's revenue:", error);
-        return 0;
+        console.error("Error fetching dashboard stats:", error);
+        return null;
       }
-      return data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
+      return data as DashboardStats;
     },
-    staleTime: Infinity, // Real-time updates via useVitalState
-    retry: 2,
-  });
-
-  // Fetch pipeline with retry
-  const { data: pipelineData } = useDedupedQuery({
-    queryKey: ["pipeline-value"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from("deals").select("deal_value").not("status", "in", '("closed","lost")');
-      if (error) {
-        console.error("Error fetching pipeline value:", error);
-        return { total: 0, count: 0 };
-      }
-      const total = data?.reduce((s: number, d: any) => s + (d.deal_value || 0), 0) || 0;
-      return { total, count: data?.length || 0 };
-    },
+    staleTime: Infinity,
     retry: 2,
   });
 
@@ -206,10 +170,10 @@ export default function Dashboard() {
 
   // KPI Data
   const kpiData = {
-    revenue: { value: revenueData?.total || 0, trend: revenueData?.trend },
-    revenueToday: revenueToday || 0,
+    revenue: { value: dashboardStats?.revenue_this_month || 0, trend: dashboardStats?.revenue_trend },
+    revenueToday: dashboardStats?.revenue_today || 0,
     clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
-    pipeline: { value: pipelineData?.total || 0, count: pipelineData?.count || 0 },
+    pipeline: { value: dashboardStats?.pipeline_value || 0, count: dashboardStats?.pipeline_count || 0 },
     leads: leadsToday || 0,
     calls: callsToday || 0,
     appointments: dailySummary?.interventions_recommended || 0,
@@ -260,7 +224,7 @@ export default function Dashboard() {
     if (routes[metric]) navigate(routes[metric]);
   };
 
-  const isLoading = clientsLoading || revenueLoading;
+  const isLoading = clientsLoading || statsLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -364,17 +328,17 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <QuickStatCard
                 title="Open Deals"
-                value={pipelineData?.count || 0}
+                value={dashboardStats?.pipeline_count || 0}
                 onClick={() => navigate('/sales-pipeline')}
               />
               <QuickStatCard
                 title="Pipeline Value"
-                value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
+                value={`AED ${(dashboardStats?.pipeline_value || 0).toLocaleString()}`}
                 variant="success"
               />
               <QuickStatCard
                 title="Closed MTD"
-                value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
+                value={`AED ${(dashboardStats?.revenue_this_month || 0).toLocaleString()}`}
                 variant="success"
               />
             </div>
@@ -458,14 +422,14 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <RevenueStatCard
                 title="Monthly Revenue"
-                value={`AED ${(revenueData?.total || 0).toLocaleString()}`}
-                trend={revenueData?.trend}
-                isPositive={revenueData?.isPositive}
+                value={`AED ${(dashboardStats?.revenue_this_month || 0).toLocaleString()}`}
+                trend={dashboardStats?.revenue_trend}
+                isPositive={dashboardStats?.is_positive_trend}
               />
               <RevenueStatCard
                 title="Pipeline Value"
-                value={`AED ${(pipelineData?.total || 0).toLocaleString()}`}
-                subtitle={`${pipelineData?.count || 0} active deals`}
+                value={`AED ${(dashboardStats?.pipeline_value || 0).toLocaleString()}`}
+                subtitle={`${dashboardStats?.pipeline_count || 0} active deals`}
               />
               <RevenueStatCard
                 title="At-Risk Revenue"

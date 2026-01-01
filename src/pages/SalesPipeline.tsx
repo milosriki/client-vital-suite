@@ -1,5 +1,5 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -432,15 +432,16 @@ export default function SalesPipeline() {
 
   const allLeads = [...(funnelData?.leads || []), ...(enhancedLeads || [])];
   
-  // Get follow-up insights
+  // Get follow-up insights - Memoized for performance
   const daysLabel = DAYS_FILTER_OPTIONS.find(o => o.value === daysFilter)?.label || daysFilter;
-  const followUpInsights = getFollowUpInsights(
+  
+  const followUpInsights = useMemo(() => getFollowUpInsights(
     funnelData?.leads || [],
     contacts || [],
     callRecords?.calls || [],
     dealsData?.deals || [],
     daysLabel
-  );
+  ), [funnelData?.leads, contacts, callRecords?.calls, dealsData?.deals, daysLabel]);
 
   return (
     <div className="space-y-6 p-6">

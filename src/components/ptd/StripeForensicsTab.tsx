@@ -80,10 +80,11 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
       console.log('[Forensics] Data received:', data?.auditTimestamp);
       return data;
     },
-    staleTime: 0, // Always consider data stale - fetch fresh every time
-    gcTime: 0, // Don't cache
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    enabled: false, // Disable auto-fetch to save data
   });
 
   const handleRunAudit = async () => {

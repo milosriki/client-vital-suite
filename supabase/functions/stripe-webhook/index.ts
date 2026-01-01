@@ -101,14 +101,10 @@ serve(async (req) => {
         console.log("✅ Webhook signature verified");
       } catch (err: any) {
         console.error("❌ Webhook signature verification failed:", err.message);
-        return handleError(
-          err,
-          FUNCTION_NAME,
-          {
-            supabase,
-            errorCode: ErrorCode.VALIDATION_ERROR,
-            context: { hasSignature: true, error: err.message },
-          }
+        // Return 200 to stop Stripe from retrying indefinitely
+        return new Response(
+          JSON.stringify({ received: true, status: "ignored", reason: "signature_verification_failed" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
       }
     } else {
@@ -128,28 +124,20 @@ serve(async (req) => {
       try {
         event = JSON.parse(body);
       } catch (parseError) {
-        return handleError(
-          parseError as Error,
-          FUNCTION_NAME,
-          {
-            supabase,
-            errorCode: ErrorCode.VALIDATION_ERROR,
-            context: { rawBody: body.substring(0, 200) },
-          }
+        console.error("❌ JSON parse failed:", parseError);
+        return new Response(
+          JSON.stringify({ received: true, status: "ignored", reason: "invalid_json" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
       }
     }
 
     // Validate event structure
     if (!event.id || !event.type) {
-      return handleError(
-        new Error("Invalid Stripe event format: missing id or type"),
-        FUNCTION_NAME,
-        {
-          supabase,
-          errorCode: ErrorCode.VALIDATION_ERROR,
-          context: { hasId: !!event?.id, hasType: !!event?.type },
-        }
+      console.error("❌ Invalid event format");
+      return new Response(
+        JSON.stringify({ received: true, status: "ignored", reason: "invalid_format" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 

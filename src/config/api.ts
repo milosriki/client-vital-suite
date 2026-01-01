@@ -44,6 +44,7 @@ const ROUTE_TO_EDGE_FUNCTION: Record<string, string> = {
     "/api/system-check": "system-check",
     "/api/events": "meta-capi",
     "/api/events/batch": "meta-capi",
+    "/api/orchestrator": "super-agent-orchestrator",
 };
 
 /**
@@ -106,6 +107,7 @@ export const API_ENDPOINTS = {
     systemCheck: "/api/system-check",
     events: "/api/events",
     eventsBatch: "/api/events/batch",
+    orchestrator: "/api/orchestrator",
 } as const;
 
 /**

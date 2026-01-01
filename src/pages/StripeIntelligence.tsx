@@ -122,7 +122,8 @@ export default function StripeIntelligence() {
       if (error) throw error;
       return data;
     },
-    staleTime: 120000,
+    staleTime: 1000 * 60 * 5,
+    enabled: false, // Disable auto-fetch
   });
 
   useEffect(() => {

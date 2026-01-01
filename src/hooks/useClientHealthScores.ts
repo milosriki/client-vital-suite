@@ -8,14 +8,17 @@ interface UseClientHealthScoresOptions {
   segment?: string;
   coach?: string;
   autoRefresh?: boolean;
+  page?: number;
+  pageSize?: number;
+  searchTerm?: string;
 }
 
 export function useClientHealthScores(options: UseClientHealthScoresOptions = {}) {
-  const { healthZone, segment, coach, autoRefresh = true } = options;
+  const { healthZone, segment, coach, page = 1, pageSize = 20, searchTerm = '', autoRefresh = true } = options;
 
-  return useDedupedQuery<ClientHealthScore[]>({
-    queryKey: QUERY_KEYS.clients.healthScores({ healthZone, segment, coach }),
-    dedupeIntervalMs: 1000, // Prevent duplicate calls within 1 second
+  return useDedupedQuery<{ data: ClientHealthScore[], count: number }>({
+    queryKey: QUERY_KEYS.clients.healthScores({ healthZone, segment, coach, page, pageSize, searchTerm }),
+    dedupeIntervalMs: 1000,
     queryFn: async () => {
       // Get the most recent calculated_on date
       const { data: latestDate } = await supabase
@@ -26,12 +29,12 @@ export function useClientHealthScores(options: UseClientHealthScoresOptions = {}
         .single();
 
       if (!latestDate?.calculated_on) {
-        return [];
+        return { data: [], count: 0 };
       }
 
       let query = supabase
         .from('client_health_scores')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('calculated_on', latestDate.calculated_on)
         .order('health_score', { ascending: true });
 
@@ -44,10 +47,20 @@ export function useClientHealthScores(options: UseClientHealthScoresOptions = {}
       if (coach && coach !== 'All') {
         query = query.eq('assigned_coach', coach);
       }
+      
+      if (searchTerm) {
+        // Search across multiple columns
+        query = query.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+      }
 
-      const { data, error } = await query;
+      // Pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      const { data, error, count } = await query.range(from, to);
+      
       if (error) throw error;
-      return (data as unknown as ClientHealthScore[]) || [];
+      return { data: (data as unknown as ClientHealthScore[]) || [], count: count || 0 };
     },
     staleTime: Infinity, // Real-time updates via useVitalState
     refetchOnWindowFocus: true,

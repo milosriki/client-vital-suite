@@ -1,143 +1,180 @@
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useClientHealthScores } from "@/hooks/useClientHealthScores";
-import { ClientTable } from "@/components/ClientTable";
 import { ZoneDistributionChart } from "@/components/ZoneDistributionChart";
-import { RefreshButton } from "@/components/RefreshButton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, RefreshCw, UserPlus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { ClientCard } from "@/components/ClientCard";
 
 const Clients = () => {
   const [searchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [healthZoneFilter, setHealthZoneFilter] = useState(searchParams.get("zone") || "All");
-  const [segmentFilter, setSegmentFilter] = useState("All");
-  const [coachFilter, setCoachFilter] = useState("All");
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [healthZoneFilter, setHealthZoneFilter] = useState<string>(searchParams.get("zone") || "All");
+  const [segmentFilter, setSegmentFilter] = useState<string>("All");
+  const [coachFilter, setCoachFilter] = useState<string>("All");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
-  const { data: clients, isLoading, error, refetch } = useClientHealthScores({
+  const { data: clientsData, isLoading, error, refetch } = useClientHealthScores({
     healthZone: healthZoneFilter,
     segment: segmentFilter,
     coach: coachFilter,
+    searchTerm: searchTerm,
+    page,
+    pageSize
   });
 
-  // Get unique coaches for filter
-  const coaches = [...new Set(clients?.map(c => c.assigned_coach).filter(Boolean))];
+  const clients = clientsData?.data || [];
+  const totalCount = clientsData?.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
-  const filteredClients = clients?.filter((client) => {
-    const fullName = `${client.firstname || ''} ${client.lastname || ''}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase()) ||
-      client.email?.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, healthZoneFilter, segmentFilter, coachFilter]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  if (error) {
+    toast.error("Failed to load clients");
+  }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Client Directory</h1>
-            <p className="text-muted-foreground">View and manage all clients</p>
-          </div>
-          <RefreshButton onRefresh={async () => { await refetch(); }} />
+    <div className="space-y-6 p-6 min-h-screen bg-background">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Client Directory</h1>
+          <p className="text-muted-foreground">
+            Manage and monitor client health scores and engagement.
+          </p>
         </div>
-
-        {/* Search and Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="lg:col-span-2 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          <Select value={healthZoneFilter} onValueChange={setHealthZoneFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Health Zone" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Zones</SelectItem>
-              <SelectItem value="RED">RED</SelectItem>
-              <SelectItem value="YELLOW">YELLOW</SelectItem>
-              <SelectItem value="GREEN">GREEN</SelectItem>
-              <SelectItem value="PURPLE">PURPLE</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={segmentFilter} onValueChange={setSegmentFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Client Segment" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Segments</SelectItem>
-              <SelectItem value="ACTIVE_CONSISTENT">Active Consistent</SelectItem>
-              <SelectItem value="ACTIVE_SPORADIC">Active Sporadic</SelectItem>
-              <SelectItem value="INACTIVE_RECENT">Inactive Recent</SelectItem>
-              <SelectItem value="INACTIVE_LONG">Inactive Long</SelectItem>
-              <SelectItem value="CHURNED">Churned</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={coachFilter} onValueChange={setCoachFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Coach" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Coaches</SelectItem>
-              {coaches.map((coach) => (
-                <SelectItem key={coach} value={coach || ''}>{coach}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button className="bg-gradient-to-r from-cyan-600 to-blue-600">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add Client
+          </Button>
         </div>
-
-        {/* Zone Distribution Chart */}
-        {!isLoading && clients && clients.length > 0 && (
-          <ZoneDistributionChart 
-            clients={clients}
-            selectedZone={healthZoneFilter}
-            onZoneSelect={setHealthZoneFilter}
-          />
-        )}
-
-        {/* Results Count */}
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredClients?.length || 0} clients
-        </p>
-
-        {/* Client Table */}
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-96" />
-          </div>
-        ) : error ? (
-          <Card className="p-12 text-center">
-            <p className="text-destructive mb-4">Failed to load clients</p>
-            <Button onClick={() => refetch()}>Try Again</Button>
-          </Card>
-        ) : filteredClients?.length === 0 ? (
-          <Card className="p-12 text-center">
-            <p className="text-muted-foreground mb-2">
-              {clients?.length === 0 
-                ? "No data yet" 
-                : "No clients found matching your criteria"}
-            </p>
-            {clients?.length === 0 && (
-              <p className="text-sm text-muted-foreground">Sync data from HubSpot to populate the database.</p>
-            )}
-          </Card>
-        ) : (
-          <ClientTable 
-            clients={filteredClients || []}
-          />
-        )}
       </div>
+
+      {/* Filters & Search */}
+      <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+        <CardHeader>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <CardTitle className="text-xl font-semibold text-white">
+              Clients ({totalCount})
+            </CardTitle>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search clients..."
+                  className="pl-8 w-full sm:w-[250px] bg-background/50 border-white/10"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                />
+              </div>
+              <Select value={healthZoneFilter} onValueChange={setHealthZoneFilter}>
+                <SelectTrigger className="w-full sm:w-[150px] bg-background/50 border-white/10">
+                  <SelectValue placeholder="Health Zone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Zones</SelectItem>
+                  <SelectItem value="Green">Green</SelectItem>
+                  <SelectItem value="Yellow">Yellow</SelectItem>
+                  <SelectItem value="Red">Red</SelectItem>
+                  <SelectItem value="Purple">Purple</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={segmentFilter} onValueChange={setSegmentFilter}>
+                <SelectTrigger className="w-full sm:w-[150px] bg-background/50 border-white/10">
+                  <SelectValue placeholder="Segment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Segments</SelectItem>
+                  <SelectItem value="High Value">High Value</SelectItem>
+                  <SelectItem value="At Risk">At Risk</SelectItem>
+                  <SelectItem value="New">New</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              {/* Client Grid */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {clients.map((client) => (
+                  <ClientCard 
+                    key={client.client_id} 
+                    client={client} 
+                    onViewDetails={() => navigate(`/clients/${client.client_id}`)}
+                  />
+                ))}
+              </div>
+
+              {/* Empty State */}
+              {clients.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No clients found matching your criteria.
+                </div>
+              )}
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 mt-8">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Zone Distribution (Optional - shows stats for current page/filter) */}
+      {!isLoading && clients.length > 0 && (
+         <div className="mt-8">
+            <h3 className="text-lg font-semibold text-white mb-4">Health Distribution (Current View)</h3>
+            <ZoneDistributionChart 
+              clients={clients}
+              selectedZone={healthZoneFilter}
+              onZoneSelect={setHealthZoneFilter}
+            />
+         </div>
+      )}
     </div>
   );
 };

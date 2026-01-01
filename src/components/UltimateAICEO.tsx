@@ -90,7 +90,8 @@ export function UltimateAICEO() {
                 .from('prepared_actions' as any)
                 .select('*')
                 .in('status', ['prepared', 'executing'])
-                .order('priority', { ascending: false });
+                .order('priority', { ascending: false })
+                .limit(50);
             if (error) throw error;
             return (data || []) as unknown as PreparedAction[];
         },
@@ -105,7 +106,7 @@ export function UltimateAICEO() {
                 .select('*')
                 .in('status', ['executed', 'failed'])
                 .order('executed_at', { ascending: false })
-                .limit(10);
+                .limit(20);
             if (error) throw error;
             return (data || []) as unknown as PreparedAction[];
         },
@@ -170,12 +171,28 @@ export function UltimateAICEO() {
     const { data: revenueData } = useQuery({
         queryKey: ['ceo-revenue-metrics'],
         queryFn: async () => {
-            const { data: deals, error } = await supabase
+            // Use RPC for efficient server-side aggregation
+            const { data: stats, error } = await supabase.rpc('get_dashboard_stats' as any);
+            
+            if (!error && stats) {
+                const typedStats = stats as any;
+                return {
+                    totalRevenue: typedStats.total_revenue || 0,
+                    avgDealValue: typedStats.avg_deal_value || 0,
+                    dealsCount: typedStats.active_deals || 0, 
+                    pipelineValue: typedStats.pipeline_value || 0
+                };
+            }
+
+            // Fallback to client-side calculation if RPC fails (or for specific "last month" logic if RPC doesn't support it)
+            console.warn("RPC failed, falling back to client-side calculation", error);
+            
+            const { data: deals, error: dealsError } = await supabase
                 .from('deals')
                 .select('deal_value, status, close_date')
                 .gte('close_date', new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString());
             
-            if (error) throw error;
+            if (dealsError) throw dealsError;
             
             const closedDeals = deals?.filter(d => d.status === 'closed') || [];
             const totalRevenue = closedDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0);
@@ -194,9 +211,20 @@ export function UltimateAICEO() {
     const { data: clientHealth } = useQuery({
         queryKey: ['ceo-client-health'],
         queryFn: async () => {
+            // Get latest calculation date first
+            const { data: latestDate } = await supabase
+                .from('client_health_scores')
+                .select('calculated_on')
+                .order('calculated_on', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (!latestDate?.calculated_on) return { green: 0, yellow: 0, red: 0, purple: 0, total: 0, atRiskRevenue: 0, avgHealth: 0 };
+
             const { data, error } = await supabase
                 .from('client_health_scores')
-                .select('health_zone, health_score, churn_risk_score, package_value_aed');
+                .select('health_zone, health_score, churn_risk_score, package_value_aed')
+                .eq('calculated_on', latestDate.calculated_on);
             
             if (error) throw error;
             

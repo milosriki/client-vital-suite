@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.26.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
+import { PTD_STATIC_KNOWLEDGE } from "../_shared/static-knowledge.ts";
+import { executeSharedTool } from "../_shared/tool-executor.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,54 +19,8 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 }
 
 // ============= PTD KNOWLEDGE BASE =============
-const PTD_SYSTEM_KNOWLEDGE = `
-PTD FITNESS PLATFORM - COMPLETE STRUCTURE (58 Tables + 21 Functions):
-
-TABLES (58):
-- client_health_scores: email, health_score, health_zone (purple/green/yellow/red), calculated_at, churn_risk_score
-- contacts: email, first_name, last_name, phone, lifecycle_stage, owner_name, lead_status
-- deals: deal_name, deal_value, stage, status, close_date, pipeline
-- contacts: email, first_name, last_name, lifecycle_stage, lead_status, owner_name (unified schema - use this instead of enhanced_leads)
-- call_records: caller_number, transcription, call_outcome, duration_seconds, call_score
-- coach_performance: coach_name, avg_client_health, clients_at_risk, performance_score
-- intervention_log: status, action_type, recommended_action, outcome
-- daily_summary: summary_date, avg_health_score, clients_green/yellow/red/purple, at_risk_revenue_aed
-- campaign_performance: campaign_name, platform, spend, clicks, leads, conversions, roas
-- appointments: scheduled_at, status, notes
-- contact_activities: activity_type, activity_title, occurred_at
-
-EDGE FUNCTIONS (21):
-- churn-predictor: Predicts client dropout probability using ML
-- anomaly-detector: Finds unusual patterns in data
-- stripe-forensics: Detects fraud (instant payouts, test-drain, unknown cards)
-- business-intelligence: Generates BI insights
-- intervention-recommender: Suggests actions for at-risk clients
-- coach-analyzer: Analyzes coach performance
-- sync-hubspot-to-supabase: Syncs HubSpot data
-- fetch-hubspot-live: Gets real-time HubSpot data
-
-HEALTH ZONES:
-- Purple Zone (85-100): Champions - loyal, engaged, high value
-- Green Zone (70-84): Healthy - consistent, stable engagement
-- Yellow Zone (50-69): At Risk - showing warning signs
-- Red Zone (0-49): Critical - immediate intervention needed
-
-STRIPE FRAUD PATTERNS:
-- Unknown cards used after trusted payments
-- Instant payouts bypassing normal settlement
-- Test-then-drain: small test charge followed by large withdrawal
-- Multiple failed charges followed by success
-
-HUBSPOT INSIGHTS:
-- Revenue leaks from workflow failures
-- Buried premium leads not being followed up
-- Lifecycle stage mismatches
-
-BUSINESS RULES:
-- Clients with no session in 14+ days are at risk
-- Deals over 50K AED need manager approval
-- Response time target: under 5 minutes for new leads
-`;
+// ============= PTD KNOWLEDGE BASE =============
+const PTD_SYSTEM_KNOWLEDGE = PTD_STATIC_KNOWLEDGE;
 
 // ============= PERSISTENT MEMORY SYSTEM + RAG =============
 

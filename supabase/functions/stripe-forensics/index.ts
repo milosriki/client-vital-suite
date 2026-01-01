@@ -84,6 +84,26 @@ serve(async (req) => {
       );
     }
 
+    // Quick scan for orchestrator (lightweight)
+    if (action === "quick-scan") {
+      console.log("[STRIPE-FORENSICS] Running Quick Scan...");
+      const [balance, recentPayouts, recentCharges] = await Promise.all([
+        stripe.balance.retrieve().catch(() => null),
+        stripe.payouts.list({ limit: 5 }).catch(() => ({ data: [] })),
+        stripe.charges.list({ limit: 5 }).catch(() => ({ data: [] }))
+      ]);
+
+      return new Response(
+        JSON.stringify({
+          balance,
+          recentPayouts: recentPayouts.data,
+          recentCharges: recentCharges.data,
+          timestamp: new Date().toISOString()
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Calculate timestamps
     const now = Math.floor(Date.now() / 1000);
     const sevenDaysAgo = now - (7 * 24 * 60 * 60);

@@ -312,22 +312,9 @@ export default function PTDUnlimitedChat() {
     setInput("");
 
     try {
-      // FIRST: Always run super-agent-orchestrator for intelligence
-      console.log("🧠 Running super-agent-orchestrator for proactive intelligence...");
-      const orchestratorResponse = await fetch(getApiUrl('/api/agent'), {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          message: "Run full system orchestration and intelligence scan",
-          thread_id: threadId,
-          agent_function: "super-agent-orchestrator"
-        }),
-      });
-
-      let orchestratorData = null;
-      if (orchestratorResponse.ok) {
-        orchestratorData = await orchestratorResponse.json().catch(() => null);
-      }
+      // OPTIMIZATION: Removed automatic super-agent-orchestrator call to save costs and reduce latency.
+      // The orchestrator should only be called on-demand or via a specific "Run Intelligence" button.
+      const orchestratorData = null;
 
       // SECOND: Process user question with full context
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
