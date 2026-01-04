@@ -43,7 +43,7 @@ export default function PTDUnlimitedChat() {
   const [pendingApprovals, setPendingApprovals] = useState<ExecutionRequest[]>([]);
   const [showApprovals, setShowApprovals] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [loadingHistory, setLoadingHistory] = useState(true);

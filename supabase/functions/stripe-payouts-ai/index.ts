@@ -327,7 +327,7 @@ serve(async (req) => {
 When users ask about "LangSmith", "LangChain", "tracing", or "AI connection status":
 - LangSmith/LangChain Tracing: ${langsmithConfigured ? "✅ CONFIGURED AND ACTIVE" : "❌ NOT CONFIGURED"}
 - This AI is powered by: ${GEMINI_API_KEY ? "Google Gemini API (Direct)" : "Lovable AI Gateway"}
-- AI Model: gemini-2.0-flash / gemini-2.5-flash
+- AI Model: gemini-3.0-flash / gemini-3.0-flash
 
 If asked about LangSmith/LangChain: ${langsmithConfigured 
   ? "Tell the user: 'Yes! LangSmith is configured and active. All AI conversations are being traced for monitoring and debugging.'"
@@ -398,7 +398,7 @@ If data is missing, say so explicitly.`;
         ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
         : "https://ai.gateway.lovable.dev/v1/chat/completions";
       const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
-      const aiModel = useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash";
+      const aiModel = useDirectGemini ? "gemini-3.0-flash" : "google/gemini-3.0-flash";
 
       console.log("[STRIPE-PAYOUTS-AI] Calling AI API:", { url: aiUrl, model: aiModel });
 

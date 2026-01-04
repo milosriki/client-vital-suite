@@ -49,26 +49,31 @@ interface HealthScoreResult {
 }
 
 /**
- * Calculate days since a given date
+ * Calculate days since a given date with fallback support
  */
-function getDaysSince(dateValue: string | null): number {
-  if (!dateValue) return 999; // No date = very inactive
+function getDaysSince(props: any, preferredKey: string): number {
+  const fallbacks = ['last_session_conducted', 'hs_lastmodifieddate', 'createdate'];
+  const keys = [preferredKey, ...fallbacks];
   
-  // HubSpot dates can be ISO strings or millisecond timestamps
-  let date: Date;
-  if (/^\d+$/.test(dateValue)) {
-    // Millisecond timestamp
-    date = new Date(Number(dateValue));
-  } else {
-    // ISO string
-    date = new Date(dateValue);
+  for (const key of keys) {
+    const dateValue = props[key];
+    if (!dateValue) continue;
+    
+    let date: Date;
+    if (/^\d+$/.test(dateValue)) {
+      date = new Date(Number(dateValue));
+    } else {
+      date = new Date(dateValue);
+    }
+    
+    if (!isNaN(date.getTime())) {
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }
   }
   
-  if (isNaN(date.getTime())) return 999;
-  
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return 7; // Default to 'Healthy' 7 days if absolutely no data exists, to avoid false RED zones.
 }
 
 /**
@@ -87,14 +92,14 @@ function calculateHealthScore(contact: HubSpotContact): HealthScoreResult {
   };
   
   // 1. INACTIVITY PENALTY (max -40)
-  const daysSinceSession = getDaysSince(props[HUBSPOT_PROPERTIES.last_paid_session_date]);
-  if (daysSinceSession > 30) {
+  const daysSinceSession = getDaysSince(props, HUBSPOT_PROPERTIES.last_paid_session_date);
+  if (daysSinceSession > 60) { // Increased threshold from 30 to 60 for 2026
     factors.inactivityPenalty = 40;
-  } else if (daysSinceSession > 14) {
+  } else if (daysSinceSession > 30) {
     factors.inactivityPenalty = 30;
-  } else if (daysSinceSession > 7) {
+  } else if (daysSinceSession > 14) {
     factors.inactivityPenalty = 20;
-  } else if (daysSinceSession > 2) {
+  } else if (daysSinceSession > 7) {
     factors.inactivityPenalty = 10;
   }
   score -= factors.inactivityPenalty;

@@ -201,7 +201,7 @@ serve(async (req) => {
           ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
           : 'https://ai.gateway.lovable.dev/v1/chat/completions';
         const aiKey = useDirectGemini ? geminiApiKey : lovableApiKey;
-        const aiModel = useDirectGemini ? 'gemini-2.0-flash' : 'google/gemini-2.5-flash';
+        const aiModel = useDirectGemini ? 'gemini-3.0-flash' : 'google/gemini-3.0-flash';
 
         const response = await fetch(aiUrl, {
           method: 'POST',

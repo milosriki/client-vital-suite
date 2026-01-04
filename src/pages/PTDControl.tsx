@@ -179,9 +179,6 @@ export default function PTDControl() {
           </TabsContent>
         </Tabs>
       </div>
-      
-      {/* UNLIMITED POWER Agent Chat */}
-      <PTDUnlimitedChat />
     </div>
   );
 }

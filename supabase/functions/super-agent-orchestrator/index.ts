@@ -640,7 +640,7 @@ Generate a concise summary.`;
           method: "POST",
           headers: { "Authorization": `Bearer ${geminiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "gemini-2.0-flash",
+            model: "gemini-3.0-flash",
             messages: [
               { role: "system", content: buildAgentPrompt('ORCHESTRATOR', {
                 additionalContext: 'Route to: smart-agent (queries), churn-predictor (risk), intervention-recommender (actions). Max 3 sentences.'
@@ -673,7 +673,7 @@ Generate a concise summary.`;
             "content-type": "application/json"
           },
           body: JSON.stringify({
-            model: "claude-3-haiku-20240307",
+            model: "claude-4-5-sonnet",
             max_tokens: 300,
             messages: [{ role: "user", content: prompt }]
           }),

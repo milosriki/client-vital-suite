@@ -286,23 +286,19 @@ const MODEL_PROVIDER_MAP: Record<string, AIProvider> = {
   "claude-3-opus": "anthropic",
   "claude-3-sonnet": "anthropic", 
   "claude-3-haiku": "anthropic",
-  "claude-3-5-sonnet": "anthropic",
+  "claude-4-5-sonnet": "anthropic",
   "claude-3-5-haiku": "anthropic",
+  "claude-4-5-sonnet": "anthropic",
   "claude-2": "anthropic",
-  // OpenAI
   "gpt-4": "openai",
-  "gpt-4-turbo": "openai",
   "gpt-4o": "openai",
   "gpt-4o-mini": "openai",
   "gpt-3.5-turbo": "openai",
-  "o1": "openai",
-  "o1-mini": "openai",
-  "o1-preview": "openai",
-  // Google
   "gemini-pro": "google",
-  "gemini-1.5-pro": "google",
+  "gemini-3.0-flash": "google",
   "gemini-1.5-flash": "google",
-  "gemini-2.0-flash": "google",
+  "gemini-3.0-flash": "google",
+  "gemini-3.0-flash": "google",
 };
 
 /**

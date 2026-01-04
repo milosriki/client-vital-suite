@@ -77,13 +77,15 @@ serve(async (req) => {
         console.log(`Fetching CallGear data from ${fromDate} to ${toDate}`);
 
         // CallGear Data API - CORRECT endpoint
-        // Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC)
-        // Call API: https://callapi.callgear.com/v4.0 (REST - for call management)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         const response = await fetch('https://dataapi.callgear.com/v2.0', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            signal: controller.signal,
             body: JSON.stringify({
                 jsonrpc: "2.0",
                 method: "get.calls_report",

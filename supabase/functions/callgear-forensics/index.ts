@@ -52,41 +52,76 @@ serve(async (req) => {
 
     // Helper to fetch calls from CallGear API
     async function fetchCalls(days: number): Promise<CallGearCall[]> {
-        // Placeholder for actual API call
-        // In a real implementation, this would query CallGear's API
-        // For now, we'll return mock data or an empty array if no API key
-        // derived from existing callgear functions logic
-        return []; 
-    }
+        const dateTill = new Date().toISOString().split('T')[0] + " 23:59:59";
+        const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + " 00:00:00";
 
-    if (action === "health-check") {
-         return new Response(
-            JSON.stringify({
-              ok: true,
-              timestamp: new Date().toISOString(),
-              message: "CallGear Forensics Ready"
-            }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+        const response = await fetch('https://dataapi.callgear.com/v2.0', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "get.calls_report",
+                params: {
+                    access_token: CALLGEAR_API_KEY,
+                    date_from: dateFrom,
+                    date_till: dateTill,
+                    fields: ["id", "start_time", "talk_duration", "finish_reason", "direction", "is_lost", "contact_phone_number", "employees"]
+                },
+                id: 1
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`CallGear API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.error) throw new Error(JSON.stringify(data.error));
+
+        return data.result?.calls?.map((c: any) => ({
+            id: c.id?.toString(),
+            start_time: c.start_time,
+            duration: c.talk_duration || 0,
+            status: c.finish_reason,
+            type: c.direction,
+            is_lost: c.is_lost === true || c.is_lost === 1,
+            contact_number: c.contact_phone_number,
+            employee_name: Array.isArray(c.employees) ? c.employees[0]?.employee_name : c.employees
+        })) || [];
     }
 
     if (action === "analyze-calls") {
-        // 1. Fetch calls
-        // const calls = await fetchCalls(days);
-        
-        // 2. Analyze for anomalies (e.g., short calls, missed calls, high volume)
+        const calls = await fetchCalls(days);
         const anomalies = [];
         
-        // Mock anomaly for demonstration
-        // anomalies.push({ type: "HIGH_MISSED_CALL_RATE", severity: "medium", message: "High rate of missed calls detected." });
+        const missedCalls = calls.filter(c => c.is_lost).length;
+        const shortCalls = calls.filter(c => !c.is_lost && c.duration > 0 && c.duration < 10).length;
+        
+        if (missedCalls > (calls.length * 0.3)) {
+            anomalies.push({ 
+                type: "CRITICAL_ABANDONMENT", 
+                severity: "high", 
+                message: `Extremely high missed call rate: ${Math.round((missedCalls/calls.length)*100)}%` 
+            });
+        }
+
+        if (shortCalls > 5) {
+            anomalies.push({ 
+                type: "GHOST_CALL_SIGNATURE", 
+                severity: "medium", 
+                message: `${shortCalls} calls under 10 seconds detected (potential "Ghost Protocol").` 
+            });
+        }
 
         return new Response(
             JSON.stringify({
+              success: true,
               anomalies,
               summary: {
-                  totalCalls: 0,
-                  missedCalls: 0,
-                  avgDuration: 0
+                  totalCalls: calls.length,
+                  missedCalls,
+                  shortCalls,
+                  avgDuration: calls.length > 0 ? Math.round(calls.reduce((acc, c) => acc + c.duration, 0) / calls.length) : 0
               },
               timestamp: new Date().toISOString()
             }),

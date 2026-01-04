@@ -96,7 +96,7 @@ ANALYSIS FRAMEWORK:
 
     // Call Claude for analysis
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-4-5-sonnet',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{

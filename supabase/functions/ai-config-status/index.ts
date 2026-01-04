@@ -130,7 +130,7 @@ async function checkAnthropicStatus(): Promise<ProviderStatus> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
+        model: "claude-4-5-sonnet",
         max_tokens: 1,
         messages: [{ role: "user", content: "hi" }],
       }),

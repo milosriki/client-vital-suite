@@ -981,7 +981,7 @@ STAGES: lead→mql→sql→opportunity→customer
     console.log(`Agent iteration ${iterations}`);
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-4-5-sonnet",
       max_tokens: 4096,
       system: systemPrompt,
       tools,

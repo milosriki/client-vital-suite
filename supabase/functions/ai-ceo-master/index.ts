@@ -189,13 +189,13 @@ RESPOND WITH VALID JSON ONLY:
     const childRun = await parentRun.createChild({
         name: "gemini_call",
         run_type: "llm",
-        inputs: { command, model: "gemini-2.0-flash" },
+        inputs: { command, model: "gemini-3.0-flash" },
     });
     await childRun.postRun();
 
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

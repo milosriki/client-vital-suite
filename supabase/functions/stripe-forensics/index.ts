@@ -151,7 +151,8 @@ serve(async (req) => {
         account,
         disputes,
         customers,
-        events
+        events,
+        invoices
       ] = await Promise.all([
         stripe.balance.retrieve().catch(() => null),
         fetchAllStripe(stripe.payouts, { created: { gte: daysAgo } }).catch(() => ({ data: [] })),
@@ -163,7 +164,8 @@ serve(async (req) => {
         stripe.accounts.retrieve().catch(() => null),
         fetchAllStripe(stripe.disputes, {}).catch(() => ({ data: [] })),
         stripe.customers.list({ limit: 100 }).catch(() => ({ data: [] })),
-        fetchAllStripe(stripe.events, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] }))
+        fetchAllStripe(stripe.events, { created: { gte: sevenDaysAgo } }).catch(() => ({ data: [] })),
+        fetchAllStripe(stripe.invoices, { created: { gte: daysAgo } }).catch(() => ({ data: [] }))
       ]);
 
       // ====== ISSUING (Card Spend Tracking) ======
@@ -721,6 +723,95 @@ serve(async (req) => {
 
       // Anomaly detection
       const anomalies: AnomalyResult[] = [];
+
+      // ====== FORENSIC CHECK: GHOST PROTOCOL (Detached PMs) ======
+      const ghostCustomers = (customers.data || []).filter((c: any) => {
+        const hasActiveInvoices = (invoices.data || []).some((inv: any) => 
+          inv.customer === c.id && (inv.status === 'open' || inv.status === 'past_due')
+        );
+        return hasActiveInvoices && !c.default_source && !c.invoice_settings?.default_payment_method;
+      });
+
+      if (ghostCustomers.length > 0) {
+        anomalies.push({
+          type: "GHOST_PROTOCOL_DETECTED",
+          severity: "critical",
+          message: `${ghostCustomers.length} customers subject to Ghost Protocol (active debt, zero payment methods)`,
+          details: {
+            count: ghostCustomers.length,
+            customers: ghostCustomers.map((c: any) => ({ id: c.id, email: c.email, name: c.name }))
+          }
+        });
+      }
+
+      // ====== DYNAMIC FORENSIC CHECKS ======
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: dbSignatures } = await supabase.from('forensic_signatures').select('*');
+
+      // ====== FORENSIC CHECK: PAYOUT MINING (Extraction Phase) ======
+      const payoutMiningSig = dbSignatures?.find(s => s.signature_type === 'AMOUNT' && s.description.includes('Extraction'));
+      const MINING_THRESHOLD = payoutMiningSig ? parseFloat(payoutMiningSig.signature_value) * 100 : 6000000;
+      
+      const largePayouts = (payouts.data || []).filter((p: any) => p.amount > MINING_THRESHOLD);
+      if (largePayouts.length > 0) {
+        anomalies.push({
+          type: "PAYOUT_MINING_EXTRACTION",
+          severity: "critical",
+          message: `${largePayouts.length} High-value extractions detected (> ${(MINING_THRESHOLD/100).toLocaleString()} AED)`,
+          details: largePayouts.map((p: any) => ({ id: p.id, amount: p.amount / 100, date: new Date(p.created * 1000).toISOString() }))
+        });
+      }
+
+      // ====== FORENSIC CHECK: STRUCTURING (Identical Manual Invoices) ======
+      const structSig = dbSignatures?.find(s => s.signature_type === 'AMOUNT' && s.signature_value === '12889.80');
+      const STRUCTURING_VALUE = structSig ? parseFloat(structSig.signature_value) * 100 : 1288980;
+      
+      const structuredInvoices = (invoices.data || []).filter((inv: any) => inv.amount_due === STRUCTURING_VALUE);
+      if (structuredInvoices.length > 5) {
+        anomalies.push({
+          type: "INVOICE_STRUCTURING_ENGINE",
+          severity: "critical",
+          message: `Detected ${structuredInvoices.length} identical AED ${(STRUCTURING_VALUE/100).toLocaleString()} invoices (Structuring Signature)`,
+          details: {
+            count: structuredInvoices.length,
+            totalValue: (structuredInvoices.length * STRUCTURING_VALUE) / 100,
+            samples: structuredInvoices.slice(0, 5).map((inv: any) => inv.id)
+          }
+        });
+      }
+
+      // ====== FORENSIC CHECK: UNAUTHORIZED BANK CHANGE ======
+      const bankSig = dbSignatures?.find(s => s.signature_type === 'BANK_ACCOUNT');
+      const WATCHLIST_LAST4 = bankSig?.signature_value || "9001";
+      
+      const unauthorizedBanks = (payouts.data || []).filter((p: any) => 
+        p.destination && String(p.destination).includes(WATCHLIST_LAST4)
+      );
+      if (unauthorizedBanks.length > 0) {
+        anomalies.push({
+          type: "UNAUTHORIZED_BANK_DESTINATION",
+          severity: "critical",
+          message: `Shadow Bank Account ****${WATCHLIST_LAST4} detected in payouts. Matching forensic signature.`,
+          details: { count: unauthorizedBanks.length, bank: `****${WATCHLIST_LAST4}` }
+        });
+      }
+
+      // ====== FORENSIC CHECK: SHADOW ACCOUNT IP FINGERPRINTING ======
+      const MALICIOUS_IPS = dbSignatures?.filter(s => s.signature_type === 'IP').map(s => s.signature_value) || [];
+      const maliciousActivity = (events.data || []).filter((e: any) => 
+        e.request?.ip && MALICIOUS_IPS.includes(e.request.ip)
+      );
+      if (maliciousActivity.length > 0) {
+        anomalies.push({
+          type: "SHADOW_ACCOUNT_ACTIVITY",
+          severity: "critical",
+          message: `Activity detected from blacklisted Forensic IPs (${maliciousActivity.length} events)`,
+          details: { ips: Array.from(new Set(maliciousActivity.map((e: any) => e.request.ip))) }
+        });
+      }
 
       // Check for instant payouts
       const instantPayouts = (payouts.data || []).filter((p: any) => p.method === 'instant');
@@ -1440,7 +1531,7 @@ serve(async (req) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-3.0-flash",
           messages: [
             {
               role: "system",

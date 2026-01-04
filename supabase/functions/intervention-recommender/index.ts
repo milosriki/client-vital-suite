@@ -168,7 +168,7 @@ Write the message:`;
           "anthropic-version": "2023-06-01"
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
+          model: "claude-4-5-sonnet",
           max_tokens: 200,
           system: systemPrompt,
           messages: [{ role: "user", content: prompt }]

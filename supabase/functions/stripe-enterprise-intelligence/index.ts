@@ -318,7 +318,7 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "gemini-2.0-flash",
+          model: "gemini-3.0-flash",
           messages: [
             { role: "system", content: systemPrompt },
             ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),

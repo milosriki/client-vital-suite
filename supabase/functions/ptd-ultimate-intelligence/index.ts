@@ -532,7 +532,7 @@ async function generateWithClaude(query: string, persona: any, context: any, par
     const childRun = await parentRun.createChild({
         name: "anthropic_call",
         run_type: "llm",
-        inputs: { query, model: "claude-3-5-sonnet-20241022" },
+        inputs: { query, model: "claude-4-5-sonnet-20241022" },
     });
     await childRun.postRun();
 
@@ -545,7 +545,7 @@ async function generateWithClaude(query: string, persona: any, context: any, par
                 'content-type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
+                model: 'claude-4-5-sonnet-20241022',
                 max_tokens: 4000,
                 system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
                 messages: [{
@@ -578,24 +578,17 @@ async function generateWithGemini(query: string, persona: any, context: any, par
     await childRun.postRun();
 
     try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}\n\nQUERY: ${query}`
-                        }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.2,
-                        maxOutputTokens: 4000
-                    }
-                })
-            }
-        );
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${GOOGLE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: "You are the Ultimate Intelligence of PTD Fitness." }] },
+        }),
+      }
+    );
 
         const result = await response.json();
         if (result.error) throw new Error(result.error.message);

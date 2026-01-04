@@ -56,7 +56,7 @@ export async function exampleAIFunction(
   userMessage: string,
   sessionId?: string
 ): Promise<string> {
-  const MODEL = "claude-3-5-sonnet-20241022";
+  const MODEL = "claude-4-5-sonnet-20241022";
   const FUNCTION_NAME = "example-ai-function";
   
   // Create trace config with provider metadata (for cost tracking)
@@ -150,7 +150,7 @@ BEFORE (hardcoded):
 ─────────────────────
 const systemPrompt = `You are a helpful assistant...`;
 await anthropic.messages.create({
-  model: "claude-3-5-sonnet",
+  model: "claude-4-5-sonnet",
   system: systemPrompt,
   messages: [...]
 });
@@ -165,7 +165,7 @@ const FALLBACK_PROMPT = `You are a helpful assistant...`;  // Keep existing prom
 // In function:
 const systemPrompt = await pullPrompt("my-prompt:prod", FALLBACK_PROMPT);
 await anthropic.messages.create({
-  model: "claude-3-5-sonnet",
+  model: "claude-4-5-sonnet",
   system: systemPrompt,
   messages: [...]
 });

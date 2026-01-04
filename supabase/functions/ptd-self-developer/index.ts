@@ -99,7 +99,7 @@ Always respond with a JSON object containing:
     const childRun = await parentRun.createChild({
       name: "anthropic_call",
       run_type: "llm",
-      inputs: { command, model: "claude-3-5-sonnet-20241022" },
+      inputs: { command, model: "claude-4-5-sonnet-20241022" },
     });
     await childRun.postRun();
 
@@ -111,7 +111,7 @@ Always respond with a JSON object containing:
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-4-5-sonnet-20241022',
         max_tokens: 8000,
         system: systemPrompt,
         messages: [

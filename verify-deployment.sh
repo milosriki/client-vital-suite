@@ -351,6 +351,7 @@ check_deployment_status() {
   else
     warn "Edge Functions returned HTTP $FUNC_STATUS"
   fi
+  fi
   
   # Get latest deployment info
   LATEST_DEPLOY=$(vercel ls 2>/dev/null | head -1)

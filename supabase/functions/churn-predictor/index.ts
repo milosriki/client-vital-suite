@@ -202,7 +202,7 @@ Provide a brief, actionable insight for the coach.`;
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-4-5-sonnet",
         max_tokens: 150,
         system: systemPrompt,
         messages: [{ role: "user", content: prompt }]

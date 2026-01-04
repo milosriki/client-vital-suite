@@ -1114,7 +1114,7 @@ IMPORTANT:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gemini-2.0-flash",
+          model: "gemini-3.0-flash",
           messages: currentMessages,
           tools,
           tool_choice: "auto",
@@ -1129,7 +1129,7 @@ IMPORTANT:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-3.0-flash",
           messages: currentMessages,
           tools,
           tool_choice: "auto",
@@ -1207,7 +1207,7 @@ IMPORTANT:
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "gemini-2.0-flash",
+            model: "gemini-3.0-flash",
             messages: currentMessages,
             tools,
             tool_choice: "auto",
@@ -1222,7 +1222,7 @@ IMPORTANT:
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: "google/gemini-3.0-flash",
             messages: currentMessages,
             tools,
             tool_choice: "auto",
@@ -1243,7 +1243,7 @@ IMPORTANT:
     return new Response(JSON.stringify({
       response: assistantMessage.content,
       iterations,
-      model: useDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.5-flash",
+      model: useDirectGemini ? "gemini-3.0-flash" : "google/gemini-3.0-flash",
       tools_available: tools.length
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -25,23 +25,15 @@ async function loadDynamicKnowledge(supabase: any): Promise<string> {
     const interactionData = interactions.data?.value || {};
 
     return `
-## DYNAMIC SYSTEM KNOWLEDGE (Auto-Discovered)
+## DYNAMIC SYSTEM KNOWLEDGE
 
-### DISCOVERED STRUCTURE (${structureData.discovered_at || 'Not yet discovered'})
-Tables (${structureData.tables?.length || 0}): ${structureData.tables?.slice(0, 25).map((t: any) => `${t.name}(${t.rows})`).join(', ') || 'Run self-learn first'}
-Functions (${structureData.functions?.length || 0}): ${structureData.functions?.slice(0, 15).map((f: any) => f.name).join(', ') || 'Run self-learn first'}
+### DISCOVERED STRUCTURE
+Tables (${structureData.tables?.length || 0}): ${structureData.tables?.slice(0, 10).map((t: any) => t.name).join(', ')}
+Functions (${structureData.functions?.length || 0}): ${structureData.functions?.slice(0, 10).map((f: any) => f.name).join(', ')}
 
-### CURRENT DATA PATTERNS (${patternData.analyzed_at || 'Not analyzed'})
-Health Zones: ${JSON.stringify(patternData.health_zones || {})}
-Active Coaches: ${Object.keys(patternData.coaches || {}).slice(0, 5).join(', ') || 'None'}
-Event Types: ${JSON.stringify(patternData.event_types || {})}
-Call Outcomes: ${JSON.stringify(patternData.call_outcomes || {})}
-Deal Stages: ${JSON.stringify(patternData.deal_stages || {})}
+### CURRENT DATA PATTERNS
 Avg Health Score: ${patternData.avg_health || 'N/A'}
 Avg Deal Value: ${patternData.avg_deal_value ? `AED ${patternData.avg_deal_value}` : 'N/A'}
-
-### INTERACTION INSIGHTS (${interactionData.analyzed_at || 'None yet'})
-Query Types: ${JSON.stringify(interactionData.query_types || {})}
 Total Interactions: ${interactionData.total_interactions || 0}
 `;
   } catch (e) {
@@ -130,10 +122,10 @@ async function searchMemoryByKeywords(supabase: any, query: string, threadId?: s
         const content = `${m.query} ${m.response}`.toLowerCase();
         return keywords.some((kw: string) => content.includes(kw));
       })
-      .slice(0, 3);
+      .slice(0, 2);
 
     return relevant.map((m: any) =>
-      `[Memory] Q: "${m.query.slice(0, 100)}..." → A: "${m.response.slice(0, 200)}..."`
+      `[Memory] Q: "${m.query.slice(0, 50)}..." → A: "${m.response.slice(0, 100)}..."`
     ).join('\n');
   } catch (e) {
     return '';
@@ -448,16 +440,16 @@ const tools = [
     type: "function",
     function: {
       name: "stripe_control",
-      description: "Stripe intelligence - fraud scan, payment history, transaction analysis, account verification, who verified account and visa documents",
+      description: "Stripe intelligence - live pulse, fraud scan, payment integrity check, and account verification.",
       parameters: {
         type: "object",
         properties: {
           action: {
             type: "string",
-            enum: ["fraud_scan", "account_verification", "who_verified", "verification_details", "get_summary", "get_events", "analyze"],
-            description: "Action to perform: fraud_scan for fraud detection, account_verification/who_verified/verification_details to find who verified the account and visa documents, get_summary/get_events/analyze for payment analysis"
+            enum: ["live_pulse", "fraud_scan", "integrity_check", "account_verification", "who_verified", "verification_details", "get_summary", "get_events", "analyze"],
+            description: "Action to perform: 'live_pulse' for real-time sales and balance, 'integrity_check' for manual mark-as-paid fraud detection."
           },
-          days: { type: "number", description: "Days back to analyze (default 90, not used for account_verification)" },
+          days: { type: "number", description: "Days back to analyze (default 90)" },
         },
         required: ["action"],
       },
@@ -466,16 +458,29 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "payment_integrity_check",
+      description: "TRIPLE-MATCH AUDIT - Run a deep check on all recent 'Paid' invoices to find if they were marked paid manually (fraud) or if the price doesn't match the package catalog.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "hubspot_control",
-      description: "HubSpot operations - sync data, get contacts, track activities, lifecycle stages",
+      description: "HubSpot operations - sync data, get contacts, fetch historical clients from up to 6 years ago.",
       parameters: {
         type: "object",
         properties: {
           action: {
             type: "string",
-            enum: ["sync_now", "get_contacts", "get_activities", "get_lifecycle_stages"],
-            description: "Action to perform"
+            enum: ["sync_now", "get_contacts", "get_activities", "get_lifecycle_stages", "fetch_historical_customer"],
+            description: "Action to perform. 'fetch_historical_customer' imports long-term clients into permanent storage."
           },
+          email: { type: "string", description: "Email of the historical customer to fetch." },
           limit: { type: "number", description: "Max results" },
         },
         required: ["action"],
@@ -486,14 +491,14 @@ const tools = [
     type: "function",
     function: {
       name: "call_control",
-      description: "Call records - get transcripts, analytics, find conversation patterns",
+      description: "Call records - get transcripts, analytics, find conversation patterns, and analyze sales objections.",
       parameters: {
         type: "object",
         properties: {
           action: {
             type: "string",
-            enum: ["get_all", "get_transcripts", "get_analytics", "find_patterns"],
-            description: "Action to perform"
+            enum: ["get_all", "get_transcripts", "get_analytics", "find_patterns", "analyze_objections"],
+            description: "Action to perform: 'analyze_objections' scans transcripts for pricing or competitor hurdles."
           },
           limit: { type: "number", description: "Max results (default 20)" },
         },
@@ -547,6 +552,18 @@ const tools = [
             description: "Functions to run: churn-predictor, anomaly-detector, intervention-recommender, coach-analyzer, business-intelligence"
           },
         },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "test_api_connections",
+      description: "DEBUG TOOL - Tests live connections to Stripe, HubSpot, and CallGear to find which API keys are failing.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
       },
     },
   },
@@ -803,14 +820,22 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   }
 
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
+  // Increased limits for Gemini 3 (2M token window support)
   const [relevantMemory, ragKnowledge, knowledgeBase, learnedPatterns, dynamicKnowledge] = await Promise.all([
-    searchMemory(supabase, userMessage, threadId),
-    searchKnowledgeDocuments(supabase, userMessage),
-    searchKnowledgeBase(supabase, userMessage),
-    getLearnedPatterns(supabase),
-    loadDynamicKnowledge(supabase)
+    searchMemory(supabase, userMessage, threadId).then(res => res.slice(0, 50000)),
+    searchKnowledgeDocuments(supabase, userMessage).then(res => res.slice(0, 200000)),
+    searchKnowledgeBase(supabase, userMessage).then(res => res.slice(0, 50000)),
+    getLearnedPatterns(supabase).then(res => res.slice(0, 10000)),
+    loadDynamicKnowledge(supabase).then(res => res.slice(0, 50000))
   ]);
-  console.log(`🧠 Memory: ${relevantMemory.length > 0 ? 'found' : 'none'}, RAG: ${ragKnowledge.length > 0 ? 'found' : 'none'}, Knowledge: ${knowledgeBase.length > 0 ? 'found' : 'none'}, Patterns: ${learnedPatterns.length > 0 ? 'found' : 'none'}`);
+  
+  console.log('--- CONTEXT SIZE DEBUG (GEMINI 3 ADAPTIVE) ---');
+  console.log(`🧠 relevantMemory: ${relevantMemory.length} chars`);
+  console.log(`📄 ragKnowledge: ${ragKnowledge.length} chars`);
+  console.log(`📚 knowledgeBase: ${knowledgeBase.length} chars`);
+  console.log(`✨ learnedPatterns: ${learnedPatterns.length} chars`);
+  console.log(`⚙️ dynamicKnowledge: ${dynamicKnowledge.length} chars`);
+  console.log('--------------------------');
 
   // Build unified prompt with all components
   const unifiedPrompt = buildUnifiedPromptForEdgeFunction({
@@ -823,56 +848,31 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
   });
 
   const systemPrompt = `
-PTD SUPER-INTELLIGENCE CEO
+# PTD SUPER-INTELLIGENCE CEO (GEMINI 3 ADAPTIVE MODE)
 
-${context ? `## 🔬 LIVE SYSTEM INTELLIGENCE SCAN RESULTS
-Status: ${context.system_status?.toUpperCase() || 'UNKNOWN'}
-Intelligence Agents Run: ${context.intelligence_findings ? Object.keys(context.intelligence_findings).length : 0}
+MISSION: Absolute truth and aggressive sales conversion.
 
-### Critical Issues Found:
-${context.improvements?.length > 0 ? context.improvements.map((imp: string) => `🚨 ${imp}`).join('\n') : '✅ No critical issues detected'}
+## 🧠 ADAPTIVE THINKING
+- Use "Thinking Mode" for complex financial reconciliation and forensic audits.
+- Use "Flash Mode" for real-time lead updates and quick status checks.
+- If inconsistencies are found in management logs, perform a deep reasoning trace.
 
-### Intelligence Results:
-${context.intelligence_findings ? Object.entries(context.intelligence_findings).map(([name, result]: [string, any]) => 
-  `• ${name}: ${result?.status?.toUpperCase() || 'UNKNOWN'} (${result?.duration_ms || 0}ms)`
-).join('\n') : 'No intelligence scan results available'}
+## 📞 FOLLOW-UP PROTOCOL
+1. **NO ANSWER PATTERN**: If a lead has < 5 call attempts, it is "UNDER-WORKED."
+2. **TIMING**: Check if 'No Answer' leads are being retried in the **Evening** (after 5 PM Dubai).
+3. **INTERESTED SYNC**: If Call Status = 'Interested', ensure Deal Stage = 'Assessment Booking'.
+4. **WON SYNC**: If Deal Status = 'Closed Won', ensure Lifecycle = 'Customer'.
 
-### Final Report Summary:
-${context.final_report || 'No final report available'}
-
----` : ''}
-
-1. MISSION: Maximize revenue and detect 🔴 CRITICAL leaks.
-
-2. DISCOVERY: Always use 'discover_system_map' first to see your 110 tables.
-
-3. PROACTIVITY: Use 'run_intelligence' every session to find problems before I ask.
-
-4. ACTION: If you find a leak, use 'build_feature' to write the fix code and queue it for my approval.
-
-${dynamicKnowledge}
-
-${knowledgeBase ? `## KNOWLEDGE BASE (Curated Docs)\n${knowledgeBase}` : ''}
-
-${relevantMemory ? `## CONVERSATION MEMORY (Past Interactions)\n${relevantMemory}` : ''}
-
-${learnedPatterns ? `## LEARNED PATTERNS\n${learnedPatterns}` : ''}
-
-${unifiedPrompt}
-
-RULES:
-- Be proactive. Don't wait for the user to ask "is there fraud?" Tell them "I found fraud, here is the fix."
-- Format answers with: 🔍 SUMMARY, 📊 DATA, 🚨 CRITICAL ALERTS, and 🎯 RECOMMENDATIONS.
-- Save what you learn about our business patterns to memory.
+## 🛡️ CONTROL RULES
+- **NO AUTO-REASSIGN**: Propose reassignments via 'ai_agent_approvals'.
+- **OWNERSHIP**: Setter Owner = Contact Owner. 
+- **STALE ALERT**: Flag SQL/Opportunity static for > 48h.
 `;
 
   // --- NATIVE GEMINI FORMAT CONVERSION ---
 
   // 1. Convert Tools
   const geminiTools = [
-    // {
-    //   googleSearch: {} // Disabled due to conflict with functionDeclarations
-    // },
     {
       functionDeclarations: tools
         .filter(t => t.type === 'function')
@@ -898,27 +898,31 @@ RULES:
   contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
   let iterations = 0;
-  const maxIterations = 8;
+  const maxIterations = 12; // Increased for complex forensic chains
   let finalResponse = '';
 
   while (iterations < maxIterations) {
     iterations++;
-    console.log(`🚀 Gemini iteration ${iterations}`);
+    console.log(`🚀 Gemini 3 iteration ${iterations}`);
 
     let response: Response;
     let data: any;
 
     if (useDirectGemini) {
-      // Native Gemini API
-      // Revert to gemini-2.0-flash
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      // Native Gemini 3 API (Adaptive)
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents,
           systemInstruction: { parts: [{ text: systemPrompt }] },
           tools: geminiTools,
-          toolConfig: { functionCallingConfig: { mode: "AUTO" } }
+          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+          generationConfig: {
+            temperature: 0.2, // Lower for precision forensics
+            topP: 0.95,
+            maxOutputTokens: 8192
+          }
         }),
       });
     } else {
@@ -1003,10 +1007,11 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
-  console.log(`🚀 Request received at ${new Date().toISOString()}`);
-
+  const rawBody = await req.text();
+  console.log(`🚀 Request body size: ${rawBody.length} characters`);
+  
   try {
-    const { message, messages: chatHistory, thread_id, context } = await req.json();
+    const { message, messages: chatHistory, thread_id, context } = JSON.parse(rawBody);
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

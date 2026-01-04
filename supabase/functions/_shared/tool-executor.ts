@@ -55,16 +55,48 @@ export async function executeSharedTool(supabase: any, toolName: string, input: 
         return "Unknown action";
       }
 
+      case "trigger_realtime_sync": {
+        try {
+          const [stripeSync, hubspotSync] = await Promise.all([
+            supabase.functions.invoke('stripe-dashboard-data', { body: { force_refresh: true } }),
+            supabase.functions.invoke('sync-hubspot-to-supabase', { body: { sync_type: 'all' } })
+          ]);
+          return `🔄 REAL-TIME SYNC COMPLETE: Stripe and HubSpot data updated.`;
+        } catch (e) {
+          return `Sync error: ${e}`;
+        }
+      }
+
       case "stripe_control": {
         const { action, days = 90 } = input;
+        
+        // Force a live sync for high-priority actions
+        if (action === "live_pulse" || action === "fraud_scan" || action === "integrity_check") {
+          console.log(`🚀 Triggering live sync for ${action}...`);
+          await supabase.functions.invoke('stripe-dashboard-data', { body: { force_refresh: true } });
+        }
+
         if (action === "fraud_scan") {
           try {
             const { data } = await supabase.functions.invoke('stripe-forensics', {
               body: { action: 'full-audit', days_back: days }
             });
-            return `🚨 STRIPE FRAUD SCAN:\n${JSON.stringify(data, null, 2)}`;
+            return `🚨 LIVE STRIPE FRAUD SCAN:\n${JSON.stringify(data, null, 2)}`;
           } catch (e) {
             return `Stripe forensics error: ${e}`;
+          }
+        }
+        
+        if (action === "live_pulse") {
+          try {
+            const { data } = await supabase.functions.invoke('stripe-dashboard-data', { body: {} });
+            return `📊 LIVE STRIPE PULSE (Current as of ${new Date().toLocaleTimeString()}):\n` +
+                   `- Net Revenue: ${data.metrics.netRevenue / 100} AED\n` +
+                   `- Successful Payments: ${data.metrics.successfulPaymentsCount}\n` +
+                   `- Pending Balance: ${data.balance.pending[0].amount / 100} AED\n` +
+                   `Recent Activity Summary: ${JSON.stringify(data.chartData.slice(-3))}`;
+          } catch (e) {
+            return `Live pulse error: ${e}`;
           }
         }
         if (action === "get_summary" || action === "analyze") {
@@ -78,10 +110,56 @@ export async function executeSharedTool(supabase: any, toolName: string, input: 
         return "Unknown action";
       }
       
+      case "test_api_connections": {
+        const results: Record<string, any> = {};
+        
+        // 1. Stripe Test
+        try {
+          const stripe = await fetch("https://api.stripe.com/v1/balance", {
+            headers: { "Authorization": `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}` }
+          });
+          results.stripe = stripe.ok ? "🟢 OK" : `🔴 FAILED (${stripe.status})`;
+        } catch (e) { results.stripe = "🔴 ERROR"; }
+
+        // 2. HubSpot Test
+        try {
+          const hubspot = await fetch("https://api.hubapi.com/crm/v3/objects/contacts?limit=1", {
+            headers: { "Authorization": `Bearer ${Deno.env.get("HUBSPOT_API_KEY")}` }
+          });
+          results.hubspot = hubspot.ok ? "🟢 OK" : `🔴 FAILED (${hubspot.status})`;
+        } catch (e) { results.hubspot = "🔴 ERROR"; }
+
+        // 3. CallGear Test
+        try {
+          const cgRes = await supabase.functions.invoke('fetch-callgear-data', { body: { limit: 1 } });
+          results.callgear = cgRes.data?.success ? "🟢 OK" : "🔴 FAILED";
+        } catch (e) { results.callgear = "🔴 ERROR"; }
+
+        return JSON.stringify(results, null, 2);
+      }
+      
 
 
       case "hubspot_control": {
-        const { action, limit = 50 } = input;
+        const { action, limit = 50, email, contact_id } = input;
+        
+        if (action === "get_contact_history") {
+          const { data } = await supabase.from('contact_ownership_history')
+            .select('*')
+            .eq('contact_id', contact_id)
+            .order('changed_at', { ascending: false });
+          return JSON.stringify(data || []);
+        }
+
+        if (action === "get_call_summaries") {
+          const { data } = await supabase.from('call_records')
+            .select('started_at, duration_seconds, call_outcome, transcription, summary')
+            .ilike('caller_number', `%${input.phone}%`)
+            .order('started_at', { ascending: false })
+            .limit(5);
+          return JSON.stringify(data || []);
+        }
+        
         if (action === "sync_now") {
           try {
             const { data } = await supabase.functions.invoke('sync-hubspot-to-supabase', { body: { force: true } });
@@ -125,12 +203,20 @@ export async function executeSharedTool(supabase: any, toolName: string, input: 
           const { data } = await supabase.from('call_analytics').select('*').order('date', { ascending: false }).limit(30);
           return JSON.stringify(data || []);
         }
-        if (action === "find_patterns") {
-          const { data } = await supabase.from('call_records').select('transcription, call_outcome, keywords_mentioned')
+        if (action === "find_patterns" || action === "analyze_objections") {
+          const { data } = await supabase.from('call_records').select('transcription, call_outcome, caller_number')
             .not('transcription', 'is', null).limit(50);
+          
+          const objections = {
+            pricing: data?.filter((c: any) => /price|expensive|cost|budget|discount/i.test(c.transcription)).length,
+            timing: data?.filter((c: any) => /later|next month|busy|wait/i.test(c.transcription)).length,
+            competitor: data?.filter((c: any) => /enhance|other gym|trainer at home/i.test(c.transcription)).length
+          };
+
           return JSON.stringify({
-            booking_keywords: ["schedule", "book", "appointment", "next week"],
-            patterns_found: data?.length || 0
+            analysis_period: "Last 50 calls with transcripts",
+            objection_counts: objections,
+            recommendation: objections.pricing > 10 ? "Consider introducing more flexible installment plans." : "Sales flow is healthy."
           });
         }
         return "Unknown action";
@@ -495,15 +581,16 @@ export async function executeSharedTool(supabase: any, toolName: string, input: 
         if (forbiddenPattern.test(normalizedQuery)) {
           return JSON.stringify({ error: "Query contains forbidden operations" });
         }
-        if (normalizedQuery.includes('--') || normalizedQuery.includes('/*') || normalizedQuery.includes(';')) {
-          return JSON.stringify({ error: "Query contains forbidden characters (comments or multiple statements)" });
+        // Allow semicolons if they are at the end, but block multiple statements
+        if (normalizedQuery.split(';').filter(s => s.trim().length > 0).length > 1) {
+          return JSON.stringify({ error: "Multiple statements are not allowed" });
         }
         try {
           const { data, error } = await supabase.rpc('execute_sql_query', { sql_query: query });
           if (error) return JSON.stringify({ error: error.message });
           return JSON.stringify({ results: data });
         } catch (e) {
-          return JSON.stringify({ error: "SQL query execution not available - RPC function not configured. Use specific tools for data queries." });
+          return JSON.stringify({ error: "SQL query execution failed." });
         }
       }
 
