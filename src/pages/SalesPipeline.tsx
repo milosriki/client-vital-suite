@@ -461,6 +461,8 @@ export default function SalesPipeline() {
     daysLabel
   ), [allLeads, contacts, callRecords?.calls, dealsData?.deals, daysLabel]);
 
+  const conversionRate = funnelData?.total ? ((dealsData?.closedCount || 0) / funnelData.total * 100).toFixed(1) : "0.0";
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}

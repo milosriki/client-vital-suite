@@ -74,23 +74,23 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
     }
   });
 
-  // Fetch HubSpot Live Data
+  // Sync HubSpot Data to Database
   const fetchHubSpotLive = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('fetch-hubspot-live', {
-        body: { mode, action: 'fetch-all' }
+      const { data, error } = await supabase.functions.invoke('sync-hubspot-to-supabase', {
+        body: { mode, sync_type: 'all', incremental: true }
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
       toast({ 
-        title: "HubSpot Data Fetched", 
-        description: `${data?.contacts || 0} contacts, ${data?.deals || 0} deals synced` 
+        title: "HubSpot Sync Complete", 
+        description: `${data?.contacts_synced || 0} contacts, ${data?.deals_synced || 0} deals synced to database` 
       });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to fetch HubSpot data", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Sync Failed", description: error.message || "Failed to sync HubSpot data", variant: "destructive" });
     }
   });
 
