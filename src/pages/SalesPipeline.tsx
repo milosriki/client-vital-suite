@@ -51,12 +51,10 @@ import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const STATUS_CONFIG = {
-  new: { label: "New Leads", color: "bg-blue-500", icon: Users },
-  follow_up: { label: "Follow Up", color: "bg-amber-500", icon: Phone },
-  appointment_set: { label: "Appointment Set", color: "bg-purple-500", icon: Calendar },
-  pitch_given: { label: "Pitch Given", color: "bg-cyan-500", icon: Target },
-  no_show: { label: "No Show", color: "bg-red-500", icon: XCircle },
-  closed: { label: "Closed", color: "bg-green-500", icon: CheckCircle },
+  lead: { label: "New Leads", color: "bg-blue-500", icon: Users },
+  mql: { label: "MQL (Qualified)", color: "bg-amber-500", icon: UserCheck },
+  opportunity: { label: "Opportunity (Assesment)", color: "bg-purple-500", icon: Calendar },
+  closed_won: { label: "Closed Won", color: "bg-green-500", icon: CheckCircle },
 };
 
 const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -164,6 +162,19 @@ const getFollowUpInsights = (
     });
   }
   
+  // Forgotten Leads (In funnel but no activity in 48h)
+  const staleLeads = leads.filter(l => 
+    l.funnel_stage !== 'CLOSED_WON' && 
+    new Date(l.updated_at || l.created_at) < subDays(new Date(), 2)
+  );
+  if (staleLeads.length > 0) {
+    insights.push({ 
+      type: 'urgent', 
+      message: `${staleLeads.length} forgotten leads (no update in 48h)`, 
+      count: staleLeads.length 
+    });
+  }
+  
   return insights;
 };
 
@@ -171,6 +182,8 @@ export default function SalesPipeline() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
   const [daysFilter, setDaysFilter] = useState<string>('3');
+  const [ownerFilter, setOwnerFilter] = useState<string>('all');
+  const [campaignFilter, setCampaignFilter] = useState<string>('all');
   
   // Calculate date filter
   const getDateFilter = () => {
@@ -194,6 +207,7 @@ export default function SalesPipeline() {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['deals-summary'] });
       queryClient.invalidateQueries({ queryKey: ['call-records'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-history'] });
     },
     onError: (error: any) => {
       toast.error('Sync failed: ' + error.message);
@@ -238,53 +252,50 @@ export default function SalesPipeline() {
     };
   }, [queryClient]);
 
-  // Fetch lead funnel data (HubSpot stores leads as contacts)
+  // Fetch lead funnel data using the new dynamic_funnel_view
   const { data: funnelData } = useDedupedQuery({
-    queryKey: ['lead-funnel', daysFilter],
+    queryKey: ['lead-funnel', daysFilter, ownerFilter, campaignFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from('contacts').select('*');
+      let query = supabase.from('dynamic_funnel_view').select('*');
+      
       if (dateFilter) {
         query = query.gte('created_at', dateFilter);
       }
+      if (ownerFilter !== 'all') {
+        query = query.eq('owner', ownerFilter);
+      }
+      if (campaignFilter !== 'all') {
+        query = query.eq('campaign', campaignFilter);
+      }
+
       const { data, error } = await query.order('created_at', { ascending: false });
-      
       if (error) throw error;
-      
-      // Map HubSpot lifecycle stages to funnel statuses
-      const mapLifecycleToStatus = (contact: any): string => {
-        const lifecycle = contact.lifecycle_stage?.toLowerCase();
-        const leadStatus = contact.lead_status?.toLowerCase();
-        
-        if (lifecycle === 'customer' || leadStatus === 'closed_won') return 'closed';
-        if (leadStatus === 'appointment_scheduled' || leadStatus === 'appointment_set') return 'appointment_set';
-        if (leadStatus === 'no_show') return 'no_show';
-        if (lifecycle === 'opportunity' || lifecycle === 'salesqualifiedlead') return 'pitch_given';
-        if (leadStatus === 'in_progress' || leadStatus === 'contacted') return 'follow_up';
-        return 'new';
-      };
       
       const statusCounts: Record<string, number> = {};
       const sourceCounts: Record<string, number> = {};
       
-      const leadsWithStatus = data?.map(contact => ({
-        ...contact,
-        status: mapLifecycleToStatus(contact),
-        source: contact.latest_traffic_source || contact.first_touch_source || 'direct',
-        firstname: contact.first_name,
-        lastname: contact.last_name
-      })) || [];
-      
-      leadsWithStatus.forEach(lead => {
-        statusCounts[lead.status] = (statusCounts[lead.status] || 0) + 1;
-        if (lead.source) {
-          sourceCounts[lead.source] = (sourceCounts[lead.source] || 0) + 1;
-        }
+      data?.forEach(lead => {
+        const stage = lead.funnel_stage?.toLowerCase();
+        statusCounts[stage] = (statusCounts[stage] || 0) + 1;
+        const source = lead.lead_source || 'direct';
+        sourceCounts[source] = (sourceCounts[source] || 0) + 1;
       });
       
-      return { leads: leadsWithStatus, statusCounts, sourceCounts, total: leadsWithStatus.length };
+      return { leads: data || [], statusCounts, sourceCounts, total: data?.length || 0 };
     },
-    staleTime: Infinity, // Real-time subscription handles updates
+    staleTime: Infinity,
+  });
+
+  // Fetch Deep Payment History
+  const { data: paymentHistory } = useDedupedQuery({
+    queryKey: ['payment-history'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('client_payment_history').select('*');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
   });
 
   // Fetch enhanced leads
@@ -426,22 +437,29 @@ export default function SalesPipeline() {
     staleTime: Infinity, // Real-time subscription handles updates
   });
 
-  const conversionRate = funnelData?.total 
-    ? ((funnelData.statusCounts?.closed || 0) / funnelData.total * 100).toFixed(1)
-    : 0;
-
-  const allLeads = [...(funnelData?.leads || []), ...(enhancedLeads || [])];
+  const allLeads = funnelData?.leads || [];
   
+  // Extract unique owners and campaigns for filters
+  const owners = useMemo(() => {
+    const uniqueOwners = Array.from(new Set(allLeads.map(l => l.owner).filter(Boolean)));
+    return uniqueOwners.sort();
+  }, [allLeads]);
+
+  const campaigns = useMemo(() => {
+    const uniqueCampaigns = Array.from(new Set(allLeads.map(l => l.campaign).filter(Boolean)));
+    return uniqueCampaigns.sort();
+  }, [allLeads]);
+
   // Get follow-up insights - Memoized for performance
   const daysLabel = DAYS_FILTER_OPTIONS.find(o => o.value === daysFilter)?.label || daysFilter;
   
   const followUpInsights = useMemo(() => getFollowUpInsights(
-    funnelData?.leads || [],
+    allLeads,
     contacts || [],
     callRecords?.calls || [],
     dealsData?.deals || [],
     daysLabel
-  ), [funnelData?.leads, contacts, callRecords?.calls, dealsData?.deals, daysLabel]);
+  ), [allLeads, contacts, callRecords?.calls, dealsData?.deals, daysLabel]);
 
   return (
     <div className="space-y-6 p-6">
@@ -449,22 +467,50 @@ export default function SalesPipeline() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
-          <p className="text-muted-foreground">Full visibility: leads, contacts, deals, calls & proactive outreach</p>
+          <p className="text-muted-foreground">Dynamic Funnel: Track leads from Ad click to Closed Won</p>
         </div>
         
         {/* Controls - Grouped together */}
-        <div className="flex items-center gap-3 bg-card/50 backdrop-blur-sm rounded-lg p-2 border border-border/50">
+        <div className="flex flex-wrap items-center gap-3 bg-card/50 backdrop-blur-sm rounded-lg p-2 border border-border/50">
           {/* Days Filter */}
           <Select value={daysFilter} onValueChange={setDaysFilter}>
             <SelectTrigger className="w-[140px] bg-background border-border/50">
               <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Filter" />
+              <SelectValue placeholder="Period" />
             </SelectTrigger>
             <SelectContent>
               {DAYS_FILTER_OPTIONS.map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Owner Filter */}
+          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+            <SelectTrigger className="w-[140px] bg-background border-border/50">
+              <UserCheck className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Owner" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Owners</SelectItem>
+              {owners.map(owner => (
+                <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Campaign Filter */}
+          <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+            <SelectTrigger className="w-[140px] bg-background border-border/50">
+              <Target className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Campaign" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Campaigns</SelectItem>
+              {campaigns.map(campaign => (
+                <SelectItem key={campaign} value={campaign}>{campaign}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -479,7 +525,7 @@ export default function SalesPipeline() {
             className="bg-background border-border/50"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${syncFromHubspot.isPending ? 'animate-spin' : ''}`} />
-            Sync HubSpot
+            Sync
           </Button>
           
           <Dialog>
@@ -628,6 +674,37 @@ export default function SalesPipeline() {
             <p className="text-xs text-muted-foreground">Per deal</p>
           </CardContent>
         </Card>
+
+        {/* NEW: Stale Deals Alert */}
+        <Card className="bg-gradient-to-br from-red-500/10 to-card border-red-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-red-400 uppercase tracking-wide">Stale Deals</span>
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+            </div>
+            <div className="text-2xl font-bold text-red-400">
+              {allLeads.filter(l => 
+                l.funnel_stage !== 'CLOSED_WON' && 
+                new Date(l.updated_at || l.created_at) < subDays(new Date(), 2)
+              ).length}
+            </div>
+            <p className="text-xs text-muted-foreground">Forgotten (2d+)</p>
+          </CardContent>
+        </Card>
+
+        {/* NEW: Renewal Revenue at Risk */}
+        <Card className="bg-gradient-to-br from-amber-500/10 to-card border-amber-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-amber-400 uppercase tracking-wide">Next Renewal</span>
+              <Clock className="h-4 w-4 text-amber-400" />
+            </div>
+            <div className="text-xl font-bold text-amber-400">
+              {paymentHistory?.filter((p: any) => (p.sessions_remaining || 0) < 3).length} Clients
+            </div>
+            <p className="text-xs text-muted-foreground">Ready to renew</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Lead Funnel */}
@@ -713,34 +790,63 @@ export default function SalesPipeline() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {funnelData?.leads?.slice(0, 50).map((lead: any) => (
-                      <TableRow key={lead.id}>
-                        <TableCell className="font-medium">
-                          {lead.first_name || lead.firstname} {lead.last_name || lead.lastname}
-                        </TableCell>
-                        <TableCell>{lead.email}</TableCell>
-                        <TableCell>{lead.phone}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{lead.source || 'Unknown'}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={STATUS_CONFIG[lead.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-500'}>
-                            {lead.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{format(new Date(lead.created_at), 'MMM d, HH:mm')}</TableCell>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Source/Campaign</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Reach Status</TableHead>
+                        <TableHead>Call Intensity (5-Rule)</TableHead>
+                        <TableHead>Last Activity</TableHead>
+                        <TableHead>Stage</TableHead>
                       </TableRow>
-                    ))}
+                    </TableHeader>
+                    <TableBody>
+                      {funnelData?.leads?.slice(0, 50).map((lead: any) => (
+                        <TableRow key={lead.id}>
+                          <TableCell className="font-medium">
+                            {lead.first_name || lead.firstname} {lead.last_name || lead.lastname}
+                          </TableCell>
+                          <TableCell>{lead.email}</TableCell>
+                          <TableCell>{lead.phone}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="outline" className="w-fit">{lead.source || 'Unknown'}</Badge>
+                              {lead.latest_traffic_source && (
+                                <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">
+                                  {lead.latest_traffic_source}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-medium">{lead.owner_name || 'Unassigned'}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {allLeads.find(l => l.email === lead.email)?.call_attempt_count > 0 || 
+                               callRecords?.calls?.some(c => c.caller_number?.includes(lead.phone?.replace(/\D/g, ''))) ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                                  <PhoneCall className="h-3 w-3 mr-1" />
+                                  Reached
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                                  <PhoneMissed className="h-3 w-3 mr-1" />
+                                  Not Reached
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={STATUS_CONFIG[lead.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-500'}>
+                              {STATUS_CONFIG[lead.status as keyof typeof STATUS_CONFIG]?.label || lead.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{format(new Date(lead.created_at), 'MMM d, HH:mm')}</TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
                 {!funnelData?.leads?.length && (
@@ -961,13 +1067,13 @@ export default function SalesPipeline() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Caller Number</TableHead>
-                      <TableHead>Direction</TableHead>
+                      <TableHead>Caller/Name</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Source/Campaign</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Outcome</TableHead>
                       <TableHead>Duration</TableHead>
                       <TableHead>Quality</TableHead>
-                      <TableHead>Appointment</TableHead>
                       <TableHead>Transcript</TableHead>
                       <TableHead>Date</TableHead>
                     </TableRow>
@@ -975,11 +1081,31 @@ export default function SalesPipeline() {
                   <TableBody>
                     {callRecords?.calls?.map((call) => {
                       const statusConfig = CALL_STATUS_CONFIG[call.call_status] || CALL_STATUS_CONFIG.initiated;
+                      const matchedLead = allLeads.find(l => 
+                        l.phone?.includes(call.caller_number?.replace(/\D/g, '')) || 
+                        call.caller_number?.includes(l.phone?.replace(/\D/g, ''))
+                      );
+
                       return (
                         <TableRow key={call.id}>
-                          <TableCell className="font-medium">{call.caller_number}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span>{matchedLead ? `${matchedLead.first_name} ${matchedLead.last_name}` : call.caller_number}</span>
+                              {matchedLead && <span className="text-[10px] text-muted-foreground">{call.caller_number}</span>}
+                            </div>
+                          </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{call.call_direction || 'inbound'}</Badge>
+                            <span className="text-sm font-medium">{matchedLead?.owner || call.agent_name || 'Unassigned'}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="outline" className="w-fit">{matchedLead?.lead_source || 'direct'}</Badge>
+                              {matchedLead?.campaign && (
+                                <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                                  {matchedLead.campaign}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
@@ -993,13 +1119,6 @@ export default function SalesPipeline() {
                               <Badge variant={call.lead_quality === 'high' ? 'default' : 'secondary'}>
                                 {call.lead_quality}
                               </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {call.appointment_set ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-muted-foreground" />
                             )}
                           </TableCell>
                           <TableCell>
