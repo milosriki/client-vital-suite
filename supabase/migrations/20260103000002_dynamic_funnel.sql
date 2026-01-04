@@ -1,3 +1,32 @@
+-- 0. Ensure tables have required columns
+DO $$
+BEGIN
+    -- Check deals table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'deals' AND column_name = 'contact_id') THEN
+        ALTER TABLE public.deals ADD COLUMN contact_id UUID REFERENCES public.contacts(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'deals' AND column_name = 'amount') THEN
+        ALTER TABLE public.deals ADD COLUMN amount DECIMAL(12,2);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'deals' AND column_name = 'stage') THEN
+        ALTER TABLE public.deals ADD COLUMN stage TEXT;
+    END IF;
+
+    -- Check contacts table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contacts' AND column_name = 'source') THEN
+        ALTER TABLE public.contacts ADD COLUMN source TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contacts' AND column_name = 'owner_name') THEN
+        ALTER TABLE public.contacts ADD COLUMN owner_name TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contacts' AND column_name = 'utm_campaign') THEN
+        ALTER TABLE public.contacts ADD COLUMN utm_campaign TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contacts' AND column_name = 'utm_content') THEN
+        ALTER TABLE public.contacts ADD COLUMN utm_content TEXT;
+    END IF;
+END $$;
+
 -- 1. Create a Dynamic Lead Funnel View
 -- This view aggregates contacts and deals into a single funnel, sliceable by owner and campaign.
 CREATE OR REPLACE VIEW public.dynamic_funnel_view AS
@@ -21,8 +50,8 @@ SELECT
         WHEN c.lifecycle_stage = 'marketingqualifiedlead' THEN 'MQL'
         ELSE 'LEAD'
     END as funnel_stage,
-    COALESCE(d.deal_value, 0) as deal_value,
-    d.status as deal_status
+    COALESCE(d.amount, 0) as deal_value,
+    d.stage as deal_status
 FROM 
     public.contacts c
 LEFT JOIN 

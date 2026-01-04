@@ -21,12 +21,30 @@ CREATE TABLE IF NOT EXISTS sales_leads (
 ALTER TABLE sales_leads ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow authenticated users to read
-CREATE POLICY "Allow authenticated read access" ON sales_leads
-    FOR SELECT TO authenticated USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'sales_leads' 
+        AND policyname = 'Allow authenticated read access'
+    ) THEN
+        CREATE POLICY "Allow authenticated read access" ON sales_leads
+            FOR SELECT TO authenticated USING (true);
+    END IF;
+END $$;
 
 -- Policy: Allow service role to full access
-CREATE POLICY "Allow service role full access" ON sales_leads
-    FOR ALL TO service_role USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'sales_leads' 
+        AND policyname = 'Allow service role full access'
+    ) THEN
+        CREATE POLICY "Allow service role full access" ON sales_leads
+            FOR ALL TO service_role USING (true);
+    END IF;
+END $$;
 
 -- VIEW 1: Sales Contacts (Active Leads)
 -- Filters out customers, focuses on people the sales team needs to work
