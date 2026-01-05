@@ -100,7 +100,6 @@ export default function Dashboard() {
   const { data: dailyBusinessMetrics } = useDedupedQuery({
     queryKey: ["daily-business-metrics-validated"],
     queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("daily_business_metrics")
         .select("*")
@@ -259,7 +258,7 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <MissionControlHeader
           title="Executive Dashboard"
-          subtitle="Real-time business intelligence at your fingertips"
+          subtitle="Real-time business intelligence v1.0.5 - Aligned"
           isConnected={true}
           lastUpdated={lastUpdated}
           onRefresh={handleRefresh}
@@ -347,8 +346,7 @@ export default function Dashboard() {
                 status: c.health_zone === "RED" ? "follow_up" : c.health_zone === "GREEN" ? "closed" : "new",
                 created_at: c.created_at || new Date().toISOString(),
                 deal_value: c.package_value_aed,
-                owner_name: c.owner_name || 'Unassigned Setter',
-                assigned_coach: c.assigned_coach || 'Unassigned Coach',
+                owner_name: c.assigned_coach || 'Unassigned Coach',
               }))}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

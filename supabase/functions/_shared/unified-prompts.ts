@@ -14,12 +14,16 @@ PTD LEAD JOURNEY:
 
 export const UNIFIED_SCHEMA_PROMPT = `
 SCHEMA:
-- contacts: email, lifecycle_stage, utm_campaign, first_touch_source, assigned_coach
+- contacts: email, lifecycle_stage, utm_campaign, first_touch_source, assigned_coach, owner_id
 - deals: deal_value, stage, status, contact_id
 - call_records: caller_number, transcription, call_outcome
 - client_health_scores: health_score, health_zone
 - daily_business_metrics: date, total_leads_new, total_revenue_booked, ad_spend_facebook, roas_daily
 - staff: name, email, role, status
+
+ROLES:
+- Setter: Contact Owner (HubSpot Owner ID). Responsible for calls/booking. Example: Matthew Twigg.
+- Coach (Closer): Assigned Coach Property. Responsible for closing deals/revenue.
 `;
 
 export const AGENT_ALIGNMENT_PROMPT = `

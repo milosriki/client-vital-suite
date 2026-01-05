@@ -64,10 +64,12 @@ serve(async (req) => {
     const avg_deal_value = total_deals_closed > 0 ? total_revenue_booked / total_deals_closed : 0;
 
     // 4. Marketing Performance (Facebook)
+    // Exclude campaigns with 'Test' in the name to match user's active spend view
     const { data: fbStats } = await supabase
       .from('facebook_ads_insights')
-      .select('spend, impressions, clicks')
-      .eq('date', dateStr);
+      .select('spend, impressions, clicks, campaign_name')
+      .eq('date', dateStr)
+      .not('campaign_name', 'ilike', '%Test%');
 
     const ad_spend_facebook = fbStats?.reduce((sum, s) => sum + (s.spend || 0), 0) || 0;
     const ad_impressions = fbStats?.reduce((sum, s) => sum + (s.impressions || 0), 0) || 0;

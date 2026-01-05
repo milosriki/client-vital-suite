@@ -8,9 +8,9 @@ import {
   Calendar, 
   Target,
   Activity,
+  Zap,
   LucideIcon
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface KPIData {
   revenue: { value: number; trend?: number };
