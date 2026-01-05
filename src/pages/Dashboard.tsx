@@ -96,6 +96,26 @@ export default function Dashboard() {
     retry: 2,
   });
 
+  // Fetch new validated daily business metrics (Snapshots)
+  const { data: dailyBusinessMetrics } = useDedupedQuery({
+    queryKey: ["daily-business-metrics-validated"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("daily_business_metrics")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(2); // Get today and yesterday for trends
+      
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
+  const todayMetrics = dailyBusinessMetrics?.[0];
+  const yesterdayMetrics = dailyBusinessMetrics?.[1];
+
   interface DashboardStats {
     revenue_this_month: number;
     revenue_last_month: number;
@@ -170,14 +190,19 @@ export default function Dashboard() {
 
   // KPI Data
   const kpiData = {
-    revenue: { value: dashboardStats?.revenue_this_month || 0, trend: dashboardStats?.revenue_trend },
-    revenueToday: dashboardStats?.revenue_today || 0,
+    revenue: { 
+      value: todayMetrics?.total_revenue_booked || dashboardStats?.revenue_this_month || 0, 
+      trend: todayMetrics && yesterdayMetrics ? ((todayMetrics.total_revenue_booked - yesterdayMetrics.total_revenue_booked) / (yesterdayMetrics.total_revenue_booked || 1) * 100) : dashboardStats?.revenue_trend 
+    },
+    revenueToday: todayMetrics?.total_revenue_booked || dashboardStats?.revenue_today || 0,
     clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
     pipeline: { value: dashboardStats?.pipeline_value || 0, count: dashboardStats?.pipeline_count || 0 },
-    leads: leadsToday || 0,
-    calls: callsToday || 0,
-    appointments: dailySummary?.interventions_recommended || 0,
+    leads: todayMetrics?.total_leads_new || leadsToday || 0,
+    calls: todayMetrics?.total_calls_made || callsToday || 0,
+    appointments: todayMetrics?.total_appointments_set || dailySummary?.interventions_recommended || 0,
     criticalAlerts: dailySummary?.critical_interventions || 0,
+    adSpend: todayMetrics?.ad_spend_facebook || 0,
+    roas: todayMetrics?.roas_daily || 0,
   };
 
   // Executive summary
@@ -322,7 +347,8 @@ export default function Dashboard() {
                 status: c.health_zone === "RED" ? "follow_up" : c.health_zone === "GREEN" ? "closed" : "new",
                 created_at: c.created_at || new Date().toISOString(),
                 deal_value: c.package_value_aed,
-                owner_name: c.assigned_coach,
+                owner_name: c.owner_name || 'Unassigned Setter',
+                assigned_coach: c.assigned_coach || 'Unassigned Coach',
               }))}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

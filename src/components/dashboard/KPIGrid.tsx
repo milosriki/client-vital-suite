@@ -21,6 +21,8 @@ interface KPIData {
   calls: number;
   appointments: number;
   criticalAlerts: number;
+  adSpend?: number;
+  roas?: number;
 }
 
 interface KPIGridProps {
@@ -49,36 +51,24 @@ export function KPIGrid({ data, isLoading = false, onMetricClick }: KPIGridProps
           value={formatCurrency(data.revenueToday || 0)}
           icon={DollarSign}
           variant="default"
-          trend={{ value: 0, isPositive: true }}
           isLoading={isLoading}
           onClick={() => onMetricClick?.("revenue")}
         />
         <MetricCard
-          label="Revenue MTD"
-          value={formatCurrency(data.revenue.value)}
-          icon={DollarSign}
-          variant="success"
-          trend={data.revenue.trend ? { value: data.revenue.trend, isPositive: data.revenue.trend > 0 } : undefined}
+          label="Ad Spend"
+          value={formatCurrency(data.adSpend || 0)}
+          icon={TrendingUp}
+          variant="warning"
           isLoading={isLoading}
-          onClick={() => onMetricClick?.("revenue")}
+          subtitle="Facebook Marketing"
         />
         <MetricCard
-          label="Active Clients"
-          value={data.clients.total}
-          icon={Users}
-          variant="default"
+          label="ROAS"
+          value={`${(data.roas || 0).toFixed(1)}x`}
+          icon={Zap}
+          variant={data.roas && data.roas > 3 ? "success" : "default"}
           isLoading={isLoading}
-          onClick={() => onMetricClick?.("clients")}
-        />
-        <MetricCard
-          label="Needs Attention"
-          value={data.clients.atRisk}
-          icon={AlertTriangle}
-          variant={data.clients.atRisk > 5 ? "danger" : data.clients.atRisk > 0 ? "warning" : "success"}
-          pulse={data.clients.atRisk > 10}
-          isLoading={isLoading}
-          onClick={() => onMetricClick?.("attention")}
-          subtitle={data.clients.atRisk === 0 ? "All clients healthy" : undefined}
+          subtitle="Return on Ad Spend"
         />
         <MetricCard
           label="Pipeline"
@@ -94,6 +84,14 @@ export function KPIGrid({ data, isLoading = false, onMetricClick }: KPIGridProps
       {/* Secondary Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
+          label="Active Clients"
+          value={data.clients.total}
+          icon={Users}
+          variant="default"
+          isLoading={isLoading}
+          onClick={() => onMetricClick?.("clients")}
+        />
+        <MetricCard
           label="Leads Today"
           value={data.leads}
           icon={Target}
@@ -108,14 +106,6 @@ export function KPIGrid({ data, isLoading = false, onMetricClick }: KPIGridProps
           variant="default"
           isLoading={isLoading}
           onClick={() => onMetricClick?.("calls")}
-        />
-        <MetricCard
-          label="Appointments"
-          value={data.appointments}
-          icon={Calendar}
-          variant="success"
-          isLoading={isLoading}
-          onClick={() => onMetricClick?.("appointments")}
         />
         <MetricCard
           label="Critical Alerts"
