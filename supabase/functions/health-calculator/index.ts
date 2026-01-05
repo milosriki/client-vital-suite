@@ -133,7 +133,23 @@ function getMomentumIndicator(client: any): string {
   return "DECLINING";
 }
 
-// NEW: Penalty-based health score calculation (Owner Approved Formula)
+// Helper function to calculate relationship score based on communication history
+function calculateRelationshipScore(client: any): number {
+  let score = 50; // Neutral starting point
+  
+  // Communication volume (last 30-90 days typically reflected in these counts)
+  const meetings = client.num_meetings || 0;
+  const notes = client.num_notes || 0;
+  const emails = client.num_emails || 0;
+  
+  score += (meetings * 10); // Meetings are high value
+  score += (notes * 5);     // Notes indicate manual touchpoints
+  score += (emails * 2);    // Emails are standard touchpoints
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+// NEW: Penalty-based health score calculation (Owner Approved Formula v2)
 function calculateHealthScoreWithFactors(client: any): { score: number; factors: ScoreFactors } {
   let score = 100;
   const factors: ScoreFactors = {
@@ -143,19 +159,19 @@ function calculateHealthScoreWithFactors(client: any): { score: number; factors:
     commitmentBonus: 0,
   };
 
-  // 1. INACTIVITY PENALTY (max -40)
+  // 1. INACTIVITY PENALTY (v2: More forgiving thresholds)
   let daysSinceSession = getDaysSince(client.last_paid_session_date || client.last_activity_date);
   if (client.days_since_last_session && client.days_since_last_session < daysSinceSession) {
     daysSinceSession = client.days_since_last_session;
   }
   
-  if (daysSinceSession > 30) {
+  if (daysSinceSession > 60) {
     factors.inactivityPenalty = 40;
-  } else if (daysSinceSession > 14) {
+  } else if (daysSinceSession > 30) {
     factors.inactivityPenalty = 30;
-  } else if (daysSinceSession > 7) {
+  } else if (daysSinceSession > 14) {
     factors.inactivityPenalty = 20;
-  } else if (daysSinceSession > 2) {
+  } else if (daysSinceSession > 7) {
     factors.inactivityPenalty = 10;
   }
   score -= factors.inactivityPenalty;
@@ -214,11 +230,20 @@ function calculateHealthScore(client: any): number {
   return score;
 }
 
-function getHealthZone(score: number): string {
+function getHealthZone(score: number, client: any): string {
   if (score >= 85) return "PURPLE";
   if (score >= 70) return "GREEN";
   if (score >= 50) return "YELLOW";
-  return "RED";
+  
+  // RED threshold v2: Only if score < 50 AND inactive for > 14 days
+  let daysSince = getDaysSince(client.last_paid_session_date || client.last_activity_date);
+  if (client.days_since_last_session && client.days_since_last_session < daysSince) {
+    daysSince = client.days_since_last_session;
+  }
+  
+  if (daysSince > 14) return "RED";
+  
+  return "YELLOW"; // If recently active but low score, keep in Yellow
 }
 
 function calculatePredictiveRisk(client: any, healthZone: string, momentum: string): number {
@@ -335,8 +360,9 @@ serve(async (req) => {
         const engagement = calculateEngagementScore(client);
         const packageHealth = calculatePackageHealthScore(client);
         const momentumScore = calculateMomentumScore(client);
+        const relationshipScore = calculateRelationshipScore(client);
         const healthScore = calculateHealthScore(client);
-        const healthZone = getHealthZone(healthScore);
+        const healthZone = getHealthZone(healthScore, client);
         const momentum = getMomentumIndicator(client);
         const predictiveRisk = calculatePredictiveRisk(client, healthZone, momentum);
         const interventionPriority = getInterventionPriority(healthZone, predictiveRisk, momentum);
@@ -354,6 +380,7 @@ serve(async (req) => {
           health_zone: healthZone,
           engagement_score: engagement,
           package_health_score: packageHealth,
+          relationship_score: relationshipScore,
           momentum_score: momentumScore,
           health_trend: momentum,
           churn_risk_score: predictiveRisk,
@@ -366,7 +393,7 @@ serve(async (req) => {
           assigned_coach: client.assigned_coach,
           calculated_at: new Date().toISOString(),
           calculated_on: new Date().toISOString().split("T")[0],
-          calculation_version: "PENALTY_v3"
+          calculation_version: "PENALTY_v4_ALIGNED"
         });
 
         results.processed++;

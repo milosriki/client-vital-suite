@@ -12,6 +12,7 @@ import { LiveHealthDistribution } from "@/components/dashboard/LiveHealthDistrib
 import { CoachLeaderboard } from "@/components/dashboard/CoachLeaderboard";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
+import { RevenueVsSpendChart } from "@/components/dashboard/RevenueVsSpendChart";
 import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
 import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInterventionTracker";
 import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
@@ -321,6 +322,7 @@ export default function Dashboard() {
           <TabsContent value="today" className="space-y-6 mt-0 animate-fade-in">
             <ExecutiveBriefing summary={executiveSummary} />
             <KPIGrid data={kpiData} isLoading={isLoading} onMetricClick={handleMetricClick} />
+            <RevenueVsSpendChart />
             <PredictiveAlerts clients={clients || []} summary={dailySummary} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
