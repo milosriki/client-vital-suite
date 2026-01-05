@@ -14,10 +14,12 @@ PTD LEAD JOURNEY:
 
 export const UNIFIED_SCHEMA_PROMPT = `
 SCHEMA:
-- contacts: email, lifecycle_stage, utm_campaign, first_touch_source
+- contacts: email, lifecycle_stage, utm_campaign, first_touch_source, assigned_coach
 - deals: deal_value, stage, status, contact_id
 - call_records: caller_number, transcription, call_outcome
 - client_health_scores: health_score, health_zone
+- daily_business_metrics: date, total_leads_new, total_revenue_booked, ad_spend_facebook, roas_daily
+- staff: name, email, role, status
 `;
 
 export const AGENT_ALIGNMENT_PROMPT = `

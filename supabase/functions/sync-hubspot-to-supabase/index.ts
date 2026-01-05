@@ -349,6 +349,11 @@ serve(async (req) => {
               .filter((c: any) => c.properties?.email)
               .map((contact: any) => {
                 const props = contact.properties;
+                // Matthew and other Contact Owners are SETTERS
+                const setterName = props.hubspot_owner_id ? ownerMap[props.hubspot_owner_id] || null : null;
+                // Assigned Coach is the CLOSER
+                const closerName = props.assigned_coach || null;
+                
                 return {
                   hubspot_id: contact.id,
                   email: props.email,
@@ -357,7 +362,8 @@ serve(async (req) => {
                   phone: props.phone || props.mobilephone,
                   source: 'hubspot',
                   status: mapHubspotStatusToLead(props.lifecyclestage, props.hs_lead_status),
-                  owner_id: props.hubspot_owner_id,
+                  owner_id: props.hubspot_owner_id, // This is the Setter ID
+                  assigned_coach: closerName, // This is the Closer
                   created_at: props.createdate
                 };
               });
