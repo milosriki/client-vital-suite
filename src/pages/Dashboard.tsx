@@ -191,8 +191,8 @@ export default function Dashboard() {
   // KPI Data
   const kpiData = {
     revenue: { 
-      value: todayMetrics?.total_revenue_booked || dashboardStats?.revenue_this_month || 0, 
-      trend: todayMetrics && yesterdayMetrics ? ((todayMetrics.total_revenue_booked - yesterdayMetrics.total_revenue_booked) / (yesterdayMetrics.total_revenue_booked || 1) * 100) : dashboardStats?.revenue_trend 
+      value: dashboardStats?.revenue_this_month || 0, 
+      trend: dashboardStats?.revenue_trend || 0 
     },
     revenueToday: todayMetrics?.total_revenue_booked || dashboardStats?.revenue_today || 0,
     clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
