@@ -1,6 +1,7 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -23,7 +24,7 @@ serve(async (req) => {
         const payload = await req.json().catch(() => ({}));
         const limit = typeof payload?.limit === "number" && payload.limit > 0 ? Math.min(payload.limit, 50) : 10;
 
-import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

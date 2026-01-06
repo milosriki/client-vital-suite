@@ -86,14 +86,15 @@ serve(async (req) => {
             .order('created_at', { ascending: false })
             .limit(10);
 
-        // D. Financials: Deals Closed (from deals table synced from HubSpot)
-        const { data: revenueData, error: revenueError } = await supabase
-            .from('deals')
-            .select('amount, stage')
+        // D. Real-Time Financials: Payments from Stripe (Real Source of Truth)
+        const { data: stripeRevenueData, error: stripeError } = await supabase
+            .from('stripe_transactions')
+            .select('amount, status, created_at')
+            .eq('status', 'succeeded')
             .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-        if (revenueError) {
-            await logError(supabase, 'hubspot', 'query_error', 'Failed to fetch deals', { error: revenueError });
+        if (stripeError) {
+            await logError(supabase, 'stripe', 'query_error', 'Failed to fetch stripe_transactions', { error: stripeError });
         }
 
         // 2. CALCULATE METRICS
@@ -108,6 +109,9 @@ serve(async (req) => {
         const criticalErrors = recentErrors?.filter(e => e.severity === 'critical').length || 0;
         const highErrors = recentErrors?.filter(e => e.severity === 'high').length || 0;
 
+        const stripeRevenueToday = stripeRevenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+        const hubspotRevenueToday = revenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+
         // 3. THE "BRAIN" (AI Analysis)
         const basePrompt = buildAgentPrompt('BUSINESS_INTELLIGENCE', {
             includeROI: true,
@@ -121,7 +125,8 @@ ${staleWarning ? `\n${staleWarning}\n` : ''}
 DATA CONTEXT:
 - Utilization: ${utilizationRate}% (${totalClients} active clients managed by ${activeTrainers} coaches).
 - Growth: ${newLeads} new leads. ${missedFollowUps} are potentially waiting for follow-up.
-- Revenue: ${revenueData?.length || 0} deals processed recently.
+- Real-Time Revenue (Stripe): AED ${stripeRevenueToday.toLocaleString()} processed in last 24h.
+- CRM Revenue (HubSpot): AED ${hubspotRevenueToday.toLocaleString()} booked in last 24h.
 - System Health: ${criticalErrors} critical errors, ${highErrors} high-priority errors.
 
 RECENT SYSTEM ERRORS:

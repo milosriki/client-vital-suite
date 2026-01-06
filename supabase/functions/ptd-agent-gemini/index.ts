@@ -808,19 +808,9 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
   return await executeSharedTool(supabase, toolName, input);
 }
 
-// ============= MAIN AGENT WITH GEMINI 2.5 PRO =============
+// ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default', context?: any): Promise<string> {
-  // Use GEMINI_API_KEY (direct Google API), LOVABLE_API_KEY is optional fallback
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-  const useDirectGemini = !!GEMINI_API_KEY;
-  if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-    throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
-  }
-
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
-  // Increased limits for Gemini 3 (2M token window support)
   const [relevantMemory, ragKnowledge, knowledgeBase, learnedPatterns, dynamicKnowledge] = await Promise.all([
     searchMemory(supabase, userMessage, threadId).then(res => res.slice(0, 50000)),
     searchKnowledgeDocuments(supabase, userMessage).then(res => res.slice(0, 200000)),
@@ -829,170 +819,51 @@ async function runAgent(supabase: any, userMessage: string, chatHistory: any[] =
     loadDynamicKnowledge(supabase).then(res => res.slice(0, 50000))
   ]);
   
-  console.log('--- CONTEXT SIZE DEBUG (GEMINI 3 ADAPTIVE) ---');
-  console.log(`🧠 relevantMemory: ${relevantMemory.length} chars`);
-  console.log(`📄 ragKnowledge: ${ragKnowledge.length} chars`);
-  console.log(`📚 knowledgeBase: ${knowledgeBase.length} chars`);
-  console.log(`✨ learnedPatterns: ${learnedPatterns.length} chars`);
-  console.log(`⚙️ dynamicKnowledge: ${dynamicKnowledge.length} chars`);
-  console.log('--------------------------');
-
   // Build unified prompt with all components
-  const unifiedPrompt = buildUnifiedPromptForEdgeFunction({
-    includeLifecycle: true,
-    includeUltimateTruth: true,
-    includeWorkflows: true,
-    includeROI: true,
-    knowledge: ragKnowledge || '',
-    memory: relevantMemory || '',
-  });
-
   const systemPrompt = `
-# PTD SUPER-INTELLIGENCE CEO (GEMINI 3 ADAPTIVE MODE)
+# PTD SUPER-INTELLIGENCE CEO (UNIFIED MODE)
 
 MISSION: Absolute truth and aggressive sales conversion.
 
 ## 🧠 ADAPTIVE THINKING
-- Use "Thinking Mode" for complex financial reconciliation and forensic audits.
-- Use "Flash Mode" for real-time lead updates and quick status checks.
+- You have access to 100+ internal business functions.
 - If inconsistencies are found in management logs, perform a deep reasoning trace.
 
 ## 📞 FOLLOW-UP PROTOCOL
 1. **NO ANSWER PATTERN**: If a lead has < 5 call attempts, it is "UNDER-WORKED."
 2. **TIMING**: Check if 'No Answer' leads are being retried in the **Evening** (after 5 PM Dubai).
 3. **INTERESTED SYNC**: If Call Status = 'Interested', ensure Deal Stage = 'Assessment Booking'.
-4. **WON SYNC**: If Deal Status = 'Closed Won', ensure Lifecycle = 'Customer'.
 
 ## 🛡️ CONTROL RULES
 - **NO AUTO-REASSIGN**: Propose reassignments via 'ai_agent_approvals'.
 - **OWNERSHIP**: Setter Owner = Contact Owner. 
-- **STALE ALERT**: Flag SQL/Opportunity static for > 48h.
+
+## 📚 CONTEXTUAL KNOWLEDGE
+${ragKnowledge}
+${knowledgeBase}
+${relevantMemory}
+${dynamicKnowledge}
+${learnedPatterns}
 `;
 
-  // --- NATIVE GEMINI FORMAT CONVERSION ---
-
-  // 1. Convert Tools
-  const geminiTools = [
-    {
-      functionDeclarations: tools
-        .filter(t => t.type === 'function')
-        .map(t => t.function)
-    }
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...chatHistory.map((msg: any) => ({
+      role: msg.role === 'model' ? 'assistant' : msg.role,
+      content: msg.content
+    })),
+    { role: 'user', content: userMessage }
   ];
 
-  // 2. Convert Messages
-  const contents: any[] = [];
-  
-  // Add history
-  if (chatHistory && chatHistory.length > 0) {
-    chatHistory.forEach((msg: any) => {
-      if (msg.role === 'user') {
-        contents.push({ role: 'user', parts: [{ text: msg.content }] });
-      } else if (msg.role === 'assistant') {
-        contents.push({ role: 'model', parts: [{ text: msg.content }] });
-      }
-    });
-  }
-  
-  // Add current user message
-  contents.push({ role: 'user', parts: [{ text: userMessage }] });
-
-  let iterations = 0;
-  const maxIterations = 12; // Increased for complex forensic chains
   let finalResponse = '';
+  
+  // Use Unified AI Chat
+  const response = await unifiedAI.chat(messages, {
+    max_tokens: 4000,
+    temperature: 0.2
+  });
 
-  while (iterations < maxIterations) {
-    iterations++;
-    console.log(`🚀 Gemini 3 iteration ${iterations}`);
-
-    let response: Response;
-    let data: any;
-
-    if (useDirectGemini) {
-      // Native Gemini 3 API (Adaptive)
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          tools: geminiTools,
-          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-          generationConfig: {
-            temperature: 0.2, // Lower for precision forensics
-            topP: 0.95,
-            maxOutputTokens: 8192
-          }
-        }),
-      });
-    } else {
-       // Fallback to OpenAI format for Lovable (if needed, but we prioritize native)
-       // For now, throw error if no native key because we need grounding
-       throw new Error("Native Gemini API Key required for Super Intelligence features (Grounding).");
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini error:", response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    data = await response.json();
-    
-    // Parse Native Response
-    const candidate = data.candidates?.[0];
-    const content = candidate?.content;
-    const parts = content?.parts || [];
-    
-    // Check for text response
-    const textPart = parts.find((p: any) => p.text);
-    if (textPart) {
-      finalResponse += textPart.text;
-    }
-
-    // Check for tool calls
-    const functionCalls = parts.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
-
-    if (functionCalls.length > 0) {
-      console.log(`🛠️ Executing ${functionCalls.length} tool calls`);
-      
-      // Add model's tool call message to history
-      contents.push(content);
-
-      const toolResults = await Promise.all(
-        functionCalls.map(async (call: any) => {
-          const { name, args } = call;
-          console.log(`▶️ Tool: ${name}`, args);
-          
-          let result;
-          try {
-            result = await executeTool(supabase, name, args);
-          } catch (error: unknown) {
-            console.error(`❌ Tool error ${name}:`, error);
-            result = { error: (error as Error).message };
-          }
-          
-          return {
-            functionResponse: {
-              name: name,
-              response: { name: name, content: result }
-            }
-          };
-        })
-      );
-
-      // Add tool results to history
-      contents.push({ role: 'function', parts: toolResults });
-      
-    } else {
-      // No tool calls, we are done
-      break;
-    }
-  }
-
-  if (!finalResponse) {
-    finalResponse = "Max iterations reached or empty response.";
-  }
+  finalResponse = response.content;
 
   // Save to persistent memory
   await saveToMemory(supabase, threadId, userMessage, finalResponse);

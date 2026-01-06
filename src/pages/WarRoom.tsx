@@ -19,8 +19,28 @@ import {
 } from "recharts";
 
 const WarRoom = () => {
-  const [adSpend, setAdSpend] = useState(15000);
+  const [manualAdSpend, setAdSpend] = useState<number | null>(null);
   const [autoPilotEnabled, setAutoPilotEnabled] = useState(false);
+
+  // Fetch live ad spend
+  const { data: liveAdSpendData, isLoading: spendLoading } = useDedupedQuery({
+    queryKey: ["war-room-spend"],
+    queryFn: async () => {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data, error } = await supabase
+        .from("facebook_ads_insights")
+        .select("spend")
+        .gte("date", thirtyDaysAgo.toISOString().split('T')[0]);
+      
+      if (error) throw error;
+      
+      return data?.reduce((sum, row) => sum + (parseFloat(row.spend as any) || 0), 0) || 0;
+    }
+  });
+
+  const adSpend = manualAdSpend ?? (liveAdSpendData || 15000);
 
   // Fetch deals for forecasting
   const { data: deals, isLoading: dealsLoading, error: dealsError } = useDedupedQuery({
