@@ -4,6 +4,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
 // ============================================
 // CHURN PREDICTOR AGENT
 // AI-powered churn prediction with explanations
@@ -18,7 +20,7 @@ const corsHeaders = {
 // Environment variable validation
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+// const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing Supabase configuration");
@@ -167,11 +169,6 @@ function getRecommendedActions(client: any, riskCategory: string, factors: strin
 }
 
 async function getAIInsight(client: any, factors: string[]): Promise<string | null> {
-  if (!ANTHROPIC_API_KEY) {
-    console.log("Skipping AI insight - ANTHROPIC_API_KEY not configured");
-    return null;
-  }
-
   try {
     const systemPrompt = buildAgentPrompt('CHURN_PREDICTOR', {
       includeLifecycle: true,
@@ -194,31 +191,22 @@ ${factors.map(f => `- ${f}`).join('\n')}
 
 Provide a brief, actionable insight for the coach.`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-4-5-sonnet",
-        max_tokens: 150,
-        system: systemPrompt,
-        messages: [{ role: "user", content: prompt }]
-      })
+    const response = await unifiedAI.chat([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: prompt }
+    ], {
+      max_tokens: 150,
+      temperature: 0.7
     });
 
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data.content[0]?.text || null;
-  } catch {
+    return response.content || null;
+  } catch (error) {
+    console.error(`[Churn Predictor] AI insight generation failed for ${client.email}:`, error);
     return null;
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

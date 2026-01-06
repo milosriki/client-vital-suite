@@ -3,6 +3,7 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 // Note: LangSmith/LangGraph not used in Deno edge functions - use direct AI calls instead
 
 const corsHeaders = {
@@ -134,53 +135,37 @@ OUTPUT FORMAT (JSON):
   "action_plan": ["Action 1", "Action 2", "Action 3"]
 }`;
 
-        // Call Claude
-        const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+        // Call Unified AI Client
         let aiResponse;
 
-        if (ANTHROPIC_API_KEY) {
+        try {
+            console.log("[BI Agent] Calling Unified AI for analysis...");
+            
+            const response = await unifiedAI.chat([
+                { role: "user", content: prompt }
+            ], {
+                max_tokens: 1000,
+                jsonMode: true // Request JSON output
+            });
+
+            console.log(`[BI Agent] AI response received (Provider: ${response.provider})`);
+            const text = response.content;
+
             try {
-                console.log("[BI Agent] Calling Claude for analysis...");
-                
-                const response = await fetch("https://api.anthropic.com/v1/messages", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-api-key": ANTHROPIC_API_KEY,
-                        "anthropic-version": "2023-06-01"
-                    },
-                    body: JSON.stringify({
-                        model: "claude-sonnet-4-20250514",
-                        max_tokens: 500,
-                        messages: [{ role: "user", content: prompt }]
-                    })
-                });
-                const data = await response.json();
-
-                if (data.error) {
-                    console.error("[BI Agent] Claude API error:", data.error);
-                    throw new Error(data.error.message || 'API error');
-                }
-
-                const text = data.content[0]?.text;
-                console.log("[BI Agent] Claude response received");
-                
-                try {
-                    const jsonMatch = text.match(/\{[\s\S]*\}/);
-                    const jsonString = jsonMatch ? jsonMatch[0] : text;
-                    aiResponse = JSON.parse(jsonString);
-                } catch {
-                    aiResponse = {
-                        executive_summary: text.replace(/```json|```/g, '').trim(),
-                        system_status: "See summary",
-                        data_freshness: dataIsStale ? 'STALE' : 'FRESH',
-                        action_plan: ["Review full report"]
-                    };
-                }
-            } catch (e) {
-                console.error("[BI Agent] AI Call failed", e);
-                await logError(supabase, 'anthropic', 'ai_failure', 'Claude API call failed', { error: String(e) });
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                const jsonString = jsonMatch ? jsonMatch[0] : text;
+                aiResponse = JSON.parse(jsonString);
+            } catch {
+                aiResponse = {
+                    executive_summary: text.replace(/```json|```/g, '').trim(),
+                    system_status: "See summary",
+                    data_freshness: dataIsStale ? 'STALE' : 'FRESH',
+                    action_plan: ["Review full report"]
+                };
             }
+        } catch (e) {
+            console.error("[BI Agent] AI Call failed", e);
+            await logError(supabase, 'unified_ai', 'ai_failure', 'Unified AI call failed', { error: String(e) });
         }
 
         // Fallback if AI fails or no key

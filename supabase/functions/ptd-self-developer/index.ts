@@ -3,14 +3,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RunTree } from "https://esm.sh/langsmith";
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
+// const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -97,44 +99,34 @@ Always respond with a JSON object containing:
     await parentRun.postRun();
 
     const childRun = await parentRun.createChild({
-      name: "anthropic_call",
+      name: "unified_ai_call",
       run_type: "llm",
-      inputs: { command, model: "claude-4-5-sonnet-20241022" },
+      inputs: { command, model: "gpt-4o" },
     });
     await childRun.postRun();
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-4-5-sonnet-20241022',
+    let responseText = "";
+    try {
+      const response = await unifiedAI.chat([
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: `Command: ${command}\n\nAdditional Context: ${JSON.stringify(context || {})}` 
+        }
+      ], {
         max_tokens: 8000,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: `Command: ${command}\n\nAdditional Context: ${JSON.stringify(context || {})}`
-          }
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Anthropic API error:', errorText);
-      await childRun.end({ error: `Anthropic API error: ${response.status} - ${errorText}` });
+        temperature: 0.7
+      });
+      responseText = response.content || "";
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('UnifiedAI API error:', error);
+      await childRun.end({ error: `UnifiedAI API error: ${errorMessage}` });
       await childRun.patchRun();
-      await parentRun.end({ error: `Anthropic API error: ${response.status}` });
+      await parentRun.end({ error: `UnifiedAI API error: ${errorMessage}` });
       await parentRun.patchRun();
-      throw new Error(`AI API error: ${response.status}`);
+      throw new Error(`AI API error: ${errorMessage}`);
     }
-
-    const aiResponse = await response.json();
-    const responseText = aiResponse.content?.[0]?.text || '';
 
     await childRun.end({ outputs: { response: responseText } });
     await childRun.patchRun();
@@ -149,7 +141,7 @@ Always respond with a JSON object containing:
                         responseText.match(/```\s*([\s\S]*?)\s*```/) ||
                         [null, responseText];
       parsedAction = JSON.parse(jsonMatch[1] || responseText);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error('Failed to parse AI response as JSON:', parseError);
       // Create a fallback action for analysis type
       parsedAction = {

@@ -25,11 +25,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
-if (!ANTHROPIC_API_KEY) {
-  throw new Error("ANTHROPIC_API_KEY not configured in environment");
-}
+// ANTHROPIC_API_KEY is now handled by UnifiedAIClient
+// const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -53,7 +52,7 @@ Where:
 - MOMENTUM (0-100): Based on week-over-week trend
     `,
     code: `
-function calculateHealthScore(client) {
+function calculateHealthScore(client: any) {
   const engagement = calculateEngagementScore(client);
   const packageHealth = calculatePackageHealthScore(client);
   const momentum = calculateMomentumScore(client);
@@ -86,7 +85,7 @@ RECENCY PENALTY:
 Final: Clamp to 0-100
     `,
     code: `
-function calculateEngagementScore(client) {
+function calculateEngagementScore(client: any) {
   let score = 50;
 
   // Recent activity bonus
@@ -121,7 +120,7 @@ SCORE:
   30 if remaining < 10%
     `,
     code: `
-function calculatePackageHealthScore(client) {
+function calculatePackageHealthScore(client: any) {
   const outstanding = client.outstanding_sessions || 0;
   const purchased = client.sessions_purchased || 1;
   const remainingPct = (outstanding / purchased) * 100;
@@ -149,7 +148,7 @@ MOMENTUM:
   DECLINING if rate < -20% → Score: 30
     `,
     code: `
-function calculateMomentumScore(client) {
+function calculateMomentumScore(client: any) {
   const avgWeekly7d = client.sessions_last_7d || 0;
   const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
 
@@ -203,7 +202,7 @@ RISK CATEGORIES:
   LOW: 0-39
     `,
     code: `
-function calculatePredictiveRisk(client) {
+function calculatePredictiveRisk(client: any) {
   let risk = 50;
 
   // Momentum impact
@@ -316,7 +315,7 @@ async function getConversationHistory(sessionId: string, limit = 10): Promise<st
 
     return data
       .reverse()
-      .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+      .map((m: any) => `${m.role.toUpperCase()}: ${m.content}`)
       .join("\n\n");
   } catch (error) {
     console.error("[PTD Agent] Exception in getConversationHistory:", error);
@@ -499,44 +498,18 @@ async function saveDecision(decision: any) {
 }
 
 async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
-  const TIMEOUT_MS = 30000; // 30 second timeout
-
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-4-5-sonnet-20241022",
-        max_tokens: 2500,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }]
-      }),
-      signal: controller.signal
+    const response = await unifiedAI.chat([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ], {
+      max_tokens: 2500,
+      temperature: 0.7
     });
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("[PTD Agent] Claude API error:", error);
-      throw new Error(`Claude API error: ${error}`);
-    }
-
-    const data = await response.json();
-    return data.content[0]?.text || "";
+    return response.content;
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      console.error("[PTD Agent] Claude API timeout after", TIMEOUT_MS, "ms");
-      throw new Error(`Claude API timeout after ${TIMEOUT_MS}ms`);
-    }
-    console.error("[PTD Agent] Exception in callClaude:", error);
+    console.error("[PTD Agent] Exception in callClaude (Unified):", error);
     throw error;
   }
 }
@@ -555,7 +528,7 @@ interface AgentRequest {
   };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

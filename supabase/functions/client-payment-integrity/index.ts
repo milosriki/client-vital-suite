@@ -1,13 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -29,7 +30,7 @@ serve(async (req) => {
       const isDuo = pkgName.toLowerCase().includes("duo");
       const amountPaid = inv.amount_paid / 100;
       
-      const matchedPkg = catalog?.find(p => pkgName.toLowerCase().includes(p.package_name.toLowerCase().split(' ')[0]));
+      const matchedPkg = catalog?.find((p: any) => pkgName.toLowerCase().includes(p.package_name.toLowerCase().split(' ')[0]));
       
       if (matchedPkg) {
         let expectedPrice = matchedPkg.base_price_aed;
@@ -75,7 +76,7 @@ serve(async (req) => {
       if (stripeCust.data.length > 0) {
         const invs = await stripe.invoices.list({ customer: stripeCust.data[0].id, limit: 5 });
         const lastInv = invs.data[0];
-        const sessionsPurchased = catalog?.find(p => lastInv?.lines.data[0]?.description?.includes(p.package_name))?.session_count || 0;
+        const sessionsPurchased = catalog?.find((p: any) => lastInv?.lines.data[0]?.description?.includes(p.package_name))?.session_count || 0;
         
         // Calculate remaining sessions based on usage in DB
         // (Assuming we track sessions_remaining in client_health_scores)
@@ -109,14 +110,14 @@ serve(async (req) => {
         const firstPurchaseDate = allInvs.data.length > 0 ? 
           new Date(allInvs.data[allInvs.data.length - 1].created * 1000).toISOString() : null;
         
-        const last3Packages = allInvs.data.map(inv => ({
+        const last3Packages = allInvs.data.map((inv: any) => ({
           name: inv.lines.data[0]?.description || "Unknown",
           date: new Date(inv.created * 1000).toISOString(),
           amount: inv.amount_paid / 100
         }));
 
-        const failedPIs = allPIs.data.filter(pi => pi.status === 'requires_payment_method' || pi.status === 'canceled');
-        const failedLog = failedPIs.map(pi => ({
+        const failedPIs = allPIs.data.filter((pi: any) => pi.status === 'requires_payment_method' || pi.status === 'canceled');
+        const failedLog = failedPIs.map((pi: any) => ({
           date: new Date(pi.created * 1000).toISOString(),
           reason: pi.last_payment_error?.message || "Card Declined",
           amount: pi.amount / 100
@@ -133,22 +134,20 @@ serve(async (req) => {
         }, { onConflict: 'email' });
       }
     }
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     let aiBriefing = "No AI Analysis Key";
 
-    if (ANTHROPIC_API_KEY) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-4-5-sonnet",
-          max_tokens: 1500,
-          system: "You are the PTD Forensic Auditor. Analyze these discrepancies and renewal risks. Be blunt about manual marks-as-paid.",
-          messages: [{ role: "user", content: `Audit Data:\n${JSON.stringify({ auditResults, renewalsNeeded }, null, 2)}` }]
-        })
+    try {
+      const response = await unifiedAI.chat([
+        { role: "system", content: "You are the PTD Forensic Auditor. Analyze these discrepancies and renewal risks. Be blunt about manual marks-as-paid." },
+        { role: "user", content: `Audit Data:\n${JSON.stringify({ auditResults, renewalsNeeded }, null, 2)}` }
+      ], {
+        max_tokens: 1500,
+        temperature: 0.5
       });
-      const data = await res.json();
-      aiBriefing = data.content?.[0]?.text;
+      aiBriefing = response.content;
+    } catch (e) {
+      console.error("AI Analysis failed:", e);
+      aiBriefing = "AI Analysis Failed";
     }
 
     return new Response(JSON.stringify({
@@ -159,7 +158,8 @@ serve(async (req) => {
       aiBriefing
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers: corsHeaders });
   }
 });

@@ -14,8 +14,10 @@ import {
   HUBSPOT_WORKFLOWS_PROMPT 
 } from "../_shared/unified-prompts.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
+// const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+// const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
 
 // ============================================
 // PERSONA DEFINITIONS
@@ -435,7 +437,7 @@ function selectPersona(query: string, context: any): keyof typeof PERSONAS {
 // MAIN HANDLER
 // ============================================
 
-serve(async (req) => {
+serve(async (req: Request) => {
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -530,35 +532,24 @@ serve(async (req) => {
 
 async function generateWithClaude(query: string, persona: any, context: any, parentRun: any) {
     const childRun = await parentRun.createChild({
-        name: "anthropic_call",
+        name: "unified_ai_call",
         run_type: "llm",
-        inputs: { query, model: "claude-4-5-sonnet-20241022" },
+        inputs: { query, model: "gpt-4o" },
     });
     await childRun.postRun();
 
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'x-api-key': ANTHROPIC_API_KEY!,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'claude-4-5-sonnet-20241022',
-                max_tokens: 4000,
-                system: `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`,
-                messages: [{
-                    role: 'user',
-                    content: query
-                }]
-            })
+        const systemPrompt = `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`;
+
+        const response = await unifiedAI.chat([
+            { role: "system", content: systemPrompt },
+            { role: "user", content: query }
+        ], {
+            max_tokens: 4000,
+            temperature: 0.7
         });
 
-        const result = await response.json();
-        if (result.error) throw new Error(result.error.message);
-        
-        const text = result.content[0].text;
+        const text = response.content || "No response generated.";
         await childRun.end({ outputs: { response: text } });
         await childRun.patchRun();
         return text;
@@ -570,36 +561,7 @@ async function generateWithClaude(query: string, persona: any, context: any, par
 }
 
 async function generateWithGemini(query: string, persona: any, context: any, parentRun: any) {
-    const childRun = await parentRun.createChild({
-        name: "gemini_call",
-        run_type: "llm",
-        inputs: { query, model: "gemini-1.5-flash" },
-    });
-    await childRun.postRun();
-
-    try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${GOOGLE_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: { parts: [{ text: "You are the Ultimate Intelligence of PTD Fitness." }] },
-        }),
-      }
-    );
-
-        const result = await response.json();
-        if (result.error) throw new Error(result.error.message);
-        
-        const text = result.candidates[0].content.parts[0].text;
-        await childRun.end({ outputs: { response: text } });
-        await childRun.patchRun();
-        return text;
-    } catch (error: any) {
-        await childRun.end({ error: error.message });
-        await childRun.patchRun();
-        throw error;
-    }
+    // Redirecting Gemini calls to UnifiedAI (which defaults to OpenAI/Claude fallback)
+    // This ensures consistent behavior and centralized key management
+    return generateWithClaude(query, persona, context, parentRun);
 }

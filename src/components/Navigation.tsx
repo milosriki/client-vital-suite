@@ -91,6 +91,27 @@ export const Navigation = () => {
     }, { lockMessage: 'HubSpot sync is already in progress' });
   };
 
+  const handleFullSync = async () => {
+    if (!window.confirm("This will perform a FULL sync of all historical data (5+ years). It may take several minutes. Continue?")) {
+      return;
+    }
+
+    await hubspotSync.execute(async () => {
+      setIsSyncing(true);
+      try {
+        const { error } = await supabase.functions.invoke('sync-hubspot-to-supabase', {
+          body: { incremental: false }
+        });
+        if (error) throw error;
+        toast({ title: 'Full Sync Started', description: 'Historical data sync initiated. Check logs for progress.' });
+      } catch (error: any) {
+        toast({ title: 'Sync Error', description: error.message, variant: 'destructive' });
+      } finally {
+        setIsSyncing(false);
+      }
+    }, { lockMessage: 'HubSpot sync is already in progress' });
+  };
+
   const NavLink = ({ item, onClick }: { item: typeof navItems[0]; onClick?: () => void }) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.path;
@@ -173,7 +194,7 @@ export const Navigation = () => {
             
             {/* System Status Dropdown */}
             <div className="hidden sm:block">
-              <SystemStatusDropdown isSyncing={isSyncing} onSync={handleSync} />
+              <SystemStatusDropdown isSyncing={isSyncing} onSync={handleSync} onFullSync={handleFullSync} />
             </div>
 
             {/* Sync Button with Circuit Breaker Warning */}

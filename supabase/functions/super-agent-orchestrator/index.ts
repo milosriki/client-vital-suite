@@ -4,6 +4,7 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
 // ============================================================================
 // BULLETPROOF SUPER-AGENT ORCHESTRATOR
@@ -609,11 +610,13 @@ async function synthesize(
   state: SystemState,
   supabase: any
 ): Promise<string> {
+
+
   const runId = await traceStart("synthesize", {});
   console.log("[Phase 5] Synthesizing report...");
 
-  const geminiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-  const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
+  // const geminiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+  // const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
 
   const prompt = `
 You are a system intelligence synthesizer. Generate a brief (2-3 sentences) executive summary.
@@ -633,71 +636,26 @@ STATUS: ${state.final_status}
 Generate a concise summary.`;
 
   try {
-    // Try Gemini first
-    if (geminiKey) {
-      try {
-        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${geminiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "gemini-3.0-flash",
-            messages: [
-              { role: "system", content: buildAgentPrompt('ORCHESTRATOR', {
-                additionalContext: 'Route to: smart-agent (queries), churn-predictor (risk), intervention-recommender (actions). Max 3 sentences.'
-              }) },
-              { role: "user", content: prompt }
-            ]
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
+    // Use UnifiedAI for synthesis (handles fallback automatically)
+    const response = await unifiedAI.chat([
+      { role: "system", content: buildAgentPrompt('ORCHESTRATOR', {
+        additionalContext: 'Route to: smart-agent (queries), churn-predictor (risk), intervention-recommender (actions). Max 3 sentences.'
+      }) },
+      { role: "user", content: prompt }
+    ], {
+      max_tokens: 300,
+      temperature: 0.7
+    });
 
-        if (response.ok) {
-          const data = await response.json();
-          const report = data.choices?.[0]?.message?.content || generateFallbackReport(state);
-          await traceEnd(runId, { source: "gemini", report });
-          return report;
-        }
-      } catch {
-        // Fallback to Claude
-      }
-    }
-
-    // Try Claude as fallback
-    if (claudeKey) {
-      try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": claudeKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "claude-4-5-sonnet",
-            max_tokens: 300,
-            messages: [{ role: "user", content: prompt }]
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const report = data.content?.[0]?.text || generateFallbackReport(state);
-          await traceEnd(runId, { source: "claude", report });
-          return report;
-        }
-      } catch {
-        // Fallback to manual
-      }
-    }
-
-    const report = generateFallbackReport(state);
-    await traceEnd(runId, { source: "fallback", report });
+    const report = response.content || generateFallbackReport(state);
+    await traceEnd(runId, { source: "unified_ai", report });
     return report;
 
   } catch (error) {
-    await traceEnd(runId, { status: "error", error: String(error) });
-    throw error;
+    console.error("Synthesis failed:", error);
+    const report = generateFallbackReport(state);
+    await traceEnd(runId, { source: "fallback", report, error: String(error) });
+    return report;
   }
 }
 
@@ -855,7 +813,7 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
 // HTTP SERVER
 // ============================================================================
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

@@ -13,6 +13,7 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -20,7 +21,7 @@ const corsHeaders = {
 };
 
 // Helper to log errors to sync_errors table
-async function logError(supabase: any, errorType: string, message: string, details: any = {}) {
+async function logError(supabase: any, errorType: string, message: string, details: Record<string, any> = {}) {
     console.error(`[Lead Reply Agent Error] ${message}`, details);
     await supabase.from('sync_errors').insert({
         platform: 'lead-reply-agent',
@@ -32,7 +33,7 @@ async function logError(supabase: any, errorType: string, message: string, detai
     });
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
     }
@@ -68,14 +69,14 @@ serve(async (req) => {
 
         console.log(`[Lead Reply Agent] Processing ${leadsToProcess.length} leads`);
 
-        const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+        // const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
         // Process all leads in parallel
-        const processPromises = leadsToProcess.map(async (lead) => {
+        const processPromises = leadsToProcess.map(async (lead: any) => {
             try {
                 let suggestedReply = "";
 
-                if (ANTHROPIC_API_KEY) {
+                try {
                     const systemPrompt = `You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
 
 ROLE: Generate high-converting SMS responses for new fitness leads.
@@ -106,28 +107,18 @@ SMS BEST PRACTICES:
                     Write an SMS reply. Output ONLY the message text, nothing else.
                     `;
 
-                    const response = await fetch("https://api.anthropic.com/v1/messages", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "x-api-key": ANTHROPIC_API_KEY,
-                            "anthropic-version": "2023-06-01"
-                        },
-                        body: JSON.stringify({
-                            model: "claude-4-5-sonnet",
-                            max_tokens: 200,
-                            system: systemPrompt,
-                            messages: [{ role: "user", content: prompt }]
-                        })
+                    const response = await unifiedAI.chat([
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: prompt }
+                    ], {
+                        max_tokens: 200,
+                        temperature: 0.7
                     });
 
-                    const data = await response.json();
-                    
-                    if (data.error) {
-                        throw new Error(data.error.message || 'API error');
-                    }
-                    
-                    suggestedReply = data.content?.[0]?.text?.trim() || "";
+                    suggestedReply = response.content?.trim() || "";
+                } catch (err) {
+                    console.error(`[Lead Reply Agent] AI generation failed for lead ${lead.id}:`, err);
+                    // Fallback will handle it
                 }
 
                 // Fallback if AI fails or no key

@@ -4,6 +4,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
 // ============================================
 // INTERVENTION RECOMMENDER AGENT
 // AI-powered intervention suggestions with draft messages
@@ -24,10 +26,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 // ANTHROPIC_API_KEY is optional
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-if (!ANTHROPIC_API_KEY) {
-  console.warn("ANTHROPIC_API_KEY not set - using template messages only");
-}
+// const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+// if (!ANTHROPIC_API_KEY) {
+//   console.warn("ANTHROPIC_API_KEY not set - using template messages only");
+// }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -114,10 +116,6 @@ function selectInterventionType(client: any): keyof typeof INTERVENTION_TYPES {
 }
 
 async function generateMessageDraft(client: any, interventionType: string): Promise<string> {
-  if (!ANTHROPIC_API_KEY) {
-    return getTemplateMessage(client, interventionType);
-  }
-
   try {
     const systemPrompt = buildAgentPrompt('INTERVENTION_RECOMMENDER', {
       includeLifecycle: true,
@@ -155,47 +153,17 @@ Requirements:
 
 Write the message:`;
 
-    // Add timeout to Claude API call (10 seconds)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const response = await unifiedAI.chat([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: prompt }
+    ], {
+      max_tokens: 200,
+      temperature: 0.7
+    });
 
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01"
-        },
-        body: JSON.stringify({
-          model: "claude-4-5-sonnet",
-          max_tokens: 200,
-          system: systemPrompt,
-          messages: [{ role: "user", content: prompt }]
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.warn(`[Claude API] Request failed with status ${response.status}`);
-        return getTemplateMessage(client, interventionType);
-      }
-
-      const data = await response.json();
-      return data.content[0]?.text || getTemplateMessage(client, interventionType);
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.warn("[Claude API] Request timeout - falling back to template");
-      } else {
-        console.warn("[Claude API] Request failed:", fetchError);
-      }
-      return getTemplateMessage(client, interventionType);
-    }
+    return response.content || getTemplateMessage(client, interventionType);
   } catch (error) {
-    console.error("[Claude API] Unexpected error:", error);
+    console.error(`[Intervention Recommender] AI generation failed for ${client.email}:`, error);
     return getTemplateMessage(client, interventionType);
   }
 }
@@ -261,7 +229,7 @@ function calculateSuccessProbability(client: any, interventionType: string): num
   return Math.max(20, Math.min(90, probability));
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

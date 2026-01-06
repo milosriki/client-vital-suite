@@ -6,7 +6,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, RefreshCw, ExternalLink, AlertCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, ExternalLink, AlertCircle, Clock, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
@@ -16,9 +16,10 @@ import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 interface SystemStatusDropdownProps {
   isSyncing: boolean;
   onSync: () => void;
+  onFullSync?: () => void;
 }
 
-export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdownProps) {
+export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemStatusDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Check connection statuses
@@ -144,6 +145,16 @@ export function SystemStatusDropdown({ isSyncing, onSync }: SystemStatusDropdown
             >
               <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isSyncing && "animate-spin")} />
               {isSyncing ? "Syncing..." : "Sync Now"}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => { onFullSync?.(); setIsOpen(false); }}
+              disabled={isSyncing}
+              className="w-full justify-center text-xs"
+            >
+              <History className="h-3.5 w-3.5 mr-2" />
+              Full Sync (Historical)
             </Button>
             <Button 
               variant="ghost" 

@@ -2,7 +2,7 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.20.0";
+// import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.20.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 const corsHeaders = {
@@ -10,15 +10,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-if (!ANTHROPIC_API_KEY) {
-  throw new Error('ANTHROPIC_API_KEY is required');
-}
-
-const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+// const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface AnalystQuery {
@@ -31,7 +28,7 @@ interface AnalystQuery {
   session_id: string;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -94,12 +91,10 @@ ANALYSIS FRAMEWORK:
 - Include confidence levels for predictions`
     });
 
-    // Call Claude for analysis
-    const message = await anthropic.messages.create({
-      model: 'claude-4-5-sonnet',
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{
+    // Call Unified AI for analysis
+    const response = await unifiedAI.chat([
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
         role: 'user',
         content: `${dataContext}
 
@@ -112,10 +107,13 @@ Provide a comprehensive analysis with:
 4. Opportunities
 
 Be specific and data-driven.`
-      }]
+      }
+    ], {
+      max_tokens: 4096,
+      temperature: 0.7
     });
 
-    const analysis = message.content[0].type === 'text' ? message.content[0].text : '';
+    const analysis = response.content;
 
     // Store analysis in database
     await supabase.from('agent_conversations').insert({
@@ -136,12 +134,14 @@ Be specific and data-driven.`
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Analyst error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     return new Response(
       JSON.stringify({
-        error: error.message || 'Failed to generate analysis',
-        details: error.stack
+        error: errorMessage || 'Failed to generate analysis',
+        details: errorStack
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

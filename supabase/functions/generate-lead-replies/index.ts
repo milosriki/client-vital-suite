@@ -23,14 +23,16 @@ serve(async (req) => {
         const payload = await req.json().catch(() => ({}));
         const limit = typeof payload?.limit === "number" && payload.limit > 0 ? Math.min(payload.limit, 50) : 10;
 
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+        // const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
         const missingEnv = [
             !supabaseUrl && "SUPABASE_URL",
             !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
-            !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
+            // !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
         ].filter(Boolean) as string[];
 
         if (missingEnv.length > 0) {
@@ -124,27 +126,15 @@ CONVERSION TACTICS:
 
 Write a SHORT (2-3 sentences) personalized initial reply. No markdown or formatting.`;
 
-                const response = await fetch("https://api.anthropic.com/v1/messages", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-api-key": ANTHROPIC_API_KEY!,
-                        "anthropic-version": "2023-06-01"
-                    },
-                    body: JSON.stringify({
-                        model: "claude-4-5-sonnet",
-                        max_tokens: 200,
-                        system: systemPrompt,
-                        messages: [{ role: "user", content: prompt }]
-                    })
+                const response = await unifiedAI.chat([
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: prompt }
+                ], {
+                    max_tokens: 200,
+                    temperature: 0.7
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Claude API returned ${response.status}`);
-                }
-
-                const data = await response.json();
-                const suggestedReply = data.content?.[0]?.text;
+                const suggestedReply = response.content;
 
                 if (suggestedReply) {
                     const updatePayload: Record<string, any> = { ai_suggested_reply: suggestedReply };
