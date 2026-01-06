@@ -24,6 +24,7 @@ import SalesCoachTracker from "./pages/SalesCoachTracker";
 import SetterActivityToday from "./pages/SetterActivityToday";
 import YesterdayBookings from "./pages/YesterdayBookings";
 import HubSpotLiveData from "./pages/HubSpotLiveData";
+import CampaignMoneyMap from "./pages/CampaignMoneyMap";
 import SalesPipeline from "./pages/SalesPipeline";
 import CallTracking from "./pages/CallTracking";
 import AIKnowledge from "./pages/AIKnowledge";
@@ -79,6 +80,7 @@ const router = createBrowserRouter([
       { path: "/setter-activity-today", element: <SetterActivityToday /> },
       { path: "/yesterday-bookings", element: <YesterdayBookings /> },
       { path: "/hubspot-live", element: <HubSpotLiveData /> },
+      { path: "/money-map", element: <CampaignMoneyMap /> },
       { path: "/ultimate-ceo", element: <UltimateCEO /> },
       { path: "/marketing-stress-test", element: <MarketingStressTest /> },
       { path: "/ai-dev", element: <AIDevConsole /> },

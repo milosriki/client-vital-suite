@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow, Crown, AlertTriangle, Activity, Command, Brain, Lightbulb, TestTube, Cpu } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, TrendingUp, Phone, Zap, Menu, RefreshCw, Bot, CreditCard, Settings, BarChart3, History, ChevronDown, FileSearch, Calendar, Workflow, Crown, AlertTriangle, Activity, Command, Brain, Lightbulb, TestTube, Cpu, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -51,6 +51,7 @@ export const Navigation = () => {
     { path: "/stripe", label: "Stripe", icon: CreditCard },
     { path: "/call-tracking", label: "Calls", icon: Phone },
     { path: "/hubspot-live", label: "HubSpot", icon: Zap },
+    { path: "/money-map", label: "Money Map", icon: Wallet },
     { path: "/audit-trail", label: "Audit", icon: History },
     { path: "/clients", label: "Clients", icon: Users },
     { path: "/coaches", label: "Coaches", icon: UserCheck },
