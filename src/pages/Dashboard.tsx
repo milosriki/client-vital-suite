@@ -61,7 +61,7 @@ export default function Dashboard() {
       const latestDate = latestDateRows?.[0]?.calculated_on;
       let query = supabase
         .from("client_health_scores")
-        .select("id, firstname, lastname, email, health_zone, health_score, package_value_aed, assigned_coach, created_at, calculated_on")
+        .select("id, firstname, lastname, email, health_zone, health_score, package_value_aed, assigned_coach, owner_name, created_at, calculated_on")
         .order("health_score", { ascending: true });
 
       if (latestDate) {

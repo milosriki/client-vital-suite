@@ -391,6 +391,7 @@ serve(async (req) => {
           sessions_purchased: client.sessions_purchased || 0,
           days_since_last_session: client.days_since_last_session || 0,
           assigned_coach: client.assigned_coach,
+          owner_name: client.owner_name,
           calculated_at: new Date().toISOString(),
           calculated_on: new Date().toISOString().split("T")[0],
           calculation_version: "PENALTY_v4_ALIGNED"
