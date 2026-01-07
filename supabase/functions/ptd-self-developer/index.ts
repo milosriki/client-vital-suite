@@ -1,9 +1,8 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { RunTree } from "https://esm.sh/langsmith";
-
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { traceStart, traceEnd } from "../_shared/langsmith-tracing.ts";
 
 // const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
@@ -89,119 +88,79 @@ Always respond with a JSON object containing:
 - Add proper TypeScript types
 - Use lucide-react for icons`;
 
-    // Call Claude API
-    const parentRun = new RunTree({
-      name: "ptd_self_developer",
-      run_type: "chain",
-      inputs: { command, context },
-      project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+    // Call UnifiedAIClient
+    const runId = await traceStart("ptd_self_developer", { command, context });
+
+    const response = await unifiedAI.chat([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Command: ${command}\nContext: ${JSON.stringify(context || {})}` }
+    ], {
+      max_tokens: 2000,
+      temperature: 0.2, // Low temperature for precise code generation
+      response_format: { type: "json_object" }
     });
-    await parentRun.postRun();
 
-    const childRun = await parentRun.createChild({
-      name: "unified_ai_call",
-      run_type: "llm",
-      inputs: { command, model: "gpt-4o" },
-    });
-    await childRun.postRun();
-
-    let responseText = "";
+    let result;
     try {
-      const response = await unifiedAI.chat([
-        { role: "system", content: systemPrompt },
-        { 
-          role: "user", 
-          content: `Command: ${command}\n\nAdditional Context: ${JSON.stringify(context || {})}` 
-        }
-      ], {
-        max_tokens: 8000,
-        temperature: 0.7
-      });
-      responseText = response.content || "";
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('UnifiedAI API error:', error);
-      await childRun.end({ error: `UnifiedAI API error: ${errorMessage}` });
-      await childRun.patchRun();
-      await parentRun.end({ error: `UnifiedAI API error: ${errorMessage}` });
-      await parentRun.patchRun();
-      throw new Error(`AI API error: ${errorMessage}`);
-    }
-
-    await childRun.end({ outputs: { response: responseText } });
-    await childRun.patchRun();
-
-    console.log('🤖 AI Response received, length:', responseText.length);
-
-    // Parse the JSON from AI response
-    let parsedAction;
-    try {
-      // Extract JSON from the response (handle markdown code blocks)
-      const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
-                        responseText.match(/```\s*([\s\S]*?)\s*```/) ||
-                        [null, responseText];
-      parsedAction = JSON.parse(jsonMatch[1] || responseText);
-    } catch (parseError: unknown) {
-      console.error('Failed to parse AI response as JSON:', parseError);
-      // Create a fallback action for analysis type
-      parsedAction = {
-        action_type: 'analysis',
-        action_title: 'AI Response',
-        action_description: responseText.substring(0, 500),
-        reasoning: 'Raw AI response (not JSON formatted)',
-        expected_impact: 'Review required',
-        risk_level: 'low',
-        confidence: 0.5,
-        prepared_payload: { analysis: responseText }
+      result = JSON.parse(response.content);
+    } catch (e) {
+      console.error("Failed to parse JSON response:", e);
+      // Fallback if JSON parsing fails
+      result = {
+        action_type: "analysis",
+        action_title: "Error parsing AI response",
+        action_description: "The AI generated a response that could not be parsed as JSON.",
+        reasoning: "JSON parse error",
+        expected_impact: "None",
+        risk_level: "low",
+        confidence: 0,
+        prepared_payload: { analysis: response.content }
       };
     }
 
-    // Insert the prepared action into the database
-    const { data: insertedAction, error: insertError } = await supabase
+    await traceEnd(runId, { result });
+
+    // Store the prepared action in the database
+    const { data: actionRecord, error: dbError } = await supabase
       .from('prepared_actions')
       .insert({
-        action_type: parsedAction.action_type || 'analysis',
-        action_title: parsedAction.action_title || 'Untitled Action',
-        action_description: parsedAction.action_description || '',
-        reasoning: parsedAction.reasoning || '',
-        expected_impact: parsedAction.expected_impact || '',
-        risk_level: parsedAction.risk_level || 'medium',
-        confidence: parsedAction.confidence || 0.5,
-        prepared_payload: parsedAction.prepared_payload || {},
-        status: 'prepared',
-        priority: parsedAction.risk_level === 'high' ? 1 : parsedAction.risk_level === 'medium' ? 2 : 3,
-        source_agent: 'ptd-self-developer'
+        action_type: result.action_type,
+        action_title: result.action_title,
+        description: result.action_description,
+        reasoning: result.reasoning,
+        impact_analysis: result.expected_impact,
+        risk_level: result.risk_level,
+        confidence_score: result.confidence,
+        payload: result.prepared_payload,
+        status: 'pending_approval',
+        source_agent: 'ptd-self-developer',
+        created_at: new Date().toISOString()
       })
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Failed to insert action:', insertError);
-      throw insertError;
+    if (dbError) {
+      console.error("Failed to store prepared action:", dbError);
     }
-
-    console.log('✅ Action prepared:', insertedAction?.id);
-
-    await parentRun.end({ outputs: { action: insertedAction } });
-    await parentRun.patchRun();
 
     return new Response(JSON.stringify({
       success: true,
-      message: 'Action prepared successfully',
-      action: insertedAction
+      action: result,
+      action_id: actionRecord?.id
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error: unknown) {
-    console.error('PTD Self-Developer error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error) {
+    console.error("Error in PTD Self-Developer:", error);
     return new Response(JSON.stringify({
       success: false,
-      error: message
+      error: error instanceof Error ? error.message : "Unknown error"
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
+
+

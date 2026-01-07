@@ -5,6 +5,7 @@ import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { PTD_STATIC_KNOWLEDGE } from "../_shared/static-knowledge.ts";
 import { executeSharedTool } from "../_shared/tool-executor.ts";
+import { unifiedAI, ToolDefinition, ChatMessage } from "../_shared/unified-ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -365,440 +366,350 @@ function tool(
   };
 }
 
-// ============= GEMINI TOOL DEFINITIONS =============
-const tools = [
-  // Google Search Grounding (Native Tool)
+// ============= TOOL DEFINITIONS (Unified Format) =============
+const tools: ToolDefinition[] = [
   {
-    googleSearchRetrieval: {
-      dynamicRetrievalConfig: {
-        mode: "MODE_DYNAMIC",
-        dynamicThreshold: 0.7,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "client_control",
-      description: "Get full client data - health scores, calls, deals, activities. Use for any client-related queries.",
-      parameters: {
-        type: "object",
-        properties: {
-          email: { type: "string", description: "Client email address" },
-          action: {
-            type: "string",
-            enum: ["get_all", "get_health", "get_calls", "get_deals", "get_activities"],
-            description: "Action to perform"
-          },
+    name: "client_control",
+    description: "Get full client data - health scores, calls, deals, activities. Use for any client-related queries.",
+    input_schema: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "Client email address" },
+        action: {
+          type: "string",
+          enum: ["get_all", "get_health", "get_calls", "get_deals", "get_activities"],
+          description: "Action to perform"
         },
-        required: ["email", "action"],
       },
+      required: ["email", "action"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "lead_control",
-      description: "Manage leads - get all leads, search leads, get enhanced lead data with scores",
-      parameters: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            enum: ["get_all", "search", "get_enhanced", "get_by_status"],
-            description: "Action to perform"
-          },
-          query: { type: "string", description: "Search query for lead name/email/phone" },
-          status: { type: "string", description: "Lead status filter" },
-          limit: { type: "number", description: "Max results (default 20)" },
+    name: "lead_control",
+    description: "Manage leads - get all leads, search leads, get enhanced lead data with scores",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["get_all", "search", "get_enhanced", "get_by_status"],
+          description: "Action to perform"
         },
-        required: ["action"],
+        query: { type: "string", description: "Search query for lead name/email/phone" },
+        status: { type: "string", description: "Lead status filter" },
+        limit: { type: "number", description: "Max results (default 20)" },
       },
+      required: ["action"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "sales_flow_control",
-      description: "Track sales pipeline - get deals, appointments, pipeline stages, recent closes",
-      parameters: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            enum: ["get_pipeline", "get_deals", "get_appointments", "get_recent_closes"],
-            description: "Action to perform"
-          },
-          stage: { type: "string", description: "Optional: filter by pipeline stage" },
-          days: { type: "number", description: "Days back to look (default 30)" },
+    name: "sales_flow_control",
+    description: "Track sales pipeline - get deals, appointments, pipeline stages, recent closes",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["get_pipeline", "get_deals", "get_appointments", "get_recent_closes"],
+          description: "Action to perform"
         },
-        required: ["action"],
+        stage: { type: "string", description: "Optional: filter by pipeline stage" },
+        days: { type: "number", description: "Days back to look (default 30)" },
       },
+      required: ["action"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "stripe_control",
-      description: "Stripe intelligence - live pulse, fraud scan, payment integrity check, and account verification.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            enum: ["live_pulse", "fraud_scan", "integrity_check", "account_verification", "who_verified", "verification_details", "get_summary", "get_events", "analyze"],
-            description: "Action to perform: 'live_pulse' for real-time sales and balance, 'integrity_check' for manual mark-as-paid fraud detection."
-          },
-          days: { type: "number", description: "Days back to analyze (default 90)" },
+    name: "stripe_control",
+    description: "Stripe intelligence - live pulse, fraud scan, payment integrity check, and account verification.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["live_pulse", "fraud_scan", "integrity_check", "account_verification", "who_verified", "verification_details", "get_summary", "get_events", "analyze"],
+          description: "Action to perform: 'live_pulse' for real-time sales and balance, 'integrity_check' for manual mark-as-paid fraud detection."
         },
-        required: ["action"],
+        days: { type: "number", description: "Days back to analyze (default 90)" },
       },
+      required: ["action"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "payment_integrity_check",
-      description: "TRIPLE-MATCH AUDIT - Run a deep check on all recent 'Paid' invoices to find if they were marked paid manually (fraud) or if the price doesn't match the package catalog.",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: [],
-      },
+    name: "payment_integrity_check",
+    description: "TRIPLE-MATCH AUDIT - Run a deep check on all recent 'Paid' invoices to find if they were marked paid manually (fraud) or if the price doesn't match the package catalog.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "hubspot_control",
-      description: "HubSpot operations - sync data, get contacts, fetch historical clients from up to 6 years ago.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            enum: ["sync_now", "get_contacts", "get_activities", "get_lifecycle_stages", "fetch_historical_customer"],
-            description: "Action to perform. 'fetch_historical_customer' imports long-term clients into permanent storage."
-          },
-          email: { type: "string", description: "Email of the historical customer to fetch." },
-          limit: { type: "number", description: "Max results" },
+    name: "hubspot_control",
+    description: "HubSpot operations - sync data, get contacts, fetch historical clients from up to 6 years ago.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["sync_now", "get_contacts", "get_activities", "get_lifecycle_stages", "fetch_historical_customer"],
+          description: "Action to perform. 'fetch_historical_customer' imports long-term clients into permanent storage."
         },
-        required: ["action"],
+        email: { type: "string", description: "Email of the historical customer to fetch." },
+        limit: { type: "number", description: "Max results" },
       },
+      required: ["action"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "call_control",
-      description: "Call records - get transcripts, analytics, find conversation patterns, and analyze sales objections.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            enum: ["get_all", "get_transcripts", "get_analytics", "find_patterns", "analyze_objections"],
-            description: "Action to perform: 'analyze_objections' scans transcripts for pricing or competitor hurdles."
-          },
-          limit: { type: "number", description: "Max results (default 20)" },
+    name: "call_control",
+    description: "Call records - get transcripts, analytics, find conversation patterns, and analyze sales objections.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["get_all", "get_transcripts", "get_analytics", "find_patterns", "analyze_objections"],
+          description: "Action to perform: 'analyze_objections' scans transcripts for pricing or competitor hurdles."
         },
-        required: ["action"],
+        limit: { type: "number", description: "Max results (default 20)" },
       },
+      required: ["action"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "analytics_control",
-      description: "Get dashboards - health zones, revenue, coaches, interventions, campaigns",
-      parameters: {
-        type: "object",
-        properties: {
-          dashboard: {
-            type: "string",
-            enum: ["health", "revenue", "coaches", "interventions", "campaigns"],
-            description: "Dashboard to retrieve"
-          },
+    name: "analytics_control",
+    description: "Get dashboards - health zones, revenue, coaches, interventions, campaigns",
+    input_schema: {
+      type: "object",
+      properties: {
+        dashboard: {
+          type: "string",
+          enum: ["health", "revenue", "coaches", "interventions", "campaigns"],
+          description: "Dashboard to retrieve"
         },
-        required: ["dashboard"],
+      },
+      required: ["dashboard"],
+    },
+  },
+  {
+    name: "get_at_risk_clients",
+    description: "Get clients at risk of churning (red or yellow health zones)",
+    input_schema: {
+      type: "object",
+      properties: {
+        zone: { type: "string", enum: ["red", "yellow", "all"], description: "Filter by zone" },
+        limit: { type: "number", description: "Max results (default 20)" },
       },
     },
   },
   {
-    type: "function",
-    function: {
-      name: "get_at_risk_clients",
-      description: "Get clients at risk of churning (red or yellow health zones)",
-      parameters: {
-        type: "object",
-        properties: {
-          zone: { type: "string", enum: ["red", "yellow", "all"], description: "Filter by zone" },
-          limit: { type: "number", description: "Max results (default 20)" },
+    name: "intelligence_control",
+    description: "Run AI intelligence functions - churn predictor, anomaly detector, etc.",
+    input_schema: {
+      type: "object",
+      properties: {
+        functions: {
+          type: "array",
+          items: { type: "string" },
+          description: "Functions to run: churn-predictor, anomaly-detector, intervention-recommender, coach-analyzer, business-intelligence"
         },
       },
     },
   },
   {
-    type: "function",
-    function: {
-      name: "intelligence_control",
-      description: "Run AI intelligence functions - churn predictor, anomaly detector, etc.",
-      parameters: {
-        type: "object",
-        properties: {
-          functions: {
-            type: "array",
-            items: { type: "string" },
-            description: "Functions to run: churn-predictor, anomaly-detector, intervention-recommender, coach-analyzer, business-intelligence"
-          },
+    name: "test_api_connections",
+    description: "DEBUG TOOL - Tests live connections to Stripe, HubSpot, and CallGear to find which API keys are failing.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "universal_search",
+    description: "POWERFUL SEARCH - Find any person/lead/contact by phone number, name, email, ID, owner name, campaign, etc. Returns full enriched profile with all calls, deals, activities, owner info, location, campaign data. USE THIS for any search query.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Search term - phone number, name, email, contact ID, HubSpot ID, owner name, campaign name, any identifier"
+        },
+        search_type: {
+          type: "string",
+          enum: ["auto", "phone", "email", "name", "id", "owner", "campaign"],
+          description: "Type of search (default: auto-detect from query)"
         },
       },
+      required: ["query"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "test_api_connections",
-      description: "DEBUG TOOL - Tests live connections to Stripe, HubSpot, and CallGear to find which API keys are failing.",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: [],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "universal_search",
-      description: "POWERFUL SEARCH - Find any person/lead/contact by phone number, name, email, ID, owner name, campaign, etc. Returns full enriched profile with all calls, deals, activities, owner info, location, campaign data. USE THIS for any search query.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "Search term - phone number, name, email, contact ID, HubSpot ID, owner name, campaign name, any identifier"
-          },
-          search_type: {
-            type: "string",
-            enum: ["auto", "phone", "email", "name", "id", "owner", "campaign"],
-            description: "Type of search (default: auto-detect from query)"
-          },
+    name: "get_coach_clients",
+    description: "Get all clients for a specific coach by name. Returns client health scores, at-risk clients, and performance data.",
+    input_schema: {
+      type: "object",
+      properties: {
+        coach_name: {
+          type: "string",
+          description: "Coach name (partial match supported) - e.g. 'Mathew', 'Marko', 'Ahmed'"
         },
-        required: ["query"],
       },
+      required: ["coach_name"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "get_coach_clients",
-      description: "Get all clients for a specific coach by name. Returns client health scores, at-risk clients, and performance data.",
-      parameters: {
-        type: "object",
-        properties: {
-          coach_name: {
-            type: "string",
-            description: "Coach name (partial match supported) - e.g. 'Mathew', 'Marko', 'Ahmed'"
-          },
-        },
-        required: ["coach_name"],
-      },
-    },
+    name: "get_coach_performance",
+    description: "Get performance metrics for coaches",
+    input_schema: {
+      type: "object",
+      properties: {
+        coach_name: { type: "string", description: "Optional: specific coach name" }
+      }
+    }
   },
   {
-    type: "function",
-    function: {
-      name: "get_coach_performance",
-      description: "Get performance metrics for coaches",
-      parameters: {
-        type: "object",
-        properties: {
-          coach_name: { type: "string", description: "Optional: specific coach name" }
+    name: "get_proactive_insights",
+    description: "Get AI-generated proactive insights and recommendations",
+    input_schema: {
+      type: "object",
+      properties: {
+        priority: { type: "string", enum: ["critical", "high", "medium", "low", "all"] },
+        limit: { type: "number", description: "Max results (default 10)" }
+      }
+    }
+  },
+  {
+    name: "get_daily_summary",
+    description: "Get business intelligence summary for a date",
+    input_schema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Date in YYYY-MM-DD format (default: today)" }
+      }
+    }
+  },
+  {
+    name: "run_sql_query",
+    description: "Run a read-only SQL query for complex data retrieval. Only SELECT allowed.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "SQL SELECT query (read-only)" }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "callgear_control",
+    description: "Get FULL call analytics from CallGear, including employee names, call durations, and recordings. Use this when user asks for 'who called', 'employee names', or detailed call reports.",
+    input_schema: {
+      type: "object",
+      properties: {
+        date_from: { type: "string", description: "Start date (YYYY-MM-DD)" },
+        date_to: { type: "string", description: "End date (YYYY-MM-DD)" },
+        limit: { type: "number", description: "Max results (default 50)" }
+      }
+    }
+  },
+  {
+    name: "forensic_control",
+    description: "AUDIT LOG & FORENSICS - Track WHO changed WHAT and WHEN in HubSpot. Use this to investigate changes to contacts, deals, or settings. Returns a timeline of property changes.",
+    input_schema: {
+      type: "object",
+      properties: {
+        target_identity: { type: "string", description: "Email, Phone, or HubSpot ID to investigate" },
+        limit: { type: "number", description: "Max log entries (default 50)" }
+      },
+      required: ["target_identity"]
+    }
+  },
+  {
+    name: "callgear_supervisor",
+    description: "SUPERVISOR BARGE-IN/WHISPER - Attach AI supervisor to active calls for monitoring. Modes: 'listen' (silent), 'whisper' (coach agent), 'barge' (conference). Use when user asks to monitor calls or coach agents.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["attach_coach", "detach_coach", "change_mode"], description: "Action to perform" },
+        call_session_id: { type: "string", description: "Active call session ID" },
+        mode: { type: "string", enum: ["listen", "whisper", "barge"], description: "Monitoring mode" },
+        coach_sip_uri: { type: "string", description: "SIP URI of supervisor (optional)" }
+      },
+      required: ["action", "call_session_id"]
+    }
+  },
+  {
+    name: "callgear_live_monitor",
+    description: "REAL-TIME CALL MONITORING - Get live call status, agent availability, and queue stats. Use when user asks 'who is on a call', 'active calls', 'agent status', or 'queue length'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["list_active_calls", "get_employee_status", "get_queue_stats", "get_all"], description: "What to fetch" }
+      },
+      required: ["action"]
+    }
+  },
+  {
+    name: "callgear_icp_router",
+    description: "ICP ROUTING CONFIG - Configure AI-driven inbound call routing. Use to set VIP lists, blacklists, or routing rules for incoming calls.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["test_routing", "get_config"], description: "Action to perform" },
+        test_caller: { type: "string", description: "Phone number to test routing for" }
+      },
+      required: ["action"]
+    }
+  },
+  {
+    name: "run_intelligence_suite",
+    description: "Run both anomaly-detector and churn-predictor edge functions and return combined results.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: []
+    }
+  },
+  {
+    name: "run_intelligence",
+    description: "Calls one of our 107 specialist agents to find churn, fraud, revenue leaks, or payout issues.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["churn", "anomaly", "revenue", "payouts"],
+          description: "Which intelligence function to run: 'churn' for churn predictor, 'anomaly' for anomaly detector, 'revenue' for hubspot analyzer, 'payouts' for stripe payouts AI"
         }
-      }
+      },
+      required: ["action"]
     }
   },
   {
-    type: "function",
-    function: {
-      name: "get_proactive_insights",
-      description: "Get AI-generated proactive insights and recommendations",
-      parameters: {
-        type: "object",
-        properties: {
-          priority: { type: "string", enum: ["critical", "high", "medium", "low", "all"] },
-          limit: { type: "number", description: "Max results (default 10)" }
+    name: "discover_system_map",
+    description: "Run this once at start. It maps all 110 tables and their relational links so you know where all data is. This is the Ultimate System Map.",
+    input_schema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "build_feature",
+    description: "Build a feature by writing code changes to the ai_agent_approvals table. Creates a fix request that can be reviewed and approved.",
+    input_schema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "The code content to write (e.g., React component code)"
+        },
+        impact: {
+          type: "string",
+          description: "Description of the impact or purpose of this code change"
         }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_daily_summary",
-      description: "Get business intelligence summary for a date",
-      parameters: {
-        type: "object",
-        properties: {
-          date: { type: "string", description: "Date in YYYY-MM-DD format (default: today)" }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "run_sql_query",
-      description: "Run a read-only SQL query for complex data retrieval. Only SELECT allowed.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "SQL SELECT query (read-only)" }
-        },
-        required: ["query"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "callgear_control",
-      description: "Get FULL call analytics from CallGear, including employee names, call durations, and recordings. Use this when user asks for 'who called', 'employee names', or detailed call reports.",
-      parameters: {
-        type: "object",
-        properties: {
-          date_from: { type: "string", description: "Start date (YYYY-MM-DD)" },
-          date_to: { type: "string", description: "End date (YYYY-MM-DD)" },
-          limit: { type: "number", description: "Max results (default 50)" }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "forensic_control",
-      description: "AUDIT LOG & FORENSICS - Track WHO changed WHAT and WHEN in HubSpot. Use this to investigate changes to contacts, deals, or settings. Returns a timeline of property changes.",
-      parameters: {
-        type: "object",
-        properties: {
-          target_identity: { type: "string", description: "Email, Phone, or HubSpot ID to investigate" },
-          limit: { type: "number", description: "Max log entries (default 50)" }
-        },
-        required: ["target_identity"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "callgear_supervisor",
-      description: "SUPERVISOR BARGE-IN/WHISPER - Attach AI supervisor to active calls for monitoring. Modes: 'listen' (silent), 'whisper' (coach agent), 'barge' (conference). Use when user asks to monitor calls or coach agents.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: { type: "string", enum: ["attach_coach", "detach_coach", "change_mode"], description: "Action to perform" },
-          call_session_id: { type: "string", description: "Active call session ID" },
-          mode: { type: "string", enum: ["listen", "whisper", "barge"], description: "Monitoring mode" },
-          coach_sip_uri: { type: "string", description: "SIP URI of supervisor (optional)" }
-        },
-        required: ["action", "call_session_id"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "callgear_live_monitor",
-      description: "REAL-TIME CALL MONITORING - Get live call status, agent availability, and queue stats. Use when user asks 'who is on a call', 'active calls', 'agent status', or 'queue length'.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: { type: "string", enum: ["list_active_calls", "get_employee_status", "get_queue_stats", "get_all"], description: "What to fetch" }
-        },
-        required: ["action"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "callgear_icp_router",
-      description: "ICP ROUTING CONFIG - Configure AI-driven inbound call routing. Use to set VIP lists, blacklists, or routing rules for incoming calls.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: { type: "string", enum: ["test_routing", "get_config"], description: "Action to perform" },
-          test_caller: { type: "string", description: "Phone number to test routing for" }
-        },
-        required: ["action"]
-      }
-    }
-  },
-  // 1. INTELLIGENCE: Calls specialist intelligence functions (107 functions available)
-  {
-    type: "function",
-    function: {
-      name: "run_intelligence_suite",
-      description: "Run both anomaly-detector and churn-predictor edge functions and return combined results.",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "run_intelligence",
-      description: "Calls one of our 107 specialist agents to find churn, fraud, revenue leaks, or payout issues.",
-      parameters: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            enum: ["churn", "anomaly", "revenue", "payouts"],
-            description: "Which intelligence function to run: 'churn' for churn predictor, 'anomaly' for anomaly detector, 'revenue' for hubspot analyzer, 'payouts' for stripe payouts AI"
-          }
-        },
-        required: ["action"]
-      }
-    }
-  },
-  // 2. DISCOVERY: Uses introspect_schema_verbose RPC (The Deep Wiki Map)
-  {
-    type: "function",
-    function: {
-      name: "discover_system_map",
-      description: "Run this once at start. It maps all 110 tables and their relational links so you know where all data is. This is the Ultimate System Map.",
-      parameters: {
-        type: "object",
-        properties: {}
-      }
-    }
-  },
-  // 3. BUILDER: Writes code to ai_agent_approvals
-  {
-    type: "function",
-    function: {
-      name: "build_feature",
-      description: "Build a feature by writing code changes to the ai_agent_approvals table. Creates a fix request that can be reviewed and approved.",
-      parameters: {
-        type: "object",
-        properties: {
-          code: {
-            type: "string",
-            description: "The code content to write (e.g., React component code)"
-          },
-          impact: {
-            type: "string",
-            description: "Description of the impact or purpose of this code change"
-          }
-        },
-        required: ["code", "impact"]
-      }
+      },
+      required: ["code", "impact"]
     }
   }
 ];
@@ -808,6 +719,7 @@ async function executeTool(supabase: any, toolName: string, input: any): Promise
   return await executeSharedTool(supabase, toolName, input);
 }
 
+// ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 // ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 async function runAgent(supabase: any, userMessage: string, chatHistory: any[] = [], threadId: string = 'default', context?: any): Promise<string> {
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
@@ -846,24 +758,72 @@ ${dynamicKnowledge}
 ${learnedPatterns}
 `;
 
-  const messages = [
+  const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
     ...chatHistory.map((msg: any) => ({
-      role: msg.role === 'model' ? 'assistant' : msg.role,
+      role: (msg.role === 'model' ? 'assistant' : msg.role) as "user" | "assistant",
       content: msg.content
     })),
     { role: 'user', content: userMessage }
   ];
 
-  let finalResponse = '';
-  
   // Use Unified AI Chat
   const response = await unifiedAI.chat(messages, {
     max_tokens: 4000,
-    temperature: 0.2
+    temperature: 0.2,
+    tools: tools
   });
 
-  finalResponse = response.content;
+  let finalResponse = response.content;
+
+  // Handle Tool Calls
+  if (response.tool_calls && response.tool_calls.length > 0) {
+    console.log(`🛠️ Agent requested ${response.tool_calls.length} tools`);
+    
+    // Execute tools sequentially
+    for (const toolCall of response.tool_calls) {
+      console.log(`🔧 Executing: ${toolCall.name}`);
+      try {
+        const toolResult = await executeTool(supabase, toolCall.name, toolCall.input);
+        
+        // Add tool result to history
+        messages.push({ role: "assistant", content: "", name: toolCall.name }); // Placeholder for tool call if needed, but UnifiedAI abstraction might handle it differently. 
+        // Actually, standard pattern is:
+        // 1. Assistant message with tool_calls
+        // 2. Tool message with tool_call_id and content
+        
+        // Since UnifiedAIClient returns a simplified response, we'll just append the result to the context and ask again.
+        // Or better, we can just append the result to the final response if it's a simple query.
+        // But for a true agent loop, we should feed it back.
+        
+        // For now, let's append the tool result to the prompt and recurse (simplified ReAct loop)
+        // OR just append it to the final response text for the user to see.
+        
+        // Let's do a single-turn tool execution for speed (User -> AI -> Tool -> AI -> User)
+        
+        // Add tool result to messages
+        messages.push({ 
+          role: "user", 
+          content: `Tool '${toolCall.name}' Output: ${toolResult}\n\nPlease interpret this result for me.` 
+        });
+        
+      } catch (err: any) {
+        console.error(`❌ Tool execution failed: ${err.message}`);
+        messages.push({ 
+          role: "user", 
+          content: `Tool '${toolCall.name}' failed: ${err.message}` 
+        });
+      }
+    }
+    
+    // Follow-up chat with tool results
+    const followUpResponse = await unifiedAI.chat(messages, {
+      max_tokens: 4000,
+      temperature: 0.2
+    });
+    
+    finalResponse = followUpResponse.content;
+  }
 
   // Save to persistent memory
   await saveToMemory(supabase, threadId, userMessage, finalResponse);

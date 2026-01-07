@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
+import { unifiedAI, ChatMessage } from "../_shared/unified-ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -387,59 +388,43 @@ Be concise but thorough. Format amounts properly (divide by 100 for major curren
 If data is missing, say so explicitly.`;
 
 
-      const messages = [
+      const messages: ChatMessage[] = [
         { role: "system", content: systemPrompt },
         ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),
         { role: "user", content: message },
       ];
 
-      // Call AI API - Direct Gemini or Lovable fallback
-      const aiUrl = useDirectGemini 
-        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        : "https://ai.gateway.lovable.dev/v1/chat/completions";
-      const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
-      const aiModel = useDirectGemini ? "gemini-3.0-flash" : "google/gemini-3.0-flash";
+      console.log("[STRIPE-PAYOUTS-AI] Calling UnifiedAIClient");
 
-      console.log("[STRIPE-PAYOUTS-AI] Calling AI API:", { url: aiUrl, model: aiModel });
-
-      const response = await fetch(aiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${aiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: aiModel,
-          messages,
-          stream: true,
-        }),
+      // Use UnifiedAIClient for chat
+      const response = await unifiedAI.chat(messages, {
+        max_tokens: 1000,
+        temperature: 0.2
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[STRIPE-PAYOUTS-AI] AI Gateway error:", response.status, errorText);
-        
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+      console.log("[STRIPE-PAYOUTS-AI] UnifiedAIClient response received");
+
+      // End trace with success
+      await traceEnd(traceRun, { action: "chat", responseLength: response.content.length });
+
+      // Return as SSE event stream for compatibility with frontend
+      const stream = new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          const text = response.content;
+          // Simulate streaming by sending chunks
+          const chunks = text.match(/.{1,20}/g) || [text];
+          
+          for (const chunk of chunks) {
+            const data = JSON.stringify({ choices: [{ delta: { content: chunk } }] });
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
         }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "Payment required" }), {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error(`AI Gateway error: ${response.status}`);
-      }
+      });
 
-      console.log("[STRIPE-PAYOUTS-AI] Streaming response started");
-
-      // End trace before streaming (can't track stream completion easily)
-      await traceEnd(traceRun, { streaming: true, action: "chat" });
-
-      return new Response(response.body, {
+      return new Response(stream, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }

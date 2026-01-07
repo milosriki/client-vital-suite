@@ -659,6 +659,51 @@ Generate a concise summary.`;
   }
 }
 
+// ============================================================================
+// PHASE 7: HEALING TRIGGER (Automatic Triage)
+// ============================================================================
+
+async function triggerHealing(state: SystemState, supabase: any): Promise<void> {
+  const runId = await traceStart("trigger_healing", {});
+  console.log("[Phase 7] Checking for healing triggers...");
+
+  try {
+    // 1. Identify critical failures
+    const criticalFailures = Object.values({ ...state.validation_results, ...state.intelligence_results })
+      .filter(r => r.status === "degraded" || r.status === "failed");
+
+    // 2. Identify improvements
+    const improvements = state.improvements;
+
+    if (criticalFailures.length === 0 && improvements.length === 0) {
+      console.log("[Phase 7] System healthy, no healing needed.");
+      await traceEnd(runId, { status: "healthy" });
+      return;
+    }
+
+    console.log(`[Phase 7] Triggering triage for ${criticalFailures.length} failures and ${improvements.length} improvements.`);
+
+    // 3. Invoke Error Triage Agent
+    // We invoke it asynchronously (fire and forget) to not block the orchestrator report
+    EdgeRuntime.waitUntil(
+      invokeWithFallback(supabase, "error-triage-agent", {
+        source: "super-agent-orchestrator",
+        context: {
+          run_id: state.run_id,
+          failures: criticalFailures,
+          improvements: improvements
+        }
+      }, `triage_${state.run_id}`)
+    );
+
+    await traceEnd(runId, { status: "triggered", count: criticalFailures.length + improvements.length });
+
+  } catch (error) {
+    console.error("Healing trigger failed:", error);
+    await traceEnd(runId, { status: "error", error: String(error) });
+  }
+}
+
 function generateFallbackReport(state: SystemState): string {
   const total = state.total_agents_run;
   const success = state.successful_agents;
@@ -738,6 +783,10 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
     // PHASE 6: Synthesis
     console.log("\n=== PHASE 6: SYNTHESIS ===");
     state.final_report = await synthesize(state, supabase);
+
+    // PHASE 7: Healing Trigger
+    console.log("\n=== PHASE 7: HEALING ===");
+    await triggerHealing(state, supabase);
 
     state.completed_at = new Date().toISOString();
 

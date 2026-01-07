@@ -30,17 +30,17 @@ const WarRoom = () => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
       const { data, error } = await supabase
-        .from("facebook_ads_insights")
-        .select("spend")
+        .from("daily_business_metrics" as any)
+        .select("ad_spend_facebook, ad_spend_google")
         .gte("date", thirtyDaysAgo.toISOString().split('T')[0]);
       
       if (error) throw error;
       
-      return data?.reduce((sum, row) => sum + (parseFloat(row.spend as any) || 0), 0) || 0;
+      return data?.reduce((sum: number, row: any) => sum + (Number(row.ad_spend_facebook) || 0) + (Number(row.ad_spend_google) || 0), 0) || 0;
     }
   });
 
-  const adSpend = manualAdSpend ?? (liveAdSpendData || 15000);
+  const adSpend = manualAdSpend ?? (liveAdSpendData || 0);
 
   // Fetch deals for forecasting
   const { data: deals, isLoading: dealsLoading, error: dealsError } = useDedupedQuery({

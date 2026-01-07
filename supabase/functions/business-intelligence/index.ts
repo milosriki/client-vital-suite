@@ -110,7 +110,8 @@ serve(async (req) => {
         const highErrors = recentErrors?.filter(e => e.severity === 'high').length || 0;
 
         const stripeRevenueToday = stripeRevenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
-        const hubspotRevenueToday = revenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+        // HubSpot revenue removed to rely on Stripe as single source of truth
+
 
         // 3. THE "BRAIN" (AI Analysis)
         const basePrompt = buildAgentPrompt('BUSINESS_INTELLIGENCE', {
@@ -126,7 +127,8 @@ DATA CONTEXT:
 - Utilization: ${utilizationRate}% (${totalClients} active clients managed by ${activeTrainers} coaches).
 - Growth: ${newLeads} new leads. ${missedFollowUps} are potentially waiting for follow-up.
 - Real-Time Revenue (Stripe): AED ${stripeRevenueToday.toLocaleString()} processed in last 24h.
-- CRM Revenue (HubSpot): AED ${hubspotRevenueToday.toLocaleString()} booked in last 24h.
+- Real-Time Revenue (Stripe): AED ${stripeRevenueToday.toLocaleString()} processed in last 24h.
+
 - System Health: ${criticalErrors} critical errors, ${highErrors} high-priority errors.
 
 RECENT SYSTEM ERRORS:

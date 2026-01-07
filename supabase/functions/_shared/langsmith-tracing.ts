@@ -28,11 +28,12 @@ interface LangSmithStatus {
 }
 
 // Get LangSmith configuration from environment
-export function getLangSmithConfig(): { apiKey: string | null; projectName: string; endpoint: string } {
+export function getLangSmithConfig(): { apiKey: string | null; projectName: string; endpoint: string; workspaceId: string | null } {
   return {
     apiKey: Deno.env.get("LANGSMITH_API_KEY") || null,
     projectName: Deno.env.get("LANGSMITH_PROJECT") || Deno.env.get("LANGCHAIN_PROJECT") || "ptd-agent",
     endpoint: Deno.env.get("LANGSMITH_ENDPOINT") || LANGSMITH_ENDPOINT,
+    workspaceId: Deno.env.get("LANGCHAIN_WORKSPACE_ID") || Deno.env.get("LANGSMITH_WORKSPACE_ID") || null,
   };
 }
 
@@ -41,6 +42,18 @@ export function isTracingEnabled(): boolean {
   const config = getLangSmithConfig();
   const tracingV2 = Deno.env.get("LANGCHAIN_TRACING_V2");
   return !!config.apiKey && tracingV2 !== "false";
+}
+
+// Helper to get headers
+function getHeaders(config: { apiKey: string | null; workspaceId: string | null }): HeadersInit {
+  const headers: HeadersInit = {
+    "x-api-key": config.apiKey || "",
+    "Content-Type": "application/json",
+  };
+  if (config.workspaceId) {
+    headers["X-Tenant-ID"] = config.workspaceId;
+  }
+  return headers;
 }
 
 // Check LangSmith connectivity and return status
@@ -61,10 +74,7 @@ export async function checkLangSmithStatus(): Promise<LangSmithStatus> {
     // Test connectivity by fetching projects
     const response = await fetch(`${config.endpoint}/projects`, {
       method: "GET",
-      headers: {
-        "x-api-key": config.apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: getHeaders(config),
       signal: AbortSignal.timeout(5000),
     });
 
@@ -111,10 +121,7 @@ export async function traceStart(config: TraceConfig, inputs: Record<string, unk
   try {
     const response = await fetch(`${langsmithConfig.endpoint}/runs`, {
       method: "POST",
-      headers: {
-        "x-api-key": langsmithConfig.apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: getHeaders(langsmithConfig),
       body: JSON.stringify({
         id: runId,
         name: config.name,
@@ -163,10 +170,7 @@ export async function traceEnd(
   try {
     await fetch(`${config.endpoint}/runs/${run.runId}`, {
       method: "PATCH",
-      headers: {
-        "x-api-key": config.apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: getHeaders(config),
       body: JSON.stringify({
         end_time: new Date().toISOString(),
         outputs,
@@ -237,10 +241,7 @@ export async function traceFeedback(
   try {
     const response = await fetch(`${config.endpoint}/feedback`, {
       method: "POST",
-      headers: {
-        "x-api-key": config.apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: getHeaders(config),
       body: JSON.stringify({
         run_id: runId,
         key,

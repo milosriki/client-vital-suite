@@ -91,8 +91,8 @@ serve(async (req) => {
           httpClient: Stripe.createFetchHttpClient(),
         });
 
-        // Verify the webhook signature (use sync version which is safer in Deno environment)
-        event = await stripe.webhooks.constructEvent(
+        // Verify the webhook signature (use async version for Edge Runtime compatibility)
+        event = await stripe.webhooks.constructEventAsync(
           body,
           signature,
           STRIPE_WEBHOOK_SECRET

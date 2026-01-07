@@ -98,6 +98,7 @@ serve(async (req) => {
 
     if (type === 'contacts' || type === 'all' || type === 'fetch-all') {
       // Fetch contacts using unified sync manager
+      // GREEDY FETCH: We grab everyone created in the timeframe, regardless of status
       const filterGroups = [{
         filters: [{
           propertyName: 'createdate',

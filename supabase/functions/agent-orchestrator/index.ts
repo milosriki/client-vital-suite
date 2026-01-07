@@ -1,7 +1,9 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
 // LangGraph-style state machine for agent orchestration
 // Implements a simplified StateGraph pattern compatible with Deno Edge Functions
@@ -288,36 +290,20 @@ const synthesizerNode: NodeFunction = async (state, supabase) => {
 
   let finalSummary = "";
   
-  if (GEMINI_API_KEY || LOVABLE_API_KEY) {
-    try {
-      const aiUrl = useDirectGemini 
-        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        : "https://ai.gateway.lovable.dev/v1/chat/completions";
-      const aiKey = useDirectGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
-      const aiModel = useDirectGemini ? "gemini-3.0-flash" : "google/gemini-3.0-flash";
-      
-      console.log(`🤖 Synthesizer using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway'}`);
-      
-      const response = await fetch(aiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${aiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: aiModel,
-          messages: [
-            { role: "system", content: "You are an AI orchestration summarizer. Create a brief executive summary of the agent run results. Be concise - max 3 sentences." },
-            { role: "user", content: synthesisContext }
-          ]
-        })
-      });
-      
-      const data = await response.json();
-      finalSummary = data.choices?.[0]?.message?.content || "";
-    } catch (e) {
-      console.error("Synthesis AI failed:", e);
-    }
+  try {
+    console.log("🤖 Synthesizer using UnifiedAIClient");
+    
+    const response = await unifiedAI.chat([
+      { role: "system", content: "You are an AI orchestration summarizer. Create a brief executive summary of the agent run results. Be concise - max 3 sentences." },
+      { role: "user", content: synthesisContext }
+    ], {
+      max_tokens: 150,
+      temperature: 0.3
+    });
+    
+    finalSummary = response.content || "";
+  } catch (e) {
+    console.error("Synthesis AI failed:", e);
   }
 
   if (!finalSummary) {

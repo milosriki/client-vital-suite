@@ -130,6 +130,66 @@ function estimateResolutionTime(priority: string, category: string): string {
   return estimates[priority]?.[category] || "24 hours";
 }
 
+// ============================================
+// DISPATCHER LOGIC
+// ============================================
+
+async function dispatchToSpecialist(
+  supabase: any, 
+  error: TriagedError
+): Promise<{ dispatched: boolean; agent: string; action_id?: string }> {
+  
+  // 1. CODE/LOGIC ERRORS -> PTD SELF DEVELOPER
+  if (error.category === "business" || error.category === "data" || error.category === "system") {
+    console.log(`[Dispatcher] Routing ${error.id} to PTD Self-Developer`);
+    
+    // Create a command for the developer
+    const command = `Fix ${error.priority} priority error in ${error.original_error.source || 'system'}: ${error.original_error.error_message}. 
+    Context: ${JSON.stringify(error.original_error)}`;
+
+    // Invoke PTD Self-Developer
+    const { data, error: invokeError } = await supabase.functions.invoke("ptd-self-developer", {
+      body: { 
+        command, 
+        context: { error_id: error.id, triage_info: error } 
+      }
+    });
+
+    if (!invokeError && data?.success) {
+      return { dispatched: true, agent: "ptd-self-developer", action_id: data.action_id };
+    }
+  }
+
+  // 2. OPS/INTEGRATION ERRORS -> PTD EXECUTE ACTION
+  if (error.category === "integration" || error.category === "security") {
+    console.log(`[Dispatcher] Routing ${error.id} to PTD Execute Action`);
+    
+    // Determine action based on error
+    let action = "send_alert"; // Default
+    let params: any = { 
+      title: `Integration Failure: ${error.original_error.source}`,
+      message: error.original_error.error_message,
+      priority: "high"
+    };
+
+    if (error.category === "integration" && error.priority === "critical") {
+      // For critical integration errors, maybe trigger a sync retry?
+      action = "trigger_sync";
+      params = { platform: error.original_error.source || "hubspot" };
+    }
+
+    const { data, error: invokeError } = await supabase.functions.invoke("ptd-execute-action", {
+      body: { action, params }
+    });
+
+    if (!invokeError && data?.success) {
+      return { dispatched: true, agent: "ptd-execute-action" };
+    }
+  }
+
+  return { dispatched: false, agent: "none" };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -209,12 +269,14 @@ serve(async (req) => {
       priority_breakdown: priorityBreakdown,
     };
 
-    // Log critical errors as proactive insights
-    const criticalErrors = triagedErrors.filter(e => e.priority === "critical");
+    // Log critical errors as proactive insights AND DISPATCH
+    const criticalErrors = triagedErrors.filter(e => e.priority === "critical" || e.priority === "high");
+    
     for (const error of criticalErrors) {
+      // 1. Create Insight
       await supabase.from("proactive_insights").upsert({
         insight_type: "error_triage",
-        priority: "critical",
+        priority: error.priority,
         title: `Critical Error: ${error.category} - ${error.assigned_handler}`,
         content: `Triaged critical error requiring immediate attention. ${error.triage_reason}`,
         action_items: [`Route to ${error.assigned_handler}`, `Estimated resolution: ${error.estimated_resolution_time}`],
@@ -223,6 +285,25 @@ serve(async (req) => {
         dedup_key: `triage_${error.id}`,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       }, { onConflict: "dedup_key", ignoreDuplicates: true });
+
+      // 2. DISPATCH TO SPECIALIST (The "Active" Part)
+      const dispatchResult = await dispatchToSpecialist(supabase, error);
+      
+      if (dispatchResult.dispatched) {
+        console.log(`✅ Auto-dispatched error ${error.id} to ${dispatchResult.agent}`);
+        
+        // Update error status to indicate it's being handled
+        await supabase.from("sync_errors").update({
+          error_details: {
+            ...error.original_error.error_details,
+            dispatch: {
+              agent: dispatchResult.agent,
+              action_id: dispatchResult.action_id,
+              dispatched_at: new Date().toISOString()
+            }
+          }
+        }).eq("id", error.id);
+      }
     }
 
     const duration = Date.now() - startTime;
