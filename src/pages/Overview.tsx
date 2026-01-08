@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Download } from "lucide-react";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -221,16 +221,65 @@ const Overview = () => {
     return 'text-red-500';
   };
 
-  const getTrendIcon = (trend: string | null) => {
-    switch (trend) {
-      case 'improving':
-        return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case 'declining':
-        return <TrendingDown className="h-4 w-4 text-red-500" />;
-      default:
-        return <Minus className="h-4 w-4 text-gray-500" />;
-    }
-  };
+    const getTrendIcon = (trend: string | null) => {
+      switch (trend) {
+        case 'improving':
+          return <TrendingUp className="h-4 w-4 text-green-500" />;
+        case 'declining':
+          return <TrendingDown className="h-4 w-4 text-red-500" />;
+        default:
+          return <Minus className="h-4 w-4 text-gray-500" />;
+      }
+    };
+
+    const handleExportReport = () => {
+      const reportData = {
+        generatedAt: new Date().toISOString(),
+        summary: {
+          totalActiveClients: summary?.total_active_clients ?? 0,
+          avgHealthScore: summary?.avg_health_score ?? 0,
+          criticalInterventions: summary?.critical_interventions ?? 0,
+          atRiskRevenue: summary?.at_risk_revenue ?? 0,
+          zoneDistribution: {
+            red: summary?.red_clients ?? 0,
+            yellow: summary?.yellow_clients ?? 0,
+            green: summary?.green_clients ?? 0,
+            purple: summary?.purple_clients ?? 0,
+          }
+        },
+        criticalClients: criticalClients?.map(c => ({
+          name: `${c.firstname || ''} ${c.lastname || ''}`.trim(),
+          email: c.client_email,
+          healthScore: c.health_score,
+          healthZone: c.health_zone,
+          daysSinceLastSession: c.days_since_last_session
+        })) || [],
+        coachPerformance: coaches?.map(c => ({
+          name: c.coach_name,
+          totalClients: c.total_clients,
+          avgHealth: c.avg_client_health,
+          redClients: c.red_clients,
+          yellowClients: c.yellow_clients,
+          greenClients: c.green_clients,
+          purpleClients: c.purple_clients
+        })) || []
+      };
+
+      const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ptd-health-report-${format(new Date(), 'yyyy-MM-dd')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Report Exported",
+        description: "Health score report has been downloaded.",
+      });
+    };
 
   if (summaryLoading) {
     return (
@@ -399,9 +448,10 @@ const Overview = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm">
-              Export Report
-            </Button>
+                        <Button variant="outline" size="sm" onClick={handleExportReport}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Export Report
+                        </Button>
           </div>
         </div>
 

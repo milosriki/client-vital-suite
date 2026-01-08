@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { 
   Users, 
@@ -548,17 +549,19 @@ export default function SalesPipeline() {
                   This will delete all fake/test data and sync real data from HubSpot. This action cannot be undone.
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => {}}>Cancel</Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={() => syncFromHubspot.mutate(true)}
-                  disabled={syncFromHubspot.isPending}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear & Sync
-                </Button>
-              </div>
+                            <div className="flex justify-end gap-2 mt-4">
+                              <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                              </DialogClose>
+                              <Button 
+                                variant="destructive" 
+                                onClick={() => syncFromHubspot.mutate(true)}
+                                disabled={syncFromHubspot.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Clear & Sync
+                              </Button>
+                            </div>
             </DialogContent>
           </Dialog>
         </div>
