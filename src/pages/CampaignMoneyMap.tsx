@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, Target, Users, Zap, ArrowRight, Wallet } from 'lucide-react';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, subDays } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function CampaignMoneyMap() {
   const { data: campaignData, isLoading } = useDedupedQuery({
