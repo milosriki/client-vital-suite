@@ -12,11 +12,11 @@ export default function CampaignMoneyMap() {
   const { data: campaignData, isLoading } = useDedupedQuery({
     queryKey: ['campaign-money-map'],
     queryFn: async () => {
-      // 1. Fetch Facebook Spend per Campaign
+      // 1. Fetch Facebook Spend per Campaign (Last 90 days for better visibility)
       const { data: fbData, error: fbError } = await supabase
         .from('facebook_ads_insights')
         .select('campaign_name, spend')
-        .gte('date', format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+        .gte('date', format(subDays(new Date(), 90), 'yyyy-MM-dd'));
 
       if (fbError) throw fbError;
 
@@ -33,24 +33,26 @@ export default function CampaignMoneyMap() {
 
       // Aggregate FB Spend
       fbData?.forEach((row: any) => {
-        if (!map[row.campaign_name]) {
-          map[row.campaign_name] = { name: row.campaign_name, spend: 0, revenue: 0, leads: 0, deals: 0 };
+        const name = row.campaign_name || "Unknown Campaign";
+        if (!map[name]) {
+          map[name] = { name, spend: 0, revenue: 0, leads: 0, deals: 0 };
         }
-        map[row.campaign_name].spend += parseFloat(row.spend || 0);
+        map[name].spend += Number(row.spend || 0);
       });
 
       // Aggregate HubSpot Results
       hubspotData?.forEach((row: any) => {
-        const campaign = row.utm_campaign;
+        const campaign = row.utm_campaign || "Direct/Organic";
         if (!map[campaign]) {
           map[campaign] = { name: campaign, spend: 0, revenue: 0, leads: 0, deals: 0 };
         }
         map[campaign].leads += 1;
-        map[campaign].revenue += parseFloat(row.total_deal_value || 0);
-        map[campaign].deals += parseInt(row.num_associated_deals || 0);
+        map[campaign].revenue += Number(row.total_deal_value || 0);
+        map[campaign].deals += Number(row.num_associated_deals || 0);
       });
 
-      return Object.values(map).sort((a, b) => b.revenue - a.revenue);
+      const result = Object.values(map).sort((a, b) => b.revenue - a.revenue);
+      return result;
     }
   });
 
@@ -64,6 +66,26 @@ export default function CampaignMoneyMap() {
   }, [campaignData]);
 
   const totalRoas = totals.spend > 0 ? (totals.revenue / totals.spend).toFixed(1) : "0.0";
+
+  if (!isLoading && (!campaignData || campaignData.length === 0)) {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+        <h1 className="text-3xl font-bold tracking-tight">Campaign Money Map</h1>
+        <Card className="p-12 text-center border-dashed">
+          <div className="flex flex-col items-center gap-4">
+            <Target className="h-12 w-12 text-muted-foreground opacity-50" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">No Campaign Data Found</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                We couldn't find any Facebook spend or attributed HubSpot revenue for the selected period. 
+                Ensure your Facebook Ads sync is running and UTM parameters are correctly set.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-6">
