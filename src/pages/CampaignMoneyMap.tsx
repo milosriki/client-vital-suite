@@ -10,49 +10,18 @@ import { cn } from '@/lib/utils';
 
 export default function CampaignMoneyMap() {
   const { data: campaignData, isLoading } = useDedupedQuery({
-    queryKey: ['campaign-money-map'],
+    queryKey: ['campaign-money-map-rpc'],
     queryFn: async () => {
-      // 1. Fetch Facebook Spend per Campaign (Last 90 days for better visibility)
-      const { data: fbData, error: fbError } = await supabase
-        .from('facebook_ads_insights')
-        .select('campaign_name, spend')
-        .gte('date', format(subDays(new Date(), 90), 'yyyy-MM-dd'));
-
-      if (fbError) throw fbError;
-
-      // 2. Fetch HubSpot Leads/Revenue per Campaign
-      const { data: hubspotData, error: hsError } = await supabase
-        .from('contacts')
-        .select('utm_campaign, total_deal_value, num_associated_deals')
-        .not('utm_campaign', 'is', null);
-
-      if (hsError) throw hsError;
-
-      // 3. Join and Aggregate
-      const map: Record<string, any> = {};
-
-      // Aggregate FB Spend
-      fbData?.forEach((row: any) => {
-        const name = row.campaign_name || "Unknown Campaign";
-        if (!map[name]) {
-          map[name] = { name, spend: 0, revenue: 0, leads: 0, deals: 0 };
-        }
-        map[name].spend += Number(row.spend || 0);
-      });
-
-      // Aggregate HubSpot Results
-      hubspotData?.forEach((row: any) => {
-        const campaign = row.utm_campaign || "Direct/Organic";
-        if (!map[campaign]) {
-          map[campaign] = { name: campaign, spend: 0, revenue: 0, leads: 0, deals: 0 };
-        }
-        map[campaign].leads += 1;
-        map[campaign].revenue += Number(row.total_deal_value || 0);
-        map[campaign].deals += Number(row.num_associated_deals || 0);
-      });
-
-      const result = Object.values(map).sort((a, b) => b.revenue - a.revenue);
-      return result;
+      const { data, error } = await supabase.rpc('get_campaign_money_map', { days_back: 90 });
+      if (error) throw error;
+      
+      return (data || []).map((row: any) => ({
+        name: row.campaign_name,
+        spend: Number(row.total_spend || 0),
+        leads: Number(row.total_leads || 0),
+        revenue: Number(row.total_revenue || 0),
+        deals: Number(row.total_deals || 0)
+      }));
     }
   });
 
