@@ -21,13 +21,12 @@ BEGIN
   ),
   hs_revenue AS (
     SELECT 
-      c.utm_campaign as campaign_name,
+      COALESCE(c.utm_campaign, 'Unattributed/Organic') as campaign_name,
       COUNT(*) as leads,
       SUM(COALESCE(c.total_deal_value, 0)) as revenue,
       SUM(COALESCE(c.num_associated_deals, 0)) as deals
     FROM contacts c
-    WHERE c.utm_campaign IS NOT NULL
-    GROUP BY c.utm_campaign
+    GROUP BY COALESCE(c.utm_campaign, 'Unattributed/Organic')
   ),
   all_campaigns AS (
     SELECT DISTINCT name FROM (
