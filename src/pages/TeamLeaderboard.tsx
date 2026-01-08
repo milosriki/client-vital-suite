@@ -4,12 +4,28 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Phone, CheckCircle, TrendingUp, Target, Award, Star, Zap, Clock } from 'lucide-react';
+import { Phone, CheckCircle, TrendingUp, Target, Award, Star, Zap, Clock, DollarSign, Users } from 'lucide-react';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function TeamLeaderboard() {
+  // Fetch real-time business metrics from daily_business_metrics table
+  const { data: dailyMetrics } = useDedupedQuery({
+    queryKey: ['daily-business-metrics-leaderboard'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_business_metrics')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }
+  });
+
   const { data: teamData, isLoading } = useDedupedQuery({
     queryKey: ['team-leaderboard'],
     queryFn: async () => {
@@ -26,31 +42,57 @@ export default function TeamLeaderboard() {
         .select('owner_id, status')
         .neq('owner_id', null);
 
-      // 2. Fetch Coach Performance (Deals closed + Revenue)
+      // 2. Fetch Coach Performance (Deals closed + Revenue) - using real-time data from deals table
       const { data: deals, error: dealError } = await supabase
         .from('deals')
-        .select('closer_id, deal_value, status, deal_name')
+        .select('closer_id, deal_value, cash_collected, status, deal_name')
         .gte('close_date', thisMonth);
 
-      // 3. Fetch Staff Names
+      // 3. Fetch Staff Names - fallback to contacts if staff table doesn't exist
       const { data: staff, error: staffError } = await supabase
         .from('staff')
         .select('id, name, role, hubspot_owner_id');
 
-      if (callError || leadError || dealError || staffError) throw new Error("Data fetch error");
+      // If staff table doesn't exist, create a basic staff list from unique owners
+      const staffList = staff || [];
+      
+      if (staffError || staffList.length === 0) {
+        // Fallback: get unique owners from contacts
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('owner_id, owner_name')
+          .not('owner_id', 'is', null)
+          .limit(100);
+        
+        const uniqueOwners = new Map();
+        contacts?.forEach(c => {
+          if (c.owner_id && !uniqueOwners.has(c.owner_id)) {
+            uniqueOwners.set(c.owner_id, {
+              id: c.owner_id,
+              name: c.owner_name || c.owner_id,
+              role: 'setter',
+              hubspot_owner_id: c.owner_id
+            });
+          }
+        });
+        staffList.push(...Array.from(uniqueOwners.values()));
+      }
 
-      const staffMap = Object.fromEntries(staff?.map(s => [s.hubspot_owner_id || s.id, s]) || []);
+      if (callError || leadError || dealError) throw new Error("Data fetch error");
+
+      const staffMap = Object.fromEntries(staffList.map(s => [s.hubspot_owner_id || s.id, s]) || []);
 
       const performance: Record<string, any> = {};
 
       // Initialize performance for all staff
-      staff?.forEach(s => {
+      staffList.forEach(s => {
         performance[s.name] = { 
           name: s.name, 
           role: s.role, 
           calls: 0, 
           bookings: 0, 
           revenue: 0, 
+          cashCollected: 0,
           closed: 0,
           points: 0 
         };
@@ -73,12 +115,13 @@ export default function TeamLeaderboard() {
         }
       });
 
-      // Aggregate Coach Stats
+      // Aggregate Coach Stats with real-time revenue from deals
       deals?.forEach(d => {
         const person = staffMap[d.closer_id || ''];
         if (person && d.status === 'closed') {
           performance[person.name].closed += 1;
-          performance[person.name].revenue += parseFloat(d.deal_value || 0);
+          performance[person.name].revenue += parseFloat(String(d.deal_value) || '0');
+          performance[person.name].cashCollected += parseFloat(String(d.cash_collected) || '0');
           performance[person.name].points += 50; // 50pts per close
         }
       });
@@ -100,8 +143,52 @@ export default function TeamLeaderboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Top 3 Podium */}
+            {/* Real-time Business Metrics Summary */}
+            {dailyMetrics && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="bg-card/50 border-border/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Today's Revenue</span>
+                      <DollarSign className="h-4 w-4 text-green-400" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-green-400">
+                      AED {(dailyMetrics.total_revenue_booked || 0).toLocaleString()}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card/50 border-border/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deals Closed</span>
+                      <Target className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono">{dailyMetrics.total_deals_closed || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card/50 border-border/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Calls Made</span>
+                      <Phone className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono">{dailyMetrics.total_calls_made || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card/50 border-border/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">New Leads</span>
+                      <Users className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono">{dailyMetrics.total_leads_new || 0}</div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              {/* Top 3 Podium */}
         <div className="xl:col-span-1 space-y-4">
           <Card className="bg-gradient-to-br from-primary/20 via-card to-card border-primary/30">
             <CardHeader>

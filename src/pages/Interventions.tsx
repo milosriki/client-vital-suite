@@ -7,9 +7,87 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { toast } from "@/hooks/use-toast";
 
 const Interventions = () => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  const handleMarkComplete = async (interventionId: number) => {
+    try {
+      const { error } = await supabase
+        .from('intervention_log')
+        .update({ 
+          status: 'COMPLETED',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', interventionId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Intervention Completed",
+        description: "The intervention has been marked as complete.",
+      });
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update intervention",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddNotes = async (interventionId: number) => {
+    const notes = prompt("Enter notes for this intervention:");
+    if (!notes) return;
+    
+    try {
+      const { error } = await supabase
+        .from('intervention_log')
+        .update({ notes })
+        .eq('id', interventionId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Notes Added",
+        description: "Notes have been saved to the intervention.",
+      });
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add notes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelIntervention = async (interventionId: number) => {
+    if (!confirm("Are you sure you want to cancel this intervention?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from('intervention_log')
+        .update({ status: 'CANCELLED' })
+        .eq('id', interventionId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Intervention Cancelled",
+        description: "The intervention has been cancelled.",
+      });
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel intervention",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: interventions, isLoading, refetch } = useDedupedQuery({
     queryKey: ['interventions-all', statusFilter],
@@ -209,9 +287,9 @@ const Interventions = () => {
 
                   {intervention.status === 'PENDING' && (
                     <div className="flex gap-2 pt-4">
-                      <Button size="sm" variant="default">Mark Complete</Button>
-                      <Button size="sm" variant="outline">Add Notes</Button>
-                      <Button size="sm" variant="ghost">Cancel</Button>
+                      <Button size="sm" variant="default" onClick={() => handleMarkComplete(intervention.id)}>Mark Complete</Button>
+                      <Button size="sm" variant="outline" onClick={() => handleAddNotes(intervention.id)}>Add Notes</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleCancelIntervention(intervention.id)}>Cancel</Button>
                     </div>
                   )}
                 </CardContent>
