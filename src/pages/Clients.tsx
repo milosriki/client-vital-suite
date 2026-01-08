@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ClientCard } from "@/components/ClientCard";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
 const Clients = () => {
   const [searchParams] = useSearchParams();
@@ -19,6 +22,9 @@ const Clients = () => {
   const [coachFilter, setCoachFilter] = useState<string>("All");
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
+  const [newClientData, setNewClientData] = useState({ firstname: "", lastname: "", email: "" });
+  const [isAddingClient, setIsAddingClient] = useState(false);
 
   const { data: clientsData, isLoading, error, refetch } = useClientHealthScores({
     healthZone: healthZoneFilter,
@@ -38,11 +44,39 @@ const Clients = () => {
     setPage(1);
   }, [searchTerm, healthZoneFilter, segmentFilter, coachFilter]);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  };
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+    };
 
-  if (error) {
+    const handleAddClient = async () => {
+      if (!newClientData.email || !newClientData.firstname) {
+        toast.error("Please fill in at least first name and email");
+        return;
+      }
+      setIsAddingClient(true);
+      try {
+        const { error } = await supabase
+          .from('contacts')
+          .insert({
+            email: newClientData.email,
+            firstname: newClientData.firstname,
+            lastname: newClientData.lastname,
+            created_at: new Date().toISOString()
+          });
+      
+        if (error) throw error;
+        toast.success("Client added successfully");
+        setAddClientDialogOpen(false);
+        setNewClientData({ firstname: "", lastname: "", email: "" });
+        refetch();
+      } catch (err: any) {
+        toast.error("Failed to add client: " + err.message);
+      } finally {
+        setIsAddingClient(false);
+      }
+    };
+
+    if (error) {
     toast.error("Failed to load clients");
   }
 
@@ -60,10 +94,10 @@ const Clients = () => {
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button className="bg-gradient-to-r from-cyan-600 to-blue-600">
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add Client
-          </Button>
+                    <Button className="bg-gradient-to-r from-cyan-600 to-blue-600" onClick={() => setAddClientDialogOpen(true)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Add Client
+                    </Button>
         </div>
       </div>
 
@@ -175,6 +209,50 @@ const Clients = () => {
             />
          </div>
       )}
+
+      <Dialog open={addClientDialogOpen} onOpenChange={setAddClientDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Client</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstname">First Name *</Label>
+              <Input
+                id="firstname"
+                value={newClientData.firstname}
+                onChange={(e) => setNewClientData({ ...newClientData, firstname: e.target.value })}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastname">Last Name</Label>
+              <Input
+                id="lastname"
+                value={newClientData.lastname}
+                onChange={(e) => setNewClientData({ ...newClientData, lastname: e.target.value })}
+                placeholder="Enter last name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newClientData.email}
+                onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                placeholder="Enter email address"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddClientDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddClient} disabled={isAddingClient}>
+              {isAddingClient ? "Adding..." : "Add Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

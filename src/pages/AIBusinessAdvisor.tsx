@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { BrainCircuit, MessageSquare, AlertTriangle, ArrowRight, Zap, Copy, Sparkles, UserX } from 'lucide-react';
+import { BrainCircuit, MessageSquare, AlertTriangle, ArrowRight, Zap, Copy, Sparkles, UserX, Clock, RefreshCw } from 'lucide-react';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { toast } from 'sonner';
 
