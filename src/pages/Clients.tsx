@@ -60,7 +60,10 @@ const Clients = () => {
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button className="bg-gradient-to-r from-cyan-600 to-blue-600">
+          <Button 
+            className="bg-gradient-to-r from-cyan-600 to-blue-600"
+            onClick={() => toast.info("Client creation is managed through HubSpot CRM. New clients will sync automatically.")}
+          >
             <UserPlus className="mr-2 h-4 w-4" />
             Add Client
           </Button>

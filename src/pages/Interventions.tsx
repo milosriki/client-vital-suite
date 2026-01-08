@@ -4,12 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 const Interventions = () => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [selectedIntervention, setSelectedIntervention] = useState<any>(null);
+  const [notes, setNotes] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const { data: interventions, isLoading, refetch } = useDedupedQuery({
     queryKey: ['interventions-all', statusFilter],
@@ -45,6 +52,71 @@ const Interventions = () => {
       case 'COMPLETED': return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'CANCELLED': return <XCircle className="h-4 w-4 text-red-500" />;
       default: return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  const handleMarkComplete = async (interventionId: string) => {
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('intervention_log')
+        .update({ 
+          status: 'COMPLETED',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', interventionId);
+
+      if (error) throw error;
+      toast.success('Intervention marked as complete');
+      refetch();
+    } catch (err: any) {
+      toast.error('Failed to update intervention: ' + err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancel = async (interventionId: string) => {
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('intervention_log')
+        .update({ status: 'CANCELLED' })
+        .eq('id', interventionId);
+
+      if (error) throw error;
+      toast.success('Intervention cancelled');
+      refetch();
+    } catch (err: any) {
+      toast.error('Failed to cancel intervention: ' + err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleOpenNotesDialog = (intervention: any) => {
+    setSelectedIntervention(intervention);
+    setNotes(intervention.notes || '');
+    setNotesDialogOpen(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedIntervention) return;
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('intervention_log')
+        .update({ notes })
+        .eq('id', selectedIntervention.id);
+
+      if (error) throw error;
+      toast.success('Notes saved successfully');
+      setNotesDialogOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error('Failed to save notes: ' + err.message);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -209,9 +281,30 @@ const Interventions = () => {
 
                   {intervention.status === 'PENDING' && (
                     <div className="flex gap-2 pt-4">
-                      <Button size="sm" variant="default">Mark Complete</Button>
-                      <Button size="sm" variant="outline">Add Notes</Button>
-                      <Button size="sm" variant="ghost">Cancel</Button>
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        disabled={isUpdating}
+                        onClick={() => handleMarkComplete(intervention.id)}
+                      >
+                        Mark Complete
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        disabled={isUpdating}
+                        onClick={() => handleOpenNotesDialog(intervention)}
+                      >
+                        Add Notes
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        disabled={isUpdating}
+                        onClick={() => handleCancel(intervention.id)}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   )}
                 </CardContent>
@@ -220,6 +313,30 @@ const Interventions = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={notesDialogOpen} onOpenChange={setNotesDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Notes</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter notes for this intervention..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={5}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotesDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNotes} disabled={isUpdating}>
+              Save Notes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

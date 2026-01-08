@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
+import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Download } from "lucide-react";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -232,6 +232,86 @@ const Overview = () => {
     }
   };
 
+  const handleExportReport = () => {
+    if (!summary) {
+      toast({
+        title: "No data to export",
+        description: "Please wait for the dashboard data to load.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reportData = {
+      generatedAt: format(new Date(), 'PPpp'),
+      summary: {
+        totalActiveClients: summary.total_active_clients,
+        avgHealthScore: summary.avg_health_score?.toFixed(1),
+        criticalInterventions: summary.critical_interventions,
+        atRiskRevenue: summary.at_risk_revenue,
+        redClients: summary.red_clients,
+        yellowClients: summary.yellow_clients,
+        greenClients: summary.green_clients,
+        purpleClients: summary.purple_clients,
+      },
+      criticalClients: criticalClients?.map(c => ({
+        name: `${c.firstname || ''} ${c.lastname || ''}`.trim(),
+        email: c.client_email,
+        healthScore: c.health_score,
+        healthZone: c.health_zone,
+        daysSinceLastSession: c.days_since_last_session,
+      })) || [],
+      coachPerformance: coaches?.map(c => ({
+        coachName: c.coach_name,
+        totalClients: c.total_clients,
+        avgHealth: c.avg_client_health?.toFixed(1),
+        redClients: c.red_clients,
+        yellowClients: c.yellow_clients,
+        greenClients: c.green_clients,
+        purpleClients: c.purple_clients,
+      })) || [],
+    };
+
+    const csvContent = [
+      'PTD Client Health Score Report',
+      `Generated: ${reportData.generatedAt}`,
+      '',
+      'Summary',
+      `Total Active Clients,${reportData.summary.totalActiveClients}`,
+      `Average Health Score,${reportData.summary.avgHealthScore}`,
+      `Critical Interventions,${reportData.summary.criticalInterventions}`,
+      `At-Risk Revenue (AED),${reportData.summary.atRiskRevenue}`,
+      `Red Zone Clients,${reportData.summary.redClients}`,
+      `Yellow Zone Clients,${reportData.summary.yellowClients}`,
+      `Green Zone Clients,${reportData.summary.greenClients}`,
+      `Purple Zone Clients,${reportData.summary.purpleClients}`,
+      '',
+      'Critical Clients',
+      'Name,Email,Health Score,Zone,Days Since Last Session',
+      ...reportData.criticalClients.map(c => 
+        `${c.name},${c.email},${c.healthScore},${c.healthZone},${c.daysSinceLastSession || 'N/A'}`
+      ),
+      '',
+      'Coach Performance',
+      'Coach Name,Total Clients,Avg Health,Red,Yellow,Green,Purple',
+      ...reportData.coachPerformance.map(c => 
+        `${c.coachName},${c.totalClients},${c.avgHealth},${c.redClients},${c.yellowClients},${c.greenClients},${c.purpleClients}`
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ptd-health-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    toast({
+      title: "Report exported",
+      description: "The health score report has been downloaded as CSV.",
+    });
+  };
+
   if (summaryLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -399,7 +479,8 @@ const Overview = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportReport}>
+              <Download className="h-4 w-4 mr-2" />
               Export Report
             </Button>
           </div>
