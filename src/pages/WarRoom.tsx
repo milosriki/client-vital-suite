@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { 
   Crown, TrendingUp, TrendingDown, DollarSign, Target, 
   AlertTriangle, Users, Zap, Pause, Play, RefreshCw,
-  Rocket, ShieldAlert, BarChart3, Radio, Brain
+  Rocket, ShieldAlert, BarChart3, Radio, Brain, Loader2
 } from "lucide-react";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Legend, ReferenceLine 
@@ -21,6 +22,9 @@ import {
 const WarRoom = () => {
   const [manualAdSpend, setAdSpend] = useState<number | null>(null);
   const [autoPilotEnabled, setAutoPilotEnabled] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
+  const [isSendingBreakup, setIsSendingBreakup] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch live ad spend
   const { data: liveAdSpendData, isLoading: spendLoading } = useDedupedQuery({
@@ -59,13 +63,19 @@ const WarRoom = () => {
     retry: 2,
   });
 
-  // Fetch leads for leakage detection
+  // Fetch leads for leakage detection (205 Real Customer Filter applied)
+  // Excludes test data: @example.com, @test.com, @email.com patterns
   const { data: leads, isLoading: leadsLoading, error: leadsError } = useDedupedQuery({
     queryKey: ["war-room-leads"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enhanced_leads")
         .select("*")
+        .not("email", "ilike", "%@example.com")
+        .not("email", "ilike", "%@test.com")
+        .not("email", "ilike", "%@email.com")
+        .not("email", "ilike", "%@fake.com")
+        .not("email", "ilike", "test%@%")
         .order("created_at", { ascending: false });
       if (error) {
         console.error("Failed to fetch leads:", error);
@@ -76,13 +86,20 @@ const WarRoom = () => {
     retry: 2,
   });
 
-  // Fetch client health for LTV calculation
+  // Fetch client health for LTV calculation (205 Real Customer Filter applied)
+  // Excludes test data: @example.com, @test.com, @email.com patterns
   const { data: clients, isLoading: clientsLoading, error: clientsError } = useDedupedQuery({
     queryKey: ["war-room-clients"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("client_health_scores")
-        .select("*");
+        .select("*")
+        .not("email", "ilike", "%@example.com")
+        .not("email", "ilike", "%@test.com")
+        .not("email", "ilike", "%@email.com")
+        .not("email", "ilike", "%@fake.com")
+        .not("email", "ilike", "%@dummy.com")
+        .not("email", "ilike", "test%@%");
       if (error) {
         console.error("Failed to fetch clients:", error);
         throw error;
@@ -218,22 +235,130 @@ const WarRoom = () => {
   const projectedRevenue = forecastData.slice(3).reduce((sum, d) => sum + (d.commit || 0), 0);
   const gapToTarget = quarterlyTarget - projectedRevenue;
 
-  const handleReassignLeads = () => {
-    toast.success(`Reassigning ${buriedLeads.length} buried leads to Shark Team`);
-  };
+  const handleReassignLeads = async () => {
+    if (buriedLeads.length === 0) {
+      toast.info("No buried leads to reassign");
+      return;
+    }
 
-  const handleSendBreakupEmails = () => {
-    toast.success(`Sending break-up emails to ${stalledDeals.length} stalled deals`);
-  };
-
-  const handleAutoPilotToggle = (enabled: boolean) => {
-    setAutoPilotEnabled(enabled);
-    if (enabled) {
-      toast.success("Auto-Pilot ENGAGED - AI is now managing operations", {
-        icon: <Rocket className="h-4 w-4" />,
+    setIsReassigning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-reassign-leads', {
+        body: { 
+          lead_ids: buriedLeads.map(l => l.hubspot_id || l.id),
+          reason: 'BURIED_LEAD_7_DAYS_NO_ACTIVITY'
+        }
       });
+
+      if (error) throw error;
+
+      const proposalsCreated = data?.proposals_created || 0;
+      
+      if (proposalsCreated > 0) {
+        toast.success(`${proposalsCreated} lead reassignment proposals queued for CEO approval`, {
+          description: "Check AI Agent Approvals to review and approve reassignments",
+          duration: 5000,
+        });
+      } else {
+        toast.info("No leads met the reassignment criteria (5+ call attempts required)");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["war-room-leads"] });
+    } catch (error) {
+      console.error("Failed to reassign leads:", error);
+      toast.error("Failed to process lead reassignments", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setIsReassigning(false);
+    }
+  };
+
+  const handleSendBreakupEmails = async () => {
+    if (stalledDeals.length === 0) {
+      toast.info("No stalled deals to send break-up emails");
+      return;
+    }
+
+    setIsSendingBreakup(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('intervention-recommender', {
+        body: {
+          zones: ["RED", "YELLOW"],
+          generate_messages: true,
+          save_to_db: true,
+          limit: stalledDeals.length
+        }
+      });
+
+      if (error) throw error;
+
+      const recommendationsCount = data?.count || 0;
+      
+      if (recommendationsCount > 0) {
+        toast.success(`${recommendationsCount} break-up email drafts generated`, {
+          description: "Review in Intervention Log before sending",
+          duration: 5000,
+        });
+      } else {
+        toast.info("No intervention recommendations generated");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["war-room-deals"] });
+    } catch (error) {
+      console.error("Failed to generate break-up emails:", error);
+      toast.error("Failed to generate break-up emails", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setIsSendingBreakup(false);
+    }
+  };
+
+  const handleAutoPilotToggle = async (enabled: boolean) => {
+    setAutoPilotEnabled(enabled);
+    
+    if (enabled) {
+      try {
+        const { error } = await supabase.functions.invoke('ptd-24x7-monitor', {
+          body: { 
+            action: 'start',
+            mode: 'autonomous',
+            config: {
+              auto_reassign_leads: true,
+              auto_intervention_alerts: true,
+              auto_churn_detection: true,
+              sla_breach_monitoring: true
+            }
+          }
+        });
+
+        if (error) {
+          setAutoPilotEnabled(false);
+          throw error;
+        }
+
+        toast.success("Auto-Pilot ENGAGED - AI is now managing operations", {
+          description: "Monitoring: Lead reassignment, Churn detection, SLA breaches",
+          icon: <Rocket className="h-4 w-4" />,
+          duration: 5000,
+        });
+      } catch (error) {
+        console.error("Failed to enable Auto-Pilot:", error);
+        toast.error("Failed to enable Auto-Pilot", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     } else {
-      toast.info("Auto-Pilot disengaged - Manual control restored");
+      try {
+        await supabase.functions.invoke('ptd-24x7-monitor', {
+          body: { action: 'stop' }
+        });
+        
+        toast.info("Auto-Pilot disengaged - Manual control restored");
+      } catch (error) {
+        console.error("Failed to disable Auto-Pilot:", error);
+      }
     }
   };
 
@@ -479,11 +604,15 @@ const WarRoom = () => {
               <p className="text-xs text-zinc-500 mb-4">&gt; 7 days old with no activity</p>
               <Button 
                 onClick={handleReassignLeads}
-                disabled={buriedLeads.length === 0}
+                disabled={buriedLeads.length === 0 || isReassigning}
                 className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Reassign to Shark Team
+                {isReassigning ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                {isReassigning ? "Reassigning..." : "Reassign to Shark Team"}
               </Button>
             </CardContent>
           </Card>
@@ -501,11 +630,15 @@ const WarRoom = () => {
               <p className="text-xs text-zinc-500 mb-4">Stuck in same stage &gt; 14 days</p>
               <Button 
                 onClick={handleSendBreakupEmails}
-                disabled={stalledDeals.length === 0}
+                disabled={stalledDeals.length === 0 || isSendingBreakup}
                 className="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30"
               >
-                <Zap className="h-4 w-4 mr-2" />
-                Send Break-up Emails
+                {isSendingBreakup ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                {isSendingBreakup ? "Generating..." : "Send Break-up Emails"}
               </Button>
             </CardContent>
           </Card>
