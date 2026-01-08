@@ -399,9 +399,24 @@ const Overview = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm">
-              Export Report
-            </Button>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const reportData = {
+                            summary,
+                            criticalClients,
+                            coaches,
+                            generatedAt: new Date().toISOString()
+                          };
+                          const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `ptd-health-report-${format(new Date(), 'yyyy-MM-dd')}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          toast({ title: "Report Exported", description: "Health report has been downloaded." });
+                        }}>
+                          Export Report
+                        </Button>
           </div>
         </div>
 
@@ -480,9 +495,9 @@ const Overview = () => {
                       <p className="text-sm text-muted-foreground mb-2">
                         {client.days_since_last_session ? `${client.days_since_last_session} days since last session` : 'No recent sessions'}
                       </p>
-                      <Button variant="outline" size="sm" className="w-full">
-                        View Details
-                      </Button>
+                                            <Button variant="outline" size="sm" className="w-full" onClick={() => navigate(`/clients/${client.client_id}`)}>
+                                              View Details
+                                            </Button>
                     </div>
                   ))}
                   {(!criticalClients || criticalClients.length === 0) && (

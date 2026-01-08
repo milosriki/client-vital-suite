@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, TrendingDown, DollarSign, Users, Workflow, Database, AlertCircle, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 const HubSpotAnalyzer = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -201,22 +202,29 @@ const HubSpotAnalyzer = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "broken":
-      case "critical":
-        return <XCircle className="h-5 w-5 text-destructive" />;
-      case "missing":
-      case "inactive":
-        return <AlertCircle className="h-5 w-5 text-warning" />;
-      case "partial":
-        return <AlertTriangle className="h-5 w-5 text-warning" />;
-      default:
-        return <CheckCircle2 className="h-5 w-5 text-success" />;
-    }
-  };
+    const getStatusIcon = (status: string) => {
+      switch (status) {
+        case "broken":
+        case "critical":
+          return <XCircle className="h-5 w-5 text-destructive" />;
+        case "missing":
+        case "inactive":
+          return <AlertCircle className="h-5 w-5 text-warning" />;
+        case "partial":
+          return <AlertTriangle className="h-5 w-5 text-warning" />;
+        default:
+          return <CheckCircle2 className="h-5 w-5 text-success" />;
+      }
+    };
 
-  return (
+    const handleTakeAction = (recommendation: typeof recommendations[0]) => {
+      toast.success(`Action initiated: ${recommendation.title}`, {
+        description: `Priority ${recommendation.priority}: ${recommendation.description}. Expected impact: ${recommendation.revenue}`,
+        duration: 5000,
+      });
+    };
+
+    return (
     <div className="space-y-6">
         {/* Header */}
         <div>
@@ -517,7 +525,7 @@ const HubSpotAnalyzer = () => {
                           </div>
                         </div>
                       </div>
-                      <Button className="w-full">Take Action</Button>
+                      <Button className="w-full" onClick={() => handleTakeAction(rec)}>Take Action</Button>
                     </div>
                   ))}
                 </div>
