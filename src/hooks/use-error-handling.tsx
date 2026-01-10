@@ -27,6 +27,12 @@ interface ErrorHandlingContextValue {
 
 export const ErrorHandlingContext = createContext<ErrorHandlingContextValue | undefined>(undefined);
 
+declare global {
+  interface Window {
+    __context7ReportError?: (error: unknown, report?: ErrorReport) => void;
+  }
+}
+
 const MAX_ERROR_HISTORY = 25;
 
 const normalizeError = (error: unknown) => {
@@ -78,6 +84,12 @@ export const ErrorHandlingProvider = ({ children }: { children: ReactNode }) => 
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    window.__context7ReportError = reportError;
+
     const handleWindowError = (event: ErrorEvent) => {
       reportError(event.error ?? event.message, {
         context: "window.error",
@@ -98,6 +110,7 @@ export const ErrorHandlingProvider = ({ children }: { children: ReactNode }) => 
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
 
     return () => {
+      delete window.__context7ReportError;
       window.removeEventListener("error", handleWindowError);
       window.removeEventListener("unhandledrejection", handleUnhandledRejection);
     };

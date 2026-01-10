@@ -27,3 +27,29 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+const originalInvoke = supabase.functions.invoke.bind(supabase.functions);
+supabase.functions.invoke = async (functionName, options) => {
+  try {
+    const result = await originalInvoke(functionName, options);
+
+    if (result.error && typeof window !== "undefined") {
+      window.__context7ReportError?.(result.error, {
+        context: `supabase.function:${functionName}`,
+        source: "supabase",
+        severity: "high",
+      });
+    }
+
+    return result;
+  } catch (error) {
+    if (typeof window !== "undefined") {
+      window.__context7ReportError?.(error, {
+        context: `supabase.function:${functionName}`,
+        source: "supabase",
+        severity: "high",
+      });
+    }
+    throw error;
+  }
+};
