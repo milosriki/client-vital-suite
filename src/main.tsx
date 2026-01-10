@@ -1,7 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/api-error-handler";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
@@ -100,13 +102,25 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
-      retry: 3, // Retry up to 3 times on failure
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
     mutations: {
       retry: 2,
     },
   },
+  queryCache: new QueryCache({
+    onError: (error) => {
+      const message = getErrorMessage(error);
+      toast.error(`Error: ${message}`);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      const message = getErrorMessage(error);
+      toast.error(`Error: ${message}`);
+    },
+  }),
 });
 
 const root = document.getElementById("root");

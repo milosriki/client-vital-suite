@@ -207,7 +207,9 @@ serve(async (req) => {
               // Social Media
               'twitterhandle', 'linkedinbio', 'linkedinconnections', 'twitterfollowers',
               // Analytics
-              'hs_analytics_first_visit', 'hs_analytics_last_visit'
+              'hs_analytics_first_visit', 'hs_analytics_last_visit',
+              // AnyTrack Tracking IDs
+              'atclid', 'satid'
             ],
             currentCursor || undefined,
             incremental ? lastSyncTime || undefined : undefined
@@ -231,6 +233,9 @@ serve(async (req) => {
                 first_name: props.firstname,
                 last_name: props.lastname,
                 phone: props.phone || props.mobilephone,
+                // AnyTrack IDs for CAPI alignment
+                facebook_id: props.atclid || null,
+                google_id: props.satid || null,
                 owner_id: props.hubspot_owner_id,
                 owner_name: ownerName,
                 lifecycle_stage: props.lifecyclestage,
