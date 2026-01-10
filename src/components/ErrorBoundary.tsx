@@ -1,7 +1,8 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode, type ContextType } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ErrorHandlingContext } from '@/hooks/use-error-handling';
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,9 @@ interface State {
  * - Logs errors for debugging
  */
 export class ErrorBoundary extends Component<Props, State> {
+  public static contextType = ErrorHandlingContext;
+  declare context: ContextType<typeof ErrorHandlingContext>;
+
   public state: State = {
     hasError: false,
     error: null,
@@ -37,11 +41,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Caught error:', error, errorInfo);
-    
+
     this.setState({ errorInfo });
-    
+
     // Call optional error handler
     this.props.onError?.(error, errorInfo);
+    this.context?.reportError(error, { context: 'ErrorBoundary', source: 'render', severity: 'high' });
   }
 
   private handleRetry = () => {
@@ -114,6 +119,9 @@ export class ErrorBoundary extends Component<Props, State> {
  * Shows a minimal error state inline
  */
 export class ComponentErrorBoundary extends Component<Props, State> {
+  public static contextType = ErrorHandlingContext;
+  declare context: ContextType<typeof ErrorHandlingContext>;
+
   public state: State = {
     hasError: false,
     error: null,
@@ -127,6 +135,7 @@ export class ComponentErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ComponentErrorBoundary] Caught error:', error);
     this.props.onError?.(error, errorInfo);
+    this.context?.reportError(error, { context: 'ComponentErrorBoundary', source: 'render', severity: 'medium' });
   }
 
   private handleRetry = () => {
