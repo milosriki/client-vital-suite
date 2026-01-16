@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // ============= RETRY UTILITY =============
 
@@ -98,6 +99,7 @@ export async function discoverSystemStructure() {
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('❌ System discovery failed:', errorMsg);
+    toast.error(`System discovery failed: ${errorMsg}`);
     return null;
   }
 }
@@ -219,6 +221,7 @@ export async function learnRecentData() {
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('❌ Pattern learning failed:', errorMsg);
+    toast.error(`Pattern learning failed: ${errorMsg}`);
     return null;
   }
 }

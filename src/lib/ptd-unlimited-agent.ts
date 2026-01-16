@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // ============= UNLIMITED AGENT SYSTEM =============
 // Full system control + self-improvement + 24/7 monitoring
@@ -325,6 +326,9 @@ async function executeApprovedAction(
       })
       .eq('key', requestKey);
 
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ Execution failed:', errorMsg);
+    toast.error(`Action failed: ${errorMsg}`);
     throw error;
   }
 }

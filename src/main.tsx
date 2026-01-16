@@ -8,6 +8,7 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/contexts/AuthProvider"; // Import AuthProvider
 import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import { testAllFunctions } from "@/utils/testFunctions";
 import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
@@ -43,6 +44,7 @@ import AIDevConsole from "./pages/AIDevConsole";
 import GlobalBrain from "./pages/GlobalBrain";
 import DebugStatus from "./pages/DebugStatus";
 import Observability from "./pages/Observability";
+import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import "./index.css";
 
 // Start background learning on app init
@@ -60,6 +62,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 const router = createBrowserRouter([
   {
     element: <Layout />,
+    errorElement: <ErrorPage />, // Add ErrorPage as errorElement
     children: [
       { path: "/", element: <Dashboard /> },
       { path: "/dashboard", element: <Dashboard /> },
@@ -133,10 +136,12 @@ createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <RouterProvider router={router} />
-          <VercelAnalytics />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+            <VercelAnalytics />
+          </TooltipProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>
