@@ -1,7 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryCache,
+  MutationCache,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/api-error-handler";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
@@ -44,6 +49,7 @@ import AIDevConsole from "./pages/AIDevConsole";
 import GlobalBrain from "./pages/GlobalBrain";
 import DebugStatus from "./pages/DebugStatus";
 import Observability from "./pages/Observability";
+import SuperDashboard from "./pages/SuperDashboard";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import "./index.css";
 
@@ -51,12 +57,12 @@ import "./index.css";
 startBackgroundLearning();
 
 // Make testing utilities available in browser console (development only)
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as any).testAllFunctions = testAllFunctions;
   (window as any).verifyConnections = verifyAllConnections;
-  console.log('🧪 Browser utilities loaded:');
-  console.log('   - testAllFunctions() - Test all functions');
-  console.log('   - verifyConnections() - Verify all connections');
+  console.log("🧪 Browser utilities loaded:");
+  console.log("   - testAllFunctions() - Test all functions");
+  console.log("   - verifyConnections() - Verify all connections");
 }
 
 const router = createBrowserRouter([
@@ -71,6 +77,7 @@ const router = createBrowserRouter([
       { path: "/stripe", element: <StripeIntelligence /> },
       { path: "/call-tracking", element: <CallTracking /> },
       { path: "/audit-trail", element: <AuditTrail /> },
+      { path: "/super-dashboard", element: <SuperDashboard /> },
       { path: "/war-room", element: <WarRoom /> },
       { path: "/ai-knowledge", element: <AIKnowledge /> },
       { path: "/ai-learning", element: <AILearning /> },
@@ -144,5 +151,5 @@ createRoot(root).render(
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
-  </StrictMode>
+  </StrictMode>,
 );
