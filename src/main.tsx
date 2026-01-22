@@ -26,7 +26,6 @@ import Coaches from "./pages/Coaches";
 import Interventions from "./pages/Interventions";
 import AnalyticsPage from "./pages/Analytics";
 import MetaDashboard from "./pages/MetaDashboard";
-import PTDControl from "./pages/PTDControl";
 import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
 import SalesCoachTracker from "./pages/SalesCoachTracker";
 import SetterActivityToday from "./pages/SetterActivityToday";
@@ -40,14 +39,11 @@ import CallTracking from "./pages/CallTracking";
 import AIKnowledge from "./pages/AIKnowledge";
 import AILearning from "./pages/AILearning";
 import NotFound from "./pages/NotFound";
-import UltimateCEO from "./pages/UltimateCEO";
 import StripeIntelligence from "./pages/StripeIntelligence";
 import AuditTrail from "./pages/AuditTrail";
 import WarRoom from "./pages/WarRoom";
-import MarketingStressTest from "./pages/MarketingStressTest";
 import AIDevConsole from "./pages/AIDevConsole";
 import GlobalBrain from "./pages/GlobalBrain";
-import DebugStatus from "./pages/DebugStatus";
 import Observability from "./pages/Observability";
 import SuperDashboard from "./pages/SuperDashboard";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
@@ -88,7 +84,6 @@ const router = createBrowserRouter([
       { path: "/interventions", element: <Interventions /> },
       { path: "/analytics", element: <AnalyticsPage /> },
       { path: "/meta-dashboard", element: <MetaDashboard /> },
-      { path: "/ptd-control", element: <PTDControl /> },
       { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
       { path: "/sales-coach-tracker", element: <SalesCoachTracker /> },
       { path: "/setter-activity-today", element: <SetterActivityToday /> },
@@ -97,11 +92,8 @@ const router = createBrowserRouter([
       { path: "/money-map", element: <CampaignMoneyMap /> },
       { path: "/leaderboard", element: <TeamLeaderboard /> },
       { path: "/ai-advisor", element: <AIBusinessAdvisor /> },
-      { path: "/ultimate-ceo", element: <UltimateCEO /> },
-      { path: "/marketing-stress-test", element: <MarketingStressTest /> },
       { path: "/ai-dev", element: <AIDevConsole /> },
       { path: "/global-brain", element: <GlobalBrain /> },
-      { path: "/debug-status", element: <DebugStatus /> },
       { path: "/observability", element: <Observability /> },
       { path: "*", element: <NotFound /> },
     ],
