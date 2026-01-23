@@ -21,15 +21,86 @@ import {
   BarChart3,
   Database,
   CreditCard,
+  Target,
+  Zap,
+  TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+import MillionDollarPanel from "@/components/ceos/MillionDollarPanel";
 
 // ============================================================================
 // TOOL CONFIGURATION ("The 200 Buttons")
 // ============================================================================
 
 const API_TOOLS = [
+  {
+    category: "💰 PROFIT HUNTER",
+    icon: <Target className="w-4 h-4 text-emerald-500" />,
+    tools: [
+      {
+        name: "Lost Opportunities",
+        prompt:
+          "Find leads created > 3 days ago that are still in 'New' status with 0 calls. Use lead_control.",
+        variant: "default",
+      },
+      {
+        name: "Unanswered Follow-up",
+        prompt:
+          "Find leads with 'No Answer' status and NO follow-up task scheduled. Use call_control and lead_control.",
+        variant: "default",
+      },
+      {
+        name: "Setter Audit",
+        prompt:
+          "Run get_coach_performance. List setters with < 10% conversion this week.",
+        variant: "default",
+      },
+      {
+        name: "Missed Assessments",
+        prompt:
+          "Use sales_flow_control to list appointments from yesterday that are NOT marked as 'Held' or 'Sold'.",
+        variant: "destructive",
+      },
+      {
+        name: "Revenue Recovery",
+        prompt:
+          "Run stripe_control with action 'get_events' to find failed payments or unpaid invoices from the last 7 days.",
+        variant: "destructive",
+      },
+      {
+        name: "Conv. Ratio Analysis",
+        prompt:
+          "Calculate conversion ratio (Calls vs Bookings) for the whole team today.",
+      },
+      // REVENUE ACCELERATORS
+      {
+        name: "Closing Room (Hot)",
+        prompt:
+          "Find deals in 'Proposal Sent' or 'Assessment Held' stage that have been stagnant for > 2 days. These are ready to close.",
+        variant: "default",
+      },
+      {
+        name: "Upsell Candidates",
+        prompt:
+          "Find 'Green Zone' clients who have been active for > 3 months. List them as potential upsell targets.",
+        variant: "default",
+      },
+      {
+        name: "Zombie Resurrection",
+        prompt:
+          "Find leads from 30-60 days ago who had 'Interested' status but never bought. Generate a re-engagement offer.",
+        variant: "default",
+      },
+      {
+        name: "High Value Focus",
+        prompt:
+          "List top 10 leads with highest potential value (based on lead score or tags) who haven't been called in 48 hours.",
+        variant: "default",
+      },
+    ],
+  },
   {
     category: "Stripe Intelligence",
     icon: <CreditCard className="w-4 h-4" />,
@@ -210,9 +281,10 @@ export default function SuperDashboard() {
 
       addLog("output", data.response || JSON.stringify(data));
       toast.success(`${toolName} executed successfully`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      addLog("error", err.message || "Execution failed");
+      const message = err instanceof Error ? err.message : "Execution failed";
+      addLog("error", message);
       toast.error(`Failed to execute ${toolName}`);
     } finally {
       setIsLoading(false);
@@ -234,24 +306,52 @@ export default function SuperDashboard() {
               Actions Ready
             </p>
           </div>
-          <Badge variant="outline" className="px-4 py-2 text-sm bg-card">
-            System Status:{" "}
-            <span className="text-green-500 font-bold ml-2">ONLINE</span>
-          </Badge>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider">
+                Gemini Active
+              </span>
+            </div>
+            <Badge variant="outline" className="px-4 py-2 text-sm bg-card">
+              System Health:{" "}
+              <span className="text-green-500 font-bold ml-2">98% Optimal</span>
+            </Badge>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-[calc(100vh-180px)]">
-          {/* LEFT: Control Grid */}
-          <Card className="xl:col-span-2 flex flex-col h-full border-muted">
+        {/* CEO MILLION DOLLAR PANEL */}
+        <MillionDollarPanel />
+
+        <div className="grid grid-cols-1 gap-6 h-[calc(100vh-280px)]">
+          {/* Main Control Grid - Now Full Width */}
+          <Card className="flex flex-col h-full border-muted bg-card/40 backdrop-blur-sm">
             <CardHeader className="border-b pb-4">
-              <CardTitle>Control Grid</CardTitle>
-              <CardDescription>
-                Select a category to view available actions
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Control Grid</CardTitle>
+                  <CardDescription>
+                    Select a category to view available actions
+                  </CardDescription>
+                </div>
+                {/* System Status / Mini Log */}
+                <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                  <Terminal className="w-3 h-3" />
+                  {isLoading ? (
+                    <span className="text-green-500 animate-pulse">
+                      Running...
+                    </span>
+                  ) : logs.length > 0 ? (
+                    logs[logs.length - 1].content
+                  ) : (
+                    "System Ready"
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="flex-1 p-0 flex flex-col md:flex-row h-full overflow-hidden">
               {/* Sidebar Categories */}
-              <ScrollArea className="w-full md:w-64 border-r bg-muted/20">
+              <ScrollArea className="w-full md:w-64 border-r bg-muted/10">
                 <div className="p-4 flex flex-col gap-2">
                   {API_TOOLS.map((cat) => (
                     <Button
@@ -275,9 +375,9 @@ export default function SuperDashboard() {
                 </div>
               </ScrollArea>
 
-              {/* Button Grid */}
+              {/* Button Grid - Expanded */}
               <ScrollArea className="flex-1 p-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {API_TOOLS.find(
                     (c) => c.category === activeCategory,
                   )?.tools.map((tool) => (
@@ -302,56 +402,6 @@ export default function SuperDashboard() {
                       </span>
                     </Button>
                   ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          {/* RIGHT: Terminal Output */}
-          <Card className="flex flex-col h-full border-muted bg-black text-green-500 font-mono shadow-2xl">
-            <CardHeader className="border-b border-green-500/20 pb-4 bg-green-500/5">
-              <CardTitle className="flex items-center gap-2 text-green-500">
-                <Terminal className="w-5 h-5" />
-                System Terminal
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden relative">
-              <ScrollArea className="h-full p-4">
-                <div className="flex flex-col gap-4 text-sm">
-                  <div className="opacity-50 text-xs">
-                    System initialized. Connected to Gemini 1.5 Pro via Unified
-                    Client.
-                  </div>
-                  {logs.map((log, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col gap-1 animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
-                    >
-                      <div className="flex items-center gap-2 text-xs opacity-50">
-                        <span>[{log.timestamp}]</span>
-                        <span className="uppercase tracking-wider">
-                          {log.type}
-                        </span>
-                      </div>
-                      <div
-                        className={`
-                        p-2 rounded border-l-2 pl-3 
-                        ${log.type === "input" ? "border-blue-500 text-blue-300 bg-blue-500/10" : ""}
-                        ${log.type === "output" ? "border-green-500 text-green-300 bg-green-500/10" : ""}
-                        ${log.type === "error" ? "border-red-500 text-red-300 bg-red-500/10" : ""}
-                      `}
-                      >
-                        {log.content}
-                      </div>
-                    </div>
-                  ))}
-                  {isLoading && (
-                    <div className="flex items-center gap-2 text-green-500 animate-pulse">
-                      <span className="h-2 w-2 bg-green-500 rounded-full" />
-                      Processing request...
-                    </div>
-                  )}
-                  {/* Anchor for auto-scroll could go here */}
                 </div>
               </ScrollArea>
             </CardContent>
