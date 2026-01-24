@@ -19,6 +19,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import { SystemHealthMonitor } from "@/components/dashboard/SystemHealthMonitor";
+import ConnectionStatus from "@/components/ConnectionStatus";
 import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
 import { format } from "date-fns";
 
@@ -226,6 +227,11 @@ export default function ExecutiveDashboard() {
 
         {/* Main Dashboard Tabs (Takes up 2 columns) */}
         <div className="lg:col-span-2">
+          {/* Connection Diagnostics (Only visible if issues detected or in dev) */}
+          <div className="mb-4">
+            <ConnectionStatus />
+          </div>
+
           <Card className="h-full">
             <CardHeader>
               <div className="flex items-center justify-between">
