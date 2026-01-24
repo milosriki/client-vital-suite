@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "hubspot-advanced": {
+      "command": "node",
+      "args": [
+        "scripts/hubspot-mcp/index.js"
+      ],
+      "env": {
+        "HUBSPOT_API_KEY": "${HUBSPOT_API_KEY}"
+      }
+    },
+    "firebase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-firebase"
+      ],
+      "env": {
+        "GCLOUD_PROJECT": "ptd-fitness-demo"
+      }
+    }
+  }
+}

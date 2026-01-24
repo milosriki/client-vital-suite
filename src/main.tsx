@@ -46,6 +46,7 @@ import AIDevConsole from "./pages/AIDevConsole";
 import GlobalBrain from "./pages/GlobalBrain";
 import Observability from "./pages/Observability";
 import SuperDashboard from "./pages/SuperDashboard";
+import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import "./index.css";
 
@@ -95,6 +96,7 @@ const router = createBrowserRouter([
       { path: "/ai-dev", element: <AIDevConsole /> },
       { path: "/global-brain", element: <GlobalBrain /> },
       { path: "/observability", element: <Observability /> },
+      { path: "/executive-dashboard", element: <ExecutiveDashboard /> },
       { path: "*", element: <NotFound /> },
     ],
   },

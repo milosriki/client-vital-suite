@@ -1,0 +1,1 @@
+[{"table_name": "hubspot_property_definitions"}, {"table_name": "hubspot_login_activity"}, {"table_name": "hubspot_security_activity"}, {"table_name": "hubspot_contact_changes"}, {"table_name": "hubspot_user_daily_summary"}, {"table_name": "hubspot_campaign_performance"}, {"table_name": "facebook_hubspot_crosscheck"}, {"table_name": "hubspot_activity_cache"}]

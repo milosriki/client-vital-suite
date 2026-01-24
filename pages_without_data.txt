@@ -1,0 +1,2 @@
+src/pages/ErrorPage.tsx
+src/pages/HubSpotAnalyzer.tsx
