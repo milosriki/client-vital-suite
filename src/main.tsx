@@ -17,7 +17,6 @@ import { AuthProvider } from "@/contexts/AuthProvider"; // Import AuthProvider
 import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import { testAllFunctions } from "@/utils/testFunctions";
 import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
-import Dashboard from "./pages/Dashboard";
 import Operations from "./pages/Operations";
 import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
@@ -45,7 +44,6 @@ import WarRoom from "./pages/WarRoom";
 import AIDevConsole from "./pages/AIDevConsole";
 import GlobalBrain from "./pages/GlobalBrain";
 import Observability from "./pages/Observability";
-import SuperDashboard from "./pages/SuperDashboard";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import "./index.css";
@@ -67,14 +65,13 @@ const router = createBrowserRouter([
     element: <Layout />,
     errorElement: <ErrorPage />, // Add ErrorPage as errorElement
     children: [
-      { path: "/", element: <Dashboard /> },
-      { path: "/dashboard", element: <Dashboard /> },
+      { path: "/", element: <ExecutiveDashboard /> },
+      { path: "/dashboard", element: <ExecutiveDashboard /> },
       { path: "/operations", element: <Operations /> },
       { path: "/sales-pipeline", element: <SalesPipeline /> },
       { path: "/stripe", element: <StripeIntelligence /> },
       { path: "/call-tracking", element: <CallTracking /> },
       { path: "/audit-trail", element: <AuditTrail /> },
-      { path: "/super-dashboard", element: <SuperDashboard /> },
       { path: "/war-room", element: <WarRoom /> },
       { path: "/ai-knowledge", element: <AIKnowledge /> },
       { path: "/ai-learning", element: <AILearning /> },
