@@ -78,15 +78,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (requiredApiKey && false) {
     // Temporarily disabled for testing
     // Accept x-ptd-key (frontend), x-agent-api-key, or authorization header
-    const provided =
-      req.headers["x-ptd-key"] ||
-      req.headers["x-agent-api-key"] ||
+    const headerValue =
+      req.headers["x-ptd-key"] ??
+      req.headers["x-agent-api-key"] ??
       req.headers["authorization"];
-    const token = provided
-      ? Array.isArray(provided)
-        ? provided[0]
-        : provided
-      : undefined;
+
+    let token: string | undefined;
+    if (typeof headerValue === "string") {
+      token = headerValue;
+    } else if (Array.isArray(headerValue) && headerValue.length > 0) {
+      token = headerValue[0];
+    }
+
     // Also check PTD_INTERNAL_ACCESS_KEY for internal calls
     const ptdKey = process.env.PTD_INTERNAL_ACCESS_KEY;
     const isValidAgentKey = token && token === requiredApiKey;
