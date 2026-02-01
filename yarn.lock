@@ -981,6 +981,60 @@
   resolved "https://registry.npmjs.org/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.54.0.tgz"
   integrity sha512-k43D4qta/+6Fq+nCDhhv9yP2HdeKeP56QrUUTW7E6PhZP1US6NDqpJj4MY0jBHlJivVJD5P8NxrjuobZBJTCRw==
 
+"@sentry-internal/browser-utils@10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/browser-utils/-/browser-utils-10.38.0.tgz"
+  integrity sha512-UOJtYmdcxHCcV0NPfXFff/a95iXl/E0EhuQ1y0uE0BuZDMupWSF5t2BgC4HaE5Aw3RTjDF3XkSHWoIF6ohy7eA==
+  dependencies:
+    "@sentry/core" "10.38.0"
+
+"@sentry-internal/feedback@10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/feedback/-/feedback-10.38.0.tgz"
+  integrity sha512-JXneg9zRftyfy1Fyfc39bBlF/Qd8g4UDublFFkVvdc1S6JQPlK+P6q22DKz3Pc8w3ySby+xlIq/eTu9Pzqi4KA==
+  dependencies:
+    "@sentry/core" "10.38.0"
+
+"@sentry-internal/replay-canvas@10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/replay-canvas/-/replay-canvas-10.38.0.tgz"
+  integrity sha512-OXWM9jEqNYh4VTvrMu7v+z1anz+QKQ/fZXIZdsO7JTT2lGNZe58UUMeoq386M+Saxen8F9SUH7yTORy/8KI5qw==
+  dependencies:
+    "@sentry-internal/replay" "10.38.0"
+    "@sentry/core" "10.38.0"
+
+"@sentry-internal/replay@10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry-internal/replay/-/replay-10.38.0.tgz"
+  integrity sha512-YWIkL6/dnaiQyFiZXJ/nN+NXGv/15z45ia86bE/TMq01CubX/DUOilgsFz0pk2v/pg3tp/U2MskLO9Hz0cnqeg==
+  dependencies:
+    "@sentry-internal/browser-utils" "10.38.0"
+    "@sentry/core" "10.38.0"
+
+"@sentry/browser@10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry/browser/-/browser-10.38.0.tgz"
+  integrity sha512-3phzp1YX4wcQr9mocGWKbjv0jwtuoDBv7+Y6Yfrys/kwyaL84mDLjjQhRf4gL5SX7JdYkhBp4WaiNlR0UC4kTA==
+  dependencies:
+    "@sentry-internal/browser-utils" "10.38.0"
+    "@sentry-internal/feedback" "10.38.0"
+    "@sentry-internal/replay" "10.38.0"
+    "@sentry-internal/replay-canvas" "10.38.0"
+    "@sentry/core" "10.38.0"
+
+"@sentry/core@10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry/core/-/core-10.38.0.tgz"
+  integrity sha512-1pubWDZE5y5HZEPMAZERP4fVl2NH3Ihp1A+vMoVkb3Qc66Diqj1WierAnStlZP7tCx0TBa0dK85GTW/ZFYyB9g==
+
+"@sentry/react@^10.38.0":
+  version "10.38.0"
+  resolved "https://registry.npmjs.org/@sentry/react/-/react-10.38.0.tgz"
+  integrity sha512-3UiKo6QsqTyPGUt0XWRY9KLaxc/cs6Kz4vlldBSOXEL6qPDL/EfpwNJT61osRo81VFWu8pKu7ZY2bvLPryrnBQ==
+  dependencies:
+    "@sentry/browser" "10.38.0"
+    "@sentry/core" "10.38.0"
+
 "@supabase/auth-js@2.89.0":
   version "2.89.0"
   resolved "https://registry.npmjs.org/@supabase/auth-js/-/auth-js-2.89.0.tgz"
@@ -3352,7 +3406,7 @@ react-transition-group@^4.4.5:
     loose-envify "^1.4.0"
     prop-types "^15.6.2"
 
-"react@^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react@^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc", "react@^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc", "react@^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react@^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc", "react@^16.8.0 || ^17 || ^18 || ^19", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react@^16.8.0 || ^17.0.1 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react@^18 || ^19", "react@^18 || ^19 || ^19.0.0-rc", "react@^18.0.0 || ^19.0.0", "react@^18.0.0 || ^19.0.0 || ^19.0.0-rc", react@^19.2.3, react@>=16.6.0, react@>=16.8, react@>=16.8.0:
+"react@^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react@^16.14.0 || 17.x || 18.x || 19.x", "react@^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc", "react@^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc", "react@^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react@^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc", "react@^16.8.0 || ^17 || ^18 || ^19", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react@^16.8.0 || ^17.0.1 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react@^18 || ^19", "react@^18 || ^19 || ^19.0.0-rc", "react@^18.0.0 || ^19.0.0", "react@^18.0.0 || ^19.0.0 || ^19.0.0-rc", react@^19.2.3, react@>=16.6.0, react@>=16.8, react@>=16.8.0:
   version "19.2.3"
   resolved "https://registry.npmjs.org/react/-/react-19.2.3.tgz"
   integrity sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA==

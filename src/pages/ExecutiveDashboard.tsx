@@ -252,84 +252,84 @@ export default function ExecutiveDashboard() {
           </div>
 
           <Card className="h-full">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Business Forensics</CardTitle>
-                <Tabs
-                  value={activeTab}
-                  onValueChange={setActiveTab}
-                  className="w-auto"
-                >
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="h-full flex flex-col"
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Business Forensics</CardTitle>
                   <TabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="treasury">Treasury</TabsTrigger>
                     <TabsTrigger value="risks">Risks</TabsTrigger>
                   </TabsList>
-                </Tabs>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <TabsContent value="overview" className="mt-0 space-y-4">
-                <div className="h-[300px] flex items-center justify-center border-2 border-dashed rounded-lg bg-slate-50">
-                  <p className="text-muted-foreground">
-                    Main Business Charts Area
-                  </p>
-                  {/* We can embed the RevenueChart here later */}
                 </div>
-              </TabsContent>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <TabsContent value="overview" className="mt-0 space-y-4">
+                  <div className="h-[300px] flex items-center justify-center border-2 border-dashed rounded-lg bg-slate-50">
+                    <p className="text-muted-foreground">
+                      Main Business Charts Area
+                    </p>
+                    {/* We can embed the RevenueChart here later */}
+                  </div>
+                </TabsContent>
 
-              <TabsContent value="treasury" className="mt-0">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Recent Transfers
-                  </h3>
-                  <div className="space-y-2">
-                    {treasury?.recent?.map((t: any, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-full ${t.status === "posted" ? "bg-green-100 text-green-600" : "bg-yellow-100 text-yellow-600"}`}
-                          >
-                            <DollarSign className="h-4 w-4" />
+                <TabsContent value="treasury" className="mt-0">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Recent Transfers
+                    </h3>
+                    <div className="space-y-2">
+                      {treasury?.recent?.map((t: any, i: number) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-2 rounded-full ${t.status === "posted" ? "bg-green-100 text-green-600" : "bg-yellow-100 text-yellow-600"}`}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Transfer Out</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(t.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium">Transfer Out</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(t.created_at).toLocaleDateString()}
+                          <div className="text-right">
+                            <p className="font-bold">
+                              - AED {t.amount.toLocaleString()}
                             </p>
+                            <Badge variant="outline" className="text-xs">
+                              {t.status}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold">
-                            - AED {t.amount.toLocaleString()}
-                          </p>
-                          <Badge variant="outline" className="text-xs">
-                            {t.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              <TabsContent value="risks" className="mt-0">
-                <div className="h-[300px] flex items-center justify-center border-2 border-dashed rounded-lg bg-red-50/50 border-red-200">
-                  <div className="text-center">
-                    <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                    <p className="text-red-900 font-medium">
-                      Risk Analysis Module
-                    </p>
-                    <p className="text-sm text-red-700">
-                      Tracking churn signals & payment failures
-                    </p>
+                <TabsContent value="risks" className="mt-0">
+                  <div className="h-[300px] flex items-center justify-center border-2 border-dashed rounded-lg bg-red-50/50 border-red-200">
+                    <div className="text-center">
+                      <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                      <p className="text-red-900 font-medium">
+                        Risk Analysis Module
+                      </p>
+                      <p className="text-sm text-red-700">
+                        Tracking churn signals & payment failures
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </TabsContent>
-            </CardContent>
+                </TabsContent>
+              </CardContent>
+            </Tabs>
           </Card>
         </div>
       </div>

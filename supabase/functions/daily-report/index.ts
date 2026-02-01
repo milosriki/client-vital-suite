@@ -1,4 +1,8 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,7 +14,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 // Validate required environment variables
@@ -83,7 +88,7 @@ async function generateReport(): Promise<DailyReport> {
   }
 
   const yesterdayMap = new Map(
-    (yesterdayScores || []).map(c => [c.email, c])
+    (yesterdayScores || []).map((c) => [c.email, c]),
   );
 
   // Calculate summary
@@ -107,12 +112,16 @@ async function generateReport(): Promise<DailyReport> {
       if (client.health_zone === "RED" && yesterday.health_zone !== "RED") {
         newRed.push(`${client.firstname} ${client.lastname}`);
       }
-      if ((client.health_zone === "GREEN" || client.health_zone === "PURPLE") &&
-          (yesterday.health_zone === "RED" || yesterday.health_zone === "YELLOW")) {
+      if (
+        (client.health_zone === "GREEN" || client.health_zone === "PURPLE") &&
+        (yesterday.health_zone === "RED" || yesterday.health_zone === "YELLOW")
+      ) {
         improvedToGreen.push(`${client.firstname} ${client.lastname}`);
       }
       if ((client.health_score || 0) < (yesterday.health_score || 0) - 15) {
-        criticalDrops.push(`${client.firstname} ${client.lastname} (${yesterday.health_score} → ${client.health_score})`);
+        criticalDrops.push(
+          `${client.firstname} ${client.lastname} (${yesterday.health_score} → ${client.health_score})`,
+        );
       }
     }
 
@@ -124,9 +133,12 @@ async function generateReport(): Promise<DailyReport> {
     // Collect top risks
     if (client.predictive_risk_score >= 60) {
       let reason = "";
-      if (client.days_since_last_session > 14) reason = `No session in ${client.days_since_last_session} days`;
-      else if (client.momentum_indicator === "DECLINING") reason = "Declining momentum";
-      else if ((client.outstanding_sessions || 0) < 5) reason = "Package almost depleted";
+      if (client.days_since_last_session > 14)
+        reason = `No session in ${client.days_since_last_session} days`;
+      else if (client.momentum_indicator === "DECLINING")
+        reason = "Declining momentum";
+      else if ((client.outstanding_sessions || 0) < 5)
+        reason = "Package almost depleted";
       else reason = "Multiple risk factors";
 
       topRisks.push({
@@ -134,7 +146,7 @@ async function generateReport(): Promise<DailyReport> {
         email: client.email,
         score: client.health_score,
         risk: client.predictive_risk_score,
-        reason
+        reason,
       });
     }
   }
@@ -154,24 +166,26 @@ async function generateReport(): Promise<DailyReport> {
   const coachAlerts: DailyReport["coachAlerts"] = [];
   coachClients.forEach((clientList, coach) => {
     if (coach === "Unassigned") return;
-    const redCount = clientList.filter(c => c.health_zone === "RED").length;
+    const redCount = clientList.filter((c) => c.health_zone === "RED").length;
     const redPct = (redCount / clientList.length) * 100;
 
     if (redPct >= 20) {
       coachAlerts.push({
         coach,
         issue: `${Math.round(redPct)}% clients in RED zone`,
-        clients: redCount
+        clients: redCount,
       });
     }
 
-    const decliningCount = clientList.filter(c => c.momentum_indicator === "DECLINING").length;
+    const decliningCount = clientList.filter(
+      (c) => c.momentum_indicator === "DECLINING",
+    ).length;
     const decliningPct = (decliningCount / clientList.length) * 100;
     if (decliningPct >= 50) {
       coachAlerts.push({
         coach,
         issue: `${Math.round(decliningPct)}% clients declining`,
-        clients: decliningCount
+        clients: decliningCount,
       });
     }
   });
@@ -179,43 +193,53 @@ async function generateReport(): Promise<DailyReport> {
   // Generate recommendations
   const recommendations: string[] = [];
   const totalClients = clients.length;
-  const healthyRate = totalClients > 0
-    ? ((zones.GREEN + zones.PURPLE) / totalClients) * 100
-    : 0;
+  const healthyRate =
+    totalClients > 0 ? ((zones.GREEN + zones.PURPLE) / totalClients) * 100 : 0;
 
   if (zones.RED > 10) {
-    recommendations.push(`URGENT: ${zones.RED} clients in RED zone need immediate attention`);
+    recommendations.push(
+      `URGENT: ${zones.RED} clients in RED zone need immediate attention`,
+    );
   }
   if (newRed.length > 0) {
-    recommendations.push(`${newRed.length} clients dropped to RED today - prioritize outreach`);
+    recommendations.push(
+      `${newRed.length} clients dropped to RED today - prioritize outreach`,
+    );
   }
   if (healthyRate < 60) {
-    recommendations.push(`Healthy rate at ${Math.round(healthyRate)}% - below 70% target`);
+    recommendations.push(
+      `Healthy rate at ${Math.round(healthyRate)}% - below 70% target`,
+    );
   }
   if (coachAlerts.length > 0) {
-    recommendations.push(`${coachAlerts.length} coach(es) need performance review`);
+    recommendations.push(
+      `${coachAlerts.length} coach(es) need performance review`,
+    );
   }
   if (totalAtRiskRevenue > 50000) {
-    recommendations.push(`AED ${totalAtRiskRevenue.toLocaleString()} at-risk revenue requires protection`);
+    recommendations.push(
+      `AED ${totalAtRiskRevenue.toLocaleString()} at-risk revenue requires protection`,
+    );
   }
 
   return {
     date: today,
     summary: {
       totalClients,
-      avgHealthScore: totalClients > 0 ? Math.round(totalScore / totalClients) : 0,
+      avgHealthScore:
+        totalClients > 0 ? Math.round(totalScore / totalClients) : 0,
       zones,
       healthyRate: Math.round(healthyRate),
-      atRiskRevenue: totalAtRiskRevenue
+      atRiskRevenue: totalAtRiskRevenue,
     },
     changes: {
       newRed,
       improvedToGreen,
-      criticalDrops
+      criticalDrops,
     },
     topRisks: topRisksLimited,
     coachAlerts,
-    recommendations
+    recommendations,
   };
 }
 
@@ -227,28 +251,44 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    const { send_slack = false, send_email = false, webhook_url } = await req.json().catch(() => ({}));
+    const {
+      send_slack = false,
+      send_email = false,
+      webhook_url,
+    } = await req.json().catch(() => ({}));
+
+    // Security Prevent SSRF: Validate webhook_url
+    if (send_slack && webhook_url) {
+      if (!webhook_url.startsWith("https://hooks.slack.com/services/")) {
+        throw new Error(
+          "Invalid webhook URL. Only Slack webhooks are allowed.",
+        );
+      }
+    }
 
     console.log("[Daily Report] Generating report...");
 
     const report = await generateReport();
 
     // Save to database
-    await supabase.from("daily_summary").upsert({
-      summary_date: report.date,
-      total_clients: report.summary.totalClients,
-      avg_health_score: report.summary.avgHealthScore,
-      red_count: report.summary.zones.RED,
-      yellow_count: report.summary.zones.YELLOW,
-      green_count: report.summary.zones.GREEN,
-      purple_count: report.summary.zones.PURPLE,
-      total_at_risk: report.topRisks.length,
-      at_risk_revenue_aed: report.summary.atRiskRevenue,
-      zone_changes_24h: report.changes,
-      top_risks: report.topRisks,
-      patterns_detected: report.coachAlerts,
-      generated_at: new Date().toISOString()
-    }, { onConflict: "summary_date" });
+    await supabase.from("daily_summary").upsert(
+      {
+        summary_date: report.date,
+        total_clients: report.summary.totalClients,
+        avg_health_score: report.summary.avgHealthScore,
+        red_count: report.summary.zones.RED,
+        yellow_count: report.summary.zones.YELLOW,
+        green_count: report.summary.zones.GREEN,
+        purple_count: report.summary.zones.PURPLE,
+        total_at_risk: report.topRisks.length,
+        at_risk_revenue_aed: report.summary.atRiskRevenue,
+        zone_changes_24h: report.changes,
+        top_risks: report.topRisks,
+        patterns_detected: report.coachAlerts,
+        generated_at: new Date().toISOString(),
+      },
+      { onConflict: "summary_date" },
+    );
 
     // Send to Slack if configured
     if (send_slack && webhook_url) {
@@ -256,25 +296,40 @@ serve(async (req) => {
         blocks: [
           {
             type: "header",
-            text: { type: "plain_text", text: `PTD Daily Report - ${report.date}` }
+            text: {
+              type: "plain_text",
+              text: `PTD Daily Report - ${report.date}`,
+            },
           },
           {
             type: "section",
             fields: [
-              { type: "mrkdwn", text: `*Total Clients:* ${report.summary.totalClients}` },
-              { type: "mrkdwn", text: `*Avg Health:* ${report.summary.avgHealthScore}` },
-              { type: "mrkdwn", text: `*Healthy Rate:* ${report.summary.healthyRate}%` },
-              { type: "mrkdwn", text: `*At-Risk Revenue:* AED ${report.summary.atRiskRevenue.toLocaleString()}` }
-            ]
+              {
+                type: "mrkdwn",
+                text: `*Total Clients:* ${report.summary.totalClients}`,
+              },
+              {
+                type: "mrkdwn",
+                text: `*Avg Health:* ${report.summary.avgHealthScore}`,
+              },
+              {
+                type: "mrkdwn",
+                text: `*Healthy Rate:* ${report.summary.healthyRate}%`,
+              },
+              {
+                type: "mrkdwn",
+                text: `*At-Risk Revenue:* AED ${report.summary.atRiskRevenue.toLocaleString()}`,
+              },
+            ],
           },
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*Zone Distribution:*\n:purple_heart: PURPLE: ${report.summary.zones.PURPLE} | :green_circle: GREEN: ${report.summary.zones.GREEN} | :yellow_circle: YELLOW: ${report.summary.zones.YELLOW} | :red_circle: RED: ${report.summary.zones.RED}`
-            }
-          }
-        ]
+              text: `*Zone Distribution:*\n:purple_heart: PURPLE: ${report.summary.zones.PURPLE} | :green_circle: GREEN: ${report.summary.zones.GREEN} | :yellow_circle: YELLOW: ${report.summary.zones.YELLOW} | :red_circle: RED: ${report.summary.zones.RED}`,
+            },
+          },
+        ],
       };
 
       if (report.recommendations.length > 0) {
@@ -282,8 +337,8 @@ serve(async (req) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Recommendations:*\n${report.recommendations.map(r => `• ${r}`).join("\n")}`
-          }
+            text: `*Recommendations:*\n${report.recommendations.map((r) => `• ${r}`).join("\n")}`,
+          },
         });
       }
 
@@ -291,11 +346,15 @@ serve(async (req) => {
         const webhookResponse = await fetch(webhook_url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(slackMessage)
+          body: JSON.stringify(slackMessage),
         });
 
         if (!webhookResponse.ok) {
-          console.error("Slack webhook failed:", webhookResponse.status, await webhookResponse.text());
+          console.error(
+            "Slack webhook failed:",
+            webhookResponse.status,
+            await webhookResponse.text(),
+          );
         } else {
           console.log("Slack notification sent successfully");
         }
@@ -308,22 +367,27 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[Daily Report] Complete in ${duration}ms`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      duration_ms: duration,
-      report
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        duration_ms: duration,
+        report,
+      }),
+      {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error) {
     console.error("[Daily Report] Error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   }
 });

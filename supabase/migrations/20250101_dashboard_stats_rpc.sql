@@ -11,18 +11,33 @@ DECLARE
   last_month_end date := (date_trunc('month', now_date - interval '1 month') + interval '1 month - 1 day')::date;
   
   revenue_this_month numeric;
+  closed_deals_this_month integer;
+  avg_deal_val numeric;
+  
   revenue_last_month numeric;
   revenue_today numeric;
   pipeline_val numeric;
   pipeline_cnt integer;
   revenue_trend numeric;
 BEGIN
-  -- Revenue This Month
-  SELECT COALESCE(SUM(deal_value), 0) INTO revenue_this_month
+  -- Revenue & Count This Month
+  SELECT 
+    COALESCE(SUM(deal_value), 0),
+    COUNT(*)
+  INTO 
+    revenue_this_month,
+    closed_deals_this_month
   FROM deals
   WHERE status = 'closed' 
   AND close_date >= this_month_start 
   AND close_date <= this_month_end;
+
+  -- Calculate Average Deal Value
+  IF closed_deals_this_month > 0 THEN
+    avg_deal_val := ROUND(revenue_this_month / closed_deals_this_month, 2);
+  ELSE
+    avg_deal_val := 0;
+  END IF;
 
   -- Revenue Last Month
   SELECT COALESCE(SUM(deal_value), 0) INTO revenue_last_month
@@ -56,6 +71,8 @@ BEGIN
     'revenue_trend', revenue_trend,
     'pipeline_value', pipeline_val,
     'pipeline_count', pipeline_cnt,
+    'closed_deals_count', closed_deals_this_month,
+    'avg_deal_value', avg_deal_val,
     'is_positive_trend', revenue_trend >= 0
   );
 END;

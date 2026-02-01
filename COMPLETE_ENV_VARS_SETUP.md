@@ -16,12 +16,12 @@
 
 ### 1. `VITE_SUPABASE_URL`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `VITE_SUPABASE_URL` |
-| **Value** | `https://ztjndilxurtsfqdsvfds.supabase.co` |
-| **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
+| Field            | Value                                      |
+| ---------------- | ------------------------------------------ |
+| **Name**         | `VITE_SUPABASE_URL`                        |
+| **Value**        | `https://ztjndilxurtsfqdsvfds.supabase.co` |
+| **Environments** | ☑️ Production ☑️ Preview ☑️ Development    |
+| **Sensitive**    | ☐ No                                       |
 
 **Used in files:**
 
@@ -35,12 +35,12 @@
 
 ### 2. `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `VITE_SUPABASE_PUBLISHABLE_KEY` |
-| **Value** | `your_jwt_here` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `VITE_SUPABASE_PUBLISHABLE_KEY`         |
+| **Value**        | `your_jwt_here`                         |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
+| **Sensitive**    | ☐ No                                    |
 
 **Used in files:**
 
@@ -52,12 +52,12 @@
 
 ### 3. `VITE_SUPABASE_ANON_KEY`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `VITE_SUPABASE_ANON_KEY` |
-| **Value** | `your_jwt_here` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `VITE_SUPABASE_ANON_KEY`                |
+| **Value**        | `your_jwt_here`                         |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
+| **Sensitive**    | ☐ No                                    |
 
 > Same value as VITE_SUPABASE_PUBLISHABLE_KEY
 
@@ -69,12 +69,12 @@
 
 ### 4. `SUPABASE_URL`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `SUPABASE_URL` |
-| **Value** | `https://ztjndilxurtsfqdsvfds.supabase.co` |
-| **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
+| Field            | Value                                      |
+| ---------------- | ------------------------------------------ |
+| **Name**         | `SUPABASE_URL`                             |
+| **Value**        | `https://ztjndilxurtsfqdsvfds.supabase.co` |
+| **Environments** | ☑️ Production ☑️ Preview ☑️ Development    |
+| **Sensitive**    | ☐ No                                       |
 
 **Used in files:**
 
@@ -86,12 +86,12 @@
 
 ### 5. `SUPABASE_SERVICE_ROLE_KEY`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `SUPABASE_SERVICE_ROLE_KEY` |
-| **Value** | `your_jwt_here` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `SUPABASE_SERVICE_ROLE_KEY`             |
+| **Value**        | `your_jwt_here`                         |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☑️ **YES - Mark as Sensitive!** |
+| **Sensitive**    | ☑️ **YES - Mark as Sensitive!**         |
 
 **Used in files:**
 
@@ -106,130 +106,130 @@
 
 ### 6. `VITE_GEMINI_API_KEY`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `VITE_GEMINI_API_KEY` |
-| **Value** | `your_gemini_api_key_here` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `VITE_GEMINI_API_KEY`                   |
+| **Value**        | `your_gemini_api_key_here`              |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Google Gemini AI features |
+| **Sensitive**    | ☐ No                                    |
+| **Purpose**      | Google Gemini AI features               |
 
 ---
 
 ### 7. `FB_PIXEL_ID`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `FB_PIXEL_ID` |
-| **Value** | `349832333681399` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `FB_PIXEL_ID`                           |
+| **Value**        | `349832333681399`                       |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Facebook Conversion API tracking |
+| **Sensitive**    | ☐ No                                    |
+| **Purpose**      | Facebook Conversion API tracking        |
 
 ---
 
 ### 8. `FB_ACCESS_TOKEN`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `FB_ACCESS_TOKEN` |
-| **Value** | `your_fb_access_token_here` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `FB_ACCESS_TOKEN`                       |
+| **Value**        | `your_fb_access_token_here`             |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☑️ **YES - Mark as Sensitive!** |
-| **Purpose** | Facebook Marketing API authentication |
+| **Sensitive**    | ☑️ **YES - Mark as Sensitive!**         |
+| **Purpose**      | Facebook Marketing API authentication   |
 
 ---
 
 ### 9. `FB_TEST_EVENT_CODE`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `FB_TEST_EVENT_CODE` |
-| **Value** | `TEST123` |
+| Field            | Value                                  |
+| ---------------- | -------------------------------------- |
+| **Name**         | `FB_TEST_EVENT_CODE`                   |
+| **Value**        | `TEST123`                              |
 | **Environments** | ☐ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Facebook test events (for debugging) |
+| **Sensitive**    | ☐ No                                   |
+| **Purpose**      | Facebook test events (for debugging)   |
 
 ---
 
 ### 10. `EVENT_SOURCE_URL`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `EVENT_SOURCE_URL` |
-| **Value** | `https://www.personaltrainersdubai.com` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `EVENT_SOURCE_URL`                      |
+| **Value**        | `https://www.personaltrainersdubai.com` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Source URL for Facebook events |
+| **Sensitive**    | ☐ No                                    |
+| **Purpose**      | Source URL for Facebook events          |
 
 ---
 
 ### 11. `VITE_META_CAPI_URL`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `VITE_META_CAPI_URL` |
-| **Value** | `https://client-vital-suite.vercel.app/api` |
-| **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Meta CAPI backend endpoint |
+| Field            | Value                                       |
+| ---------------- | ------------------------------------------- |
+| **Name**         | `VITE_META_CAPI_URL`                        |
+| **Value**        | `https://client-vital-suite.vercel.app/api` |
+| **Environments** | ☑️ Production ☑️ Preview ☑️ Development     |
+| **Sensitive**    | ☐ No                                        |
+| **Purpose**      | Meta CAPI backend endpoint                  |
 
 ---
 
 ### 12. `VITE_API_BASE`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `VITE_API_BASE` |
-| **Value** | `https://client-vital-suite.vercel.app` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `VITE_API_BASE`                         |
+| **Value**        | `https://client-vital-suite.vercel.app` |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Base URL for API calls |
+| **Sensitive**    | ☐ No                                    |
+| **Purpose**      | Base URL for API calls                  |
 
 ---
 
 ### 13. `AGENT_API_KEY`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `AGENT_API_KEY` |
-| **Value** | `<GENERATE: openssl rand -hex 32>` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `AGENT_API_KEY`                         |
+| **Value**        | `<GENERATE: openssl rand -hex 32>`      |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☑️ **YES - Mark as Sensitive!** |
-| **Purpose** | Secure API agent endpoint |
+| **Sensitive**    | ☑️ **YES - Mark as Sensitive!**         |
+| **Purpose**      | Secure API agent endpoint               |
 
 ---
 
 ### 14. `LOG_LEVEL`
 
-| Field | Value |
-|-------|-------|
-| **Name** | `LOG_LEVEL` |
-| **Value** | `info` |
+| Field            | Value                                   |
+| ---------------- | --------------------------------------- |
+| **Name**         | `LOG_LEVEL`                             |
+| **Value**        | `info`                                  |
 | **Environments** | ☑️ Production ☑️ Preview ☑️ Development |
-| **Sensitive** | ☐ No |
-| **Purpose** | Backend logging verbosity |
+| **Sensitive**    | ☐ No                                    |
+| **Purpose**      | Backend logging verbosity               |
 
 ---
 
 ## 📋 QUICK REFERENCE TABLE
 
-| # | Variable | Required | Sensitive | Prod | Preview | Dev |
-|---|----------|----------|-----------|------|---------|-----|
-| 1 | `VITE_SUPABASE_URL` | ✅ | ☐ | ☑️ | ☑️ | ☑️ |
-| 2 | `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅ | ☐ | ☑️ | ☑️ | ☑️ |
-| 3 | `VITE_SUPABASE_ANON_KEY` | ✅ | ☐ | ☑️ | ☑️ | ☑️ |
-| 4 | `SUPABASE_URL` | ✅ | ☐ | ☑️ | ☑️ | ☑️ |
-| 5 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ☑️ | ☑️ | ☑️ | ☑️ |
-| 6 | `VITE_GEMINI_API_KEY` | ☐ | ☐ | ☑️ | ☑️ | ☑️ |
-| 7 | `FB_PIXEL_ID` | ☐ | ☐ | ☑️ | ☑️ | ☑️ |
-| 8 | `FB_ACCESS_TOKEN` | ☐ | ☑️ | ☑️ | ☑️ | ☑️ |
-| 9 | `FB_TEST_EVENT_CODE` | ☐ | ☐ | ☐ | ☑️ | ☑️ |
-| 10 | `VITE_META_CAPI_URL` | ☐ | ☐ | ☑️ | ☑️ | ☑️ |
-| 11 | `VITE_API_BASE` | ☐ | ☐ | ☑️ | ☑️ | ☑️ |
-| 12 | `AGENT_API_KEY` | ☐ | ☑️ | ☑️ | ☑️ | ☑️ |
-| 13 | `EVENT_SOURCE_URL` | ☐ | ☐ | ☑️ | ☑️ | ☑️ |
-| 14 | `LOG_LEVEL` | ☐ | ☐ | ☑️ | ☑️ | ☑️ |
+| #   | Variable                        | Required | Sensitive | Prod | Preview | Dev |
+| --- | ------------------------------- | -------- | --------- | ---- | ------- | --- |
+| 1   | `VITE_SUPABASE_URL`             | ✅       | ☐         | ☑️   | ☑️      | ☑️  |
+| 2   | `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅       | ☐         | ☑️   | ☑️      | ☑️  |
+| 3   | `VITE_SUPABASE_ANON_KEY`        | ✅       | ☐         | ☑️   | ☑️      | ☑️  |
+| 4   | `SUPABASE_URL`                  | ✅       | ☐         | ☑️   | ☑️      | ☑️  |
+| 5   | `SUPABASE_SERVICE_ROLE_KEY`     | ✅       | ☑️        | ☑️   | ☑️      | ☑️  |
+| 6   | `VITE_GEMINI_API_KEY`           | ☐        | ☐         | ☑️   | ☑️      | ☑️  |
+| 7   | `FB_PIXEL_ID`                   | ☐        | ☐         | ☑️   | ☑️      | ☑️  |
+| 8   | `FB_ACCESS_TOKEN`               | ☐        | ☑️        | ☑️   | ☑️      | ☑️  |
+| 9   | `FB_TEST_EVENT_CODE`            | ☐        | ☐         | ☐    | ☑️      | ☑️  |
+| 10  | `VITE_META_CAPI_URL`            | ☐        | ☐         | ☑️   | ☑️      | ☑️  |
+| 11  | `VITE_API_BASE`                 | ☐        | ☐         | ☑️   | ☑️      | ☑️  |
+| 12  | `AGENT_API_KEY`                 | ☐        | ☑️        | ☑️   | ☑️      | ☑️  |
+| 13  | `EVENT_SOURCE_URL`              | ☐        | ☐         | ☑️   | ☑️      | ☑️  |
+| 14  | `LOG_LEVEL`                     | ☐        | ☐         | ☑️   | ☑️      | ☑️  |
 
 ---
 
@@ -261,6 +261,12 @@ EVENT_SOURCE_URL=https://www.personaltrainersdubai.com
 VITE_META_CAPI_URL=https://client-vital-suite.vercel.app/api
 VITE_API_BASE=https://client-vital-suite.vercel.app
 LOG_LEVEL=info
+```
+
+### Optional - Observability (1)
+
+```
+VITE_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 ```
 
 ---

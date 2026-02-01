@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import * as Sentry from "@sentry/react"; // Sentry Import
 import {
   QueryClient,
   QueryClientProvider,
@@ -47,6 +48,20 @@ import Observability from "./pages/Observability";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import "./index.css";
+
+// Initialize Sentry
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN, // Will be undefined in dev if not set, which is fine (no-op)
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration(),
+  ],
+  // Performance Monitoring
+  tracesSampleRate: 1.0,
+  // Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+});
 
 // Start background learning on app init
 startBackgroundLearning();
@@ -114,12 +129,14 @@ const queryClient = new QueryClient({
     onError: (error) => {
       const message = getErrorMessage(error);
       toast.error(`Error: ${message}`);
+      Sentry.captureException(error); // Log Query errors
     },
   }),
   mutationCache: new MutationCache({
     onError: (error) => {
       const message = getErrorMessage(error);
       toast.error(`Error: ${message}`);
+      Sentry.captureException(error); // Log Mutation errors
     },
   }),
 });
@@ -144,3 +161,5 @@ createRoot(root).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+// Deploy Trigger: Sun Feb  1 01:45:30 PST 2026
+// Fix TabsContent context error: Sun Feb  1 02:07:14 PST 2026

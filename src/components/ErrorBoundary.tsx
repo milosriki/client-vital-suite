@@ -1,7 +1,14 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import * as Sentry from "@sentry/react";
+import { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 interface Props {
   children: ReactNode;
@@ -17,12 +24,12 @@ interface State {
 
 /**
  * Error Boundary Component
- * 
+ *
  * FIXES:
  * - Prevents entire app crash on component errors
  * - Provides graceful fallback UI
  * - Allows recovery without page refresh
- * - Logs errors for debugging
+ * - Logs errors for debugging & Sentry
  */
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
@@ -36,10 +43,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[ErrorBoundary] Caught error:', error, errorInfo);
-    
+    console.error("[ErrorBoundary] Caught error:", error, errorInfo);
+
+    // Send to Sentry
+    Sentry.captureException(error, {
+      extra: { componentStack: errorInfo.componentStack },
+    });
+
     this.setState({ errorInfo });
-    
+
     // Call optional error handler
     this.props.onError?.(error, errorInfo);
   }
@@ -49,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   public render() {
@@ -76,22 +88,22 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error && (
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs font-mono text-muted-foreground break-all">
-                    {this.state.error.message || 'Unknown error'}
+                    {this.state.error.message || "Unknown error"}
                   </p>
                 </div>
               )}
-              
+
               <div className="flex gap-3 justify-center">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={this.handleRetry}
                   className="gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Try Again
                 </Button>
-                <Button 
-                  variant="default" 
+                <Button
+                  variant="default"
                   onClick={this.handleGoHome}
                   className="gap-2"
                 >
@@ -125,7 +137,7 @@ export class ComponentErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[ComponentErrorBoundary] Caught error:', error);
+    console.error("[ComponentErrorBoundary] Caught error:", error);
     this.props.onError?.(error, errorInfo);
   }
 
@@ -144,9 +156,9 @@ export class ComponentErrorBoundary extends Component<Props, State> {
           <p className="text-sm text-muted-foreground mb-2">
             Failed to load this component
           </p>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={this.handleRetry}
             className="gap-1.5 text-xs"
           >

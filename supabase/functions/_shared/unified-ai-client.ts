@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.26.0";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.16.0";
 
 // ============================================================================
 // TYPES
@@ -124,7 +124,7 @@ export class UnifiedAIClient {
   ): Promise<AIResponse> {
     const genAI = new GoogleGenerativeAI(this.googleKey!);
     // Use gemini-1.5-pro for complex tasks, or flash for speed if specified
-    const modelName = "gemini-1.5-pro-latest";
+    const modelName = "gemini-2.0-flash-001";
     const model = genAI.getGenerativeModel({
       model: modelName,
       generationConfig: {
