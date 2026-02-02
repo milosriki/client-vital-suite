@@ -1,0 +1,1229 @@
+[
+  {
+    "name": "agent-analyst",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "agent-orchestrator",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "LOVABLE_API_KEY",
+      "LANGSMITH_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ai-ceo-master",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "GOOGLE_API_KEY",
+      "GEMINI_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "LANGCHAIN_PROJECT"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ai-config-status",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "STRIPE_SECRET_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ai-deploy-callback",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ai-trigger-deploy",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "GITHUB_TOKEN",
+      "GITHUB_REPO",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "anomaly-detector",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "anytrack-webhook",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "api-rate-limit-handler",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "auto-reassign-leads",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 3
+  },
+  {
+    "name": "business-intelligence",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 5
+  },
+  {
+    "name": "calculate-health-scores",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_ACCESS_TOKEN",
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "calendly-webhook",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "callgear-error-handler",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "CALLGEAR_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "callgear-forensics",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "CALLGEAR_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "callgear-icp-router",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "CALLGEAR_API_KEY",
+      "FAILSAFE_ROUTING_PHONES",
+      "VIP_NUMBERS",
+      "BLACKLISTED_NUMBERS",
+      "VIP_ROUTING_PHONES",
+      "DEFAULT_ROUTING_PHONES",
+      "SALES_PHONES",
+      "SUPPORT_PHONES",
+      "BILLING_PHONES",
+      "OPERATOR_PHONES"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "callgear-live-monitor",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "CALLGEAR_API_URL",
+      "CALLGEAR_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "callgear-sentinel",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "CALLGEAR_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUSPICIOUS_PHONE_NUMBERS",
+      "SENSITIVE_PHONE_LINES",
+      "AI_COACH_SIP_URI",
+      "SMS_ALERT_WEBHOOK_URL"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "callgear-supervisor",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "CALLGEAR_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "capi-validator",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "churn-predictor",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "ANTHROPIC_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 4
+  },
+  {
+    "name": "cleanup-errors",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "cleanup-fake-contacts",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "client-payment-integrity",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "coach-analyzer",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "daily-report",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 4
+  },
+  {
+    "name": "data-quality",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "db-inspector",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "debug-env",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "GEMINI_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "deep-research",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "emergency-forensics",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "enrich-with-stripe",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "error-auto-resolver",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-cleanup-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-correlation-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-health-monitor",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-notification-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-pattern-analyzer",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-prediction-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-prevention-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "HUBSPOT_API_KEY",
+      "STRIPE_SECRET_KEY",
+      "META_ACCESS_TOKEN",
+      "FACEBOOK_ACCESS_TOKEN",
+      "CALLGEAR_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-recovery-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-retry-orchestrator",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-rollback-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-root-cause-analyzer",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-severity-classifier",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-trend-analyzer",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "error-triage-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "fetch-callgear-data",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "CALLGEAR_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "fetch-facebook-insights",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "FB_ACCESS_TOKEN",
+      "FB_AD_ACCOUNT_ID"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "fetch-forensic-data",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "HUBSPOT_ACCESS_TOKEN"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "fetch-hubspot-live",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "generate-daily-snapshot",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "generate-embeddings",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "OPENAI_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "generate-lead-replies",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "ANTHROPIC_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "generate-lead-reply",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "ANTHROPIC_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "health-calculator",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 3
+  },
+  {
+    "name": "hubspot-analyzer",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "hubspot-anytrack-webhook",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "hubspot-command-center",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "hubspot-error-handler",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "HUBSPOT_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "hubspot-live-query",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 7
+  },
+  {
+    "name": "hubspot-webhook",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "integration-health",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "HUBSPOT_API_KEY",
+      "STAPE_CAPIG_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "intervention-recommender",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "ANTHROPIC_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 4
+  },
+  {
+    "name": "marketing-stress-test",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "meta-error-handler",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "META_ACCESS_TOKEN",
+      "FACEBOOK_ACCESS_TOKEN"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "openai-embeddings",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "OPENAI_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "pipeline-monitor",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "proactive-insights-generator",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "LOVABLE_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "process-capi-batch",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STAPE_CAPIG_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "process-knowledge",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "OPENAI_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "ptd-24x7-monitor",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "ptd-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "ANTHROPIC_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ptd-agent-claude",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ptd-agent-gemini",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "OPENAI_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "LOVABLE_API_KEY",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 6
+  },
+  {
+    "name": "ptd-execute-action",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GITHUB_TOKEN",
+      "GITHUB_OWNER",
+      "GITHUB_REPO"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ptd-proactive-scanner",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ptd-self-developer",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "ANTHROPIC_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "ptd-self-learn",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ptd-ultimate-intelligence",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "ANTHROPIC_API_KEY",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "LANGCHAIN_PROJECT"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ptd-watcher",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GEMINI_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "purge-sync-errors",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "reassign-owner",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "run-migration",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "sales-aggression",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "send-to-stape-capi",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STAPE_CAPIG_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "smart-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "LOVABLE_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "smart-coach-analytics",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-account-details",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-checkout",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-connect",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-dashboard-data",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "LANGSMITH_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 4
+  },
+  {
+    "name": "stripe-deep-agent",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-enterprise-intelligence",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-error-handler",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-forensics",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "AUTHORIZED_IP_ADDRESSES",
+      "LOVABLE_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 4
+  },
+  {
+    "name": "stripe-history",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-issuing",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-issuing-tokens",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "stripe-payout-controls",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "stripe-payouts-ai",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "LOVABLE_API_KEY",
+      "LANGSMITH_API_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "stripe-treasury",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 1
+  },
+  {
+    "name": "stripe-webhook",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "super-agent-orchestrator",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "LANGSMITH_API_KEY",
+      "HUBSPOT_API_KEY",
+      "STRIPE_SECRET_KEY",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "CALLGEAR_API_KEY",
+      "CALLGEAR_API_URL",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "sync-excel-data",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "sync-hubspot-data",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "sync-hubspot-leads",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "HUBSPOT_ACCESS_TOKEN"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "sync-hubspot-to-capi",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 2
+  },
+  {
+    "name": "sync-hubspot-to-supabase",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "HUBSPOT_API_KEY",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": true,
+    "usageCount": 10
+  },
+  {
+    "name": "system-health-check",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_ANON_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ultimate-fix",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "ultimate-truth-alignment",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  },
+  {
+    "name": "verify-all-keys",
+    "hasEnvVars": true,
+    "envVarsDetected": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ],
+    "usedInSrc": false,
+    "usageCount": 0
+  }
+]

@@ -1,13 +1,31 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, Send, Brain, Upload, FileText, X, RotateCcw, Database,
-  Shield, AlertTriangle, CheckCircle, XCircle, Activity, Zap, Users,
-  Minimize2, Maximize2, Mic, MicOff, Volume2, VolumeX
+  Loader2,
+  Send,
+  Brain,
+  Upload,
+  FileText,
+  X,
+  RotateCcw,
+  Database,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Activity,
+  Zap,
+  Users,
+  Minimize2,
+  Maximize2,
 } from "lucide-react";
-import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 import { learnFromInteraction } from "@/lib/ptd-knowledge-base";
-import { getThreadId, startNewThread, loadConversationHistory, saveMessageToDatabase } from "@/lib/ptd-memory";
+import {
+  getThreadId,
+  startNewThread,
+  loadConversationHistory,
+  saveMessageToDatabase,
+} from "@/lib/ptd-memory";
 import {
   getAgentStats,
   getPendingApprovals,
@@ -15,7 +33,7 @@ import {
   rejectExecution,
   runMonitoringScan,
   SPECIALIST_AGENTS,
-  type ExecutionRequest
+  type ExecutionRequest,
 } from "@/lib/ptd-unlimited-agent";
 import { toast } from "sonner";
 import { getApiUrl, API_ENDPOINTS, getAuthHeaders } from "@/config/api";
@@ -33,45 +51,26 @@ interface AgentStats {
 }
 
 export default function PTDUnlimitedChat() {
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>(
+    [],
+  );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; content: string }[]>([]);
-  const [threadId, setThreadId] = useState<string>('');
+  const [uploadedFiles, setUploadedFiles] = useState<
+    { name: string; content: string }[]
+  >([]);
+  const [threadId, setThreadId] = useState<string>("");
   const [stats, setStats] = useState<AgentStats | null>(null);
-  const [pendingApprovals, setPendingApprovals] = useState<ExecutionRequest[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<ExecutionRequest[]>(
+    [],
+  );
   const [showApprovals, setShowApprovals] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
   const [minimized, setMinimized] = useState(true);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Voice chat hooks
-  const {
-    isListening,
-    isSupported: voiceInputSupported,
-    transcript,
-    toggleListening,
-    clearTranscript,
-  } = useVoiceChat({
-    onTranscript: (text) => {
-      setInput(text);
-      clearTranscript();
-    },
-    onError: (error) => {
-      toast.error(error);
-    },
-  });
-
-  const {
-    isSpeaking,
-    isSupported: voiceOutputSupported,
-    speak,
-    stop: stopSpeaking,
-  } = useTextToSpeech();
 
   useEffect(() => {
     const tid = getThreadId();
@@ -85,20 +84,22 @@ export default function PTDUnlimitedChat() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      toast.success('Connection restored');
+      toast.success("Connection restored");
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      toast.warning('Connection lost - messages will be saved when reconnected');
+      toast.warning(
+        "Connection lost - messages will be saved when reconnected",
+      );
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -114,27 +115,27 @@ export default function PTDUnlimitedChat() {
 
         // Load full data to check for document uploads
         const { data } = await supabase
-          .from('agent_memory')
-          .select('query, response, knowledge_extracted')
-          .eq('thread_id', tid)
-          .order('created_at', { ascending: true });
+          .from("agent_memory")
+          .select("query, response, knowledge_extracted")
+          .eq("thread_id", tid)
+          .order("created_at", { ascending: true });
 
         if (data) {
-          data.forEach(item => {
+          data.forEach((item) => {
             // Skip thread metadata entries
-            if (item.query === '[THREAD_START]') return;
+            if (item.query === "[THREAD_START]") return;
 
             // Check if this is a document upload entry
             const knowledge = item.knowledge_extracted as any;
-            if (knowledge?.type === 'document_upload') {
+            if (knowledge?.type === "document_upload") {
               loadedFiles.push({
                 name: knowledge.filename,
-                content: knowledge.preview || ''
+                content: knowledge.preview || "",
               });
             }
 
-            loadedMessages.push({ role: 'user', content: item.query });
-            loadedMessages.push({ role: 'ai', content: item.response });
+            loadedMessages.push({ role: "user", content: item.query });
+            loadedMessages.push({ role: "ai", content: item.response });
           });
         }
 
@@ -146,8 +147,8 @@ export default function PTDUnlimitedChat() {
         toast.success(`Loaded ${loadedMessages.length / 2} previous messages`);
       }
     } catch (e) {
-      console.error('Failed to load chat history:', e);
-      toast.error('Could not load previous conversation');
+      console.error("Failed to load chat history:", e);
+      toast.error("Could not load previous conversation");
     } finally {
       setLoadingHistory(false);
     }
@@ -158,7 +159,7 @@ export default function PTDUnlimitedChat() {
       const agentStats = await getAgentStats();
       setStats(agentStats);
     } catch (e) {
-      console.error('Stats load error:', e);
+      console.error("Stats load error:", e);
     }
   };
 
@@ -167,7 +168,7 @@ export default function PTDUnlimitedChat() {
       const approvals = await getPendingApprovals();
       setPendingApprovals(approvals);
     } catch (e) {
-      console.error('Approvals load error:', e);
+      console.error("Approvals load error:", e);
     }
   };
 
@@ -176,7 +177,7 @@ export default function PTDUnlimitedChat() {
     setThreadId(newId);
     setMessages([]);
     setUploadedFiles([]);
-    toast.success('Started new conversation thread');
+    toast.success("Started new conversation thread");
 
     // Load history for new thread (should be empty)
     loadChatHistory(newId);
@@ -185,7 +186,10 @@ export default function PTDUnlimitedChat() {
   const handleRunMonitoring = async () => {
     setMonitoring(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ptd-24x7-monitor', { body: {} });
+      const { data, error } = await supabase.functions.invoke(
+        "ptd-24x7-monitor",
+        { body: {} },
+      );
 
       if (error) {
         toast.error(`Monitoring failed: ${error.message}`);
@@ -193,24 +197,32 @@ export default function PTDUnlimitedChat() {
         const alertCount = data?.alert_count || 0;
         const criticalCount = data?.critical_count || 0;
 
-        toast.success(`Monitoring complete: ${alertCount} alerts (${criticalCount} critical)`);
+        toast.success(
+          `Monitoring complete: ${alertCount} alerts (${criticalCount} critical)`,
+        );
 
         // Add monitoring results to chat
-        setMessages(prev => [...prev, {
-          role: 'ai',
-          content: `🔍 **24/7 Monitoring Scan Complete**\n\n` +
-            `📊 **Metrics:**\n` +
-            `- Total Clients: ${data?.metrics?.total_clients || 0}\n` +
-            `- At Risk: ${data?.metrics?.at_risk_count || 0}\n` +
-            `- Avg Health: ${data?.metrics?.avg_health_score || 0}\n\n` +
-            `⚠️ **Alerts (${alertCount}):**\n` +
-            (data?.alerts || []).map((a: any) => `• [${a.severity.toUpperCase()}] ${a.message}`).join('\n')
-        }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content:
+              `🔍 **24/7 Monitoring Scan Complete**\n\n` +
+              `📊 **Metrics:**\n` +
+              `- Total Clients: ${data?.metrics?.total_clients || 0}\n` +
+              `- At Risk: ${data?.metrics?.at_risk_count || 0}\n` +
+              `- Avg Health: ${data?.metrics?.avg_health_score || 0}\n\n` +
+              `⚠️ **Alerts (${alertCount}):**\n` +
+              (data?.alerts || [])
+                .map((a: any) => `• [${a.severity.toUpperCase()}] ${a.message}`)
+                .join("\n"),
+          },
+        ]);
 
         loadStats();
       }
     } catch (e) {
-      toast.error('Monitoring scan failed');
+      toast.error("Monitoring scan failed");
     } finally {
       setMonitoring(false);
     }
@@ -219,21 +231,21 @@ export default function PTDUnlimitedChat() {
   const handleApprove = async (requestKey: string) => {
     try {
       await approveExecution(requestKey);
-      toast.success('Action approved and executed');
+      toast.success("Action approved and executed");
       loadPendingApprovals();
       loadStats();
     } catch (e) {
-      toast.error('Approval failed');
+      toast.error("Approval failed");
     }
   };
 
   const handleReject = async (requestKey: string) => {
     try {
-      await rejectExecution(requestKey, 'Manually rejected by user');
-      toast.info('Action rejected');
+      await rejectExecution(requestKey, "Manually rejected by user");
+      toast.info("Action rejected");
       loadPendingApprovals();
     } catch (e) {
-      toast.error('Rejection failed');
+      toast.error("Rejection failed");
     }
   };
 
@@ -247,42 +259,46 @@ export default function PTDUnlimitedChat() {
       try {
         const content = await file.text();
 
-        const { data, error } = await supabase.functions.invoke("process-knowledge", {
-          body: {
-            content,
-            filename: file.name,
-            metadata: { type: file.type, size: file.size }
+        const { data, error } = await supabase.functions.invoke(
+          "process-knowledge",
+          {
+            body: {
+              content,
+              filename: file.name,
+              metadata: { type: file.type, size: file.size },
+            },
           },
-        });
+        );
 
         if (error) {
           toast.error(`Failed to process ${file.name}`);
         } else {
           // Save full content (no size limit)
-          setUploadedFiles(prev => [...prev, { name: file.name, content }]);
+          setUploadedFiles((prev) => [...prev, { name: file.name, content }]);
 
           const responseMsg = `📚 Learned from **${file.name}**\n\n${data.chunks_created} knowledge chunks created.`;
           const userQuery = `[Document Upload] ${file.name}`;
 
-          setMessages(prev => [...prev,
-          { role: "user", content: userQuery },
-          { role: "ai", content: responseMsg }
+          setMessages((prev) => [
+            ...prev,
+            { role: "user", content: userQuery },
+            { role: "ai", content: responseMsg },
           ]);
 
           // Save to agent_memory for persistence across sessions using new utility
           if (isOnline) {
             try {
               await saveMessageToDatabase(threadId, userQuery, responseMsg, {
-                type: 'document_upload',
+                type: "document_upload",
                 filename: file.name,
                 file_type: file.type,
                 file_size: file.size,
                 chunks_created: data.chunks_created,
-                preview: content.slice(0, 1000) // Store preview for display
+                preview: content.slice(0, 1000), // Store preview for display
               });
             } catch (dbError) {
-              console.error('Failed to save file upload to database:', dbError);
-              toast.error('File processed but not saved to database');
+              console.error("Failed to save file upload to database:", dbError);
+              toast.error("File processed but not saved to database");
             }
           }
 
@@ -299,7 +315,7 @@ export default function PTDUnlimitedChat() {
   };
 
   const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAsk = async () => {
@@ -307,14 +323,14 @@ export default function PTDUnlimitedChat() {
 
     const userMessage = input;
     const userMsg = { role: "user", content: userMessage };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
     setInput("");
 
     try {
       // OPTIMIZATION: Removed automatic super-agent-orchestrator call to save costs and reduce latency.
       // The orchestrator should only be called on-demand or via a specific "Run Intelligence" button.
-      const orchestratorData = null;
+      const orchestratorData: any = null;
 
       // SECOND: Process user question with full context
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
@@ -324,27 +340,29 @@ export default function PTDUnlimitedChat() {
           message: userMessage,
           thread_id: threadId,
           // Include orchestrator results as context
-          context: orchestratorData ? {
-            system_status: orchestratorData.status,
-            intelligence_findings: orchestratorData.agents?.intelligence,
-            improvements_needed: orchestratorData.improvements,
-            final_report: orchestratorData.final_report
-          } : null
+          context: orchestratorData
+            ? {
+                system_status: orchestratorData.status,
+                intelligence_findings: orchestratorData.agents?.intelligence,
+                improvements_needed: orchestratorData.improvements,
+                final_report: orchestratorData.final_report,
+              }
+            : null,
         }),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok || data?.error) {
-        const errorMsg = `Error: ${data?.error || data?.message || 'Agent error'}`;
-        setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+        const errorMsg = `Error: ${data?.error || data?.message || "Agent error"}`;
+        setMessages((prev) => [...prev, { role: "ai", content: errorMsg }]);
 
         // Still try to save the error to database if online
         if (isOnline) {
           try {
             await saveMessageToDatabase(threadId, userMessage, errorMsg);
           } catch (dbError) {
-            console.error('Failed to save error message to database:', dbError);
+            console.error("Failed to save error message to database:", dbError);
           }
         }
       } else if (data?.response) {
@@ -355,15 +373,18 @@ export default function PTDUnlimitedChat() {
           const intelligenceSummary = `
 🚀 **SYSTEM INTELLIGENCE SCAN COMPLETE**
 
-**Status:** ${orchestratorData.status?.toUpperCase() || 'UNKNOWN'}
+**Status:** ${orchestratorData.status?.toUpperCase() || "UNKNOWN"}
 **Agents Run:** ${orchestratorData.agents?.total || 0} (${orchestratorData.agents?.successful || 0} successful)
 
-${orchestratorData.improvements?.length > 0 ? `⚠️ **Critical Issues Found:** ${orchestratorData.improvements.length}\n${orchestratorData.improvements.map((imp: string) => `• ${imp}`).join('\n')}\n\n` : ''}
+${orchestratorData.improvements?.length > 0 ? `⚠️ **Critical Issues Found:** ${orchestratorData.improvements.length}\n${orchestratorData.improvements.map((imp: string) => `• ${imp}`).join("\n")}\n\n` : ""}
 
 **Intelligence Results:**
-${Object.entries(orchestratorData.agents?.intelligence || {}).map(([name, result]: [string, any]) => 
-  `• ${name}: ${result?.status?.toUpperCase() || 'UNKNOWN'} (${result?.duration_ms || 0}ms)`
-).join('\n')}
+${Object.entries(orchestratorData.agents?.intelligence || {})
+  .map(
+    ([name, result]: [string, any]) =>
+      `• ${name}: ${result?.status?.toUpperCase() || "UNKNOWN"} (${result?.duration_ms || 0}ms)`,
+  )
+  .join("\n")}
 
 ---
 
@@ -375,27 +396,21 @@ ${aiResponse}
           aiResponse = intelligenceSummary;
         }
 
-        setMessages(prev => [...prev, { role: "ai", content: aiResponse }]);
-
-        // Speak the AI response if voice is enabled
-        if (voiceEnabled && voiceOutputSupported) {
-          // Extract text from markdown if present
-          const textToSpeak = aiResponse.replace(/[#*`_]/g, '').substring(0, 500);
-          speak(textToSpeak);
-        }
+        setMessages((prev) => [...prev, { role: "ai", content: aiResponse }]);
 
         // Save conversation to database in real-time with retry
         if (isOnline) {
           try {
             await saveMessageToDatabase(threadId, userMessage, aiResponse);
           } catch (dbError) {
-            console.error('Failed to save message to database:', dbError);
-            toast.error('Could not save conversation to database', {
-              description: 'Your message was sent but not saved. Check your connection.'
+            console.error("Failed to save message to database:", dbError);
+            toast.error("Could not save conversation to database", {
+              description:
+                "Your message was sent but not saved. Check your connection.",
             });
           }
         } else {
-          toast.warning('Message not saved - you are offline');
+          toast.warning("Message not saved - you are offline");
         }
 
         // Learn from interaction (for pattern detection)
@@ -404,25 +419,25 @@ ${aiResponse}
         loadPendingApprovals();
       } else if (data?.error) {
         const errorMsg = `Error: ${data.error}`;
-        setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+        setMessages((prev) => [...prev, { role: "ai", content: errorMsg }]);
 
         if (isOnline) {
           try {
             await saveMessageToDatabase(threadId, userMessage, errorMsg);
           } catch (dbError) {
-            console.error('Failed to save error to database:', dbError);
+            console.error("Failed to save error to database:", dbError);
           }
         }
       }
     } catch (error) {
       const errorMsg = `Error: ${error}`;
-      setMessages(prev => [...prev, { role: "ai", content: errorMsg }]);
+      setMessages((prev) => [...prev, { role: "ai", content: errorMsg }]);
 
       if (isOnline) {
         try {
           await saveMessageToDatabase(threadId, userMessage, errorMsg);
         } catch (dbError) {
-          console.error('Failed to save exception to database:', dbError);
+          console.error("Failed to save exception to database:", dbError);
         }
       }
     } finally {
@@ -456,7 +471,10 @@ ${aiResponse}
             <div>
               <h2 className="font-bold text-lg text-white flex items-center gap-2">
                 PTD UNLIMITED
-                <Badge variant="outline" className="text-[10px] border-cyan-500/50 text-cyan-400">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-cyan-500/50 text-cyan-400"
+                >
                   v2.0
                 </Badge>
               </h2>
@@ -553,10 +571,16 @@ ${aiResponse}
         {uploadedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {uploadedFiles.map((file, i) => (
-              <div key={i} className="flex items-center gap-1 bg-cyan-500/20 text-cyan-300 text-xs px-2 py-1 rounded-full">
+              <div
+                key={i}
+                className="flex items-center gap-1 bg-cyan-500/20 text-cyan-300 text-xs px-2 py-1 rounded-full"
+              >
                 <FileText className="w-3 h-3" />
                 <span>{file.name}</span>
-                <button onClick={() => removeFile(i)} className="hover:text-white">
+                <button
+                  onClick={() => removeFile(i)}
+                  className="hover:text-white"
+                >
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -574,15 +598,21 @@ ${aiResponse}
           </div>
           <ScrollArea className="max-h-32">
             {pendingApprovals.map((req: any, i) => (
-              <div key={i} className="flex items-center justify-between bg-slate-900/50 rounded-lg p-2 mb-1">
+              <div
+                key={i}
+                className="flex items-center justify-between bg-slate-900/50 rounded-lg p-2 mb-1"
+              >
                 <div>
                   <span className="text-white text-xs">{req.action}</span>
                   <Badge
                     variant="outline"
-                    className={`ml-2 text-[9px] ${req.risk_level === 'critical' ? 'border-red-500 text-red-400' :
-                      req.risk_level === 'high' ? 'border-orange-500 text-orange-400' :
-                        'border-yellow-500 text-yellow-400'
-                      }`}
+                    className={`ml-2 text-[9px] ${
+                      req.risk_level === "critical"
+                        ? "border-red-500 text-red-400"
+                        : req.risk_level === "high"
+                          ? "border-orange-500 text-orange-400"
+                          : "border-yellow-500 text-yellow-400"
+                    }`}
                   >
                     {req.risk_level}
                   </Badge>
@@ -638,11 +668,17 @@ ${aiResponse}
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-lg p-4 ${msg.role === "user"
-              ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
-              : "bg-white/5 border border-white/10 text-white/90"
-              }`}>
+          <div
+            key={i}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-lg p-4 ${
+                msg.role === "user"
+                  ? "bg-cyan-500/20 border border-cyan-500/40 text-white"
+                  : "bg-white/5 border border-white/10 text-white/90"
+              }`}
+            >
               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {msg.content}
               </p>
@@ -655,7 +691,9 @@ ${aiResponse}
             <div className="bg-white/5 border border-white/10 rounded-lg p-4">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                <span className="text-sm text-white/70">Processing with unlimited power...</span>
+                <span className="text-sm text-white/70">
+                  Processing with unlimited power...
+                </span>
               </div>
             </div>
           </div>
@@ -664,14 +702,6 @@ ${aiResponse}
 
       {/* Input */}
       <div className="p-4 border-t border-cyan-500/20 bg-gradient-to-r from-slate-900 to-slate-800 rounded-b-2xl">
-        {/* Voice transcript indicator */}
-        {isListening && (
-          <div className="mb-2 flex items-center gap-2 text-xs text-cyan-400 animate-pulse">
-            <Mic className="w-4 h-4" />
-            <span>Listening... {transcript && `"${transcript}"`}</span>
-          </div>
-        )}
-
         <div className="flex gap-2">
           <input
             value={input}
@@ -681,48 +711,6 @@ ${aiResponse}
             className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
             disabled={loading}
           />
-
-          {/* Voice input button */}
-          {voiceInputSupported && (
-            <button
-              onClick={toggleListening}
-              disabled={loading}
-              className={`p-3 rounded-lg transition-all ${isListening
-                ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
-                : 'bg-white/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
-                }`}
-              title={isListening ? 'Stop recording' : 'Start voice input'}
-            >
-              {isListening ? (
-                <MicOff className="w-5 h-5" />
-              ) : (
-                <Mic className="w-5 h-5" />
-              )}
-            </button>
-          )}
-
-          {/* Voice output toggle */}
-          {voiceOutputSupported && (
-            <button
-              onClick={() => {
-                setVoiceEnabled(!voiceEnabled);
-                if (!voiceEnabled && isSpeaking) {
-                  stopSpeaking();
-                }
-              }}
-              className={`p-3 rounded-lg transition-all ${voiceEnabled
-                ? 'bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30'
-                : 'bg-white/10 border border-cyan-500/30 text-white/40 hover:bg-white/20'
-                }`}
-              title={voiceEnabled ? 'Disable voice output' : 'Enable voice output'}
-            >
-              {voiceEnabled ? (
-                <Volume2 className="w-5 h-5" />
-              ) : (
-                <VolumeX className="w-5 h-5" />
-              )}
-            </button>
-          )}
 
           <button
             onClick={handleAsk}

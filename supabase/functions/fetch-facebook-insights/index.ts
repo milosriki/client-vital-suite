@@ -32,7 +32,7 @@ serve(async (req) => {
 
     // List all accounts to verify we are using the correct one
     const meResp = await fetch(
-      `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,currency&access_token=${fbAccessToken}`,
+      `https://graph.facebook.com/v24.0/me/adaccounts?fields=id,name,currency&access_token=${fbAccessToken}`,
     );
     const meData = await meResp.json();
     const allAccounts = meData.data || [];
@@ -47,11 +47,14 @@ serve(async (req) => {
       const matchedAcc = allAccounts.find(
         (a) => a.id === adAccountId || a.id === `act_${adAccountId}`,
       );
-      if (matchedAcc) currency = matchedAcc.currency;
+      if (matchedAcc) {
+        currency = matchedAcc.currency;
+        adAccountId = matchedAcc.id; // Use the canonical ID from FB (with act_ prefix)
+      }
     }
 
     const { date_preset = "today" } = await req.json().catch(() => ({}));
-    const url = `https://graph.facebook.com/v18.0/${adAccountId}/insights?level=campaign&fields=campaign_name,spend,account_id&date_preset=${date_preset}&time_increment=1&access_token=${fbAccessToken}&limit=500`;
+    const url = `https://graph.facebook.com/v24.0/${adAccountId}/insights?level=campaign&fields=campaign_name,spend,account_id&date_preset=${date_preset}&time_increment=1&access_token=${fbAccessToken}&limit=500`;
 
     const resp = await fetch(url);
     const data = await resp.json();

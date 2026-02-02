@@ -1,8 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  MessageCircle, X, Send, Loader2, Minimize2, Paperclip,
-  FileText, FileSpreadsheet, Brain, Sparkles, RefreshCw,
-  Zap, Database, ChevronDown, Mic
+  MessageCircle,
+  X,
+  Send,
+  Loader2,
+  Minimize2,
+  Paperclip,
+  FileText,
+  FileSpreadsheet,
+  Brain,
+  Sparkles,
+  RefreshCw,
+  Zap,
+  Database,
+  ChevronDown,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
-import { VoiceChat } from "@/components/ai/VoiceChat";
+import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { getApiUrl, API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
 interface Message {
@@ -38,10 +50,12 @@ export const FloatingChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [threadId, setThreadId] = useState<string>("");
-  const [connectionStatus, setConnectionStatus] = useState<"connected" | "connecting" | "error">("connected");
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connected" | "connecting" | "error"
+  >("connected");
   const [memoryCount, setMemoryCount] = useState(0);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
-  const [showVoiceChat, setShowVoiceChat] = useState(false);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +66,7 @@ export const FloatingChat = () => {
     if (isLoading) {
       setLoadingSeconds(0);
       interval = setInterval(() => {
-        setLoadingSeconds(prev => prev + 1);
+        setLoadingSeconds((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -159,8 +173,8 @@ export const FloatingChat = () => {
           const base64 = btoa(
             new Uint8Array(reader.result as ArrayBuffer).reduce(
               (data, byte) => data + String.fromCharCode(byte),
-              ""
-            )
+              "",
+            ),
           );
           resolve(`[BASE64:${file.name}]${base64}`);
         };
@@ -194,7 +208,11 @@ export const FloatingChat = () => {
 
   const getFileIcon = (type: string) => {
     if (type.includes("pdf")) return <FileText className="h-3 w-3" />;
-    if (type.includes("excel") || type.includes("spreadsheet") || type.includes("csv"))
+    if (
+      type.includes("excel") ||
+      type.includes("spreadsheet") ||
+      type.includes("csv")
+    )
       return <FileSpreadsheet className="h-3 w-3" />;
     return <FileText className="h-3 w-3" />;
   };
@@ -209,7 +227,8 @@ export const FloatingChat = () => {
     setUploadedFiles([]);
     setConnectionStatus("connecting");
 
-    const displayMessage = userMessage || `Analyzing ${files.length} file(s)...`;
+    const displayMessage =
+      userMessage || `Analyzing ${files.length} file(s)...`;
     const userMsgId = `user-${Date.now()}`;
     const assistantMsgId = `assistant-${Date.now()}`;
 
@@ -251,7 +270,10 @@ export const FloatingChat = () => {
           ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map((f) => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map((f) => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
           : userMessage;
 
-      console.log("📤 Sending to agent via edge function:", userMessage.slice(0, 50));
+      console.log(
+        "📤 Sending to agent via edge function:",
+        userMessage.slice(0, 50),
+      );
 
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
@@ -272,15 +294,19 @@ export const FloatingChat = () => {
         throw new Error(errMsg);
       }
 
-      const responseText = json?.response || json?.answer || json?.message || "No response received. Please try again.";
+      const responseText =
+        json?.response ||
+        json?.answer ||
+        json?.message ||
+        "No response received. Please try again.";
 
       // Update assistant message with response
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMsgId
             ? { ...msg, content: responseText, isStreaming: false }
-            : msg
-        )
+            : msg,
+        ),
       );
 
       setConnectionStatus("connected");
@@ -288,22 +314,23 @@ export const FloatingChat = () => {
 
       toast({
         title: "Response received",
-        description: `Processed in ${json?.duration_ms ? Math.round(json.duration_ms / 1000) + 's' : 'a moment'}`,
+        description: `Processed in ${json?.duration_ms ? Math.round(json.duration_ms / 1000) + "s" : "a moment"}`,
       });
     } catch (error: any) {
       console.error("Chat error:", error);
-      const errorMsg = error?.message || "Sorry, I encountered an error. Please try again.";
+      const errorMsg =
+        error?.message || "Sorry, I encountered an error. Please try again.";
 
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMsgId
             ? {
-              ...msg,
-              content: `❌ Error: ${errorMsg}\n\nPlease try again or simplify your question.`,
-              isStreaming: false,
-            }
-            : msg
-        )
+                ...msg,
+                content: `❌ Error: ${errorMsg}\n\nPlease try again or simplify your question.`,
+                isStreaming: false,
+              }
+            : msg,
+        ),
       );
       setConnectionStatus("error");
 
@@ -345,7 +372,7 @@ export const FloatingChat = () => {
           ? "bottom-6 right-6 w-72 h-14"
           : isExpanded
             ? "inset-4"
-            : "bottom-6 right-6 w-[420px] h-[600px]"
+            : "bottom-6 right-6 w-[420px] h-[600px]",
       )}
     >
       {/* Header */}
@@ -360,7 +387,7 @@ export const FloatingChat = () => {
                   ? "bg-green-500"
                   : connectionStatus === "connecting"
                     ? "bg-yellow-500 animate-pulse"
-                    : "bg-red-500"
+                    : "bg-red-500",
               )}
             />
           </div>
@@ -382,15 +409,6 @@ export const FloatingChat = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
-            onClick={() => setShowVoiceChat(!showVoiceChat)}
-            title="Voice Chat"
-          >
-            <Mic className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
             className="h-7 w-7 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20"
             onClick={handleNewThread}
             title="New conversation"
@@ -404,7 +422,12 @@ export const FloatingChat = () => {
             onClick={() => setIsExpanded(!isExpanded)}
             title={isExpanded ? "Minimize" : "Expand"}
           >
-            <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                isExpanded && "rotate-180",
+              )}
+            />
           </Button>
           <Button
             variant="ghost"
@@ -435,25 +458,35 @@ export const FloatingChat = () => {
                   <Brain className="h-14 w-14 text-cyan-400/50 mx-auto" />
                   <Sparkles className="h-5 w-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
                 </div>
-                <p className="text-white/80 font-medium mb-1">PTD Super-Intelligence</p>
-                <p className="text-cyan-400/70 text-xs mb-4">Ask anything about your business data</p>
+                <p className="text-white/80 font-medium mb-1">
+                  PTD Super-Intelligence
+                </p>
+                <p className="text-cyan-400/70 text-xs mb-4">
+                  Ask anything about your business data
+                </p>
 
                 {/* Quick Action Buttons - Row 1 */}
                 <div className="flex flex-wrap gap-2 justify-center mb-2">
                   <button
-                    onClick={() => { setInput("Show my Stripe balance and recent payments"); }}
+                    onClick={() => {
+                      setInput("Show my Stripe balance and recent payments");
+                    }}
                     className="px-3 py-1.5 text-xs bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-300 hover:bg-purple-500/30 transition-colors"
                   >
                     💳 Stripe Balance
                   </button>
                   <button
-                    onClick={() => { setInput("Scan Stripe for fraud or suspicious activity"); }}
+                    onClick={() => {
+                      setInput("Scan Stripe for fraud or suspicious activity");
+                    }}
                     className="px-3 py-1.5 text-xs bg-red-500/20 border border-red-500/30 rounded-full text-red-300 hover:bg-red-500/30 transition-colors"
                   >
                     🔍 Fraud Scan
                   </button>
                   <button
-                    onClick={() => { setInput("Show clients at risk of churning"); }}
+                    onClick={() => {
+                      setInput("Show clients at risk of churning");
+                    }}
                     className="px-3 py-1.5 text-xs bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-300 hover:bg-orange-500/30 transition-colors"
                   >
                     ⚠️ At-Risk
@@ -463,19 +496,25 @@ export const FloatingChat = () => {
                 {/* Quick Action Buttons - Row 2 */}
                 <div className="flex flex-wrap gap-2 justify-center mb-2">
                   <button
-                    onClick={() => { setInput("Coach performance ranking"); }}
+                    onClick={() => {
+                      setInput("Coach performance ranking");
+                    }}
                     className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 rounded-full text-green-300 hover:bg-green-500/30 transition-colors"
                   >
                     📊 Coaches
                   </button>
                   <button
-                    onClick={() => { setInput("Show sales pipeline summary"); }}
+                    onClick={() => {
+                      setInput("Show sales pipeline summary");
+                    }}
                     className="px-3 py-1.5 text-xs bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 hover:bg-blue-500/30 transition-colors"
                   >
                     💰 Pipeline
                   </button>
                   <button
-                    onClick={() => { setInput("Run business intelligence report"); }}
+                    onClick={() => {
+                      setInput("Run business intelligence report");
+                    }}
                     className="px-3 py-1.5 text-xs bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-300 hover:bg-cyan-500/30 transition-colors"
                   >
                     🧠 BI Report
@@ -485,19 +524,25 @@ export const FloatingChat = () => {
                 {/* Quick Action Buttons - Row 3 */}
                 <div className="flex flex-wrap gap-2 justify-center mb-4">
                   <button
-                    onClick={() => { setInput("Check live calls status"); }}
+                    onClick={() => {
+                      setInput("Check live calls status");
+                    }}
                     className="px-3 py-1.5 text-xs bg-teal-500/20 border border-teal-500/30 rounded-full text-teal-300 hover:bg-teal-500/30 transition-colors"
                   >
                     📞 Live Calls
                   </button>
                   <button
-                    onClick={() => { setInput("Run proactive system scan"); }}
+                    onClick={() => {
+                      setInput("Run proactive system scan");
+                    }}
                     className="px-3 py-1.5 text-xs bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-300 hover:bg-yellow-500/30 transition-colors"
                   >
                     🔎 Proactive Scan
                   </button>
                   <button
-                    onClick={() => { setInput("Check system and data quality health"); }}
+                    onClick={() => {
+                      setInput("Check system and data quality health");
+                    }}
                     className="px-3 py-1.5 text-xs bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-300 hover:bg-pink-500/30 transition-colors"
                   >
                     ❤️ System Health
@@ -516,7 +561,7 @@ export const FloatingChat = () => {
                     key={msg.id}
                     className={cn(
                       "flex",
-                      msg.role === "user" ? "justify-end" : "justify-start"
+                      msg.role === "user" ? "justify-end" : "justify-start",
                     )}
                   >
                     <div
@@ -524,7 +569,7 @@ export const FloatingChat = () => {
                         "max-w-[85%] rounded-xl px-4 py-3 text-sm",
                         msg.role === "user"
                           ? "bg-gradient-to-r from-cyan-500/30 to-blue-500/30 border border-cyan-500/40 text-white"
-                          : "bg-white/5 border border-white/10 text-white/90"
+                          : "bg-white/5 border border-white/10 text-white/90",
                       )}
                     >
                       {msg.files && msg.files.length > 0 && (
@@ -544,10 +589,15 @@ export const FloatingChat = () => {
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
                           <span className="text-white/60">
-                            Thinking{loadingSeconds > 0 ? ` (${loadingSeconds}s)` : '...'}
+                            Thinking
+                            {loadingSeconds > 0
+                              ? ` (${loadingSeconds}s)`
+                              : "..."}
                           </span>
                           {loadingSeconds > 5 && (
-                            <span className="text-cyan-400/60 text-xs">Analyzing data...</span>
+                            <span className="text-cyan-400/60 text-xs">
+                              Analyzing data...
+                            </span>
                           )}
                         </div>
                       ) : (
@@ -574,8 +624,8 @@ export const FloatingChat = () => {
                     title="Click to remove"
                   >
                     {getFileIcon(file.type)}
-                    {file.name.slice(0, 15)}
-                    {file.name.length > 15 && "..."}
+                    {(file.name || "File").slice(0, 15)}
+                    {(file.name || "").length > 15 && "..."}
                     <X className="h-3 w-3 hover:text-white" />
                   </span>
                 ))}
@@ -610,14 +660,18 @@ export const FloatingChat = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  uploadedFiles.length > 0 ? "Ask about files..." : "Ask anything..."
+                  uploadedFiles.length > 0
+                    ? "Ask about files..."
+                    : "Ask anything..."
                 }
                 disabled={isLoading}
                 className="flex-1 bg-white/10 border-cyan-500/30 text-white placeholder-white/40 focus:ring-cyan-500/50 focus:border-cyan-500"
               />
               <Button
                 onClick={handleSend}
-                disabled={(!input.trim() && uploadedFiles.length === 0) || isLoading}
+                disabled={
+                  (!input.trim() && uploadedFiles.length === 0) || isLoading
+                }
                 className="shrink-0 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 border-0"
                 size="icon"
               >
@@ -630,15 +684,6 @@ export const FloatingChat = () => {
             </div>
           </div>
         </>
-      )}
-
-      {/* Voice Chat Overlay */}
-      {showVoiceChat && (
-        <VoiceChat
-          agentFunction="ptd-agent-gemini"
-          threadId={threadId}
-          onClose={() => setShowVoiceChat(false)}
-        />
       )}
     </div>
   );

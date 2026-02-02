@@ -1,0 +1,401 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  PreparedAction,
+  BusinessGoal,
+  CalibrationExample,
+  ProactiveInsight,
+  BIAnalysis,
+  RevenueMetrics,
+  ClientHealthMetrics,
+  IntegrationStatus,
+  ChurnAlert,
+} from "@/types/ceo";
+
+export function useCEOData() {
+  const queryClient = useQueryClient();
+
+  // --- QUERIES ---
+
+  const { data: pendingActions, isLoading: loadingActions } = useQuery({
+    queryKey: ["pending-actions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prepared_actions" as any)
+        .select("*")
+        .in("status", ["prepared", "executing"])
+        .order("priority", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []) as unknown as PreparedAction[];
+    },
+    staleTime: Infinity,
+  });
+
+  const { data: executedActions } = useQuery({
+    queryKey: ["executed-actions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prepared_actions" as any)
+        .select("*")
+        .in("status", ["executed", "failed"])
+        .order("executed_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as unknown as PreparedAction[];
+    },
+    staleTime: Infinity,
+  });
+
+  const { data: goals } = useQuery({
+    queryKey: ["business-goals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_goals" as any)
+        .select("*")
+        .eq("status", "active");
+      if (error) throw error;
+      return (data || []) as unknown as BusinessGoal[];
+    },
+  });
+
+  const { data: calibrationData } = useQuery({
+    queryKey: ["business-calibration"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_calibration" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as unknown as CalibrationExample[];
+    },
+  });
+
+  const { data: insights } = useQuery({
+    queryKey: ["proactive-insights"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proactive_insights")
+        .select("id, insight_type, priority, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data || []).map((item: any) => ({
+        ...item,
+        title: item.insight_type || "Insight",
+        description: "",
+      })) as ProactiveInsight[];
+    },
+    staleTime: Infinity,
+  });
+
+  const {
+    data: biData,
+    isLoading: loadingBI,
+    refetch: refetchBI,
+  } = useQuery({
+    queryKey: ["business-intelligence"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        "business-intelligence",
+      );
+      if (error) throw error;
+      return data as {
+        success: boolean;
+        analysis: BIAnalysis;
+        dataFreshness: string;
+        staleWarning: string | null;
+      };
+    },
+    staleTime: Infinity,
+  });
+
+  const { data: revenueData } = useQuery({
+    queryKey: ["ceo-revenue-metrics"],
+    queryFn: async (): Promise<RevenueMetrics> => {
+      // Use RPC for efficient server-side aggregation
+      const { data: stats, error } = await supabase.rpc(
+        "get_dashboard_stats" as any,
+      );
+
+      if (!error && stats) {
+        const typedStats = stats as any;
+        return {
+          totalRevenue: typedStats.revenue_this_month || 0,
+          avgDealValue: typedStats.avg_deal_value || 0,
+          dealsCount: typedStats.closed_deals_count || 0,
+          pipelineValue: typedStats.pipeline_value || 0,
+        };
+      }
+
+      // Fallback to client-side calculation if RPC fails
+      console.warn(
+        "RPC failed, falling back to client-side calculation",
+        error,
+      );
+
+      const { data: deals, error: dealsError } = await supabase
+        .from("deals")
+        .select("deal_value, status, close_date")
+        .gte(
+          "close_date",
+          new Date(
+            new Date().setMonth(new Date().getMonth() - 1),
+          ).toISOString(),
+        );
+
+      if (dealsError) throw dealsError;
+
+      const closedDeals = deals?.filter((d) => d.status === "closed") || [];
+      const totalRevenue = closedDeals.reduce(
+        (sum, d) => sum + (d.deal_value || 0),
+        0,
+      );
+      const avgDealValue =
+        closedDeals.length > 0 ? totalRevenue / closedDeals.length : 0;
+
+      return {
+        totalRevenue,
+        avgDealValue,
+        dealsCount: closedDeals.length,
+        pipelineValue:
+          deals
+            ?.filter((d) => d.status !== "closed")
+            .reduce((sum, d) => sum + (d.deal_value || 0), 0) || 0,
+      };
+    },
+  });
+
+  const { data: clientHealth } = useQuery({
+    queryKey: ["ceo-client-health"],
+    queryFn: async (): Promise<ClientHealthMetrics> => {
+      const { data: latestDate } = await supabase
+        .from("client_health_scores")
+        .select("calculated_on")
+        .order("calculated_on", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!latestDate?.calculated_on)
+        return {
+          green: 0,
+          yellow: 0,
+          red: 0,
+          purple: 0,
+          total: 0,
+          atRiskRevenue: 0,
+          avgHealth: 0,
+        };
+
+      const { data, error } = await supabase
+        .from("client_health_scores")
+        .select(
+          "health_zone, health_score, churn_risk_score, package_value_aed",
+        )
+        .eq("calculated_on", latestDate.calculated_on);
+
+      if (error) throw error;
+
+      const zones = { green: 0, yellow: 0, red: 0, purple: 0 };
+      let atRiskRevenue = 0;
+      let totalScore = 0;
+
+      data?.forEach((c) => {
+        const zone = (c.health_zone || "yellow").toLowerCase();
+        if (zone in zones) zones[zone as keyof typeof zones]++;
+
+        if (zone === "red" || zone === "yellow") {
+          atRiskRevenue += c.package_value_aed || 0;
+        }
+        totalScore += c.health_score || 0;
+      });
+
+      return {
+        ...zones,
+        total: data?.length || 0,
+        atRiskRevenue,
+        avgHealth: data?.length ? Math.round(totalScore / data.length) : 0,
+      } as ClientHealthMetrics;
+    },
+  });
+
+  const { data: integrationStatus } = useQuery({
+    queryKey: ["ceo-integration-status"],
+    queryFn: async () => {
+      const { data: syncLogs } = await supabase
+        .from("sync_logs")
+        .select("platform, status, started_at")
+        .order("started_at", { ascending: false })
+        .limit(50);
+
+      const { data: syncErrors } = await supabase
+        .from("sync_errors")
+        .select("source, error_type, resolved_at")
+        .is("resolved_at", null);
+
+      const platforms = ["hubspot", "stripe", "callgear", "facebook"];
+      const status: IntegrationStatus = {};
+
+      platforms.forEach((p) => {
+        const logs = syncLogs?.filter((l: any) => l.platform === p) || [];
+        const errors = syncErrors?.filter((e: any) => e.source === p) || [];
+        const lastLog = logs[0] as any;
+
+        status[p] = {
+          connected: logs.some((l: any) => l.status === "success"),
+          lastSync: lastLog?.started_at || null,
+          errors: errors.length,
+        };
+      });
+
+      return status;
+    },
+  });
+
+  const { data: churnAlerts } = useQuery({
+    queryKey: ["ceo-churn-alerts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_health_scores")
+        .select(
+          "firstname, lastname, email, churn_risk_score, health_zone, package_value_aed",
+        )
+        .or("health_zone.eq.red,churn_risk_score.gt.70")
+        .order("churn_risk_score", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      return (data || []) as unknown as ChurnAlert[];
+    },
+  });
+
+  // --- MUTATIONS ---
+
+  const sendCommand = useMutation({
+    mutationFn: async (userCommand: string) => {
+      const { data, error } = await supabase.functions.invoke("ceo-agent", {
+        body: { command: userCommand, mode: "fast_action" },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success("Command processed");
+      queryClient.invalidateQueries({ queryKey: ["pending-actions"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to process command");
+      console.error(error);
+    },
+  });
+
+  const approveAction = useMutation({
+    mutationFn: async (actionId: string) => {
+      // 1. Mark as executing
+      await supabase
+        .from("prepared_actions" as any)
+        .update({ status: "executing", executed_at: new Date().toISOString() })
+        .eq("id", actionId);
+
+      // 2. Call execution agent
+      const { error } = await supabase.functions.invoke("action-executor", {
+        body: { actionId },
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: (data) => {
+      toast.success("Action approved and executing");
+      queryClient.invalidateQueries({ queryKey: ["pending-actions"] });
+      queryClient.invalidateQueries({ queryKey: ["executed-actions"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to execute action");
+      console.error(error);
+    },
+  });
+
+  const rejectAction = useMutation({
+    mutationFn: async ({
+      actionId,
+      reason,
+    }: {
+      actionId: string;
+      reason: string;
+    }) => {
+      const { error } = await supabase
+        .from("prepared_actions" as any)
+        .update({
+          status: "rejected",
+          rejection_reason: reason,
+        })
+        .eq("id", actionId);
+
+      if (error) throw error;
+
+      // Optional: Send feedback to feedback-loop agent
+      await supabase.functions.invoke("feedback-loop", {
+        body: { type: "action_rejection", actionId, reason },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Action rejected");
+      queryClient.invalidateQueries({ queryKey: ["pending-actions"] });
+    },
+  });
+
+  const generateSolution = useMutation({
+    mutationFn: async (prompt: string) => {
+      await supabase.from("proactive_insights").insert({
+        insight_type: "manual_request",
+        description: prompt,
+        priority: "high",
+      });
+    },
+    onSuccess: () => {
+      toast.success("Request queued for analysis");
+      queryClient.invalidateQueries({ queryKey: ["proactive-insights"] });
+    },
+  });
+
+  const runMonitor = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("ceo-agent", {
+        body: { mode: "monitor" },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("System monitor started");
+      queryClient.invalidateQueries({ queryKey: ["business-intelligence"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to run monitor");
+      console.error(error);
+    },
+  });
+
+  return {
+    pendingActions,
+    loadingActions,
+    executedActions,
+    goals,
+    calibrationData,
+    insights,
+    biData,
+    loadingBI,
+    refetchBI,
+    revenueData,
+    clientHealth,
+    integrationStatus,
+    churnAlerts,
+    sendCommand,
+    approveAction,
+    rejectAction,
+    generateSolution,
+    runMonitor,
+  };
+}

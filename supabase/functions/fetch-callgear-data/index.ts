@@ -1,4 +1,5 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import { HubSpotSyncManager } from "../_shared/hubspot-sync-manager.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -47,6 +48,109 @@ function mapCallOutcome(finishReason: string, isLost: boolean): string {
     }
 }
 
+// Helper to sync call to HubSpot
+async function syncCallToHubSpot(manager: HubSpotSyncManager, call: any): Promise<string | null> {
+    // 1. Find Contact
+    const phone = call.caller_number;
+    if (!phone || phone === 'unknown') return null;
+
+    // Clean phone number for search (strip + and spaces)
+    const cleanPhone = phone.replace(/[^\d]/g, '');
+    
+    // Search for contact
+    const searchResult = await manager.fetchHubSpot('contacts', {
+        filterGroups: [
+            { filters: [{ propertyName: 'phone', operator: 'CONTAINS_TOKEN', value: cleanPhone }] },
+            { filters: [{ propertyName: 'mobilephone', operator: 'CONTAINS_TOKEN', value: cleanPhone }] },
+            { filters: [{ propertyName: 'hs_object_id', operator: 'EQ', value: cleanPhone }] } // Fallback if phone is ID (rare)
+        ],
+        limit: 1
+    });
+
+    const contactId = searchResult.results[0]?.id;
+
+    if (!contactId) {
+        console.log(`No HubSpot contact found for phone ${phone}`);
+        return null;
+    }
+
+    // 1.5 Check if Contact is Unassigned - If so, Assign to Caller
+    if (call.hubspot_owner_id) {
+        try {
+            // Fetch current owner
+            const contactResponse = await manager.fetchHubSpot('contacts', {
+                filterGroups: [{ filters: [{ propertyName: 'hs_object_id', operator: 'EQ', value: contactId }] }],
+                properties: ['hubspot_owner_id'],
+                limit: 1
+            });
+            
+            const currentOwner = contactResponse.results[0]?.properties?.hubspot_owner_id;
+
+            // If unassigned, assign to the person who took the call
+            if (!currentOwner) {
+                console.log(`[Lead Assignment] Contact ${contactId} is unassigned. Assigning to caller ${call.hubspot_owner_id}`);
+                
+                await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${Deno.env.get('HUBSPOT_ACCESS_TOKEN')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        properties: { hubspot_owner_id: call.hubspot_owner_id }
+                    })
+                });
+            }
+        } catch (assignError) {
+            console.error(`[Lead Assignment] Failed to assign contact ${contactId}:`, assignError);
+        }
+    }
+
+    // 2. Create Call Object
+    const properties = {
+        hs_call_title: `Call from ${phone}`,
+        hs_call_status: call.call_status === 'completed' ? 'COMPLETED' : 
+                       call.call_status === 'missed' ? 'MISSED' : 'BUSY',
+        hs_call_duration: Math.round((call.duration_seconds || 0) * 1000).toString(), // ms
+        hs_timestamp: new Date(call.started_at || Date.now()).getTime().toString(),
+        hs_call_body: `Call outcome: ${call.call_outcome}. Recording: ${call.recording_url || 'None'}`,
+        hs_call_from_number: call.caller_number,
+        hubspot_owner_id: call.hubspot_owner_id,
+        hs_call_recording_url: call.recording_url,
+        hs_call_direction: call.call_direction === 'inbound' ? 'INBOUND' : 'OUTBOUND'
+    };
+
+    // 3. Create Engagement
+    const endpoint = `https://api.hubapi.com/crm/v3/objects/calls`;
+    
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${Deno.env.get('HUBSPOT_ACCESS_TOKEN')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            properties,
+            associations: [
+                {
+                    to: { id: contactId },
+                    types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 194 }] // 194 is call_to_contact
+                }
+            ]
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        // Ignore if it's just a duplicate (conflict)
+        if (response.status === 409) return null;
+        throw new Error(`HubSpot Call Create Error: ${text}`);
+    }
+
+    const data = await response.json();
+    return data.id;
+}
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response(null, { headers: corsHeaders });
@@ -62,6 +166,9 @@ serve(async (req) => {
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        const HUBSPOT_ACCESS_TOKEN = Deno.env.get('HUBSPOT_ACCESS_TOKEN');
+        const hubspotManager = HUBSPOT_ACCESS_TOKEN ? new HubSpotSyncManager(supabase, HUBSPOT_ACCESS_TOKEN) : null;
 
         const CALLGEAR_API_KEY = Deno.env.get('CALLGEAR_API_KEY');
         if (!CALLGEAR_API_KEY) {
@@ -71,8 +178,16 @@ serve(async (req) => {
         const { date_from, date_to, limit = 1000 } = await req.json().catch(() => ({}));
 
         // Default to last 30 days if no date range provided
-        const toDate = date_to || new Date().toISOString().split('T')[0];
-        const fromDate = date_from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        // Use Dubai timezone for date calculations
+        const getDubaiDate = (d: Date) => {
+            return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
+        };
+        
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        
+        const toDate = date_to || getDubaiDate(now);
+        const fromDate = date_from || getDubaiDate(thirtyDaysAgo);
 
         console.log(`Fetching CallGear data from ${fromDate} to ${toDate}`);
 
@@ -114,6 +229,12 @@ serve(async (req) => {
             throw new Error(`CallGear API error: ${JSON.stringify(data.error)}`);
         }
 
+        // Fetch staff mapping from Supabase
+        const { data: staffData } = await supabase
+            .from('staff')
+            .select('full_name, hubspot_owner_id')
+            .not('hubspot_owner_id', 'is', null);
+
         // Employee Mapping Configuration
         const OWNER_MAPPING: Record<string, string> = {
             "Yehia": "78722672",
@@ -123,6 +244,21 @@ serve(async (req) => {
             "Tea": "48899890",
             "Milos": "48877837"
         };
+
+        // Merge database staff into mapping
+        if (staffData) {
+            staffData.forEach(staff => {
+                if (staff.full_name && staff.hubspot_owner_id) {
+                    // Map first name
+                    const firstName = staff.full_name.split(' ')[0];
+                    if (firstName) {
+                        OWNER_MAPPING[firstName] = staff.hubspot_owner_id;
+                    }
+                    // Map full name
+                    OWNER_MAPPING[staff.full_name] = staff.hubspot_owner_id;
+                }
+            });
+        }
 
         const getHubSpotOwnerId = (employees: any): string | null => {
             if (!employees) return null;
@@ -172,6 +308,7 @@ serve(async (req) => {
                 hubspot_owner_id: ownerId, // Mapped Owner ID
                 // Additional metadata
                 transcription_status: call.call_records?.[0] ? 'available' : null,
+                is_lost: isLost // Add is_lost for sync logic
             };
         });
 
@@ -180,7 +317,10 @@ serve(async (req) => {
         let updatedCount = 0;
         const errors: any[] = [];
 
-        for (const call of mappedCalls) {
+        for (const callData of mappedCalls) {
+            // Extract is_lost to keep clean call object for DB
+            const { is_lost, ...call } = callData;
+            
             if (!call.provider_call_id) {
                 errors.push({ call, error: 'Missing provider_call_id' });
                 continue;
@@ -189,7 +329,7 @@ serve(async (req) => {
             // Check if call already exists
             const { data: existing } = await supabase
                 .from('call_records')
-                .select('id')
+                .select('id, hubspot_engagement_id')
                 .eq('provider_call_id', call.provider_call_id)
                 .single();
 
@@ -208,16 +348,53 @@ serve(async (req) => {
                 } else {
                     updatedCount++;
                 }
+
+                // Sync to HubSpot if missing and manager available
+                // Sync ALL calls (including lost/missed) to HubSpot
+                if (hubspotManager && !existing.hubspot_engagement_id) {
+                    try {
+                        const hubspotId = await syncCallToHubSpot(hubspotManager, callData);
+                        if (hubspotId) {
+                            await supabase
+                                .from('call_records')
+                                .update({ hubspot_engagement_id: hubspotId })
+                                .eq('id', existing.id);
+                            console.log(`Synced call ${call.provider_call_id} to HubSpot: ${hubspotId}`);
+                        }
+                    } catch (hsError) {
+                        console.error(`Failed to sync call ${call.provider_call_id} to HubSpot:`, hsError);
+                    }
+                }
+
             } else {
                 // Insert new record
-                const { error } = await supabase
+                const { data: inserted, error } = await supabase
                     .from('call_records')
-                    .insert(call);
+                    .insert(call)
+                    .select('id')
+                    .single();
 
                 if (error) {
                     errors.push({ call, error: error.message });
                 } else {
                     insertedCount++;
+                    
+                    // Sync to HubSpot if new and manager available
+                    // Sync ALL calls (including lost/missed) to HubSpot
+                    if (hubspotManager && inserted) {
+                        try {
+                            const hubspotId = await syncCallToHubSpot(hubspotManager, callData);
+                            if (hubspotId) {
+                                await supabase
+                                    .from('call_records')
+                                    .update({ hubspot_engagement_id: hubspotId })
+                                    .eq('id', inserted.id);
+                                console.log(`Synced new call ${call.provider_call_id} to HubSpot: ${hubspotId}`);
+                            }
+                        } catch (hsError) {
+                            console.error(`Failed to sync new call ${call.provider_call_id} to HubSpot:`, hsError);
+                        }
+                    }
                 }
             }
         }

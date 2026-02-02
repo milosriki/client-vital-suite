@@ -6,35 +6,28 @@ export const HUBSPOT_WORKFLOWS_PROMPT = `
 
 WORKFLOW SYSTEM OVERVIEW:
 - Total Workflows: 201 (52 active, 149 inactive)
-- Critical Issues: Infinite loop in reassignment workflow, 95% nurture workflows inactive
-- Revenue Impact: 634,070+ AED/month lost due to workflow failures
+- System Status: Reassignment logic migrated to Edge Functions (fetch-callgear-data)
+- Revenue Impact: Previous workflow failures resolved via code-level override
 
 WORKFLOW CATEGORIES:
 1. Deal Stage Management (20 workflows, 11 active)
 2. Follow-up & Nurture (20 workflows, 1 active) ⚠️ 95% inactive
 3. Tracking & Accountability (9 workflows, 3 active)
-4. Lead Assignment & Rotation (8 workflows, 3 active)
+4. Lead Assignment & Rotation (Managed via Supabase Edge Functions)
 5. Email Sequences (8 workflows, 3 active)
 6. Lead Entry & Delegation (7 workflows, 3 active)
 7. Data Management (6 workflows, 1 active)
 8. Notifications & Alerts (5 workflows, 3 active)
 9. Integration & Automation (4 workflows, 1 active)
-10. Reassignment & Recovery (1 workflow, 0 active) ⚠️ CRITICAL - Inactive
 
 CRITICAL WORKFLOW ISSUES:
 
-1. Infinite Loop in Reassignment Workflow:
-   - Workflow ID: 1655409725
-   - Status: BROKEN
-   - Impact: 634,070+ AED/month revenue loss
-   - Fix Required: Add reassignment flag, max reassignment count, cooldown period
-
-2. Inactive Nurture Sequences:
+1. Inactive Nurture Sequences:
    - 19 of 20 nurture workflows INACTIVE (95%)
    - Impact: Massive conversion rate loss
    - Fix Required: Review and activate nurture workflows
 
-3. Buried Premium Leads:
+2. Buried Premium Leads:
    - Premium location leads sitting 24-48+ hours uncalled
    - No location-based prioritization
    - Impact: 275,000 AED immediate recovery opportunity
@@ -42,14 +35,14 @@ CRITICAL WORKFLOW ISSUES:
 FULL FLOW INTELLIGENCE:
 
 End-to-End Mapping:
-Ad Spend (Meta) → Lead Creation (HubSpot) → Workflow Trigger → Owner Assignment → Call Made (CallGear) → Appt Set → Deal Created → Closed Won (Stripe)
+Ad Spend (Meta) → Lead Creation (HubSpot) → Owner Assignment (Edge Function) → Call Made (CallGear) → Appt Set → Deal Created → Closed Won (Stripe)
 
 Workflow Alignment with AI Recommendations:
 
 When AI Recommends: "Reassign lead X to Owner Y"
 - System Checks: Is there a HubSpot workflow that handles this?
-- Yes → Update property to trigger workflow (reassignment_needed = true)
-- No → Direct API reassignment via reassign-owner function
+- Status: Reassignment is primarily handled by 'fetch-callgear-data' and 'reassign-owner' functions.
+- Action: Direct API reassignment via reassign-owner function
 
 When AI Recommends: "Send re-engagement email to cold leads"
 - System Checks: Is there a nurture workflow?

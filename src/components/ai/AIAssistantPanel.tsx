@@ -26,7 +26,7 @@ import {
   Mic,
   MicOff,
   Volume2,
-  VolumeX
+  VolumeX,
 } from "lucide-react";
 import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
 
@@ -51,7 +51,9 @@ interface ProactiveInsight {
 
 export function AIAssistantPanel() {
   const [query, setQuery] = useState("");
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const [sessionId] = useState(
+    () => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  );
   const [isExpanded, setIsExpanded] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,7 @@ export function AIAssistantPanel() {
       toast({
         title: "Voice Input Error",
         description: error,
-        variant: "destructive"
+        variant: "destructive",
       });
     },
   });
@@ -99,7 +101,10 @@ export function AIAssistantPanel() {
 
         if (error) {
           // Table might not exist yet - that's okay
-          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+          if (
+            error.code === "42P01" ||
+            error.message?.includes("does not exist")
+          ) {
             console.info("proactive_insights table not yet created");
             return [];
           }
@@ -113,7 +118,7 @@ export function AIAssistantPanel() {
       }
     },
     staleTime: Infinity, // Real-time updates via subscriptions
-    retry: false
+    retry: false,
   });
 
   // Fetch conversation history (gracefully handles missing table)
@@ -130,7 +135,10 @@ export function AIAssistantPanel() {
 
         if (error) {
           // Table might not exist yet - that's okay
-          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+          if (
+            error.code === "42P01" ||
+            error.message?.includes("does not exist")
+          ) {
             console.info("agent_conversations table not yet created");
             return [];
           }
@@ -144,7 +152,7 @@ export function AIAssistantPanel() {
       }
     },
     staleTime: Infinity, // Real-time updates via useVitalState
-    retry: false
+    retry: false,
   });
 
   // Send message to agent
@@ -152,18 +160,19 @@ export function AIAssistantPanel() {
     mutationFn: async (message: string) => {
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "x-ptd-key": "ptd-secure-internal-2025-key-v2"
+          "x-ptd-key": "ptd-secure-internal-2025-key-v2",
         },
         body: JSON.stringify({
           message,
-          thread_id: sessionId
-        })
+          thread_id: sessionId,
+        }),
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data?.error || data?.message || "Agent error");
+      if (!response.ok)
+        throw new Error(data?.error || data?.message || "Agent error");
       if (data?.error) throw new Error(data.error);
       return data;
     },
@@ -172,7 +181,9 @@ export function AIAssistantPanel() {
 
       // Speak the AI response if voice is enabled
       if (voiceEnabled && voiceOutputSupported && data?.response) {
-        const textToSpeak = data.response.replace(/[#*`_]/g, '').substring(0, 500);
+        const textToSpeak = data.response
+          .replace(/[#*`_]/g, "")
+          .substring(0, 500);
         speak(textToSpeak);
       }
     },
@@ -180,10 +191,12 @@ export function AIAssistantPanel() {
       console.error("Error sending message:", error);
       toast({
         title: "AI Agent Error",
-        description: error?.message || "Failed to get response. Make sure the agent is deployed and ANTHROPIC_API_KEY is set.",
-        variant: "destructive"
+        description:
+          error?.message ||
+          "Failed to get response. Make sure the agent is deployed and ANTHROPIC_API_KEY is set.",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // Dismiss insight
@@ -198,7 +211,7 @@ export function AIAssistantPanel() {
     },
     onSuccess: () => {
       refetchInsights();
-    }
+    },
   });
 
   // Auto-scroll to bottom on new messages
@@ -252,8 +265,10 @@ export function AIAssistantPanel() {
     }
   };
 
-  const unreadInsights = insights?.filter(i => !i.is_dismissed) || [];
-  const criticalCount = unreadInsights.filter(i => i.priority === "critical" || i.priority === "high").length;
+  const unreadInsights = insights?.filter((i) => !i.is_dismissed) || [];
+  const criticalCount = unreadInsights.filter(
+    (i) => i.priority === "critical" || i.priority === "high",
+  ).length;
 
   return (
     <Card className="h-full flex flex-col shadow-lg border-2 border-primary/20">
@@ -266,7 +281,9 @@ export function AIAssistantPanel() {
             </div>
             <div>
               <CardTitle className="text-base">PTD Intelligence</CardTitle>
-              <p className="text-xs text-muted-foreground">AI-powered insights</p>
+              <p className="text-xs text-muted-foreground">
+                AI-powered insights
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -280,7 +297,11 @@ export function AIAssistantPanel() {
               size="icon"
               onClick={() => setIsExpanded(!isExpanded)}
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronUp className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -296,22 +317,29 @@ export function AIAssistantPanel() {
                 Proactive Insights
               </div>
               <div className="space-y-2 max-h-[150px] overflow-y-auto">
-                {unreadInsights.slice(0, 3).map(insight => (
+                {unreadInsights.slice(0, 3).map((insight) => (
                   <div
                     key={insight.id}
                     className="text-sm p-2 bg-white dark:bg-gray-800 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-start gap-2"
-                    onClick={() => handleQuickAction(`Tell me more about: ${insight.title}`)}
+                    onClick={() =>
+                      handleQuickAction(`Tell me more about: ${insight.title}`)
+                    }
                   >
                     {getInsightIcon(insight.insight_type)}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <Badge variant={getPriorityColor(insight.priority) as any} className="text-xs">
+                        <Badge
+                          variant={getPriorityColor(insight.priority) as any}
+                          className="text-xs"
+                        >
                           {insight.priority}
                         </Badge>
-                        <span className="font-medium truncate">{insight.title}</span>
+                        <span className="font-medium truncate">
+                          {insight.title}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-1">
-                        {insight.content.substring(0, 80)}...
+                        {(insight.content || "").substring(0, 80)}...
                       </p>
                     </div>
                     <Button
@@ -338,7 +366,9 @@ export function AIAssistantPanel() {
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                   <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
                   <p className="text-sm">Ask me anything about your clients</p>
-                  <p className="text-xs mt-1">I know all your formulas and rules</p>
+                  <p className="text-xs mt-1">
+                    I know all your formulas and rules
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -348,12 +378,15 @@ export function AIAssistantPanel() {
                       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[85%] p-3 rounded-lg ${msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                          }`}
+                        className={`max-w-[85%] p-3 rounded-lg ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
                       >
-                        <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                        <div className="text-sm whitespace-pre-wrap">
+                          {msg.content}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -380,7 +413,9 @@ export function AIAssistantPanel() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => handleQuickAction("Who needs immediate attention today?")}
+                onClick={() =>
+                  handleQuickAction("Who needs immediate attention today?")
+                }
               >
                 <AlertTriangle className="h-3 w-3 mr-1 text-red-500" />
                 Critical
@@ -389,7 +424,11 @@ export function AIAssistantPanel() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => handleQuickAction("Which coaches have the most declining clients?")}
+                onClick={() =>
+                  handleQuickAction(
+                    "Which coaches have the most declining clients?",
+                  )
+                }
               >
                 <Users className="h-3 w-3 mr-1 text-orange-500" />
                 Coaches
@@ -398,7 +437,11 @@ export function AIAssistantPanel() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => handleQuickAction("Show me early warning signs - GREEN clients that are declining")}
+                onClick={() =>
+                  handleQuickAction(
+                    "Show me early warning signs - GREEN clients that are declining",
+                  )
+                }
               >
                 <TrendingDown className="h-3 w-3 mr-1 text-yellow-500" />
                 Warnings
@@ -407,7 +450,11 @@ export function AIAssistantPanel() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => handleQuickAction("Show me deleted wallets and bank accounts history")}
+                onClick={() =>
+                  handleQuickAction(
+                    "Show me deleted wallets and bank accounts history",
+                  )
+                }
               >
                 <TrendingDown className="h-3 w-3 mr-1 text-purple-500" />
                 Deleted Wallets
@@ -416,7 +463,11 @@ export function AIAssistantPanel() {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => handleQuickAction("Explain how the health score is calculated")}
+                onClick={() =>
+                  handleQuickAction(
+                    "Explain how the health score is calculated",
+                  )
+                }
               >
                 <Lightbulb className="h-3 w-3 mr-1 text-blue-500" />
                 Formula
@@ -452,7 +503,7 @@ export function AIAssistantPanel() {
                 variant={isListening ? "destructive" : "outline"}
                 onClick={toggleListening}
                 disabled={sendMessage.isPending}
-                title={isListening ? 'Stop recording' : 'Start voice input'}
+                title={isListening ? "Stop recording" : "Start voice input"}
               >
                 {isListening ? (
                   <MicOff className="h-4 w-4" />
@@ -473,7 +524,9 @@ export function AIAssistantPanel() {
                     stopSpeaking();
                   }
                 }}
-                title={voiceEnabled ? 'Disable voice output' : 'Enable voice output'}
+                title={
+                  voiceEnabled ? "Disable voice output" : "Enable voice output"
+                }
               >
                 {voiceEnabled ? (
                   <Volume2 className="h-4 w-4" />
@@ -520,7 +573,7 @@ export function AIAssistantButton({ onClick }: { onClick: () => void }) {
       }
     },
     staleTime: Infinity, // Real-time updates via subscriptions
-    retry: false
+    retry: false,
   });
 
   return (
