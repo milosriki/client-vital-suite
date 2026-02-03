@@ -19,6 +19,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import { SystemHealthMonitor } from "@/components/dashboard/SystemHealthMonitor";
+import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
 import { format } from "date-fns";
@@ -26,7 +27,16 @@ import { format } from "date-fns";
 export default function ExecutiveDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Fetch REAL Stripe Stats (from live API, not stale database)
+  // Date Range for MTD (Real Validation)
+  const now = new Date();
+  const startOfMonth = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1,
+  ).toISOString();
+  const endOfDay = new Date().toISOString();
+
+  // Fetch REAL Stripe Stats (MTD Validated)
   interface StripeMetrics {
     totalRevenue: number;
     netRevenue: number;
@@ -37,21 +47,57 @@ export default function ExecutiveDashboard() {
   }
 
   const { data: stripeData, isLoading: stripeLoading } = useQuery({
-    queryKey: ["stripe-live-stats"],
+    queryKey: ["stripe-live-stats", "mtd"], // Key includes period
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke(
         "stripe-dashboard-data",
         {
-          body: {},
+          body: {
+            startDate: startOfMonth,
+            endDate: endOfDay,
+          },
         },
       );
       if (error) throw error;
       return data?.metrics as StripeMetrics;
     },
-    staleTime: 60000, // Refresh every minute
+    staleTime: 60000,
   });
 
-  // Derive display values from real Stripe data
+  // Fetch REAL Leads Count (Validated)
+  const { data: leadsCount } = useQuery({
+    queryKey: ["dashboard-leads-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("contacts")
+        .select("*", { count: "exact", head: true })
+        .eq("lifecycle_stage", "lead")
+        .gte("created_at", startOfMonth); // New leads this month
+
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch Marketing Intelligence (Live Ads Data)
+  const { data: marketingData, isLoading: marketingLoading } = useQuery({
+    queryKey: ["marketing-insights", "today"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        "fetch-facebook-insights",
+        {
+          body: { date_preset: "this_month" },
+        },
+      );
+      if (error) {
+        console.error("Marketing fetch failed:", error);
+        return null;
+      }
+      return data;
+    },
+  });
+
+  // Derive display values from real MTD data
   const stats = {
     revenue_this_month: stripeData?.netRevenue
       ? Math.round(stripeData.netRevenue / 100)
@@ -62,9 +108,12 @@ export default function ExecutiveDashboard() {
     paying_customers: stripeData?.payingCustomersCount || 0,
     is_positive_trend: true,
     revenue_trend: 0,
+    // Marketing Stats
+    ad_spend: marketingData?.total_spend || 0,
+    roas: marketingData?.total_roas || 0, // Now using weighted average from backend
   };
 
-  // Fetch Treasury Data
+  // Fetch Treasury Data (Keep existing)
   const { data: treasury } = useQuery({
     queryKey: ["treasury-summary"],
     queryFn: async () => {
@@ -88,7 +137,7 @@ export default function ExecutiveDashboard() {
             Executive Command Center
           </h1>
           <p className="text-slate-500">
-            Real-time business intelligence & system forensics
+            Real-time business intelligence: Revenue, Ads, & Risk
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -97,16 +146,16 @@ export default function ExecutiveDashboard() {
           </Badge>
           <Button size="sm" variant="outline">
             <Activity className="mr-2 h-4 w-4" />
-            Live Mode
+            Live Validation
           </Button>
         </div>
       </div>
 
-      {/* Top Row: Pulse Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Top Row: Pulse Metrics (Revenue, Operations, Marketing) */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Link
           to="/stripe"
-          className="block transition-transform hover:scale-[1.02]"
+          className="block transition-transform hover:scale-[1.02] md:col-span-1"
         >
           <Card className="border-l-4 border-l-green-500 shadow-sm cursor-pointer h-full">
             <CardHeader className="pb-2">
@@ -120,19 +169,30 @@ export default function ExecutiveDashboard() {
                 AED {stats?.revenue_this_month?.toLocaleString() || "0"}
               </div>
               <p className="text-xs text-muted-foreground mt-1 flex items-center">
-                {stats?.is_positive_trend ? (
-                  <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
-                ) : (
-                  <TrendingUp className="h-3 w-3 text-red-600 mr-1 rotate-180" />
-                )}
-                <span
-                  className={
-                    stats?.is_positive_trend ? "text-green-600" : "text-red-600"
-                  }
-                >
-                  {stats?.revenue_trend}%
-                </span>
-                vs last month
+                Validated (This Month)
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Marketing Intelligence Card (New) */}
+        <Link
+          to="/marketing"
+          className="block transition-transform hover:scale-[1.02] md:col-span-1"
+        >
+          <Card className="border-l-4 border-l-pink-500 shadow-sm cursor-pointer h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex justify-between">
+                Marketing Efficiency
+                <Megaphone className="h-4 w-4 text-pink-600" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stats.roas > 0 ? `${stats.roas.toFixed(2)}x` : "--"} ROAS
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Spend: AED {stats.ad_spend.toLocaleString()} (MTD)
               </p>
             </CardContent>
           </Card>
@@ -160,6 +220,7 @@ export default function ExecutiveDashboard() {
           </Card>
         </Link>
 
+        {/* Treasury Card */}
         <Link
           to="/stripe"
           className="block transition-transform hover:scale-[1.02]"
@@ -176,12 +237,13 @@ export default function ExecutiveDashboard() {
                 AED {(treasury?.totalOut || 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Last 10 transfers
+                Risk Validated
               </p>
             </CardContent>
           </Card>
         </Link>
 
+        {/* Real Leads Count Card */}
         <Link
           to="/money-map"
           className="block transition-transform hover:scale-[1.02]"
@@ -189,16 +251,15 @@ export default function ExecutiveDashboard() {
           <Card className="border-l-4 border-l-orange-500 shadow-sm cursor-pointer h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex justify-between">
-                Active Leads
+                New Leads
                 <Users className="h-4 w-4 text-orange-600" />
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {/* Placeholder for now, would come from leads query */}
-                142
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">+12 today</p>
+              <div className="text-2xl font-bold">{leadsCount ?? 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Added This Month
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -269,11 +330,8 @@ export default function ExecutiveDashboard() {
               </CardHeader>
               <CardContent className="flex-1">
                 <TabsContent value="overview" className="mt-0 space-y-4">
-                  <div className="h-[300px] flex items-center justify-center border-2 border-dashed rounded-lg bg-slate-50">
-                    <p className="text-muted-foreground">
-                      Main Business Charts Area
-                    </p>
-                    {/* We can embed the RevenueChart here later */}
+                  <div className="h-[400px]">
+                    <LiveRevenueChart />
                   </div>
                 </TabsContent>
 
