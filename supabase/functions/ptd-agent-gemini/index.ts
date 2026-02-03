@@ -616,8 +616,10 @@ const tools: ToolDefinition[] = [
             "get_deals",
             "get_appointments",
             "get_recent_closes",
+            "get_assessment_report",
           ],
-          description: "Action to perform",
+          description:
+            "Action to perform. 'get_assessment_report' returns daily assessment count broken down by Setter.",
         },
         stage: {
           type: "string",

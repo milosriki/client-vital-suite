@@ -444,6 +444,61 @@ export async function executeSharedTool(
             .order("close_date", { ascending: false });
           return JSON.stringify(data || []);
         }
+        if (action === "get_assessment_report") {
+          const today = new Date().toISOString().split("T")[0];
+
+          // 1. Fetch all deals created today
+          const { data } = await supabase
+            .from("deals")
+            .select("owner_name, stage, deal_name, deal_value, created_at")
+            .gte("created_at", today)
+            .ilike("stage", "%Assessment%"); // Filter for assessment-related stages
+
+          const deals = data || [];
+
+          // 2. Group by Owner (Setter)
+          const bySetter: Record<
+            string,
+            { total: number; confirmed: number; pending: number; deals: any[] }
+          > = {};
+
+          deals.forEach((d: any) => {
+            const owner = d.owner_name || "Unassigned";
+            if (!bySetter[owner]) {
+              bySetter[owner] = {
+                total: 0,
+                confirmed: 0,
+                pending: 0,
+                deals: [],
+              };
+            }
+
+            bySetter[owner].total++;
+            bySetter[owner].deals.push(d.deal_name);
+
+            // Check status based on stage name
+            if (
+              d.stage.toLowerCase().includes("confirmed") ||
+              d.stage.toLowerCase().includes("booked")
+            ) {
+              bySetter[owner].confirmed++;
+            } else {
+              bySetter[owner].pending++;
+            }
+          });
+
+          return JSON.stringify(
+            {
+              report_date: today,
+              total_assessments: deals.length,
+              breakdown_by_setter: bySetter,
+              raw_data:
+                deals.length > 0 ? "Found data" : "No assessments found today",
+            },
+            null,
+            2,
+          );
+        }
         return "Unknown action";
       }
 
