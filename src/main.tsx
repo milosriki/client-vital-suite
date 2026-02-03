@@ -47,7 +47,10 @@ import GlobalBrain from "./pages/GlobalBrain";
 import Observability from "./pages/Observability";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import EdgeFunctionsPage from "./pages/admin/EdgeFunctions";
+import MasterControlPanel from "./pages/MasterControlPanel";
+import AttributionWarRoom from "./pages/AttributionWarRoom";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
+import Login from "./pages/Login"; // Import Login Page
 import "./index.css";
 
 // Initialize Sentry
@@ -77,11 +80,13 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
 }
 
 const router = createBrowserRouter([
+  // Login Route (Outside Layout for full screen)
+  { path: "/login", element: <Login /> },
   {
     element: <Layout />,
-    errorElement: <ErrorPage />, // Add ErrorPage as errorElement
+    errorElement: <ErrorPage />,
     children: [
-      { path: "/", element: <ExecutiveDashboard /> },
+      { index: true, element: <ExecutiveDashboard /> },
       { path: "/dashboard", element: <ExecutiveDashboard /> },
       { path: "/operations", element: <Operations /> },
       { path: "/sales-pipeline", element: <SalesPipeline /> },
@@ -111,6 +116,8 @@ const router = createBrowserRouter([
       { path: "/observability", element: <Observability /> },
       { path: "/admin/edge-functions", element: <EdgeFunctionsPage /> },
       { path: "/executive-dashboard", element: <ExecutiveDashboard /> },
+      { path: "/master-control", element: <MasterControlPanel /> },
+      { path: "/attribution", element: <AttributionWarRoom /> },
       { path: "*", element: <NotFound /> },
     ],
   },
