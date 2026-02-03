@@ -132,7 +132,7 @@ export default function StripeIntelligence() {
       const context = {
         balance: stripeData?.balance,
         metrics: stripeData?.metrics,
-        recentPayments: stripeData?.payments?.slice(0, 10),
+        recentPayments: (stripeData?.payments || []).slice(0, 10),
         customers:
           stripeData?.payingCustomers?.length ?? stripeData?.customers?.length,
         subscriptions: stripeData?.subscriptions?.length,
@@ -150,9 +150,9 @@ export default function StripeIntelligence() {
         },
         forensics: forensicData
           ? {
-              anomalies: forensicData.anomalies?.slice(0, 5),
-              moneyFlow: forensicData.moneyFlow?.slice(0, 10),
-              payouts: forensicData.payouts?.slice(0, 5),
+              anomalies: (forensicData.anomalies || []).slice(0, 5),
+              moneyFlow: (forensicData.moneyFlow || []).slice(0, 10),
+              payouts: (forensicData.payouts || []).slice(0, 5),
             }
           : null,
       };

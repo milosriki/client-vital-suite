@@ -56,3 +56,11 @@ LOCAL_ENV_CONFIG/.env.*
 /playwright/.cache/
 .env*.local
 .gemini
+
+# Debug / Temp JSON files
+aisensy-google-key.json
+payload.json
+payload_smart.json
+response.json
+response_marko.json
+response_smart.json

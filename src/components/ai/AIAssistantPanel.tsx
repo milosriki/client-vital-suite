@@ -265,7 +265,9 @@ export function AIAssistantPanel() {
     }
   };
 
-  const unreadInsights = insights?.filter((i) => !i.is_dismissed) || [];
+  const unreadInsights = Array.isArray(insights)
+    ? insights.filter((i) => !i.is_dismissed)
+    : [];
   const criticalCount = unreadInsights.filter(
     (i) => i.priority === "critical" || i.priority === "high",
   ).length;
@@ -339,7 +341,7 @@ export function AIAssistantPanel() {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-1">
-                        {(insight.content || "").substring(0, 80)}...
+                        {String(insight?.content || "").substring(0, 80)}...
                       </p>
                     </div>
                     <Button

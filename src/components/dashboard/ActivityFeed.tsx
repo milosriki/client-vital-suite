@@ -1,12 +1,12 @@
 import { formatDistanceToNow } from "date-fns";
-import { 
-  UserPlus, 
-  AlertTriangle, 
-  DollarSign, 
+import {
+  UserPlus,
+  AlertTriangle,
+  DollarSign,
   CheckCircle,
   XCircle,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,20 +40,30 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
       case "sync":
         return { icon: RefreshCw, color: "text-primary bg-primary/20" };
       case "alert":
-        return { icon: AlertTriangle, color: "text-destructive bg-destructive/20" };
+        return {
+          icon: AlertTriangle,
+          color: "text-destructive bg-destructive/20",
+        };
       default:
         return { icon: CheckCircle, color: "text-muted-foreground bg-muted" };
     }
   };
 
-  const displayActivities = activities.slice(0, 5);
+  const displayActivities = (activities || []).slice(0, 5);
 
   return (
-    <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '400ms' }}>
+    <div
+      className="premium-card p-6 animate-fade-up"
+      style={{ animationDelay: "400ms" }}
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Recent Activity</h3>
         <Link to="/interventions">
-          <Button variant="ghost" size="sm" className="text-xs gap-1 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs gap-1 text-muted-foreground hover:text-foreground"
+          >
             View All <ArrowRight className="h-3 w-3" />
           </Button>
         </Link>

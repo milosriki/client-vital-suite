@@ -35,32 +35,34 @@ RULES:
 
 #### Available Tools (24 total):
 
-| Tool                     | Description                                                             |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `client_control`         | Get full client data - health scores, calls, deals, activities          |
-| `lead_control`           | Manage leads - get all leads, search leads, get enhanced lead data      |
-| `sales_flow_control`     | Track sales pipeline - deals, appointments, pipeline stages             |
-| `stripe_control`         | Stripe intelligence - fraud scan, payment history, account verification |
-| `hubspot_control`        | HubSpot operations - sync data, get contacts, track activities          |
-| `call_control`           | Call records - get transcripts, analytics, conversation patterns        |
-| `analytics_control`      | Get dashboards - health zones, revenue, coaches, campaigns              |
-| `get_at_risk_clients`    | Get clients at risk of churning (red/yellow zones)                      |
-| `intelligence_control`   | Run AI intelligence functions (churn predictor, anomaly detector)       |
-| `universal_search`       | POWERFUL SEARCH - Find any person by phone, name, email, ID             |
-| `get_coach_clients`      | Get all clients for a specific coach                                    |
-| `get_coach_performance`  | Get performance metrics for coaches                                     |
-| `get_proactive_insights` | Get AI-generated business insights                                      |
-| `get_daily_summary`      | Get daily business summary                                              |
-| `run_sql_query`          | Execute custom SQL (read-only)                                          |
-| `callgear_control`       | Get call analytics from CallGear                                        |
-| `forensic_control`       | Audit log & forensics - track WHO changed WHAT in HubSpot               |
-| `callgear_supervisor`    | Advanced call monitoring                                                |
-| `callgear_live_monitor`  | Real-time call monitoring                                               |
-| `callgear_icp_router`    | ICP-based call routing                                                  |
-| `run_intelligence_suite` | Run full intelligence suite                                             |
-| `run_intelligence`       | Run specific intelligence functions                                     |
-| `discover_system_map`    | Discover all 110 database tables                                        |
-| `build_feature`          | Write and queue code fixes for approval                                 |
+| Tool                     | Description                                                               |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `client_control`         | Get full client data - health scores, calls, deals, activities            |
+| `lead_control`           | Manage leads - get all leads, search leads, get enhanced lead data        |
+| `sales_flow_control`     | Track sales pipeline - deals, appointments, pipeline stages               |
+| `stripe_control`         | Stripe intelligence - fraud scan, payment history, account verification   |
+| `hubspot_control`        | HubSpot operations - sync data, get contacts, track activities            |
+| `call_control`           | Call records - get transcripts, analytics, conversation patterns          |
+| `analytics_control`      | Get dashboards - health zones, revenue, coaches, campaigns                |
+| `get_at_risk_clients`    | Get clients at risk of churning (red/yellow zones)                        |
+| `intelligence_control`   | Run AI intelligence functions (churn predictor, anomaly detector)         |
+| `universal_search`       | POWERFUL SEARCH - Find any person by phone, name, email, ID               |
+| `get_coach_clients`      | Get all clients for a specific coach                                      |
+| `get_coach_performance`  | Get performance metrics for coaches                                       |
+| `get_proactive_insights` | Get AI-generated business insights                                        |
+| `get_daily_summary`      | Get daily business summary                                                |
+| `run_sql_query`          | Execute custom SQL (read-only)                                            |
+| `callgear_control`       | Get call analytics from CallGear                                          |
+| `forensic_control`       | Audit log & forensics - track WHO changed WHAT in HubSpot                 |
+| `callgear_supervisor`    | Advanced call monitoring                                                  |
+| `callgear_live_monitor`  | Real-time call monitoring                                                 |
+| `callgear_icp_router`    | ICP-based call routing                                                    |
+| `run_intelligence_suite` | Run full intelligence suite                                               |
+| `run_intelligence`       | Run specific intelligence functions                                       |
+| `discover_system_map`    | Discover all 110 database tables                                          |
+| `build_feature`          | Write and queue code fixes for approval                                   |
+| `meta_ads_analytics`     | Get performance metrics (ROAS, CPC, CTR) for Ad Accounts/Campaigns        |
+| `meta_ads_manager`       | Manage Meta Ads: List campaigns/ads, audit settings, get creative details |
 
 ---
 

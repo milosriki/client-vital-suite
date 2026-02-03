@@ -7,7 +7,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { PTD_STATIC_KNOWLEDGE } from "../_shared/static-knowledge.ts";
+import {
+  PTD_STATIC_KNOWLEDGE,
+  STATIC_SKILLS,
+} from "../_shared/static-knowledge.ts";
 import { executeSharedTool } from "../_shared/tool-executor.ts";
 import {
   unifiedAI,
@@ -55,19 +58,59 @@ async function loadActiveSkill(supabase: any, query: string): Promise<string> {
       }
     }
 
-    const { data: skills } = await queryBuilder.limit(1);
+    const { data: skills, error } = await queryBuilder.limit(1);
 
     if (skills && skills.length > 0) {
       const skill = skills[0];
-      console.log(`🧠 SKILL ACTIVATED: ${skill.name}`);
-      return `
-      !!! ACTIVE SKILL ACTIVATED: ${skill.name} !!!
-      ${skill.content}
-      
-      CAPABILITIES: ${JSON.stringify(skill.capabilities || [])}
-      ---------------------------------------------------
-      YOU MUST ADHERE TO THE ABOVE RULES STRICTLY.
-      `;
+      console.log(`🧠 SKILL ACTIVATED (DB): ${skill.name}`);
+      return formatSkillPrompt(skill);
+    }
+
+    // FALLBACK: Check Static Skills
+    if (explicitSearch) {
+      // Check keys
+      const key = Object.keys(STATIC_SKILLS).find(
+        (k) =>
+          k.includes(searchTerm.toLowerCase()) ||
+          searchTerm.toLowerCase().includes(k),
+      );
+      if (key) {
+        const skill = STATIC_SKILLS[key];
+        console.log(`🧠 SKILL ACTIVATED (STATIC): ${skill.name}`);
+        return formatSkillPrompt(skill);
+      }
+    } else {
+      // Implicit Check
+      const keywords = searchTerm.toLowerCase().split(/\s+/);
+      // Map common terms to static keys
+      const map: Record<string, string> = {
+        growth: "atlas",
+        ceo: "atlas",
+        strategy: "atlas",
+        fraud: "sherlock",
+        audit: "sherlock",
+        forensic: "sherlock",
+        market: "image",
+        ad: "image",
+        creative: "image",
+        sales: "closer",
+        lead: "closer",
+        deal: "closer",
+      };
+
+      const detectedKey = keywords.reduce(
+        (found, kw) =>
+          found ||
+          map[kw] ||
+          (Object.keys(STATIC_SKILLS).includes(kw) ? kw : null),
+        null as string | null,
+      );
+
+      if (detectedKey && STATIC_SKILLS[detectedKey]) {
+        const skill = STATIC_SKILLS[detectedKey];
+        console.log(`🧠 SKILL ACTIVATED (STATIC IMPLICIT): ${skill.name}`);
+        return formatSkillPrompt(skill);
+      }
     }
 
     return "";
@@ -75,6 +118,17 @@ async function loadActiveSkill(supabase: any, query: string): Promise<string> {
     console.log("Skill load error:", e);
     return "";
   }
+}
+
+function formatSkillPrompt(skill: any): string {
+  return `
+      !!! ACTIVE SKILL ACTIVATED: ${skill.name} !!!
+      ${skill.content}
+      
+      CAPABILITIES: ${JSON.stringify(skill.capabilities || [])}
+      ---------------------------------------------------
+      YOU MUST ADHERE TO THE ABOVE RULES STRICTLY.
+      `;
 }
 
 // ============= DYNAMIC KNOWLEDGE LOADING =============
@@ -968,6 +1022,103 @@ const tools: ToolDefinition[] = [
       required: ["code", "impact"],
     },
   },
+  // vvvvv NEW TOOLS vvvvv
+  {
+    name: "meta_ads_analytics",
+    description:
+      "Get performance metrics (ROAS, CPC, CTR) for Ad Accounts, Campaigns, or specific Ads. Use to find winning ads.",
+    input_schema: {
+      type: "object",
+      properties: {
+        level: {
+          type: "string",
+          enum: ["account", "campaign", "adset", "ad"],
+          description: "Level of aggregation",
+        },
+        date_preset: {
+          type: "string",
+          description: "Time range (e.g. last_7d, last_30d, today)",
+        },
+        limit: { type: "number", description: "Max results" },
+      },
+      required: ["level"],
+    },
+  },
+  {
+    name: "meta_ads_manager",
+    description:
+      "Manage Meta Ads: List campaigns/ads, audit settings, or get creative details.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [
+            "list_campaigns",
+            "list_ads",
+            "get_creatives",
+            "audit_campaign",
+          ],
+          description: "Action to perform",
+        },
+        target_id: {
+          type: "string",
+          description: "ID of campaign/ad if needed",
+        },
+        limit: { type: "number", description: "Limit results" },
+      },
+      required: ["action"],
+    },
+  },
+
+  {
+    name: "revenue_intelligence",
+    description:
+      "THE FINANCIAL TRUTH ENGINE - Use this for ALL revenue questions. Returns Audit-Grade validated revenue from the Data Reconciler (HubSpot + Stripe + Ad Spend). Accurate to the cent.",
+    input_schema: {
+      type: "object",
+      properties: {
+        period: {
+          type: "string",
+          enum: [
+            "this_month",
+            "last_30d",
+            "last_90d",
+            "this_year",
+            "last_year",
+            "all_time",
+          ],
+          description: "Time period for revenue audit (default: this_month)",
+        },
+      },
+      required: ["period"],
+    },
+  },
+  {
+    name: "stripe_forensics",
+    description:
+      "PAYMENT INVESTIGATOR - Use this for failed payments, disputes, potential fraud, and payout issues. Returns detailed breakdown of payment failures and risk signals.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [
+            "analyze_failures",
+            "check_disputes",
+            "check_payouts",
+            "fraud_signals",
+          ],
+          description: "Forensic action to perform",
+        },
+        limit: {
+          type: "number",
+          description: "Max results to return (default: 20)",
+        },
+      },
+      required: ["action"],
+    },
+  },
 ];
 
 // ============= TOOL EXECUTION =============
@@ -1016,6 +1167,15 @@ async function runAgent(
 # PTD SUPER-INTELLIGENCE CEO (UNIFIED MODE)
 
 MISSION: Absolute truth and aggressive sales conversion.
+
+
+## 💰 FINANCIAL TRUTH PROTOCOL (STRICT)
+1. **REVENUE QUESTIONS**: You MUST use the \`revenue_intelligence\` tool. This is the only source of truth for "Validated Revenue" ($9.9M+). 
+   - DO NOT use \`analytics_control\` for specific revenue numbers.
+   - If user asks for "HubSpot Revenue", clarification: "HubSpot revenue ($X) includes offline deals and wire transfers, while Stripe ($Y) is collected cash."
+2. **PAYMENT ANALYSIS**: You MUST use the \`stripe_forensics\` tool.
+   - For "failed payments", "disputes", or "payouts", this tool is mandatory.
+   - Always analyze the *reason* for failure if available.
 
 ## 🧠 ADAPTIVE THINKING
 - You have access to 100+ internal business functions.

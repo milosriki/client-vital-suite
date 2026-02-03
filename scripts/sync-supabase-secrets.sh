@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Load .env.local
 if [ -f .env.local ]; then
   export $(grep -v '^#' .env.local | xargs)
+elif [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
 fi
 
 echo "Syncing secrets to Supabase..."

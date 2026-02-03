@@ -22,12 +22,27 @@ serve(async (req) => {
 
     // 1. Fetch Closed Deals (The Truth: Money in Bank)
     // Filter for current month or specified range
+    // 1. Fetch Closed Deals (The Truth: Money in Bank)
+    // Filter for current month or specified range
     const now = new Date();
-    const firstDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-    ).toISOString();
+    let startParams = new Date(now.getFullYear(), now.getMonth(), 1); // Default: This Month
+
+    if (date_range === "last_30d") {
+      startParams = new Date();
+      startParams.setDate(now.getDate() - 30);
+    } else if (date_range === "last_90d") {
+      startParams = new Date();
+      startParams.setDate(now.getDate() - 90);
+    } else if (date_range === "this_year") {
+      startParams = new Date(now.getFullYear(), 0, 1);
+    } else if (date_range === "last_year") {
+      startParams = new Date(now.getFullYear() - 1, 0, 1);
+    } else if (date_range === "all_time") {
+      startParams = new Date("2020-01-01"); // Sufficiently past date
+    }
+
+    const firstDay = startParams.toISOString();
+    console.log(`Searching deals since: ${firstDay} (Range: ${date_range})`);
 
     const { data: deals, error: dealsError } = await supabase
       .from("deals")
@@ -139,6 +154,25 @@ serve(async (req) => {
       .sort(([, a], [, b]) => b.revenue - a.revenue)
       .map(([name, stats]) => ({ name, ...stats }));
 
+    // 6. DEEP AUDIT: Aggregate all deals by Pipeline and Stage to find missing revenue
+    const { data: auditData, error: auditError } = await supabase
+      .from("deals")
+      .select("pipeline, stage, deal_value, close_date")
+      .gte("close_date", firstDay)
+      .limit(10000); // Ensure we capture the full volume // Inspecting this month/period first
+
+    const auditBreakdown: Record<string, number> = {};
+    let totalDbRevenue = 0;
+
+    if (auditData) {
+      auditData.forEach((d: any) => {
+        const key = `${d.pipeline}::${d.stage}`;
+        const val = parseFloat(d.deal_value || 0);
+        auditBreakdown[key] = (auditBreakdown[key] || 0) + val;
+        totalDbRevenue += val;
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -148,6 +182,9 @@ serve(async (req) => {
           attributed_revenue: attributedRevenue,
           organic_revenue: organicRevenue,
           ad_spend: totalAdSpend,
+          // DB TRUTH
+          db_audit_total: totalDbRevenue,
+          db_audit_breakdown: auditBreakdown,
         },
         intelligence: {
           true_roas: trueRoas,

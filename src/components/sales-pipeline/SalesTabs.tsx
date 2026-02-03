@@ -92,7 +92,7 @@ export const SalesTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {funnelData?.leads?.slice(0, 50).map((lead: any) => (
+                  {(funnelData?.leads || []).slice(0, 50).map((lead: any) => (
                     <TableRow key={lead.id}>
                       <TableCell className="font-medium">
                         {lead.first_name || lead.firstname}{" "}
@@ -214,7 +214,7 @@ export const SalesTabs = ({
                             className="text-primary hover:underline flex items-center gap-1"
                           >
                             {lead.campaign_name ||
-                              lead.campaign_id.slice(0, 10)}
+                              (lead.campaign_id || "").slice(0, 10)}
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : (
@@ -229,7 +229,7 @@ export const SalesTabs = ({
                             rel="noopener noreferrer"
                             className="text-primary hover:underline flex items-center gap-1"
                           >
-                            {lead.ad_name || lead.ad_id.slice(0, 10)}
+                            {lead.ad_name || (lead.ad_id || "").slice(0, 10)}
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : (
@@ -360,7 +360,8 @@ export const SalesTabs = ({
                   {dealsData?.deals?.map((deal: any) => (
                     <TableRow key={deal.id}>
                       <TableCell className="font-medium">
-                        {deal.deal_name || `Deal ${deal.id.slice(0, 8)}`}
+                        {deal.deal_name ||
+                          `Deal ${(deal.id || "").slice(0, 8)}`}
                       </TableCell>
                       <TableCell>{deal.deal_type || "-"}</TableCell>
                       <TableCell>{deal.pipeline || "-"}</TableCell>

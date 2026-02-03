@@ -1,7 +1,6 @@
-import React, { useState } from "react";
 import {
-  SUPABASE_EDGE_FUNCTIONS,
-  EdgeFunctionConfig,
+  ALL_EDGE_FUNCTIONS as RAW_FUNCTIONS,
+  EdgeFunction,
 } from "@/config/edgeFunctions";
 import { apiClient } from "@/services/apiClient";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,28 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, CheckCircle2, Play, Activity } from "lucide-react";
 import { toast } from "sonner";
 
+interface ExtendedConfig extends EdgeFunction {
+  category: "agent" | "integration" | "core" | "utility";
+  isUsedInApp: boolean;
+  requiredSecrets: string[];
+}
+
+const SUPABASE_EDGE_FUNCTIONS: ExtendedConfig[] = RAW_FUNCTIONS.map((f) => {
+  let category: ExtendedConfig["category"] = "utility";
+  if (f.name.includes("agent") || f.name.includes("ptd-")) category = "agent";
+  else if (f.name.includes("stripe") || f.name.includes("hubspot"))
+    category = "integration";
+  else if (f.name.includes("core") || f.name.includes("auth"))
+    category = "core";
+
+  return {
+    ...f,
+    category,
+    isUsedInApp: true, // simplified assumption
+    requiredSecrets: f.hasSecrets ? ["check-env"] : [],
+  };
+});
+
 export default function EdgeFunctionsPage() {
   const [filter, setFilter] = useState<
     "all" | "agent" | "integration" | "core" | "utility"
@@ -31,7 +52,7 @@ export default function EdgeFunctionsPage() {
     (f) => filter === "all" || f.category === filter,
   );
 
-  const handleRun = async (func: EdgeFunctionConfig) => {
+  const handleRun = async (func: ExtendedConfig) => {
     setRunningFunctions((prev) => ({ ...prev, [func.name]: true }));
     setLogs((prev) => ({ ...prev, [func.name]: "Running..." }));
 

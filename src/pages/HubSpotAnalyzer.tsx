@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const HubSpotAnalyzer = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Fetch Property Counts
+  // Fetch Property Counts (Keep this as it was working and independent)
   const { data: propertyCounts, isLoading: propsLoading } = useDedupedQuery({
     queryKey: ["hubspot-property-counts"],
     queryFn: async () => {
@@ -41,99 +41,41 @@ const HubSpotAnalyzer = () => {
     },
   });
 
-  // Fetch Revenue at Risk (Stalled Deals)
-  const { data: revenueAtRisk, isLoading: revenueLoading } = useDedupedQuery({
-    queryKey: ["hubspot-revenue-risk"],
+  // Fetch Real Analysis from Edge Function
+  const { data: analysisData, isLoading: analysisLoading } = useDedupedQuery({
+    queryKey: ["hubspot-analyzer-data"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deals")
-        .select("deal_value")
-        .neq("status", "closed")
-        .neq("status", "won" as any)
-        .lt(
-          "updated_at",
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        ); // Older than 30 days
-
+      const { data, error } =
+        await supabase.functions.invoke("hubspot-analyzer");
       if (error) throw error;
-      return data.reduce((sum, d) => sum + (d.deal_value || 0), 0);
+      return data;
     },
   });
 
-  // Fetch SLA Breach Rate (Leads not contacted in 24h)
-  const { data: slaStats, isLoading: slaLoading } = useDedupedQuery({
-    queryKey: ["hubspot-sla-stats"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("created_at, status")
-        .eq("status", "new")
-        .lt(
-          "created_at",
-          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        );
-
-      if (error) throw error;
-
-      // Get total new leads for rate calculation
-      const { count } = await supabase
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "new");
-
-      return {
-        breached: data.length,
-        total: count || 1,
-        rate: Math.round((data.length / (count || 1)) * 100),
-      };
-    },
-  });
-
-  const isLoading = propsLoading || revenueLoading || slaLoading;
+  const isLoading = propsLoading || analysisLoading;
 
   const metrics: CriticalMetrics = {
-    totalWorkflows: 0, // Placeholder until sync
+    totalWorkflows: 0,
     activeWorkflows: 0,
     inactiveWorkflows: 0,
-    totalProperties: propertyCounts?.total || 0,
-    contactProperties: propertyCounts?.contact || 0,
-    dealProperties: propertyCounts?.deal || 0,
-    revenueAtRisk: revenueAtRisk || 0,
-    monthlyRevenueLoss: (revenueAtRisk || 0) * 0.1, // Est 10% loss
-    buriedPremiumLeads: 0, // Dynamic calculation to be added
-    potentialRecovery: (revenueAtRisk || 0) * 0.2, // Est 20% recovery
-    slaBreachRate: slaStats?.rate || 0,
-    blankLeadPercentage: 0, // To be implemented
+    totalProperties:
+      analysisData?.summary?.totalProperties || propertyCounts?.total || 0,
+    contactProperties:
+      analysisData?.summary?.contactProperties || propertyCounts?.contact || 0,
+    dealProperties:
+      analysisData?.summary?.dealProperties || propertyCounts?.deal || 0,
+    revenueAtRisk: analysisData?.summary?.totalRevenueAtRisk || 0,
+    monthlyRevenueLoss: (analysisData?.summary?.totalRevenueAtRisk || 0) * 0.1,
+    buriedPremiumLeads: 0,
+    potentialRecovery: (analysisData?.summary?.totalRevenueAtRisk || 0) * 0.2,
+    slaBreachRate: parseFloat(analysisData?.summary?.neverCalledRate || "0"),
+    blankLeadPercentage: parseFloat(
+      analysisData?.summary?.dataQualityIssueRate || "0",
+    ),
   };
 
-  const recommendations: Recommendation[] = [
-    {
-      priority: 1,
-      title: "Fix Infinite Loop in Reassignment Workflow",
-      description:
-        "Workflow 1655409725 must be fixed immediately to stop SLA breaches",
-      effort: "Medium",
-      impact: "Critical",
-      revenue: "634K+ AED/month",
-    },
-    {
-      priority: 2,
-      title: "Rescue Buried Premium Leads",
-      description:
-        "Manually contact all Downtown/Marina/DIFC leads sitting uncalled",
-      effort: "High",
-      impact: "High",
-      revenue: "275K AED immediate",
-    },
-    {
-      priority: 3,
-      title: "Activate Nurture Sequences",
-      description: "Review and turn on the 19 inactive follow-up workflows",
-      effort: "Low",
-      impact: "High",
-      revenue: "Significant conversion boost",
-    },
-  ];
+  const recommendations: Recommendation[] = analysisData?.recommendations || [];
+  const leadLossPoints = analysisData?.leadLossPoints || [];
 
   if (isLoading) {
     return (
@@ -172,36 +114,27 @@ const HubSpotAnalyzer = () => {
         </TabsContent>
 
         <TabsContent value="lead-loss" className="space-y-4">
-          <LeadLossAnalysis
-            points={[
-              {
-                point: "Reassignment on No Contact",
-                status: "critical",
-                description:
-                  "Reassignment workflow has infinite loop - 100% failure",
-                leadsAffected: "All uncalled leads",
-                revenueImpact: "634K+ AED/month",
-              },
-            ]}
-          />
+          <LeadLossAnalysis points={leadLossPoints} />
         </TabsContent>
 
         <TabsContent value="properties" className="space-y-4">
           <PropertyAudit
-            categories={[
-              {
-                category: "Contact Properties",
-                count: metrics.contactProperties,
-                usage: "High",
-                quality: "Good",
-              },
-              {
-                category: "Deal Properties",
-                count: metrics.dealProperties,
-                usage: "High",
-                quality: "Good",
-              },
-            ]}
+            categories={
+              analysisData?.propertyCategories || [
+                {
+                  category: "Contact Properties",
+                  count: metrics.contactProperties,
+                  usage: "High",
+                  quality: "Good",
+                },
+                {
+                  category: "Deal Properties",
+                  count: metrics.dealProperties,
+                  usage: "High",
+                  quality: "Good",
+                },
+              ]
+            }
             totalProperties={metrics.totalProperties}
           />
         </TabsContent>

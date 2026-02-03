@@ -2,7 +2,13 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  PremiumCard as Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/premium-card";
 import { Badge } from "@/components/ui/badge";
 import { MissionControlHeader } from "@/components/dashboard/MissionControlHeader";
 import { KPIGrid } from "@/components/dashboard/KPIGrid";
@@ -33,7 +39,7 @@ import {
   LayoutGrid,
   RefreshCw,
   ArrowUpRight,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,7 +55,11 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch clients with retry logic - Optimized selection
-  const { data: clients, isLoading: clientsLoading, refetch: refetchClients } = useDedupedQuery({
+  const {
+    data: clients,
+    isLoading: clientsLoading,
+    refetch: refetchClients,
+  } = useDedupedQuery({
     queryKey: ["client-health-scores-dashboard"],
     queryFn: async () => {
       const { data: latestDateRows } = await supabase
@@ -61,7 +71,9 @@ export default function Dashboard() {
       const latestDate = latestDateRows?.[0]?.calculated_on;
       let query = supabase
         .from("client_health_scores")
-        .select("id, firstname, lastname, email, health_zone, health_score, package_value_aed, assigned_coach, owner_name, created_at, calculated_on")
+        .select(
+          "id, firstname, lastname, email, health_zone, health_score, package_value_aed, assigned_coach, owner_name, created_at, calculated_on",
+        )
         .order("health_score", { ascending: true });
 
       if (latestDate) {
@@ -106,7 +118,7 @@ export default function Dashboard() {
         .select("*")
         .order("date", { ascending: false })
         .limit(2); // Get today and yesterday for trends
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -130,7 +142,9 @@ export default function Dashboard() {
   const { data: dashboardStats, isLoading: statsLoading } = useDedupedQuery({
     queryKey: ["dashboard-stats-rpc"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('get_dashboard_stats');
+      const { data, error } = await (supabase as any).rpc(
+        "get_dashboard_stats",
+      );
       if (error) {
         console.error("Error fetching dashboard stats:", error);
         return null;
@@ -142,29 +156,33 @@ export default function Dashboard() {
   });
 
   // Fetch interventions for EnhancedInterventionTracker
-  const { data: interventions = [], isLoading: interventionsLoading } = useDedupedQuery({
-    queryKey: ["interventions-dashboard"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('intervention_log')
-        .select('*')
-        .neq('status', 'COMPLETED')
-        .order('priority', { ascending: true })
-        .limit(10);
+  const { data: interventions = [], isLoading: interventionsLoading } =
+    useDedupedQuery({
+      queryKey: ["interventions-dashboard"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("intervention_log")
+          .select("*")
+          .neq("status", "COMPLETED")
+          .order("priority", { ascending: true })
+          .limit(10);
 
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: Infinity,
-    retry: 2,
-  });
+        if (error) throw error;
+        return data || [];
+      },
+      staleTime: Infinity,
+      retry: 2,
+    });
 
   // Fetch today's leads with retry
   const { data: leadsToday } = useDedupedQuery({
     queryKey: ["leads-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { count } = await supabase.from("contacts").select("*", { count: "exact", head: true }).gte("created_at", today);
+      const { count } = await supabase
+        .from("contacts")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", today);
       return count || 0;
     },
     retry: 2,
@@ -175,7 +193,10 @@ export default function Dashboard() {
     queryKey: ["calls-today"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { count } = await supabase.from("call_records").select("*", { count: "exact", head: true }).gte("created_at", today);
+      const { count } = await supabase
+        .from("call_records")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", today);
       return count || 0;
     },
     retry: 2,
@@ -184,22 +205,31 @@ export default function Dashboard() {
   // Computed stats
   const stats = useMemo(() => {
     const allClients = clients || [];
-    const atRisk = allClients.filter((c) => c.health_zone === "RED" || c.health_zone === "YELLOW").length;
+    const atRisk = allClients.filter(
+      (c) => c.health_zone === "RED" || c.health_zone === "YELLOW",
+    ).length;
     return { totalClients: allClients.length, atRiskClients: atRisk };
   }, [clients]);
 
   // KPI Data
   const kpiData = {
-    revenue: { 
-      value: dashboardStats?.revenue_this_month || 0, 
-      trend: dashboardStats?.revenue_trend || 0 
+    revenue: {
+      value: dashboardStats?.revenue_this_month || 0,
+      trend: dashboardStats?.revenue_trend || 0,
     },
-    revenueToday: todayMetrics?.total_revenue_booked || dashboardStats?.revenue_today || 0,
+    revenueToday:
+      todayMetrics?.total_revenue_booked || dashboardStats?.revenue_today || 0,
     clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
-    pipeline: { value: dashboardStats?.pipeline_value || 0, count: dashboardStats?.pipeline_count || 0 },
+    pipeline: {
+      value: dashboardStats?.pipeline_value || 0,
+      count: dashboardStats?.pipeline_count || 0,
+    },
     leads: todayMetrics?.total_leads_new || leadsToday || 0,
     calls: todayMetrics?.total_calls_made || callsToday || 0,
-    appointments: todayMetrics?.total_appointments_set || dailySummary?.interventions_recommended || 0,
+    appointments:
+      todayMetrics?.total_appointments_set ||
+      dailySummary?.interventions_recommended ||
+      0,
     criticalAlerts: dailySummary?.critical_interventions || 0,
     adSpend: todayMetrics?.ad_spend_facebook || 0,
     roas: todayMetrics?.roas_daily || 0,
@@ -215,9 +245,24 @@ export default function Dashboard() {
       executive_briefing: dailySummary?.patterns_detected
         ? `${stats.totalClients} active clients tracked. ${stats.atRiskClients} require immediate attention with AED ${atRiskRevenue.toLocaleString()} at risk.`
         : `Monitoring ${stats.totalClients} clients. ${stats.atRiskClients} in warning/critical zones.`,
-      max_utilization_rate: stats.totalClients > 0 ? Math.round(((stats.totalClients - stats.atRiskClients) / stats.totalClients) * 100) : 0,
-      system_health_status: stats.atRiskClients > 10 ? "Attention Required" : "Healthy",
-      action_plan: stats.atRiskClients > 0 ? [`Review ${stats.atRiskClients} at-risk clients`, "Schedule intervention calls", "Update client engagement scores"] : [],
+      max_utilization_rate:
+        stats.totalClients > 0
+          ? Math.round(
+              ((stats.totalClients - stats.atRiskClients) /
+                stats.totalClients) *
+                100,
+            )
+          : 0,
+      system_health_status:
+        stats.atRiskClients > 10 ? "Attention Required" : "Healthy",
+      action_plan:
+        stats.atRiskClients > 0
+          ? [
+              `Review ${stats.atRiskClients} at-risk clients`,
+              "Schedule intervention calls",
+              "Update client engagement scores",
+            ]
+          : [],
       sla_breach_count: dailySummary?.critical_interventions || 0,
     };
   }, [clients, dailySummary, stats]);
@@ -227,7 +272,10 @@ export default function Dashboard() {
     try {
       await refetchClients();
       setLastUpdated(new Date());
-      toast({ title: "Data refreshed", description: "Dashboard updated with latest data" });
+      toast({
+        title: "Data refreshed",
+        description: "Dashboard updated with latest data",
+      });
     } catch (error) {
       toast({ title: "Refresh failed", variant: "destructive" });
     } finally {
@@ -252,7 +300,7 @@ export default function Dashboard() {
   const isLoading = clientsLoading || statsLoading;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       {/* Live Ticker at the top */}
       <TickerFeed />
 
@@ -269,26 +317,45 @@ export default function Dashboard() {
         {/* Test Data Alert - Shows when mock/test data is detected */}
         <TestDataAlert />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <TabsList className="grid grid-cols-5 lg:w-auto lg:inline-grid bg-muted/30 p-1 rounded-xl backdrop-blur-sm border border-border/50">
-              <TabsTrigger value="today" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+              <TabsTrigger
+                value="today"
+                className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all"
+              >
                 <Calendar className="h-4 w-4 hidden sm:block" />
                 <span>Today</span>
               </TabsTrigger>
-              <TabsTrigger value="sales" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+              <TabsTrigger
+                value="sales"
+                className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all"
+              >
                 <TrendingUp className="h-4 w-4 hidden sm:block" />
                 <span>Sales</span>
               </TabsTrigger>
-              <TabsTrigger value="clients" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+              <TabsTrigger
+                value="clients"
+                className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all"
+              >
                 <Users className="h-4 w-4 hidden sm:block" />
                 <span>Clients</span>
               </TabsTrigger>
-              <TabsTrigger value="hubspot" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+              <TabsTrigger
+                value="hubspot"
+                className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all"
+              >
                 <Zap className="h-4 w-4 hidden sm:block" />
                 <span>HubSpot</span>
               </TabsTrigger>
-              <TabsTrigger value="revenue" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all">
+              <TabsTrigger
+                value="revenue"
+                className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border-primary/20 transition-all"
+              >
                 <CreditCard className="h-4 w-4 hidden sm:block" />
                 <span>Revenue</span>
               </TabsTrigger>
@@ -299,7 +366,7 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/sales-pipeline')}
+                onClick={() => navigate("/sales-pipeline")}
                 className="gap-2 bg-card/50 border-border/50 hover:border-primary/30"
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -309,7 +376,7 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/ptd-control')}
+                onClick={() => navigate("/ptd-control")}
                 className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 text-primary"
               >
                 <Sparkles className="h-4 w-4" />
@@ -321,14 +388,24 @@ export default function Dashboard() {
           {/* Today Tab - Daily Pulse */}
           <TabsContent value="today" className="space-y-6 mt-0 animate-fade-in">
             <ExecutiveBriefing summary={executiveSummary} />
-            <KPIGrid data={kpiData} isLoading={isLoading} onMetricClick={handleMetricClick} />
+            <KPIGrid
+              data={kpiData}
+              isLoading={isLoading}
+              onMetricClick={handleMetricClick}
+            />
             <RevenueVsSpendChart />
             <PredictiveAlerts clients={clients || []} summary={dailySummary} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <ClientRiskMatrix clients={clients || []} isLoading={clientsLoading} />
-                <EnhancedInterventionTracker interventions={interventions} isLoading={interventionsLoading} />
+                <ClientRiskMatrix
+                  clients={clients || []}
+                  isLoading={clientsLoading}
+                />
+                <EnhancedInterventionTracker
+                  interventions={interventions}
+                  isLoading={interventionsLoading}
+                />
               </div>
               <div className="space-y-6">
                 <CoachLeaderboard />
@@ -345,17 +422,22 @@ export default function Dashboard() {
                 first_name: c.firstname,
                 last_name: c.lastname,
                 email: c.email,
-                status: c.health_zone === "RED" ? "follow_up" : c.health_zone === "GREEN" ? "closed" : "new",
+                status:
+                  c.health_zone === "RED"
+                    ? "follow_up"
+                    : c.health_zone === "GREEN"
+                      ? "closed"
+                      : "new",
                 created_at: c.created_at || new Date().toISOString(),
                 deal_value: c.package_value_aed,
-                owner_name: c.assigned_coach || 'Unassigned Coach',
+                owner_name: c.assigned_coach || "Unassigned Coach",
               }))}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <QuickStatCard
                 title="Open Deals"
                 value={dashboardStats?.pipeline_count || 0}
-                onClick={() => navigate('/sales-pipeline')}
+                onClick={() => navigate("/sales-pipeline")}
               />
               <QuickStatCard
                 title="Pipeline Value"
@@ -371,10 +453,16 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* Clients Tab - Enhanced with Traffic Light badges */}
-          <TabsContent value="clients" className="space-y-6 mt-0 animate-fade-in">
+          <TabsContent
+            value="clients"
+            className="space-y-6 mt-0 animate-fade-in"
+          >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <LiveHealthDistribution clients={clients || []} isLoading={clientsLoading} />
+                <LiveHealthDistribution
+                  clients={clients || []}
+                  isLoading={clientsLoading}
+                />
               </div>
               <div>
                 <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
@@ -385,32 +473,44 @@ export default function Dashboard() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {(["GREEN", "YELLOW", "RED", "PURPLE"] as const).map((zone) => {
-                      const count = (clients || []).filter((c) => c.health_zone === zone).length;
-                      const labels: Record<string, string> = {
-                        GREEN: "Healthy",
-                        YELLOW: "Warning",
-                        RED: "Critical",
-                        PURPLE: "VIP",
-                      };
-                      return (
-                        <button
-                          key={zone}
-                          onClick={() => navigate(`/clients?zone=${zone}`)}
-                          className={cn(
-                            "w-full flex items-center justify-between p-4 bg-muted/20 rounded-xl transition-all duration-200",
-                            "hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-md",
-                            "border border-transparent hover:border-border/50"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <TrafficLightBadge zone={zone} size="lg" pulsing={zone === "RED" && count > 0} />
-                            <span className="font-medium">{labels[zone]}</span>
-                          </div>
-                          <span className="font-mono font-bold text-xl">{count}</span>
-                        </button>
-                      );
-                    })}
+                    {(["GREEN", "YELLOW", "RED", "PURPLE"] as const).map(
+                      (zone) => {
+                        const count = (clients || []).filter(
+                          (c) => c.health_zone === zone,
+                        ).length;
+                        const labels: Record<string, string> = {
+                          GREEN: "Healthy",
+                          YELLOW: "Warning",
+                          RED: "Critical",
+                          PURPLE: "VIP",
+                        };
+                        return (
+                          <button
+                            key={zone}
+                            onClick={() => navigate(`/clients?zone=${zone}`)}
+                            className={cn(
+                              "w-full flex items-center justify-between p-4 bg-muted/20 rounded-xl transition-all duration-200",
+                              "hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-md",
+                              "border border-transparent hover:border-border/50",
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <TrafficLightBadge
+                                zone={zone}
+                                size="lg"
+                                pulsing={zone === "RED" && count > 0}
+                              />
+                              <span className="font-medium">
+                                {labels[zone]}
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-xl">
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      },
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -418,7 +518,10 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* HubSpot Tab - Enhanced with live log */}
-          <TabsContent value="hubspot" className="space-y-6 mt-0 animate-fade-in">
+          <TabsContent
+            value="hubspot"
+            className="space-y-6 mt-0 animate-fade-in"
+          >
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div>
@@ -426,14 +529,18 @@ export default function Dashboard() {
                     <Zap className="h-5 w-5 text-primary" />
                     HubSpot Live Activity
                   </CardTitle>
-                  <CardDescription>Real-time activity from HubSpot CRM</CardDescription>
+                  <CardDescription>
+                    Real-time activity from HubSpot CRM
+                  </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
                   </span>
-                  <span className="text-xs font-medium text-success">Connected</span>
+                  <span className="text-xs font-medium text-success">
+                    Connected
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>
@@ -443,7 +550,10 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* Revenue Tab */}
-          <TabsContent value="revenue" className="space-y-6 mt-0 animate-fade-in">
+          <TabsContent
+            value="revenue"
+            className="space-y-6 mt-0 animate-fade-in"
+          >
             <LiveRevenueChart />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <RevenueStatCard
@@ -460,7 +570,10 @@ export default function Dashboard() {
               <RevenueStatCard
                 title="At-Risk Revenue"
                 value={`AED ${(clients || [])
-                  .filter(c => c.health_zone === "RED" || c.health_zone === "YELLOW")
+                  .filter(
+                    (c) =>
+                      c.health_zone === "RED" || c.health_zone === "YELLOW",
+                  )
                   .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
                   .toLocaleString()}`}
                 variant="warning"
@@ -468,7 +581,10 @@ export default function Dashboard() {
               <RevenueStatCard
                 title="Healthy Revenue"
                 value={`AED ${(clients || [])
-                  .filter(c => c.health_zone === "GREEN" || c.health_zone === "PURPLE")
+                  .filter(
+                    (c) =>
+                      c.health_zone === "GREEN" || c.health_zone === "PURPLE",
+                  )
                   .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
                   .toLocaleString()}`}
                 variant="success"
@@ -486,7 +602,7 @@ function QuickStatCard({
   title,
   value,
   variant = "default",
-  onClick
+  onClick,
 }: {
   title: string;
   value: string | number;
@@ -502,11 +618,13 @@ function QuickStatCard({
   return (
     <Card
       className={cn(
-        "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+        "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-premium-lg",
         variantStyles[variant],
-        onClick && "cursor-pointer"
+        "glass",
+        onClick && "cursor-pointer",
       )}
       onClick={onClick}
+      variant="glass"
     >
       <CardContent className="p-4">
         <p className="text-sm text-muted-foreground mb-1">{title}</p>
@@ -523,7 +641,7 @@ function RevenueStatCard({
   trend,
   isPositive,
   subtitle,
-  variant = "default"
+  variant = "default",
 }: {
   title: string;
   value: string;
@@ -539,17 +657,35 @@ function RevenueStatCard({
   };
 
   return (
-    <Card className={cn("transition-all duration-200", variantStyles[variant])}>
+    <Card
+      className={cn(
+        "transition-all duration-200",
+        variantStyles[variant],
+        "glass",
+      )}
+      variant="glass"
+    >
       <CardContent className="p-5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+          {title}
+        </p>
         <p className="text-2xl font-bold font-mono">{value}</p>
         {trend !== undefined && (
-          <div className={cn(
-            "flex items-center gap-1 text-xs mt-2",
-            isPositive ? "text-success" : "text-destructive"
-          )}>
-            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingUp className="h-3 w-3 rotate-180" />}
-            <span>{isPositive ? "+" : ""}{trend}%</span>
+          <div
+            className={cn(
+              "flex items-center gap-1 text-xs mt-2",
+              isPositive ? "text-success" : "text-destructive",
+            )}
+          >
+            {isPositive ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingUp className="h-3 w-3 rotate-180" />
+            )}
+            <span>
+              {isPositive ? "+" : ""}
+              {trend}%
+            </span>
             <span className="text-muted-foreground">vs last month</span>
           </div>
         )}
