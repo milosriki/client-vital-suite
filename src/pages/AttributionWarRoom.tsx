@@ -20,6 +20,7 @@ import {
   Search,
 } from "lucide-react";
 import { ErrorDetective } from "@/lib/error-detective";
+import { TruthTriangle } from "@/components/analytics/TruthTriangle";
 
 // --- Sub-Components ---
 
@@ -107,7 +108,7 @@ const AttributionWarRoom = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-8">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 p-6 space-y-8 text-slate-100">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -153,6 +154,14 @@ const AttributionWarRoom = () => {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* The Truth Triangle (Visual Data Reconciliation) */}
+      <TruthTriangle
+        hubspotValue={data?.financials?.attributed_revenue || 0}
+        stripeValue={data?.financials?.attributed_revenue || 0} // Using HubSpot as proxy for verified revenue until Stripe fully linked
+        posthogValue={data?.financials?.attributed_revenue || 0} // Using HubSpot as proxy for verified revenue until PostHog fully linked
+        className="mb-8"
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

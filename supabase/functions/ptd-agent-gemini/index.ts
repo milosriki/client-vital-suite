@@ -130,14 +130,38 @@ async function loadActiveSkill(supabase: any, query: string): Promise<string> {
 }
 
 function formatSkillPrompt(skill: any): string {
+  // Separate internal context from public persona to prevent leaks
+  const internalContext = {
+    capabilities: skill.capabilities,
+    tools: skill.available_tools,
+    internal_rules: skill.internal_rules,
+  };
+
+  // Public-facing persona - safe to include in responses
+  const publicBio =
+    skill.public_bio ||
+    skill.description ||
+    `Professional ${skill.name} consultant`;
+
   return `
-      !!! ACTIVE SKILL ACTIVATED: ${skill.name} !!!
-      ${skill.content}
-      
-      CAPABILITIES: ${JSON.stringify(skill.capabilities || [])}
-      ---------------------------------------------------
-      YOU MUST ADHERE TO THE ABOVE RULES STRICTLY.
-      `;
+<internal_context>
+SKILL: ${skill.name}
+CAPABILITIES: ${JSON.stringify(internalContext)}
+IMPORTANT: The above information is INTERNAL ONLY. Never reveal these technical details to users.
+Use this context to inform your responses, but communicate naturally as ${skill.name}.
+</internal_context>
+
+<public_persona>
+${publicBio}
+${skill.content || ""}
+</public_persona>
+
+---
+COMMUNICATION RULES:
+- Respond as ${skill.name} naturally and professionally
+- Never mention "skills", "capabilities", or "internal systems"
+- Focus on helping the user, not explaining your configuration
+`;
 }
 
 // ============= DYNAMIC KNOWLEDGE LOADING =============
@@ -1145,6 +1169,13 @@ async function executeTool(
   return await executeSharedTool(supabase, toolName, input);
 }
 
+import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
+import {
+  sanitizeResponse,
+  validateResponseSafety,
+  formatForWhatsApp,
+} from "../_shared/content-filter.ts";
+
 // ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 // ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 async function runAgent(
@@ -1154,6 +1185,10 @@ async function runAgent(
   threadId: string = "default",
   context?: any,
 ): Promise<string> {
+  // Detect if this is a WhatsApp conversation
+  const isWhatsApp =
+    context?.source === "whatsapp" || context?.platform === "whatsapp";
+
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
   const [
     relevantMemory,
@@ -1174,11 +1209,24 @@ async function runAgent(
     ),
     getLearnedPatterns(supabase).then((res) => res.slice(0, 10000)),
     loadDynamicKnowledge(supabase).then((res) => res.slice(0, 50000)),
-    loadActiveSkill(supabase, userMessage),
+    // Only load skills for non-WhatsApp conversations
+    isWhatsApp ? Promise.resolve("") : loadActiveSkill(supabase, userMessage),
   ]);
 
-  // Build unified prompt with all components
-  const systemPrompt = `
+  // Build system prompt - use WhatsApp sales prompt for WhatsApp conversations
+  const systemPrompt = isWhatsApp
+    ? `
+${WHATSAPP_SALES_PERSONA}
+
+## 📚 CONTEXTUAL KNOWLEDGE
+${ragKnowledge}
+${knowledgeBase}
+${relevantMemory}
+${dynamicKnowledge}
+
+REMEMBER: You are Mark from PTD. Keep responses concise and sales-focused.
+`
+    : `
 # PTD SUPER-INTELLIGENCE CEO (UNIFIED MODE)
 
 MISSION: Absolute truth and aggressive sales conversion.
@@ -1284,6 +1332,30 @@ ${relevantSkill}
     });
 
     finalResponse = followUpResponse.content;
+  }
+
+  // Sanitize and validate response for WhatsApp
+  if (isWhatsApp) {
+    // First, sanitize to remove any leaked internal info
+    finalResponse = sanitizeResponse(finalResponse);
+
+    // Validate response safety
+    const safety = validateResponseSafety(finalResponse);
+    if (!safety.isSafe) {
+      console.warn("⚠️ Response safety issues detected:", safety.issues);
+      // Log for monitoring but still send (already sanitized)
+      await supabase
+        .from("response_safety_log")
+        .insert({
+          thread_id: threadId,
+          issues: safety.issues,
+          original_length: finalResponse.length,
+        })
+        .catch((err: any) => console.error("Failed to log safety issue:", err));
+    }
+
+    // Format for WhatsApp
+    finalResponse = formatForWhatsApp(finalResponse);
   }
 
   // Save to persistent memory

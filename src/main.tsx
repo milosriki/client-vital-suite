@@ -55,6 +55,7 @@ import MasterControlPanel from "./pages/MasterControlPanel";
 import AttributionWarRoom from "./pages/AttributionWarRoom";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import Login from "./pages/Login"; // Import Login Page
+import ReconciliationDashboard from "./pages/ReconciliationDashboard";
 import "./index.css";
 
 // Initialize Sentry
@@ -122,6 +123,7 @@ const router = createBrowserRouter([
       { path: "/executive-dashboard", element: <ExecutiveDashboard /> },
       { path: "/master-control", element: <MasterControlPanel /> },
       { path: "/attribution", element: <AttributionWarRoom /> },
+      { path: "/reconciliation", element: <ReconciliationDashboard /> },
       { path: "*", element: <NotFound /> },
     ],
   },

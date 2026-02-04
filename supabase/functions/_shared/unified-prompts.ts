@@ -155,57 +155,70 @@ export const AGENT_ROLES = {
     persona: "Senior business analyst at PTD Fitness Dubai",
     capabilities: ["CRM queries", "client lookup", "health scoring", "metrics"],
     tone: "Professional, data-driven, action-oriented",
-    maxTokens: 4096
+    maxTokens: 4096,
   },
   BUSINESS_INTELLIGENCE: {
-    name: "Business Intelligence Agent", 
+    name: "Business Intelligence Agent",
     persona: "Executive analyst providing strategic insights",
-    capabilities: ["trend analysis", "KPI tracking", "forecasting", "anomaly detection"],
+    capabilities: [
+      "trend analysis",
+      "KPI tracking",
+      "forecasting",
+      "anomaly detection",
+    ],
     tone: "Executive summary style, highlight key metrics",
-    maxTokens: 2048
+    maxTokens: 2048,
   },
   CHURN_PREDICTOR: {
     name: "Churn Prediction Agent",
     persona: "Retention specialist identifying at-risk clients",
     capabilities: ["risk scoring", "pattern recognition", "early warning"],
     tone: "Alert-focused, prioritize actionable insights",
-    maxTokens: 2048
+    maxTokens: 2048,
   },
   INTERVENTION_RECOMMENDER: {
     name: "Intervention Recommender",
     persona: "Client success manager suggesting retention actions",
-    capabilities: ["intervention planning", "personalized outreach", "escalation"],
+    capabilities: [
+      "intervention planning",
+      "personalized outreach",
+      "escalation",
+    ],
     tone: "Action-oriented, specific recommendations",
-    maxTokens: 2048
+    maxTokens: 2048,
   },
   PROACTIVE_INSIGHTS: {
     name: "Proactive Insights Generator",
     persona: "Business analyst surfacing opportunities and risks",
     capabilities: ["opportunity detection", "risk alerts", "trend spotting"],
     tone: "Proactive, forward-looking, prioritized",
-    maxTokens: 2048
+    maxTokens: 2048,
   },
   STRIPE_PAYOUTS_AI: {
     name: "Stripe Analytics Agent",
     persona: "Financial analyst for payment data",
     capabilities: ["payout analysis", "transaction tracking", "reconciliation"],
     tone: "Precise, financial accuracy, audit-ready",
-    maxTokens: 2048
+    maxTokens: 2048,
   },
   AGENT_ANALYST: {
     name: "Agent Performance Analyst",
     persona: "Operations analyst tracking agent metrics",
-    capabilities: ["performance tracking", "efficiency analysis", "optimization"],
+    capabilities: [
+      "performance tracking",
+      "efficiency analysis",
+      "optimization",
+    ],
     tone: "Metrics-focused, comparative analysis",
-    maxTokens: 2048
+    maxTokens: 2048,
   },
   ORCHESTRATOR: {
     name: "Super Agent Orchestrator",
     persona: "Traffic controller routing to specialized agents",
     capabilities: ["intent classification", "agent routing", "context passing"],
     tone: "Brief, decisive, routing-focused",
-    maxTokens: 1024
-  }
+    maxTokens: 1024,
+  },
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
@@ -250,7 +263,7 @@ export const OUTPUT_FORMATS = {
       "recommended_actions": ["string"],
       "priority": "high|medium|low"
     }`,
-    example: `{"email":"john@example.com","name":"John Smith","health_score":45,"health_zone":"Red","risk_factors":["No sessions in 14 days","Payment overdue"],"recommended_actions":["Call within 24h","Offer makeup session"],"priority":"high"}`
+    example: `{"email":"john@example.com","name":"John Smith","health_score":45,"health_zone":"Red","risk_factors":["No sessions in 14 days","Payment overdue"],"recommended_actions":["Call within 24h","Offer makeup session"],"priority":"high"}`,
   },
   INTERVENTION_PLAN: {
     schema: `{
@@ -259,7 +272,7 @@ export const OUTPUT_FORMATS = {
       "priority": "immediate|today|this_week",
       "message_template": "string",
       "escalation_path": "string"
-    }`
+    }`,
   },
   EXECUTIVE_SUMMARY: {
     schema: `{
@@ -268,8 +281,8 @@ export const OUTPUT_FORMATS = {
       "metrics": {"key": "value"},
       "alerts": ["string"],
       "recommendations": ["string"]
-    }`
-  }
+    }`,
+  },
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
@@ -299,16 +312,16 @@ export interface AgentPromptOptions {
 
 export function buildAgentPrompt(
   role: keyof typeof AGENT_ROLES,
-  options: AgentPromptOptions = {}
+  options: AgentPromptOptions = {},
 ): string {
   const agent = AGENT_ROLES[role];
-  
+
   let prompt = `# Role: ${agent.name}
 
 You are a ${agent.persona}.
 
 ## Capabilities
-${agent.capabilities.map(c => `- ${c}`).join('\n')}
+${agent.capabilities.map((c) => `- ${c}`).join("\n")}
 
 ## Communication Style
 ${agent.tone}
@@ -320,23 +333,23 @@ ${PTD_BUSINESS_CONTEXT}
   if (options.includeLifecycle) {
     prompt += `\n${LEAD_LIFECYCLE_PROMPT}\n`;
   }
-  
+
   if (options.includeROI) {
     prompt += `\n${ROI_MANAGERIAL_PROMPT}\n`;
   }
-  
+
   if (options.includeHubSpot) {
     prompt += `\n${HUBSPOT_WORKFLOWS_PROMPT}\n`;
   }
-  
+
   if (options.includeHealthZones) {
     prompt += `\n${HEALTH_ZONE_DEFINITIONS}\n`;
   }
-  
+
   if (options.outputFormat && OUTPUT_FORMATS[options.outputFormat]) {
     prompt += `\n## Required Output Format\n${OUTPUT_FORMATS[options.outputFormat].schema}\n`;
   }
-  
+
   if (options.additionalContext) {
     prompt += `\n## Additional Context\n${options.additionalContext}\n`;
   }
@@ -362,18 +375,18 @@ export const HUBSPOT_WORKFLOW_INTELLIGENCE = HUBSPOT_WORKFLOWS_PROMPT;
 // Helper function to format deal stage
 export function formatDealStage(stageId: string): string {
   const stageMap: Record<string, string> = {
-    '122178070': 'New Lead (Incoming)',
-    '122237508': 'Assessment Booked',
-    '122237276': 'Assessment Completed',
-    '122221229': 'Booking Process',
-    'qualifiedtobuy': 'Qualified to Buy',
-    'decisionmakerboughtin': 'Decision Maker Bought In',
-    'contractsent': 'Contract Sent',
-    '2900542': 'Payment Pending',
-    '987633705': 'Onboarding',
-    'closedwon': 'Closed Won ✅',
-    '1063991961': 'Closed Lost ❌',
-    '1064059180': 'On Hold',
+    "122178070": "New Lead (Incoming)",
+    "122237508": "Assessment Booked",
+    "122237276": "Assessment Completed",
+    "122221229": "Booking Process",
+    qualifiedtobuy: "Qualified to Buy",
+    decisionmakerboughtin: "Decision Maker Bought In",
+    contractsent: "Contract Sent",
+    "2900542": "Payment Pending",
+    "987633705": "Onboarding",
+    closedwon: "Closed Won ✅",
+    "1063991961": "Closed Lost ❌",
+    "1064059180": "On Hold",
   };
   return stageMap[stageId] || stageId;
 }
@@ -381,20 +394,29 @@ export function formatDealStage(stageId: string): string {
 // Helper function to format lifecycle stage
 export function formatLifecycleStage(lifecycle: string): string {
   const lifecycleMap: Record<string, string> = {
-    'lead': 'New Lead',
-    'marketingqualifiedlead': 'MQL (Marketing Qualified Lead)',
-    'salesqualifiedlead': 'SQL (Sales Qualified Lead)',
-    'opportunity': 'Opportunity',
-    'customer': 'Customer ✅',
+    lead: "New Lead",
+    marketingqualifiedlead: "MQL (Marketing Qualified Lead)",
+    salesqualifiedlead: "SQL (Sales Qualified Lead)",
+    opportunity: "Opportunity",
+    customer: "Customer ✅",
   };
   return lifecycleMap[lifecycle] || lifecycle;
 }
 
 // Build unified prompt for Edge Functions
+const MARK_PERSONA = `
+You are Mark, a high-performance business analyst and "Virtual CEO" for PTD Fitness in Dubai.
+- Tone: Professional, Direct, High-Energy, "Dubai Hustle".
+- Context: You manage 55+ coaches and want to hit >5x ROAS.
+- Role: Answer queries about Revenue, Leads, and Team Performance.
+- User: You are talking to the Founder/CEO. match their speed.
+`;
+
 export function buildUnifiedPromptForEdgeFunction(options: any): string {
   return `
 MISSION: PTD CEO Control.
+PERSONA: ${MARK_PERSONA}
 RULES: Use LIVE data. anytrack > hubspot > facebook.
-CONTEXT: ${options.knowledge || ''} ${options.memory || ''}
+CONTEXT: ${options.knowledge || ""} ${options.memory || ""}
 `;
 }

@@ -77,6 +77,120 @@ serve(async (req) => {
       ) {
         console.log("💰 DEAL WON! Triggering celebration...");
       }
+
+      // 6. WhatsApp/Conversation Messages - COMPLETE FLOW
+      if (
+        subscriptionType === "conversation.newMessage" ||
+        subscriptionType === "conversation.creation"
+      ) {
+        console.log(`💬 New WhatsApp Message in Thread ${objectId}`);
+
+        const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY");
+
+        if (!HUBSPOT_API_KEY) {
+          console.error("❌ HUBSPOT_API_KEY not configured");
+          return;
+        }
+
+        try {
+          // STEP 1: Fetch the actual message from HubSpot
+          const messagesUrl = `https://api.hubapi.com/conversations/v3/conversations/threads/${objectId}/messages`;
+          console.log(`📥 Fetching messages from thread ${objectId}`);
+
+          const msgResponse = await fetch(messagesUrl, {
+            headers: {
+              Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!msgResponse.ok) {
+            console.error(`❌ Failed to fetch messages: ${msgResponse.status}`);
+            return;
+          }
+
+          const messagesData = await msgResponse.json();
+          const latestMessage = messagesData.results?.[0];
+
+          if (!latestMessage || !latestMessage.text) {
+            console.warn("⚠️ No message text found");
+            return;
+          }
+
+          const userMessage = latestMessage.text;
+          console.log(`📝 User message: "${userMessage.slice(0, 100)}..."`);
+
+          // STEP 2: Build conversation context for psychology engine
+          const conversationContext = {
+            source: "whatsapp",
+            platform: "whatsapp",
+            threadId: objectId,
+            subscriptionType,
+            messageCount: messagesData.results?.length || 1,
+            // Add metadata for psychology patterns
+            timestamp: new Date().toISOString(),
+          };
+
+          // STEP 3: Get AI response with psychology prompts
+          console.log(`🧠 Processing with AI (psychology mode)`);
+          const { data: aiResponse, error: aiError } =
+            await supabase.functions.invoke("agent-manager", {
+              body: {
+                query: userMessage,
+                context: conversationContext,
+              },
+            });
+
+          if (aiError) {
+            console.error("❌ AI processing error:", aiError);
+            return;
+          }
+
+          if (!aiResponse?.response) {
+            console.error("❌ No AI response generated");
+            return;
+          }
+
+          const aiMessageText = aiResponse.response;
+          console.log(
+            `✅ AI response generated: "${aiMessageText.slice(0, 100)}..."`,
+          );
+
+          // STEP 4: Send response back to customer via HubSpot
+          console.log(`📤 Sending response to WhatsApp`);
+          const { data: sendResult, error: sendError } =
+            await supabase.functions.invoke("send-hubspot-message", {
+              body: {
+                threadId: objectId,
+                message: aiMessageText,
+              },
+            });
+
+          if (sendError) {
+            console.error("❌ Message sending error:", sendError);
+            return;
+          }
+
+          console.log(`✅ Message delivered successfully!`, sendResult);
+        } catch (whatsappError: any) {
+          console.error("❌ WhatsApp flow error:", whatsappError);
+
+          // Log error but don't crash the webhook
+          await supabase
+            .from("error_log")
+            .insert({
+              function_name: "hubspot-webhook-receiver",
+              error_message: whatsappError.message || "Unknown error",
+              context: {
+                threadId: objectId,
+                subscriptionType,
+              },
+            })
+            .catch((logError: any) => {
+              console.error("Failed to log error:", logError);
+            });
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), {

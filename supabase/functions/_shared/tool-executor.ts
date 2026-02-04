@@ -382,6 +382,25 @@ export async function executeSharedTool(
         }
       }
 
+      case "validate_truth": {
+        const { fromDate } = input;
+        try {
+          console.log("🦅 Executing Universal Truth Validation...");
+          const { data, error } = await supabase.functions.invoke(
+            "validate-truth",
+            {
+              body: { fromDate },
+            },
+          );
+
+          if (error) throw new Error(error.message);
+
+          return JSON.stringify(data, null, 2);
+        } catch (e) {
+          return `Validation error: ${e}`;
+        }
+      }
+
       case "get_at_risk_clients": {
         const { zone = "red", limit = 20 } = input;
         let query = supabase.from("client_health_scores").select("*");

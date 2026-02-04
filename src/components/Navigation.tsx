@@ -29,6 +29,7 @@ import {
   Wallet,
   Award,
   BrainCircuit,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -102,6 +103,7 @@ export const Navigation = () => {
 
     // INTELLIGENCE
     { path: "/stripe", label: "Stripe", icon: CreditCard },
+    { path: "/reconciliation", label: "Leak Detector", icon: ShieldAlert },
     { path: "/ai-advisor", label: "AI Advisor", icon: BrainCircuit },
   ];
 
