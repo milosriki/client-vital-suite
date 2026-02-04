@@ -1,19 +1,23 @@
 /// <reference lib="deno.ns" />
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.20.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -29,7 +33,7 @@ interface AnalystQuery {
 }
 
 serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -39,20 +43,25 @@ serve(async (req: Request) => {
 
     if (!query || !session_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: query and session_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Missing required fields: query and session_id",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Fetch relevant data based on context
-    let dataContext = '';
+    let dataContext = "";
 
     if (context?.client_id) {
       const { data: client } = await supabase
-        .from('client_health_scores')
-        .select('*')
-        .eq('email', context.client_id)
-        .order('calculated_at', { ascending: false })
+        .from("client_health_scores")
+        .select("*")
+        .eq("email", context.client_id)
+        .order("calculated_at", { ascending: false })
         .limit(1)
         .single();
 
@@ -63,10 +72,10 @@ serve(async (req: Request) => {
 
     if (context?.coach_id) {
       const { data: coachData } = await supabase
-        .from('coach_performance')
-        .select('*')
-        .eq('coach_name', context.coach_id)
-        .order('report_date', { ascending: false })
+        .from("coach_performance")
+        .select("*")
+        .eq("coach_name", context.coach_id)
+        .order("report_date", { ascending: false })
         .limit(1)
         .single();
 
@@ -75,7 +84,7 @@ serve(async (req: Request) => {
       }
     }
 
-    const SYSTEM_PROMPT = buildAgentPrompt('AGENT_ANALYST', {
+    const SYSTEM_PROMPT = buildAgentPrompt("AGENT_ANALYST", {
       additionalContext: `Track: response times, accuracy rates, token usage, error rates
 
 EXPERTISE AREAS:
@@ -88,15 +97,16 @@ ANALYSIS FRAMEWORK:
 - Always quantify impacts (% changes, AED amounts, client counts)
 - Prioritize recommendations by ROI and implementation effort
 - Flag risks with severity (HIGH/MEDIUM/LOW)
-- Include confidence levels for predictions`
+- Include confidence levels for predictions`,
     });
 
     // Call Unified AI for analysis
-    const response = await unifiedAI.chat([
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `${dataContext}
+    const response = await unifiedAI.chat(
+      [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `${dataContext}
 
 User Query: ${query}
 
@@ -106,22 +116,24 @@ Provide a comprehensive analysis with:
 3. Risk factors (if any)
 4. Opportunities
 
-Be specific and data-driven.`
-      }
-    ], {
-      max_tokens: 4096,
-      temperature: 0.7
-    });
+Be specific and data-driven.`,
+        },
+      ],
+      {
+        max_tokens: 4096,
+        temperature: 0.7,
+      },
+    );
 
     const analysis = response.content;
 
     // Store analysis in database
-    await supabase.from('agent_conversations').insert({
+    await supabase.from("agent_conversations").insert({
       session_id,
-      role: 'analyst',
+      role: "analyst",
       message: query,
       response: analysis,
-      metadata: { context, model: 'claude-sonnet-4-5' }
+      metadata: { context, model: "claude-sonnet-4-5" },
     });
 
     return new Response(
@@ -129,21 +141,23 @@ Be specific and data-driven.`
         success: true,
         analysis,
         session_id,
-        context
+        context,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error: unknown) {
-    console.error('Analyst error:', error);
+    console.error("Analyst error:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     return new Response(
       JSON.stringify({
-        error: errorMessage || 'Failed to generate analysis',
-        details: errorStack
+        error: errorMessage || "Failed to generate analysis",
+        details: errorStack,
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

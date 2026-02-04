@@ -1,6 +1,15 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 // ============================================
 // ANOMALY DETECTOR AGENT
@@ -8,26 +17,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Catches issues before they become visible
 // ============================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 // Validate environment variables at startup
 function validateEnv(): { valid: boolean; missing: string[] } {
   const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
-  const missing = required.filter(key => !Deno.env.get(key));
+  const missing = required.filter((key) => !Deno.env.get(key));
   return { valid: missing.length === 0, missing };
 }
 
 const envCheck = validateEnv();
 if (!envCheck.valid) {
-  console.error("[Anomaly Detector] Missing required environment variables:", envCheck.missing);
+  console.error(
+    "[Anomaly Detector] Missing required environment variables:",
+    envCheck.missing,
+  );
 }
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") || "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
 );
 
 interface Anomaly {
@@ -70,7 +77,7 @@ async function detectZoneDistributionAnomalies(): Promise<Anomaly[]> {
   }
 
   const zones = { RED: 0, YELLOW: 0, GREEN: 0, PURPLE: 0 };
-  clients.forEach(c => {
+  clients.forEach((c) => {
     if (c && c.health_zone && c.health_zone in zones) {
       zones[c.health_zone as keyof typeof zones]++;
     }
@@ -82,10 +89,10 @@ async function detectZoneDistributionAnomalies(): Promise<Anomaly[]> {
 
   // Expected distribution (based on healthy business)
   const expected = {
-    RED: 0.10,     // Max 10%
-    YELLOW: 0.20,  // Max 20%
-    GREEN: 0.50,   // At least 50%
-    PURPLE: 0.20   // Ideal champions
+    RED: 0.1, // Max 10%
+    YELLOW: 0.2, // Max 20%
+    GREEN: 0.5, // At least 50%
+    PURPLE: 0.2, // Ideal champions
   };
 
   // Check RED zone anomaly
@@ -99,32 +106,34 @@ async function detectZoneDistributionAnomalies(): Promise<Anomaly[]> {
       metric: "red_zone_percentage",
       expected_value: "≤10%",
       actual_value: `${Math.round(redPct * 100)}%`,
-      deviation_percent: Math.round((redPct - 0.10) / 0.10 * 100),
+      deviation_percent: Math.round(((redPct - 0.1) / 0.1) * 100),
       affected_entities: clients
-        .filter(c => c && c.health_zone === "RED" && c.email)
-        .map(c => c.email)
+        .filter((c) => c && c.health_zone === "RED" && c.email)
+        .map((c) => c.email)
         .filter((e): e is string => !!e)
         .slice(0, 10),
       detected_at: new Date().toISOString(),
-      recommendation: "Investigate root cause - check for system issues or external factors"
+      recommendation:
+        "Investigate root cause - check for system issues or external factors",
     });
   }
 
   // Check GREEN+PURPLE anomaly
   const healthyPct = (zones.GREEN + zones.PURPLE) / total;
-  if (healthyPct < 0.50) {
+  if (healthyPct < 0.5) {
     anomalies.push({
       type: "zone_distribution",
-      severity: healthyPct < 0.30 ? "critical" : "high",
+      severity: healthyPct < 0.3 ? "critical" : "high",
       title: "Low Healthy Client Rate",
       description: `Only ${Math.round(healthyPct * 100)}% of clients are GREEN/PURPLE, expected 70%+`,
       metric: "healthy_rate",
       expected_value: "≥70%",
       actual_value: `${Math.round(healthyPct * 100)}%`,
-      deviation_percent: Math.round((0.70 - healthyPct) / 0.70 * 100),
+      deviation_percent: Math.round(((0.7 - healthyPct) / 0.7) * 100),
       affected_entities: [],
       detected_at: new Date().toISOString(),
-      recommendation: "Review engagement strategies and intervention effectiveness"
+      recommendation:
+        "Review engagement strategies and intervention effectiveness",
     });
   }
 
@@ -154,8 +163,12 @@ async function detectScoreAnomalies(): Promise<Anomaly[]> {
   const historical = summaries.slice(3, 10);
 
   // Calculate averages
-  const recentAvgScore = recent.reduce((sum, s) => sum + (s.avg_health_score || 0), 0) / recent.length;
-  const historicalAvgScore = historical.reduce((sum, s) => sum + (s.avg_health_score || 0), 0) / historical.length;
+  const recentAvgScore =
+    recent.reduce((sum, s) => sum + (s.avg_health_score || 0), 0) /
+    recent.length;
+  const historicalAvgScore =
+    historical.reduce((sum, s) => sum + (s.avg_health_score || 0), 0) /
+    historical.length;
 
   // Check for sudden drop in average health score
   const scoreDrop = historicalAvgScore - recentAvgScore;
@@ -168,10 +181,11 @@ async function detectScoreAnomalies(): Promise<Anomaly[]> {
       metric: "avg_health_score",
       expected_value: historicalAvgScore.toFixed(1),
       actual_value: recentAvgScore.toFixed(1),
-      deviation_percent: Math.round(scoreDrop / historicalAvgScore * 100),
+      deviation_percent: Math.round((scoreDrop / historicalAvgScore) * 100),
       affected_entities: [],
       detected_at: new Date().toISOString(),
-      recommendation: "Investigate what changed - new clients, data issues, or real engagement drop"
+      recommendation:
+        "Investigate what changed - new clients, data issues, or real engagement drop",
     });
   }
 
@@ -180,13 +194,18 @@ async function detectScoreAnomalies(): Promise<Anomaly[]> {
   const historicalClientCount = historical[0]?.total_clients || 0;
 
   if (historicalClientCount > 0) {
-    const clientChange = (recentClientCount - historicalClientCount) / historicalClientCount * 100;
+    const clientChange =
+      ((recentClientCount - historicalClientCount) / historicalClientCount) *
+      100;
 
     if (Math.abs(clientChange) > 20) {
       anomalies.push({
         type: "client_count",
         severity: "medium",
-        title: clientChange > 0 ? "Unusual Client Count Increase" : "Unusual Client Count Decrease",
+        title:
+          clientChange > 0
+            ? "Unusual Client Count Increase"
+            : "Unusual Client Count Decrease",
         description: `Client count changed by ${clientChange.toFixed(1)}% in a week`,
         metric: "total_clients",
         expected_value: historicalClientCount,
@@ -194,9 +213,10 @@ async function detectScoreAnomalies(): Promise<Anomaly[]> {
         deviation_percent: Math.round(clientChange),
         affected_entities: [],
         detected_at: new Date().toISOString(),
-        recommendation: clientChange > 0
-          ? "Verify new clients are valid (not duplicates)"
-          : "Check for data sync issues or mass unsubscribes"
+        recommendation:
+          clientChange > 0
+            ? "Verify new clients are valid (not duplicates)"
+            : "Check for data sync issues or mass unsubscribes",
       });
     }
   }
@@ -223,9 +243,12 @@ async function detectCoachAnomalies(): Promise<Anomaly[]> {
   }
 
   // Group by coach
-  const coachStats = new Map<string, { total: number; red: number; declining: number; avgScore: number }>();
+  const coachStats = new Map<
+    string,
+    { total: number; red: number; declining: number; avgScore: number }
+  >();
 
-  coachData.forEach(client => {
+  coachData.forEach((client) => {
     if (!client) return;
     const coach = client.assigned_coach;
     if (!coach || typeof coach !== "string" || coach === "Unassigned") return;
@@ -246,8 +269,8 @@ async function detectCoachAnomalies(): Promise<Anomaly[]> {
     if (stats.total < 5) return; // Not enough clients to detect anomalies
 
     stats.avgScore = stats.avgScore / stats.total;
-    const redPct = stats.red / stats.total * 100;
-    const decliningPct = stats.declining / stats.total * 100;
+    const redPct = (stats.red / stats.total) * 100;
+    const decliningPct = (stats.declining / stats.total) * 100;
 
     // Check for coach with abnormally high RED rate
     if (redPct > 30) {
@@ -259,10 +282,11 @@ async function detectCoachAnomalies(): Promise<Anomaly[]> {
         metric: "coach_red_rate",
         expected_value: "≤15%",
         actual_value: `${Math.round(redPct)}%`,
-        deviation_percent: Math.round((redPct - 15) / 15 * 100),
+        deviation_percent: Math.round(((redPct - 15) / 15) * 100),
         affected_entities: [coach],
         detected_at: new Date().toISOString(),
-        recommendation: "Review coach's client list, consider reassigning critical cases"
+        recommendation:
+          "Review coach's client list, consider reassigning critical cases",
       });
     }
 
@@ -276,10 +300,10 @@ async function detectCoachAnomalies(): Promise<Anomaly[]> {
         metric: "coach_declining_rate",
         expected_value: "≤30%",
         actual_value: `${Math.round(decliningPct)}%`,
-        deviation_percent: Math.round((decliningPct - 30) / 30 * 100),
+        deviation_percent: Math.round(((decliningPct - 30) / 30) * 100),
         affected_entities: [coach],
         detected_at: new Date().toISOString(),
-        recommendation: "Schedule coach performance review and provide support"
+        recommendation: "Schedule coach performance review and provide support",
       });
     }
   });
@@ -307,20 +331,21 @@ async function detectCAPIAnomalies(): Promise<Anomaly[]> {
       type: "capi_activity",
       severity: "high",
       title: "No CAPI Events in 24 Hours",
-      description: "No conversion events have been processed in the last 24 hours",
+      description:
+        "No conversion events have been processed in the last 24 hours",
       metric: "capi_event_count",
       expected_value: ">0",
       actual_value: "0",
       deviation_percent: null,
       affected_entities: [],
       detected_at: new Date().toISOString(),
-      recommendation: "Check HubSpot sync and event generation pipeline"
+      recommendation: "Check HubSpot sync and event generation pipeline",
     });
     return anomalies;
   }
 
   const total = events.length;
-  const failed = events.filter(e => e.send_status === "failed").length;
+  const failed = events.filter((e) => e.send_status === "failed").length;
   const failRate = (failed / total) * 100;
 
   if (failRate > 20) {
@@ -332,10 +357,10 @@ async function detectCAPIAnomalies(): Promise<Anomaly[]> {
       metric: "capi_fail_rate",
       expected_value: "≤5%",
       actual_value: `${Math.round(failRate)}%`,
-      deviation_percent: Math.round((failRate - 5) / 5 * 100),
+      deviation_percent: Math.round(((failRate - 5) / 5) * 100),
       affected_entities: [],
       detected_at: new Date().toISOString(),
-      recommendation: "Run capi-validator to identify and fix event issues"
+      recommendation: "Run capi-validator to identify and fix event issues",
     });
   }
 
@@ -348,7 +373,9 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
   // Check for unusual patterns in client data
   const { data: clients, error } = await supabase
     .from("client_health_scores")
-    .select("email, sessions_last_7d, sessions_last_30d, days_since_last_session");
+    .select(
+      "email, sessions_last_7d, sessions_last_30d, days_since_last_session",
+    );
 
   if (error) {
     console.error("[detectDataPatternAnomalies] Database error:", error);
@@ -360,8 +387,8 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
   }
 
   // Check for data consistency - sessions_7d should never exceed sessions_30d
-  const inconsistent = clients.filter(c =>
-    c && (c.sessions_last_7d || 0) > (c.sessions_last_30d || 0)
+  const inconsistent = clients.filter(
+    (c) => c && (c.sessions_last_7d || 0) > (c.sessions_last_30d || 0),
   );
 
   if (inconsistent.length > 0) {
@@ -374,18 +401,21 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
       expected_value: "sessions_7d ≤ sessions_30d",
       actual_value: `${inconsistent.length} violations`,
       deviation_percent: null,
-      affected_entities: inconsistent.slice(0, 5).map(c => c?.email).filter((e): e is string => !!e),
+      affected_entities: inconsistent
+        .slice(0, 5)
+        .map((c) => c?.email)
+        .filter((e): e is string => !!e),
       detected_at: new Date().toISOString(),
-      recommendation: "Check HubSpot sync and session calculation logic"
+      recommendation: "Check HubSpot sync and session calculation logic",
     });
   }
 
   // Check for impossible values
-  const impossible = clients.filter(c =>
-    c && (
-      (c.sessions_last_7d || 0) > 21 || // More than 3 sessions/day
-      (c.days_since_last_session || 0) < 0
-    )
+  const impossible = clients.filter(
+    (c) =>
+      c &&
+      ((c.sessions_last_7d || 0) > 21 || // More than 3 sessions/day
+        (c.days_since_last_session || 0) < 0),
   );
 
   if (impossible.length > 0) {
@@ -398,9 +428,12 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
       expected_value: "Valid ranges",
       actual_value: `${impossible.length} violations`,
       deviation_percent: null,
-      affected_entities: impossible.slice(0, 5).map(c => c?.email).filter((e): e is string => !!e),
+      affected_entities: impossible
+        .slice(0, 5)
+        .map((c) => c?.email)
+        .filter((e): e is string => !!e),
       detected_at: new Date().toISOString(),
-      recommendation: "Review data source and validation rules"
+      recommendation: "Review data source and validation rules",
     });
   }
 
@@ -417,7 +450,9 @@ serve(async (req) => {
   try {
     // Check environment variables
     if (!envCheck.valid) {
-      throw new Error(`Missing required environment variables: ${envCheck.missing.join(", ")}`);
+      throw new Error(
+        `Missing required environment variables: ${envCheck.missing.join(", ")}`,
+      );
     }
 
     console.log("[Anomaly Detector] Scanning for anomalies...");
@@ -425,35 +460,43 @@ serve(async (req) => {
     // Helper to safely run detection with fallback
     const safeDetect = async (
       detectFn: () => Promise<Anomaly[]>,
-      name: string
+      name: string,
     ): Promise<Anomaly[]> => {
       try {
         return await detectFn();
       } catch (e) {
         console.error(`Error in ${name}:`, e);
-        return [{
-          type: "system_error",
-          severity: "high",
-          title: `${name} Check Failed`,
-          description: `Could not complete ${name}: ${e instanceof Error ? e.message : "Unknown"}`,
-          metric: name,
-          expected_value: "success",
-          actual_value: "error",
-          deviation_percent: null,
-          affected_entities: [],
-          detected_at: new Date().toISOString(),
-          recommendation: "Check database connectivity and logs"
-        }];
+        return [
+          {
+            type: "system_error",
+            severity: "high",
+            title: `${name} Check Failed`,
+            description: `Could not complete ${name}: ${e instanceof Error ? e.message : "Unknown"}`,
+            metric: name,
+            expected_value: "success",
+            actual_value: "error",
+            deviation_percent: null,
+            affected_entities: [],
+            detected_at: new Date().toISOString(),
+            recommendation: "Check database connectivity and logs",
+          },
+        ];
       }
     };
 
     // Run all detection algorithms in parallel with error handling
-    const [zoneAnomalies, scoreAnomalies, coachAnomalies, capiAnomalies, dataAnomalies] = await Promise.all([
+    const [
+      zoneAnomalies,
+      scoreAnomalies,
+      coachAnomalies,
+      capiAnomalies,
+      dataAnomalies,
+    ] = await Promise.all([
       safeDetect(detectZoneDistributionAnomalies, "Zone Distribution"),
       safeDetect(detectScoreAnomalies, "Score Trends"),
       safeDetect(detectCoachAnomalies, "Coach Performance"),
       safeDetect(detectCAPIAnomalies, "CAPI Events"),
-      safeDetect(detectDataPatternAnomalies, "Data Patterns")
+      safeDetect(detectDataPatternAnomalies, "Data Patterns"),
     ]);
 
     const allAnomalies = [
@@ -461,45 +504,58 @@ serve(async (req) => {
       ...scoreAnomalies,
       ...coachAnomalies,
       ...capiAnomalies,
-      ...dataAnomalies
+      ...dataAnomalies,
     ];
 
     // Sort by severity
     const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    allAnomalies.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+    allAnomalies.sort(
+      (a, b) => severityOrder[a.severity] - severityOrder[b.severity],
+    );
 
-    const criticalCount = allAnomalies.filter(a => a.severity === "critical").length;
-    const highCount = allAnomalies.filter(a => a.severity === "high").length;
+    const criticalCount = allAnomalies.filter(
+      (a) => a.severity === "critical",
+    ).length;
+    const highCount = allAnomalies.filter((a) => a.severity === "high").length;
 
     // Determine system status
     let systemStatus: AnomalyReport["system_status"] = "normal";
     if (criticalCount > 0) systemStatus = "critical";
-    else if (highCount > 0 || allAnomalies.length > 3) systemStatus = "attention_needed";
+    else if (highCount > 0 || allAnomalies.length > 3)
+      systemStatus = "attention_needed";
 
     const report: AnomalyReport = {
       timestamp: new Date().toISOString(),
       anomalies_found: allAnomalies.length,
       critical_count: criticalCount,
       anomalies: allAnomalies,
-      system_status: systemStatus
+      system_status: systemStatus,
     };
 
     // Store anomalies as proactive insights
-    for (const anomaly of allAnomalies.filter(a => a.severity === "critical" || a.severity === "high")) {
-      await supabase.from("proactive_insights").upsert({
-        insight_type: "anomaly",
-        priority: anomaly.severity,
-        title: anomaly.title,
-        content: anomaly.description,
-        action_items: [anomaly.recommendation],
-        affected_entities: { entities: anomaly.affected_entities, metric: anomaly.metric },
-        source_agent: "anomaly_detector",
-        dedup_key: `anomaly_${anomaly.type}_${anomaly.metric}_${new Date().toISOString().split("T")[0]}`,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      }, {
-        onConflict: "dedup_key",
-        ignoreDuplicates: true
-      });
+    for (const anomaly of allAnomalies.filter(
+      (a) => a.severity === "critical" || a.severity === "high",
+    )) {
+      await supabase.from("proactive_insights").upsert(
+        {
+          insight_type: "anomaly",
+          priority: anomaly.severity,
+          title: anomaly.title,
+          content: anomaly.description,
+          action_items: [anomaly.recommendation],
+          affected_entities: {
+            entities: anomaly.affected_entities,
+            metric: anomaly.metric,
+          },
+          source_agent: "anomaly_detector",
+          dedup_key: `anomaly_${anomaly.type}_${anomaly.metric}_${new Date().toISOString().split("T")[0]}`,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          onConflict: "dedup_key",
+          ignoreDuplicates: true,
+        },
+      );
     }
 
     // Log the scan
@@ -509,31 +565,43 @@ serve(async (req) => {
       status: systemStatus === "normal" ? "success" : "completed_with_errors",
       records_processed: allAnomalies.length,
       records_failed: criticalCount,
-      error_details: { anomalies: allAnomalies.map(a => ({ type: a.type, severity: a.severity })) },
+      error_details: {
+        anomalies: allAnomalies.map((a) => ({
+          type: a.type,
+          severity: a.severity,
+        })),
+      },
       started_at: new Date(startTime).toISOString(),
       completed_at: new Date().toISOString(),
-      duration_ms: Date.now() - startTime
+      duration_ms: Date.now() - startTime,
     });
 
     const duration = Date.now() - startTime;
-    console.log(`[Anomaly Detector] Complete in ${duration}ms - Found ${allAnomalies.length} anomalies`);
+    console.log(
+      `[Anomaly Detector] Complete in ${duration}ms - Found ${allAnomalies.length} anomalies`,
+    );
 
-    return new Response(JSON.stringify({
-      success: true,
-      duration_ms: duration,
-      report
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        duration_ms: duration,
+        report,
+      }),
+      {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error) {
     console.error("[Anomaly Detector] Error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   }
 });

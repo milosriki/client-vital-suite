@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/api-error-handler";
+import { ErrorDetective } from "@/lib/error-detective";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
@@ -18,6 +19,9 @@ import { AuthProvider } from "@/contexts/AuthProvider"; // Import AuthProvider
 import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import { testAllFunctions } from "@/utils/testFunctions";
 import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
+import { Fishbird } from "@/lib/fishbird-analytics"; // Import Fishbird
+
+Fishbird.init(); // Initialize Fishbird "Truth Layer"
 import Operations from "./pages/Operations";
 import Overview from "./pages/Overview";
 import Clients from "./pages/Clients";
@@ -136,16 +140,21 @@ const queryClient = new QueryClient({
   },
   queryCache: new QueryCache({
     onError: (error) => {
-      const message = getErrorMessage(error);
-      toast.error(`Error: ${message}`);
-      Sentry.captureException(error); // Log Query errors
+      // Use Detective for unified logging and toast
+      ErrorDetective.capture(error, {
+        context: { source: "react-query-cache" },
+        showToast: true,
+        toastMessage: getErrorMessage(error),
+      });
     },
   }),
   mutationCache: new MutationCache({
     onError: (error) => {
-      const message = getErrorMessage(error);
-      toast.error(`Error: ${message}`);
-      Sentry.captureException(error); // Log Mutation errors
+      ErrorDetective.capture(error, {
+        context: { source: "react-mutation-cache" },
+        showToast: true,
+        toastMessage: getErrorMessage(error),
+      });
     },
   }),
 });

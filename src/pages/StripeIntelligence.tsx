@@ -32,6 +32,7 @@ import {
   startOfYear,
   subMonths,
 } from "date-fns";
+import { getBusinessDate } from "@/lib/date-utils";
 
 // Components & Hooks
 import { useStripeMetrics } from "@/components/stripe-intelligence/hooks/useStripeMetrics";
@@ -50,33 +51,51 @@ interface DateRange {
 }
 
 const PRESET_RANGES = [
-  { label: "Today", getValue: () => ({ from: new Date(), to: new Date() }) },
+  {
+    label: "Today",
+    getValue: () => ({ from: getBusinessDate(), to: getBusinessDate() }),
+  },
   {
     label: "Last 7 days",
-    getValue: () => ({ from: subDays(new Date(), 7), to: new Date() }),
+    getValue: () => ({
+      from: subDays(getBusinessDate(), 7),
+      to: getBusinessDate(),
+    }),
   },
   {
     label: "Last 30 days",
-    getValue: () => ({ from: subDays(new Date(), 30), to: new Date() }),
+    getValue: () => ({
+      from: subDays(getBusinessDate(), 30),
+      to: getBusinessDate(),
+    }),
   },
   {
     label: "This month",
-    getValue: () => ({ from: startOfMonth(new Date()), to: new Date() }),
+    getValue: () => ({
+      from: startOfMonth(getBusinessDate()),
+      to: getBusinessDate(),
+    }),
   },
   {
     label: "Last month",
     getValue: () => ({
-      from: startOfMonth(subMonths(new Date(), 1)),
-      to: endOfMonth(subMonths(new Date(), 1)),
+      from: startOfMonth(subMonths(getBusinessDate(), 1)),
+      to: endOfMonth(subMonths(getBusinessDate(), 1)),
     }),
   },
   {
     label: "Last 3 months",
-    getValue: () => ({ from: subMonths(new Date(), 3), to: new Date() }),
+    getValue: () => ({
+      from: subMonths(getBusinessDate(), 3),
+      to: getBusinessDate(),
+    }),
   },
   {
     label: "This year",
-    getValue: () => ({ from: startOfYear(new Date()), to: new Date() }),
+    getValue: () => ({
+      from: startOfYear(getBusinessDate()),
+      to: getBusinessDate(),
+    }),
   },
   { label: "All time", getValue: () => ({ from: undefined, to: undefined }) },
 ];

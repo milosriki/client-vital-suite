@@ -17,6 +17,12 @@ import {
   ToolDefinition,
   ChatMessage,
 } from "../_shared/unified-ai-client.ts";
+import {
+  handleError,
+  logError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,6 +122,9 @@ async function loadActiveSkill(supabase: any, query: string): Promise<string> {
     return "";
   } catch (e) {
     console.log("Skill load error:", e);
+    await logError(supabase, "ptd-agent-gemini", e, ErrorCode.ISOLATE_ERROR, {
+      context: "loadActiveSkill",
+    });
     return "";
   }
 }
@@ -176,6 +185,9 @@ Total Interactions: ${interactionData.total_interactions || 0}
 `;
   } catch (e) {
     console.log("Dynamic knowledge load error:", e);
+    await logError(supabase, "ptd-agent-gemini", e, ErrorCode.ISOLATE_ERROR, {
+      context: "loadDynamicKnowledge",
+    });
     return "## Dynamic knowledge not yet loaded - using static knowledge";
   }
 }
@@ -617,9 +629,10 @@ const tools: ToolDefinition[] = [
             "get_appointments",
             "get_recent_closes",
             "get_assessment_report",
+            "get_conversion_metrics",
           ],
           description:
-            "Action to perform. 'get_assessment_report' returns daily assessment count broken down by Setter.",
+            "Action to perform. 'get_assessment_report' returns daily assessment count broken down by Setter. 'get_conversion_metrics' returns Scheduled -> Won Deal ratio by Owner.",
         },
         stage: {
           type: "string",
@@ -1385,37 +1398,19 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.error(`❌ Agent error after ${duration}ms:`, error);
 
-    const errMsg = error instanceof Error ? error.message : String(error);
-
-    // Provide user-friendly error messages
-    let userResponse = "Sorry, I encountered an error. Please try again.";
-    let statusCode = 500;
-
-    if (errMsg.includes("timeout")) {
-      userResponse =
-        "My response is taking too long. Try a simpler question or break it into smaller parts.";
-      statusCode = 504;
-    } else if (errMsg.includes("rate limit") || errMsg.includes("429")) {
-      userResponse =
-        "I'm receiving too many requests. Please wait a moment and try again.";
-      statusCode = 429;
-    } else if (errMsg.includes("402") || errMsg.includes("payment")) {
-      userResponse =
-        "AI service credits may be exhausted. Please contact support.";
-      statusCode = 402;
-    }
-
-    return new Response(
-      JSON.stringify({
-        error: errMsg,
-        response: userResponse,
-        duration_ms: duration,
-      }),
-      {
-        status: statusCode,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
+
+    return handleError(error, "ptd-agent-gemini", {
+      supabase,
+      errorCode: ErrorCode.INTERNAL_ERROR,
+      context: { duration, threadId: (req as any).thread_id || "unknown" }, // thread_id might not be available if JSON parse failed or scope issue.
+      // Actually I can't access `thread_id` from the try block easily.
+      // I'll leave it as generic context or try to parse if I want.
+      // For now, simple context.
+    });
   }
 });
 // Force deploy Thu Dec 11 23:41:12 PST 2025

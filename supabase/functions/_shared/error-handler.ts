@@ -1,4 +1,7 @@
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createClient,
+  SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
  * Standard error response format
@@ -41,7 +44,12 @@ export enum ErrorCode {
   UNKNOWN_ERROR = "UNKNOWN_ERROR",
 
   // Rate limiting (429)
+  // Rate limiting (429)
   RATE_LIMIT_ERROR = "RATE_LIMIT_ERROR",
+
+  // Execution/Runtime errors
+  ISOLATE_ERROR = "ISOLATE_ERROR",
+  DATA_INTEGRITY_ERROR = "DATA_INTEGRITY_ERROR",
 }
 
 /**
@@ -62,15 +70,18 @@ const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   [ErrorCode.INTERNAL_ERROR]: 500,
   [ErrorCode.UNKNOWN_ERROR]: 500,
   [ErrorCode.RATE_LIMIT_ERROR]: 429,
+  [ErrorCode.ISOLATE_ERROR]: 500,
+  [ErrorCode.DATA_INTEGRITY_ERROR]: 422, // Unprocessable Entity
 };
 
 /**
  * CORS headers to include in all responses
  */
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, stripe-signature, x-hubspot-signature",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 };
 
 /**
@@ -92,6 +103,8 @@ function mapErrorCodeToType(errorCode: ErrorCode): string {
     [ErrorCode.INTERNAL_ERROR]: "network",
     [ErrorCode.UNKNOWN_ERROR]: "network",
     [ErrorCode.RATE_LIMIT_ERROR]: "rate_limit",
+    [ErrorCode.ISOLATE_ERROR]: "runtime",
+    [ErrorCode.DATA_INTEGRITY_ERROR]: "data_integrity",
   };
 
   return mapping[errorCode] || "network";
@@ -103,22 +116,25 @@ function mapErrorCodeToType(errorCode: ErrorCode): string {
 function mapFunctionNameToSource(functionName: string): string {
   if (functionName.includes("hubspot")) return "hubspot";
   if (functionName.includes("stripe")) return "stripe";
-  if (functionName.includes("meta") || functionName.includes("facebook")) return "meta";
+  if (functionName.includes("meta") || functionName.includes("facebook"))
+    return "meta";
   return "internal";
 }
 
 /**
  * Log error to sync_errors table for tracking and debugging
  */
-async function logErrorToDatabase(
+export async function logError(
   supabase: SupabaseClient | null,
   functionName: string,
   error: Error | unknown,
   errorCode: ErrorCode,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
 ): Promise<void> {
   if (!supabase) {
-    console.warn("⚠️ Cannot log error to database: Supabase client not provided");
+    console.warn(
+      "⚠️ Cannot log error to database: Supabase client not provided",
+    );
     return;
   }
 
@@ -150,7 +166,9 @@ async function logErrorToDatabase(
     if (insertError) {
       console.error("❌ Failed to log error to database:", insertError);
     } else {
-      console.log(`✅ Error logged to database: ${functionName} - ${errorCode}`);
+      console.log(
+        `✅ Error logged to database: ${functionName} - ${errorCode}`,
+      );
     }
   } catch (dbError) {
     console.error("❌ Exception while logging error to database:", dbError);
@@ -163,7 +181,7 @@ async function logErrorToDatabase(
 export function createErrorResponse(
   code: ErrorCode,
   message: string,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
 ): ErrorResponse {
   return {
     success: false,
@@ -187,7 +205,7 @@ export async function handleError(
     errorCode?: ErrorCode;
     context?: Record<string, unknown>;
     includeStack?: boolean;
-  }
+  },
 ): Promise<Response> {
   const {
     supabase = null,
@@ -203,29 +221,26 @@ export async function handleError(
   }
 
   // Log to database
-  await logErrorToDatabase(supabase, functionName, error, errorCode, context);
+  await logError(supabase, functionName, error, errorCode, context);
 
   // Create error response
   const err = error as Error | null;
   const errorResponse = createErrorResponse(
     errorCode,
     err?.message || "An unexpected error occurred",
-    includeStack ? { stack: err?.stack, ...context } : context
+    includeStack ? { stack: err?.stack, ...context } : context,
   );
 
   // Get appropriate status code
   const statusCode = ERROR_STATUS_MAP[errorCode] || 500;
 
-  return new Response(
-    JSON.stringify(errorResponse),
-    {
-      status: statusCode,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
-    }
-  );
+  return new Response(JSON.stringify(errorResponse), {
+    status: statusCode,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
 }
 
 /**
@@ -233,7 +248,7 @@ export async function handleError(
  */
 export function validateEnvVars(
   required: string[],
-  functionName: string
+  functionName: string,
 ): { valid: boolean; missing: string[] } {
   const missing: string[] = [];
 
@@ -245,7 +260,10 @@ export function validateEnvVars(
   }
 
   if (missing.length > 0) {
-    console.error(`❌ ${functionName}: Missing environment variables:`, missing);
+    console.error(
+      `❌ ${functionName}: Missing environment variables:`,
+      missing,
+    );
     return { valid: false, missing };
   }
 
@@ -258,7 +276,7 @@ export function validateEnvVars(
 export function validateRequestBody(
   body: Record<string, unknown> | null | undefined,
   requiredFields: string[],
-  functionName: string
+  functionName: string,
 ): { valid: boolean; missing: string[] } {
   const missing: string[] = [];
 
@@ -328,7 +346,7 @@ export function handleCorsPreFlight(): Response {
  */
 export async function parseJsonSafely<T = unknown>(
   req: Request,
-  functionName: string
+  functionName: string,
 ): Promise<{ success: true; data: T } | { success: false; error: Error }> {
   try {
     const text = await req.text();
@@ -346,13 +364,15 @@ export async function parseJsonSafely<T = unknown>(
 /**
  * Create Supabase client with error handling
  */
-export function createSupabaseClient(functionName: string): SupabaseClient | null {
+export function createSupabaseClient(
+  functionName: string,
+): SupabaseClient | null {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !supabaseKey) {
     console.error(
-      `❌ ${functionName}: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY`
+      `❌ ${functionName}: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY`,
     );
     return null;
   }

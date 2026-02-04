@@ -5,18 +5,39 @@ import { ZoneDistributionBar } from "@/components/ZoneDistributionBar";
 import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInterventionTracker";
 import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
 import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Heart, AlertTriangle, DollarSign, TrendingUp, TrendingDown, Minus, RefreshCw, Download } from "lucide-react";
+import {
+  Users,
+  Heart,
+  AlertTriangle,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  RefreshCw,
+  Download,
+} from "lucide-react";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import type { DailySummary, ClientHealthScore, CoachPerformance } from "@/types/database";
+import type {
+  DailySummary,
+  ClientHealthScore,
+  CoachPerformance,
+} from "@/types/database";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { getBusinessTodayString, getBusinessDate } from "@/lib/date-utils";
 
 const Overview = () => {
   const [setupLoading, setSetupLoading] = useState(false);
@@ -31,16 +52,21 @@ const Overview = () => {
   useRealtimeHealthScores();
 
   // Fetch daily summary - try today first, fallback to latest available
-  const { data: summary, isLoading: summaryLoading, error: summaryError, refetch: refetchSummary } = useDedupedQuery<DailySummary | null>({
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useDedupedQuery<DailySummary | null>({
     queryKey: QUERY_KEYS.summaries.daily,
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getBusinessTodayString(); // Dubai Time
 
       // Try today first
       const { data: todayData, error: todayError } = await (supabase as any)
-        .from('daily_summary')
-        .select('*')
-        .eq('summary_date', today)
+        .from("daily_summary")
+        .select("*")
+        .eq("summary_date", today)
         .maybeSingle();
 
       if (todayData) {
@@ -49,9 +75,9 @@ const Overview = () => {
 
       // Fallback to latest available summary
       const { data: latestData, error: latestError } = await (supabase as any)
-        .from('daily_summary')
-        .select('*')
-        .order('summary_date', { ascending: false })
+        .from("daily_summary")
+        .select("*")
+        .order("summary_date", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -62,25 +88,27 @@ const Overview = () => {
   });
 
   // Fetch critical clients (RED zone) - use latest available date
-  const { data: criticalClients, refetch: refetchCritical } = useDedupedQuery<ClientHealthScore[]>({
+  const { data: criticalClients, refetch: refetchCritical } = useDedupedQuery<
+    ClientHealthScore[]
+  >({
     queryKey: QUERY_KEYS.clients.critical,
     queryFn: async () => {
       // Get latest calculated_on date first
       const { data: latestDateRows } = await (supabase as any)
-        .from('client_health_scores')
-        .select('calculated_on')
-        .order('calculated_on', { ascending: false })
+        .from("client_health_scores")
+        .select("calculated_on")
+        .order("calculated_on", { ascending: false })
         .limit(1);
 
       const latestDate = latestDateRows?.[0]?.calculated_on;
       if (!latestDate) return [];
 
       const { data, error } = await (supabase as any)
-        .from('client_health_scores')
-        .select('*')
-        .eq('health_zone', 'RED')
-        .eq('calculated_on', latestDate)
-        .order('health_score', { ascending: true })
+        .from("client_health_scores")
+        .select("*")
+        .eq("health_zone", "RED")
+        .eq("calculated_on", latestDate)
+        .order("health_score", { ascending: true })
         .limit(10);
 
       if (error) throw error;
@@ -90,16 +118,18 @@ const Overview = () => {
   });
 
   // Fetch coach performance - use latest available date
-  const { data: coaches, refetch: refetchCoaches } = useDedupedQuery<CoachPerformance[]>({
+  const { data: coaches, refetch: refetchCoaches } = useDedupedQuery<
+    CoachPerformance[]
+  >({
     queryKey: QUERY_KEYS.coaches.performance,
     queryFn: async () => {
       // Try today first
-      const today = new Date().toISOString().split('T')[0];
+      const today = getBusinessTodayString();
       const { data: todayData } = await (supabase as any)
-        .from('coach_performance')
-        .select('*')
-        .eq('report_date', today)
-        .order('avg_client_health', { ascending: false });
+        .from("coach_performance")
+        .select("*")
+        .eq("report_date", today)
+        .order("avg_client_health", { ascending: false });
 
       if (todayData && todayData.length > 0) {
         return todayData as CoachPerformance[];
@@ -107,9 +137,9 @@ const Overview = () => {
 
       // Fallback to latest available
       const { data, error } = await (supabase as any)
-        .from('coach_performance')
-        .select('*')
-        .order('report_date', { ascending: false })
+        .from("coach_performance")
+        .select("*")
+        .order("report_date", { ascending: false })
         .limit(20);
 
       if (error) throw error;
@@ -119,13 +149,17 @@ const Overview = () => {
   });
 
   // Fetch interventions
-  const { data: interventions = [], isLoading: interventionsLoading, refetch: refetchInterventions } = useDedupedQuery({
+  const {
+    data: interventions = [],
+    isLoading: interventionsLoading,
+    refetch: refetchInterventions,
+  } = useDedupedQuery({
     queryKey: QUERY_KEYS.interventions.all,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('intervention_log')
-        .select('*')
-        .order('intervention_date', { ascending: false })
+        .from("intervention_log")
+        .select("*")
+        .order("intervention_date", { ascending: false })
         .limit(20);
 
       if (error) throw error;
@@ -135,20 +169,22 @@ const Overview = () => {
   });
 
   // Fetch weekly patterns
-  const { data: weeklyPatterns = [], refetch: refetchWeekly } = useDedupedQuery({
-    queryKey: QUERY_KEYS.patterns.weekly,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('weekly_patterns')
-        .select('*')
-        .order('week_start_date', { ascending: false })
-        .limit(4);
+  const { data: weeklyPatterns = [], refetch: refetchWeekly } = useDedupedQuery(
+    {
+      queryKey: QUERY_KEYS.patterns.weekly,
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("weekly_patterns")
+          .select("*")
+          .order("week_start_date", { ascending: false })
+          .limit(4);
 
-      if (error) throw error;
-      return data || [];
+        if (error) throw error;
+        return data || [];
+      },
+      staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
     },
-    staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
-  });
+  );
 
   const handleRefresh = () => {
     refetchSummary();
@@ -165,7 +201,7 @@ const Overview = () => {
     try {
       console.log("Starting data refresh...");
       setSetupStatus("Checking database connection...");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Simply refresh the data from Supabase
       setSetupStatus("Fetching latest data...");
@@ -181,9 +217,8 @@ const Overview = () => {
         description: "Dashboard data has been refreshed from the database.",
       });
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setSetupStatus("");
-
     } catch (error) {
       console.error("Refresh error:", error);
 
@@ -191,12 +226,13 @@ const Overview = () => {
         type: "Data Refresh Error",
         message: error instanceof Error ? error.message : "Unknown error",
         error,
-        timestamp: new Date().toISOString()
+        timestamp: getBusinessDate().toISOString(),
       });
 
       toast({
         title: "Refresh Failed",
-        description: error instanceof Error ? error.message : "Failed to refresh data",
+        description:
+          error instanceof Error ? error.message : "Failed to refresh data",
         variant: "destructive",
       });
       setSetupStatus("");
@@ -207,25 +243,30 @@ const Overview = () => {
 
   const getHealthColor = (zone: string) => {
     switch (zone) {
-      case 'RED': return 'bg-[#ef4444] text-white';
-      case 'YELLOW': return 'bg-[#eab308] text-white';
-      case 'GREEN': return 'bg-[#22c55e] text-white';
-      case 'PURPLE': return 'bg-[#a855f7] text-white';
-      default: return 'bg-gray-500 text-white';
+      case "RED":
+        return "bg-[#ef4444] text-white";
+      case "YELLOW":
+        return "bg-[#eab308] text-white";
+      case "GREEN":
+        return "bg-[#22c55e] text-white";
+      case "PURPLE":
+        return "bg-[#a855f7] text-white";
+      default:
+        return "bg-gray-500 text-white";
     }
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'text-green-500';
-    if (score >= 50) return 'text-yellow-500';
-    return 'text-red-500';
+    if (score >= 70) return "text-green-500";
+    if (score >= 50) return "text-yellow-500";
+    return "text-red-500";
   };
 
   const getTrendIcon = (trend: string | null) => {
     switch (trend) {
-      case 'improving':
+      case "improving":
         return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case 'declining':
+      case "declining":
         return <TrendingDown className="h-4 w-4 text-red-500" />;
       default:
         return <Minus className="h-4 w-4 text-gray-500" />;
@@ -243,7 +284,7 @@ const Overview = () => {
     }
 
     const reportData = {
-      generatedAt: format(new Date(), 'PPpp'),
+      generatedAt: format(new Date(), "PPpp"),
       summary: {
         totalActiveClients: summary.total_active_clients,
         avgHealthScore: summary.avg_health_score?.toFixed(1),
@@ -254,29 +295,31 @@ const Overview = () => {
         greenClients: summary.green_clients,
         purpleClients: summary.purple_clients,
       },
-      criticalClients: criticalClients?.map(c => ({
-        name: `${c.firstname || ''} ${c.lastname || ''}`.trim(),
-        email: c.client_email,
-        healthScore: c.health_score,
-        healthZone: c.health_zone,
-        daysSinceLastSession: c.days_since_last_session,
-      })) || [],
-      coachPerformance: coaches?.map(c => ({
-        coachName: c.coach_name,
-        totalClients: c.total_clients,
-        avgHealth: c.avg_client_health?.toFixed(1),
-        redClients: c.red_clients,
-        yellowClients: c.yellow_clients,
-        greenClients: c.green_clients,
-        purpleClients: c.purple_clients,
-      })) || [],
+      criticalClients:
+        criticalClients?.map((c) => ({
+          name: `${c.firstname || ""} ${c.lastname || ""}`.trim(),
+          email: c.client_email,
+          healthScore: c.health_score,
+          healthZone: c.health_zone,
+          daysSinceLastSession: c.days_since_last_session,
+        })) || [],
+      coachPerformance:
+        coaches?.map((c) => ({
+          coachName: c.coach_name,
+          totalClients: c.total_clients,
+          avgHealth: c.avg_client_health?.toFixed(1),
+          redClients: c.red_clients,
+          yellowClients: c.yellow_clients,
+          greenClients: c.green_clients,
+          purpleClients: c.purple_clients,
+        })) || [],
     };
 
     const csvContent = [
-      'PTD Client Health Score Report',
+      "PTD Client Health Score Report",
       `Generated: ${reportData.generatedAt}`,
-      '',
-      'Summary',
+      "",
+      "Summary",
       `Total Active Clients,${reportData.summary.totalActiveClients}`,
       `Average Health Score,${reportData.summary.avgHealthScore}`,
       `Critical Interventions,${reportData.summary.criticalInterventions}`,
@@ -285,24 +328,26 @@ const Overview = () => {
       `Yellow Zone Clients,${reportData.summary.yellowClients}`,
       `Green Zone Clients,${reportData.summary.greenClients}`,
       `Purple Zone Clients,${reportData.summary.purpleClients}`,
-      '',
-      'Critical Clients',
-      'Name,Email,Health Score,Zone,Days Since Last Session',
-      ...reportData.criticalClients.map(c => 
-        `${c.name},${c.email},${c.healthScore},${c.healthZone},${c.daysSinceLastSession || 'N/A'}`
+      "",
+      "Critical Clients",
+      "Name,Email,Health Score,Zone,Days Since Last Session",
+      ...reportData.criticalClients.map(
+        (c) =>
+          `${c.name},${c.email},${c.healthScore},${c.healthZone},${c.daysSinceLastSession || "N/A"}`,
       ),
-      '',
-      'Coach Performance',
-      'Coach Name,Total Clients,Avg Health,Red,Yellow,Green,Purple',
-      ...reportData.coachPerformance.map(c => 
-        `${c.coachName},${c.totalClients},${c.avgHealth},${c.redClients},${c.yellowClients},${c.greenClients},${c.purpleClients}`
+      "",
+      "Coach Performance",
+      "Coach Name,Total Clients,Avg Health,Red,Yellow,Green,Purple",
+      ...reportData.coachPerformance.map(
+        (c) =>
+          `${c.coachName},${c.totalClients},${c.avgHealth},${c.redClients},${c.yellowClients},${c.greenClients},${c.purpleClients}`,
       ),
-    ].join('\n');
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `ptd-health-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = `ptd-health-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
 
@@ -318,7 +363,9 @@ const Overview = () => {
         <div className="max-w-7xl mx-auto space-y-8">
           <Skeleton className="h-12 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
           </div>
           <Skeleton className="h-96" />
         </div>
@@ -331,7 +378,9 @@ const Overview = () => {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto">
           <Card className="p-12 text-center">
-            <p className="text-destructive mb-4">Failed to load dashboard data</p>
+            <p className="text-destructive mb-4">
+              Failed to load dashboard data
+            </p>
             <Button onClick={handleRefresh}>Try Again</Button>
           </Card>
         </div>
@@ -350,7 +399,8 @@ const Overview = () => {
               </div>
               <CardTitle>No Data Available</CardTitle>
               <CardDescription>
-                No daily summary found for today. Data may need to be synced from HubSpot.
+                No daily summary found for today. Data may need to be synced
+                from HubSpot.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -380,7 +430,7 @@ const Overview = () => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => navigate('/hubspot-live')}
+                  onClick={() => navigate("/hubspot-live")}
                 >
                   Go to HubSpot Live
                 </Button>
@@ -391,11 +441,19 @@ const Overview = () => {
 
         {/* Error Details Modal */}
         {showErrorModal && errorDetails && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowErrorModal(false)}>
-            <Card className="max-w-3xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowErrorModal(false)}
+          >
+            <Card
+              className="max-w-3xl w-full max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
               <CardHeader>
                 <CardTitle>Error Details</CardTitle>
-                <CardDescription>{errorDetails.type} - {errorDetails.timestamp}</CardDescription>
+                <CardDescription>
+                  {errorDetails.type} - {errorDetails.timestamp}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 overflow-y-auto max-h-[60vh]">
                 <div>
@@ -414,36 +472,51 @@ const Overview = () => {
                   </div>
                 )}
 
-                {errorDetails.workflowErrors && errorDetails.workflowErrors.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Workflow Errors</h3>
-                    <div className="space-y-2">
-                      {errorDetails.workflowErrors.map((w: any, i: number) => (
-                        <div key={i} className="bg-muted p-3 rounded-lg">
-                          <p className="font-medium">{w.workflow}</p>
-                          <p className="text-sm text-muted-foreground">{w.message}</p>
-                          {w.details && (
-                            <pre className="mt-2 text-xs overflow-x-auto">{w.details}</pre>
-                          )}
-                        </div>
-                      ))}
+                {errorDetails.workflowErrors &&
+                  errorDetails.workflowErrors.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Workflow Errors</h3>
+                      <div className="space-y-2">
+                        {errorDetails.workflowErrors.map(
+                          (w: any, i: number) => (
+                            <div key={i} className="bg-muted p-3 rounded-lg">
+                              <p className="font-medium">{w.workflow}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {w.message}
+                              </p>
+                              {w.details && (
+                                <pre className="mt-2 text-xs overflow-x-auto">
+                                  {w.details}
+                                </pre>
+                              )}
+                            </div>
+                          ),
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 <div>
                   <h3 className="font-semibold mb-2">Full Response</h3>
                   <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto">
-                    {JSON.stringify(errorDetails.fullResponse || errorDetails, null, 2)}
+                    {JSON.stringify(
+                      errorDetails.fullResponse || errorDetails,
+                      null,
+                      2,
+                    )}
                   </pre>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={() => setShowErrorModal(false)}>Close</Button>
+                  <Button onClick={() => setShowErrorModal(false)}>
+                    Close
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
+                      navigator.clipboard.writeText(
+                        JSON.stringify(errorDetails, null, 2),
+                      );
                       toast({ title: "Copied to clipboard" });
                     }}
                   >
@@ -467,11 +540,15 @@ const Overview = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">PTD Client Health Score Dashboard</h1>
+            <h1 className="text-4xl font-bold mb-2">
+              PTD Client Health Score Dashboard
+            </h1>
             <div className="flex items-center gap-4 text-muted-foreground">
               <p>Client Health Score Overview</p>
               <span>•</span>
-              <p className="text-sm">Last updated: {format(new Date(), 'PPp')}</p>
+              <p className="text-sm">
+                Last updated: {format(new Date(), "PPp")}
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -499,8 +576,20 @@ const Overview = () => {
             title="Average Health Score"
             value={(summary?.avg_health_score ?? 0).toFixed(1)}
             icon={Heart}
-            iconColor={(summary?.avg_health_score ?? 0) >= 70 ? 'text-green-600' : (summary?.avg_health_score ?? 0) >= 50 ? 'text-yellow-600' : 'text-red-600'}
-            iconBg={(summary?.avg_health_score ?? 0) >= 70 ? 'bg-green-100' : (summary?.avg_health_score ?? 0) >= 50 ? 'bg-yellow-100' : 'bg-red-100'}
+            iconColor={
+              (summary?.avg_health_score ?? 0) >= 70
+                ? "text-green-600"
+                : (summary?.avg_health_score ?? 0) >= 50
+                  ? "text-yellow-600"
+                  : "text-red-600"
+            }
+            iconBg={
+              (summary?.avg_health_score ?? 0) >= 70
+                ? "bg-green-100"
+                : (summary?.avg_health_score ?? 0) >= 50
+                  ? "bg-yellow-100"
+                  : "bg-red-100"
+            }
           />
           <MetricCard
             title="Critical Interventions"
@@ -532,7 +621,7 @@ const Overview = () => {
               total={summary?.total_active_clients ?? 0}
               onZoneClick={(zone) => {
                 setZoneFilter(zone);
-                navigate('/clients');
+                navigate("/clients");
               }}
             />
           </div>
@@ -546,20 +635,28 @@ const Overview = () => {
               <CardContent>
                 <div className="space-y-4 max-h-[400px] overflow-y-auto">
                   {criticalClients?.map((client) => (
-                    <div key={client.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <div
+                      key={client.id}
+                      className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <p className="font-semibold">
-                            {`${client.firstname || ''} ${client.lastname || ''}`.trim() || 'Unknown Client'}
+                            {`${client.firstname || ""} ${client.lastname || ""}`.trim() ||
+                              "Unknown Client"}
                           </p>
-                          <p className="text-sm text-muted-foreground">{client.client_email}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {client.client_email}
+                          </p>
                         </div>
                         <Badge className={getHealthColor(client.health_zone)}>
                           {client.health_score.toFixed(0)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {client.days_since_last_session ? `${client.days_since_last_session} days since last session` : 'No recent sessions'}
+                        {client.days_since_last_session
+                          ? `${client.days_since_last_session} days since last session`
+                          : "No recent sessions"}
                       </p>
                       <Button variant="outline" size="sm" className="w-full">
                         View Details
@@ -579,7 +676,10 @@ const Overview = () => {
 
         {/* Interventions & Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <EnhancedInterventionTracker interventions={interventions as any} isLoading={interventionsLoading} />
+          <EnhancedInterventionTracker
+            interventions={interventions as any}
+            isLoading={interventionsLoading}
+          />
           <WeeklyAnalytics patterns={weeklyPatterns as any} />
         </div>
 
@@ -605,16 +705,33 @@ const Overview = () => {
                 </thead>
                 <tbody>
                   {coaches?.map((coach) => (
-                    <tr key={coach.id} className="border-b hover:bg-accent/50 transition-colors">
-                      <td className="py-3 px-4 font-medium">{coach.coach_name}</td>
-                      <td className="text-center py-3 px-4">{coach.total_clients}</td>
-                      <td className={`text-center py-3 px-4 font-semibold ${getScoreColor(coach.avg_client_health)}`}>
+                    <tr
+                      key={coach.id}
+                      className="border-b hover:bg-accent/50 transition-colors"
+                    >
+                      <td className="py-3 px-4 font-medium">
+                        {coach.coach_name}
+                      </td>
+                      <td className="text-center py-3 px-4">
+                        {coach.total_clients}
+                      </td>
+                      <td
+                        className={`text-center py-3 px-4 font-semibold ${getScoreColor(coach.avg_client_health)}`}
+                      >
                         {coach.avg_client_health?.toFixed(1)}
                       </td>
-                      <td className="text-center py-3 px-4 text-red-500 font-semibold">{coach.red_clients}</td>
-                      <td className="text-center py-3 px-4 text-yellow-500 font-semibold">{coach.yellow_clients}</td>
-                      <td className="text-center py-3 px-4 text-green-500 font-semibold">{coach.green_clients}</td>
-                      <td className="text-center py-3 px-4 text-purple-500 font-semibold">{coach.purple_clients}</td>
+                      <td className="text-center py-3 px-4 text-red-500 font-semibold">
+                        {coach.red_clients}
+                      </td>
+                      <td className="text-center py-3 px-4 text-yellow-500 font-semibold">
+                        {coach.yellow_clients}
+                      </td>
+                      <td className="text-center py-3 px-4 text-green-500 font-semibold">
+                        {coach.green_clients}
+                      </td>
+                      <td className="text-center py-3 px-4 text-purple-500 font-semibold">
+                        {coach.purple_clients}
+                      </td>
                       <td className="text-center py-3 px-4">
                         <div className="flex justify-center">
                           {getTrendIcon(coach.trend)}
@@ -624,7 +741,10 @@ const Overview = () => {
                   ))}
                   {(!coaches || coaches.length === 0) && (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <td
+                        colSpan={8}
+                        className="text-center py-8 text-muted-foreground"
+                      >
                         No coach data available
                       </td>
                     </tr>

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { ErrorDetective } from "@/lib/error-detective";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -29,6 +30,7 @@ import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "@/hooks/use-toast";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { getBusinessTodayString, getBusinessDate } from "@/lib/date-utils";
 import {
   Calendar,
   TrendingUp,
@@ -51,7 +53,9 @@ export default function Dashboard() {
   useNotifications();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("today");
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(
+    getBusinessDate(),
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch clients with retry logic - Optimized selection
@@ -93,14 +97,17 @@ export default function Dashboard() {
   const { data: dailySummary } = useDedupedQuery({
     queryKey: ["daily-summary-briefing"],
     queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = getBusinessTodayString();
       const { data, error } = await supabase
         .from("daily_summary")
         .select("*")
         .eq("summary_date", today)
         .single();
       if (error) {
-        console.error("Error fetching daily summary:", error);
+        ErrorDetective.capture(error, {
+          context: { source: "Dashboard.dailySummary", date: today },
+          showToast: false, // Suppress toast for background fetch errors handled by UI
+        });
         return null;
       }
       return data;
@@ -146,7 +153,10 @@ export default function Dashboard() {
         "get_dashboard_stats",
       );
       if (error) {
-        console.error("Error fetching dashboard stats:", error);
+        ErrorDetective.capture(error, {
+          context: { source: "Dashboard.dashboardStats" },
+          showToast: false,
+        });
         return null;
       }
       return data as DashboardStats;
@@ -178,7 +188,7 @@ export default function Dashboard() {
   const { data: leadsToday } = useDedupedQuery({
     queryKey: ["leads-today"],
     queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = getBusinessTodayString();
       const { count } = await supabase
         .from("contacts")
         .select("*", { count: "exact", head: true })
@@ -192,7 +202,7 @@ export default function Dashboard() {
   const { data: callsToday } = useDedupedQuery({
     queryKey: ["calls-today"],
     queryFn: async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = getBusinessTodayString();
       const { count } = await supabase
         .from("call_records")
         .select("*", { count: "exact", head: true })
@@ -271,7 +281,7 @@ export default function Dashboard() {
     setIsRefreshing(true);
     try {
       await refetchClients();
-      setLastUpdated(new Date());
+      setLastUpdated(getBusinessDate());
       toast({
         title: "Data refreshed",
         description: "Dashboard updated with latest data",
@@ -428,7 +438,7 @@ export default function Dashboard() {
                     : c.health_zone === "GREEN"
                       ? "closed"
                       : "new",
-                created_at: c.created_at || new Date().toISOString(),
+                created_at: c.created_at || getBusinessDate().toISOString(),
                 deal_value: c.package_value_aed,
                 owner_name: c.assigned_coach || "Unassigned Coach",
               }))}

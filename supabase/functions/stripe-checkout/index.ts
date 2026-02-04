@@ -1,11 +1,16 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 interface CheckoutSessionData {
   mode: "payment" | "subscription" | "setup";
@@ -68,7 +73,9 @@ serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, {
+      apiVersion: "2025-08-27.basil",
+    });
     const { action, data } = await req.json();
 
     console.log("[STRIPE-CHECKOUT] Action:", action);
@@ -87,7 +94,7 @@ serve(async (req) => {
         client_reference_id: sessionData.client_reference_id,
         metadata: sessionData.metadata,
         allow_promotion_codes: sessionData.allow_promotion_codes,
-        billing_address_collection: sessionData.billing_address_collection
+        billing_address_collection: sessionData.billing_address_collection,
       };
 
       if (sessionData.payment_method_types) {
@@ -95,7 +102,8 @@ serve(async (req) => {
       }
 
       if (sessionData.shipping_address_collection) {
-        sessionParams.shipping_address_collection = sessionData.shipping_address_collection;
+        sessionParams.shipping_address_collection =
+          sessionData.shipping_address_collection;
       }
 
       // Connect destination charge
@@ -103,8 +111,8 @@ serve(async (req) => {
         sessionParams.payment_intent_data = {
           application_fee_amount: sessionData.application_fee_amount,
           transfer_data: {
-            destination: sessionData.destination_account
-          }
+            destination: sessionData.destination_account,
+          },
         };
       }
 
@@ -116,9 +124,12 @@ serve(async (req) => {
         JSON.stringify({
           session_id: session.id,
           url: session.url,
-          expires_at: session.expires_at
+          expires_at: session.expires_at,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -131,7 +142,7 @@ serve(async (req) => {
         currency: intentData.currency || "usd",
         description: intentData.description,
         customer: intentData.customer,
-        metadata: intentData.metadata
+        metadata: intentData.metadata,
       };
 
       if (intentData.automatic_payment_methods !== false) {
@@ -142,7 +153,7 @@ serve(async (req) => {
       if (intentData.destination_account) {
         intentParams.application_fee_amount = intentData.application_fee_amount;
         intentParams.transfer_data = {
-          destination: intentData.destination_account
+          destination: intentData.destination_account,
         };
       }
 
@@ -154,9 +165,12 @@ serve(async (req) => {
         JSON.stringify({
           payment_intent_id: paymentIntent.id,
           client_secret: paymentIntent.client_secret,
-          status: paymentIntent.status
+          status: paymentIntent.status,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -164,20 +178,29 @@ serve(async (req) => {
     if (action === "confirm-payment") {
       const { payment_intent_id, payment_method, return_url } = data;
 
-      const paymentIntent = await stripe.paymentIntents.confirm(payment_intent_id, {
-        payment_method,
-        return_url
-      });
+      const paymentIntent = await stripe.paymentIntents.confirm(
+        payment_intent_id,
+        {
+          payment_method,
+          return_url,
+        },
+      );
 
-      console.log("[STRIPE-CHECKOUT] PaymentIntent confirmed:", paymentIntent.id);
+      console.log(
+        "[STRIPE-CHECKOUT] PaymentIntent confirmed:",
+        paymentIntent.id,
+      );
 
       return new Response(
         JSON.stringify({
           payment_intent_id: paymentIntent.id,
           status: paymentIntent.status,
-          next_action: paymentIntent.next_action
+          next_action: paymentIntent.next_action,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -185,7 +208,8 @@ serve(async (req) => {
     if (action === "retrieve-payment-intent") {
       const { payment_intent_id } = data;
 
-      const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(payment_intent_id);
 
       return new Response(
         JSON.stringify({
@@ -194,9 +218,12 @@ serve(async (req) => {
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
           payment_method: paymentIntent.payment_method,
-          metadata: paymentIntent.metadata
+          metadata: paymentIntent.metadata,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -205,7 +232,7 @@ serve(async (req) => {
       const { session_id } = data;
 
       const session = await stripe.checkout.sessions.retrieve(session_id, {
-        expand: ["line_items", "payment_intent", "customer"]
+        expand: ["line_items", "payment_intent", "customer"],
       });
 
       return new Response(
@@ -219,9 +246,12 @@ serve(async (req) => {
           payment_intent: session.payment_intent,
           line_items: session.line_items,
           customer: session.customer,
-          metadata: session.metadata
+          metadata: session.metadata,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -229,7 +259,7 @@ serve(async (req) => {
     if (action === "list-sessions") {
       const sessions = await stripe.checkout.sessions.list({
         limit: 100,
-        ...data
+        ...data,
       });
 
       return new Response(
@@ -242,12 +272,15 @@ serve(async (req) => {
             amount_total: s.amount_total,
             currency: s.currency,
             created: s.created,
-            expires_at: s.expires_at
+            expires_at: s.expires_at,
           })),
           has_more: sessions.has_more,
-          total: sessions.data.length
+          total: sessions.data.length,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -257,16 +290,22 @@ serve(async (req) => {
 
       const session = await stripe.billingPortal.sessions.create({
         customer,
-        return_url
+        return_url,
       });
 
-      console.log("[STRIPE-CHECKOUT] Portal session created for customer:", customer);
+      console.log(
+        "[STRIPE-CHECKOUT] Portal session created for customer:",
+        customer,
+      );
 
       return new Response(
         JSON.stringify({
-          url: session.url
+          url: session.url,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -277,7 +316,7 @@ serve(async (req) => {
       const setupIntent = await stripe.setupIntents.create({
         customer,
         payment_method_types: payment_method_types || ["card"],
-        metadata
+        metadata,
       });
 
       console.log("[STRIPE-CHECKOUT] SetupIntent created:", setupIntent.id);
@@ -286,9 +325,12 @@ serve(async (req) => {
         JSON.stringify({
           setup_intent_id: setupIntent.id,
           client_secret: setupIntent.client_secret,
-          status: setupIntent.status
+          status: setupIntent.status,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -298,7 +340,7 @@ serve(async (req) => {
 
       const paymentMethods = await stripe.paymentMethods.list({
         customer,
-        type: type || "card"
+        type: type || "card",
       });
 
       return new Response(
@@ -306,18 +348,23 @@ serve(async (req) => {
           payment_methods: paymentMethods.data.map((pm: any) => ({
             id: pm.id,
             type: pm.type,
-            card: pm.card ? {
-              brand: pm.card.brand,
-              last4: pm.card.last4,
-              exp_month: pm.card.exp_month,
-              exp_year: pm.card.exp_year
-            } : null,
+            card: pm.card
+              ? {
+                  brand: pm.card.brand,
+                  last4: pm.card.last4,
+                  exp_month: pm.card.exp_month,
+                  exp_year: pm.card.exp_year,
+                }
+              : null,
             billing_details: pm.billing_details,
-            created: pm.created
+            created: pm.created,
           })),
-          total: paymentMethods.data.length
+          total: paymentMethods.data.length,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -331,18 +378,22 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ session_id: session.id, status: session.status }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     throw new Error("Invalid action: " + action);
   } catch (error) {
     console.error("[STRIPE-CHECKOUT] Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

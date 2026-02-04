@@ -5,18 +5,17 @@ import {
 } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 // ============================================
 // DAILY REPORT AGENT
 // Generates daily summary and sends notifications
 // Daily summary email report generation
 // ============================================
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 // Validate required environment variables
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -378,16 +377,9 @@ serve(async (req) => {
       },
     );
   } catch (error) {
-    console.error("[Daily Report] Error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      },
-    );
+    return handleError(error, "daily-report", {
+      supabase,
+      errorCode: ErrorCode.INTERNAL_ERROR,
+    });
   }
 });

@@ -1,17 +1,43 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Phone, PhoneCall, Calendar, User, Clock, TrendingUp, CheckCircle2, Activity, RefreshCw } from "lucide-react";
-import { format, startOfDay, endOfDay } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Phone,
+  PhoneCall,
+  Calendar,
+  User,
+  Clock,
+  TrendingUp,
+  CheckCircle2,
+  Activity,
+  RefreshCw,
+} from "lucide-react";
+import { format } from "date-fns";
 import { useState } from "react";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { getBusinessTodayString, getBusinessDate } from "@/lib/date-utils";
 
 const SetterActivityToday = () => {
-  const todayStart = startOfDay(new Date());
-  const todayEnd = endOfDay(new Date());
+  // Use Dubai Business Time
+  const todayStr = getBusinessTodayString();
+  const todayStartIso = `${todayStr}T00:00:00`;
+  const todayEndIso = `${todayStr}T23:59:59`;
   const [selectedOwner, setSelectedOwner] = useState<string>("all");
 
   // Fetch all unique owners from contacts
@@ -22,13 +48,15 @@ const SetterActivityToday = () => {
         .from("contacts")
         .select("owner_id")
         .not("owner_id", "is", null);
-      
+
       if (error) throw error;
-      
+
       // Get unique owners
-      const uniqueOwners = [...new Set(data?.map(c => c.owner_id).filter(Boolean))];
+      const uniqueOwners = [
+        ...new Set(data?.map((c) => c.owner_id).filter(Boolean)),
+      ];
       return uniqueOwners;
-    }
+    },
   });
 
   // Query for calls today - filtered by owner if selected
@@ -39,12 +67,15 @@ const SetterActivityToday = () => {
       let query = supabase
         .from("intervention_log")
         .select("*")
-        .gte("created_at", todayStart.toISOString())
-        .lte("created_at", todayEnd.toISOString())
+        // Fix query references
+        .gte("created_at", todayStartIso)
+        .lte("created_at", todayEndIso)
         .order("created_at", { ascending: false });
 
       if (selectedOwner !== "all") {
-        query = query.or(`executed_by.ilike.%${selectedOwner}%,assigned_to.ilike.%${selectedOwner}%`);
+        query = query.or(
+          `executed_by.ilike.%${selectedOwner}%,assigned_to.ilike.%${selectedOwner}%`,
+        );
       }
 
       const { data: interventions, error: interventionError } = await query;
@@ -54,8 +85,8 @@ const SetterActivityToday = () => {
       let clientQuery = supabase
         .from("client_health_scores")
         .select("*")
-        .gte("calculated_at", todayStart.toISOString())
-        .lte("calculated_at", todayEnd.toISOString());
+        .gte("calculated_at", todayStartIso)
+        .lte("calculated_at", todayEndIso);
 
       if (selectedOwner !== "all") {
         clientQuery = clientQuery.ilike("assigned_coach", `%${selectedOwner}%`);
@@ -66,7 +97,7 @@ const SetterActivityToday = () => {
 
       return {
         interventions: interventions || [],
-        clients: clients || []
+        clients: clients || [],
       };
     },
     staleTime: Infinity, // Real-time updates via useVitalState
@@ -80,8 +111,8 @@ const SetterActivityToday = () => {
         .from("client_health_scores")
         .select("*")
         .not("health_zone", "eq", "RED")
-        .gte("calculated_at", todayStart.toISOString())
-        .lte("calculated_at", todayEnd.toISOString())
+        .gte("calculated_at", todayStartIso)
+        .lte("calculated_at", todayEndIso)
         .order("health_score", { ascending: false });
 
       if (selectedOwner !== "all") {
@@ -96,21 +127,28 @@ const SetterActivityToday = () => {
   });
 
   // Calculate metrics
-  const totalCalls = (callsData?.interventions.length || 0) + (callsData?.clients.length || 0);
-  const reached = callsData?.interventions.filter(i => 
-    i.status === "COMPLETED" || 
-    i.outcome === "success" ||
-    i.intervention_type?.includes("call") ||
-    i.intervention_type?.includes("contact")
-  ).length || 0;
-  
-  const booked = bookingsData?.filter(b => 
-    b.health_zone === "GREEN" || b.health_zone === "PURPLE"
-  ).length || 0;
+  const totalCalls =
+    (callsData?.interventions.length || 0) + (callsData?.clients.length || 0);
+  const reached =
+    callsData?.interventions.filter(
+      (i) =>
+        i.status === "COMPLETED" ||
+        i.outcome === "success" ||
+        i.intervention_type?.includes("call") ||
+        i.intervention_type?.includes("contact"),
+    ).length || 0;
 
-  const conversionRate = totalCalls > 0 ? ((booked / totalCalls) * 100).toFixed(1) : 0;
-  const connectionRate = totalCalls > 0 ? ((reached / totalCalls) * 100).toFixed(1) : 0;
-  const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.package_value_aed || 0), 0) || 0;
+  const booked =
+    bookingsData?.filter(
+      (b) => b.health_zone === "GREEN" || b.health_zone === "PURPLE",
+    ).length || 0;
+
+  const conversionRate =
+    totalCalls > 0 ? ((booked / totalCalls) * 100).toFixed(1) : 0;
+  const connectionRate =
+    totalCalls > 0 ? ((reached / totalCalls) * 100).toFixed(1) : 0;
+  const totalRevenue =
+    bookingsData?.reduce((sum, b) => sum + (b.package_value_aed || 0), 0) || 0;
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
@@ -125,11 +163,11 @@ const SetterActivityToday = () => {
               {selectedOwner === "all" ? "Team Activity" : selectedOwner}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              {format(new Date(), "EEE, MMM d")} · Auto-refreshes
+              {format(getBusinessDate(), "EEE, MMM d")} · Auto-refreshes
             </p>
           </div>
         </div>
-        
+
         <Select value={selectedOwner} onValueChange={setSelectedOwner}>
           <SelectTrigger className="w-full sm:w-[160px] h-9">
             <SelectValue placeholder="Filter by owner" />
@@ -137,7 +175,7 @@ const SetterActivityToday = () => {
           <SelectContent>
             <SelectItem value="all">All Members</SelectItem>
             {owners?.map((ownerId) => (
-              <SelectItem key={ownerId} value={ownerId || ''}>
+              <SelectItem key={ownerId} value={ownerId || ""}>
                 {ownerId}
               </SelectItem>
             ))}
@@ -151,7 +189,9 @@ const SetterActivityToday = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Calls</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Calls
+                </p>
                 <p className="text-2xl font-bold mt-1">{totalCalls}</p>
               </div>
               <div className="h-9 w-9 rounded-full bg-muted/50 flex items-center justify-center">
@@ -165,8 +205,12 @@ const SetterActivityToday = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Reached</p>
-                <p className="text-2xl font-bold mt-1 text-emerald-500">{reached}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Reached
+                </p>
+                <p className="text-2xl font-bold mt-1 text-emerald-500">
+                  {reached}
+                </p>
               </div>
               <div className="h-9 w-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
                 <PhoneCall className="h-4 w-4 text-emerald-500" />
@@ -179,7 +223,9 @@ const SetterActivityToday = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Booked</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Booked
+                </p>
                 <p className="text-2xl font-bold mt-1 text-primary">{booked}</p>
               </div>
               <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
@@ -193,7 +239,9 @@ const SetterActivityToday = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Convert</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Convert
+                </p>
                 <p className="text-2xl font-bold mt-1">{conversionRate}%</p>
               </div>
               <div className="h-9 w-9 rounded-full bg-muted/50 flex items-center justify-center">
@@ -208,7 +256,10 @@ const SetterActivityToday = () => {
       <div className="flex flex-wrap items-center gap-4 sm:gap-6 px-4 py-3 rounded-lg bg-muted/30 border border-border/30 text-xs sm:text-sm">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Status:</span>
-          <Badge variant={totalCalls > 0 ? "default" : "secondary"} className="text-xs">
+          <Badge
+            variant={totalCalls > 0 ? "default" : "secondary"}
+            className="text-xs"
+          >
             {totalCalls > 0 ? "Active" : "Idle"}
           </Badge>
         </div>
@@ -218,11 +269,13 @@ const SetterActivityToday = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Revenue Potential:</span>
-          <span className="font-semibold text-emerald-500">{totalRevenue.toLocaleString()} AED</span>
+          <span className="font-semibold text-emerald-500">
+            {totalRevenue.toLocaleString()} AED
+          </span>
         </div>
         <div className="flex items-center gap-2 sm:ml-auto text-xs text-muted-foreground">
           <RefreshCw className="h-3 w-3" />
-          Updated {format(new Date(), "HH:mm")}
+          Updated {format(getBusinessDate(), "HH:mm")}
         </div>
       </div>
 
@@ -241,70 +294,119 @@ const SetterActivityToday = () => {
         </CardHeader>
         <CardContent>
           {loadingCalls ? (
-            <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
-          ) : callsData && (callsData.interventions.length > 0 || callsData.clients.length > 0) ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              Loading...
+            </div>
+          ) : callsData &&
+            (callsData.interventions.length > 0 ||
+              callsData.clients.length > 0) ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="text-xs min-w-[80px]">Time</TableHead>
-                    <TableHead className="text-xs min-w-[150px]">Client</TableHead>
-                    <TableHead className="text-xs min-w-[100px]">Type</TableHead>
-                    <TableHead className="text-xs min-w-[100px]">Status</TableHead>
-                    <TableHead className="text-xs min-w-[120px]">Outcome</TableHead>
+                    <TableHead className="text-xs min-w-[150px]">
+                      Client
+                    </TableHead>
+                    <TableHead className="text-xs min-w-[100px]">
+                      Type
+                    </TableHead>
+                    <TableHead className="text-xs min-w-[100px]">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-xs min-w-[120px]">
+                      Outcome
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
-              <TableBody>
-                {callsData.interventions.map((call) => (
-                  <TableRow key={call.id}>
-                    <TableCell className="text-sm py-2">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        {format(new Date(call.created_at || new Date()), "HH:mm")}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <span className="font-medium text-sm">{call.firstname} {call.lastname}</span>
-                      <div className="text-xs text-muted-foreground">{call.email}</div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant="outline" className="text-xs">{call.intervention_type}</Badge>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant={call.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">
-                        {call.status || "Pending"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-2 text-sm">
-                      {call.outcome || <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {callsData.clients.slice(0, 5).map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="text-sm py-2">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        {format(new Date(client.calculated_at || new Date()), "HH:mm")}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <span className="font-medium text-sm">{client.firstname} {client.lastname}</span>
-                      <div className="text-xs text-muted-foreground">{client.email}</div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant="outline" className="text-xs">Contact</Badge>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant="default" className="text-xs">Active</Badge>
-                    </TableCell>
-                    <TableCell className="py-2 text-sm">
-                      Health: {client.health_score?.toFixed(0)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                <TableBody>
+                  {callsData.interventions.map((call) => (
+                    <TableRow key={call.id}>
+                      <TableCell className="text-sm py-2">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          {format(
+                            new Date(
+                              call.created_at ||
+                                getBusinessDate().toISOString(),
+                            ),
+                            "HH:mm",
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <span className="font-medium text-sm">
+                          {call.firstname} {call.lastname}
+                        </span>
+                        <div className="text-xs text-muted-foreground">
+                          {call.email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant="outline" className="text-xs">
+                          {call.intervention_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge
+                          variant={
+                            call.status === "COMPLETED"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {call.status || "Pending"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2 text-sm">
+                        {call.outcome || (
+                          <span className="text-muted-foreground text-xs">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {callsData.clients.slice(0, 5).map((client) => (
+                    <TableRow key={client.id}>
+                      <TableCell className="text-sm py-2">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          {format(
+                            new Date(
+                              client.calculated_at ||
+                                getBusinessDate().toISOString(),
+                            ),
+                            "HH:mm",
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <span className="font-medium text-sm">
+                          {client.firstname} {client.lastname}
+                        </span>
+                        <div className="text-xs text-muted-foreground">
+                          {client.email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant="outline" className="text-xs">
+                          Contact
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant="default" className="text-xs">
+                          Active
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2 text-sm">
+                        Health: {client.health_score?.toFixed(0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
@@ -323,60 +425,82 @@ const SetterActivityToday = () => {
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               Booked Assessments
             </CardTitle>
-            <Badge variant="outline" className="text-xs">{bookingsData?.length || 0} today</Badge>
+            <Badge variant="outline" className="text-xs">
+              {bookingsData?.length || 0} today
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
           {loadingBookings ? (
-            <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              Loading...
+            </div>
           ) : bookingsData && bookingsData.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs min-w-[150px]">Client</TableHead>
-                    <TableHead className="text-xs min-w-[100px]">Segment</TableHead>
-                    <TableHead className="text-xs min-w-[100px]">Value</TableHead>
+                    <TableHead className="text-xs min-w-[150px]">
+                      Client
+                    </TableHead>
+                    <TableHead className="text-xs min-w-[100px]">
+                      Segment
+                    </TableHead>
+                    <TableHead className="text-xs min-w-[100px]">
+                      Value
+                    </TableHead>
                     <TableHead className="text-xs min-w-[80px]">Zone</TableHead>
-                    <TableHead className="text-xs min-w-[100px]">Time</TableHead>
+                    <TableHead className="text-xs min-w-[100px]">
+                      Time
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
-              <TableBody>
-                {bookingsData.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="font-medium text-sm">{booking.firstname} {booking.lastname}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge variant="outline" className="text-xs">{booking.client_segment || "—"}</Badge>
-                    </TableCell>
-                    <TableCell className="py-2 font-semibold text-emerald-500 text-sm">
-                      {(booking.package_value_aed || 0).toLocaleString()} AED
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge 
-                        className={`text-xs ${
-                          booking.health_zone === "GREEN" 
-                            ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/30" 
-                            : booking.health_zone === "PURPLE" 
-                            ? "bg-primary/20 text-primary border-primary/30" 
-                            : "bg-amber-500/20 text-amber-500 border-amber-500/30"
-                        }`}
-                        variant="outline"
-                      >
-                        {booking.health_zone}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-2 text-sm text-muted-foreground">
-                      {format(new Date(booking.calculated_at || new Date()), "HH:mm")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                <TableBody>
+                  {bookingsData.map((booking) => (
+                    <TableRow key={booking.id}>
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-medium text-sm">
+                            {booking.firstname} {booking.lastname}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant="outline" className="text-xs">
+                          {booking.client_segment || "—"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2 font-semibold text-emerald-500 text-sm">
+                        {(booking.package_value_aed || 0).toLocaleString()} AED
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge
+                          className={`text-xs ${
+                            booking.health_zone === "GREEN"
+                              ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/30"
+                              : booking.health_zone === "PURPLE"
+                                ? "bg-primary/20 text-primary border-primary/30"
+                                : "bg-amber-500/20 text-amber-500 border-amber-500/30"
+                          }`}
+                          variant="outline"
+                        >
+                          {booking.health_zone}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2 text-sm text-muted-foreground">
+                        {format(
+                          new Date(
+                            booking.calculated_at ||
+                              getBusinessDate().toISOString(),
+                          ),
+                          "HH:mm",
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">

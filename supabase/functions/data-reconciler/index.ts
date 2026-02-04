@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import {
+  handleError,
+  logError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -24,21 +24,38 @@ serve(async (req) => {
     // Filter for current month or specified range
     // 1. Fetch Closed Deals (The Truth: Money in Bank)
     // Filter for current month or specified range
-    const now = new Date();
-    let startParams = new Date(now.getFullYear(), now.getMonth(), 1); // Default: This Month
+    const { getDubaiDate, DUBAI_OFFSET_MS } =
+      await import("../_shared/date-utils.ts");
+    const now = getDubaiDate(); // Dubai Time
+
+    let startParams: Date;
 
     if (date_range === "last_30d") {
-      startParams = new Date();
+      startParams = new Date(now.getTime());
       startParams.setDate(now.getDate() - 30);
     } else if (date_range === "last_90d") {
-      startParams = new Date();
+      startParams = new Date(now.getTime());
       startParams.setDate(now.getDate() - 90);
     } else if (date_range === "this_year") {
-      startParams = new Date(now.getFullYear(), 0, 1);
+      startParams = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
     } else if (date_range === "last_year") {
-      startParams = new Date(now.getFullYear() - 1, 0, 1);
+      startParams = new Date(Date.UTC(now.getUTCFullYear() - 1, 0, 1));
     } else if (date_range === "all_time") {
-      startParams = new Date("2020-01-01"); // Sufficiently past date
+      // For all time, we don't really need exact Dubai offset, but consistency is good
+      startParams = new Date("2020-01-01");
+    } else {
+      // Default: This Month (Start of Month in Dubai)
+      startParams = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+      );
+    }
+
+    // Shift back to real UTC for DB Query
+    // startParams is currently in "Fake Dubai UTC" (e.g. 00:00Z which means 00:00 Dubai)
+    // We want 20:00Z (prev day) which corresponds to 00:00 Dubai.
+    // So we subtract the offset.
+    if (date_range !== "all_time") {
+      startParams = new Date(startParams.getTime() - DUBAI_OFFSET_MS);
     }
 
     const firstDay = startParams.toISOString();
@@ -90,58 +107,94 @@ serve(async (req) => {
       { revenue: number; deals: number }
     > = {};
 
-    deals.forEach((deal: any) => {
-      const contact = deal.contacts;
-      const value = parseFloat(deal.deal_value || 0);
-      let source = "Unknown";
-      let isPaid = false;
+    // ------------------------------------------
+    // Type Definitions (Local for now, could be shared)
+    // ------------------------------------------
+    interface Contact {
+      id: string;
+      latest_traffic_source?: string;
+      facebook_id?: string;
+      utm_source?: string;
+      utm_campaign?: string;
+    }
 
-      // "Waterfall" Attribution Logic (AnyTrack > UTM > HubSpot)
-      if (
-        contact?.facebook_id ||
-        (contact?.utm_source || "").toLowerCase().includes("facebook")
-      ) {
+    interface Deal {
+      id: string;
+      deal_name: string;
+      deal_value: number;
+      contacts: Contact;
+    }
+
+    // ------------------------------------------
+    // Helper: Attribution Logic
+    // ------------------------------------------
+    function determineAttribution(deal: Deal) {
+      const contact = deal.contacts;
+      const dealValue =
+        typeof deal.deal_value === "string"
+          ? parseFloat(deal.deal_value)
+          : deal.deal_value || 0;
+
+      let source = "Organic/Direct";
+      let isPaid = false;
+      let discrepancy = null;
+
+      const trafficSource = (
+        contact?.latest_traffic_source || ""
+      ).toLowerCase();
+      const utmSource = (contact?.utm_source || "").toLowerCase();
+
+      // 1. Direct Facebook Match (Strongest Signal)
+      if (contact?.facebook_id || utmSource.includes("facebook")) {
         source = "Facebook Ads";
         isPaid = true;
-      } else if (
-        (contact?.latest_traffic_source || "").toLowerCase().includes("paid")
-      ) {
+      }
+      // 2. Other Paid Channels
+      else if (trafficSource.includes("paid")) {
         source = "Paid (Other)";
         isPaid = true;
-      } else {
-        source = "Organic/Direct";
       }
 
-      // Logic: Discrepancy Check
-      // If HubSpot says "Organic" but AnyTrack has a Click ID, that's a "Saved Sale"
-      if (
-        source === "Organic/Direct" &&
-        contact?.latest_traffic_source === "PAID_SOCIAL"
-      ) {
-        discrepancies.push({
+      // 3. Discrepancy Check (The "Hyros" Value Add)
+      // Example: HubSpot says "Organic", but AnyTrack/Pixels saw "Paid Social"
+      if (!isPaid && trafficSource === "paid_social") {
+        discrepancy = {
           type: "ATTRIBUTION_MISMATCH",
           deal_id: deal.id,
           deal_name: deal.deal_name,
           message:
             "HubSpot marked Organic, but Traffic Source indicates Paid Social",
-          value: value,
-        });
-        // We correct it for True ROAS
+          value: dealValue,
+        };
+        // Correct attribution for True ROAS calculation
         source = "Facebook Ads (Corrected)";
         isPaid = true;
       }
 
+      return { source, isPaid, discrepancy, dealValue };
+    }
+
+    // ... (Inside main loop) ...
+    deals.forEach((rawDeal: any) => {
+      const { source, isPaid, discrepancy, dealValue } =
+        determineAttribution(rawDeal);
+
+      if (discrepancy) {
+        discrepancies.push(discrepancy);
+      }
+
       if (isPaid) {
-        attributedRevenue += value;
-        // Track Campaign Performance
-        const campaign = contact?.utm_campaign || "Unattributed Campaign";
+        attributedRevenue += dealValue;
+        const campaign =
+          rawDeal.contacts?.utm_campaign || "Unattributed Campaign";
+
         if (!campaignPerformance[campaign]) {
           campaignPerformance[campaign] = { revenue: 0, deals: 0 };
         }
-        campaignPerformance[campaign].revenue += value;
+        campaignPerformance[campaign].revenue += dealValue;
         campaignPerformance[campaign].deals += 1;
       } else {
-        organicRevenue += value;
+        organicRevenue += dealValue;
       }
     });
 
@@ -205,10 +258,14 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+  } catch (error: any) {
+    return handleError(error, "data-reconciler", {
+      supabase: createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      ),
+      errorCode: ErrorCode.INTERNAL_ERROR,
+      context: { function: "data-reconciler" },
     });
   }
 });

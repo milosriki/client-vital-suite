@@ -445,7 +445,12 @@ export async function executeSharedTool(
           return JSON.stringify(data || []);
         }
         if (action === "get_assessment_report") {
-          const today = new Date().toISOString().split("T")[0];
+          // Timezone: Asia/Dubai (UTC+4)
+          // We manually adjust the date to ensure "Today" aligns with the business day
+          const now = new Date();
+          const dubaiOffset = 4 * 60 * 60 * 1000;
+          const dubaiTime = new Date(now.getTime() + dubaiOffset);
+          const today = dubaiTime.toISOString().split("T")[0]; // YYYY-MM-DD in Dubai
 
           // 1. Fetch all deals created today
           const { data } = await supabase
@@ -494,6 +499,83 @@ export async function executeSharedTool(
               breakdown_by_setter: bySetter,
               raw_data:
                 deals.length > 0 ? "Found data" : "No assessments found today",
+            },
+            null,
+            2,
+          );
+        }
+
+        if (action === "get_conversion_metrics") {
+          const daysBack = days || 30;
+
+          // Timezone: Asia/Dubai (UTC+4)
+          const now = new Date();
+          const dubaiOffset = 4 * 60 * 60 * 1000;
+          const dubaiTime = new Date(now.getTime() + dubaiOffset);
+
+          dubaiTime.setDate(dubaiTime.getDate() - daysBack);
+          const since = dubaiTime.toISOString();
+
+          // 1. Fetch Scheduled Appointments (by Owner)
+          const { data: appointments } = await supabase
+            .from("appointments")
+            .select("owner_id, status, scheduled_at")
+            .gte("scheduled_at", since);
+
+          // 2. Fetch Won Deals (by Owner)
+          const { data: deals } = await supabase
+            .from("deals")
+            .select("owner_id, owner_name, stage, created_at, close_date")
+            .gte("close_date", since)
+            .ilike("stage", "%closed won%");
+
+          // 3. Aggregate Stats by Owner
+          const stats: Record<
+            string,
+            { scheduled: number; won: number; ratio: string }
+          > = {};
+
+          // Helper to get owner name (using deals as lookup source if needed, or owner_id fallback)
+          const getOwnerName = (id: string) => {
+            const deal = deals?.find((d: any) => d.owner_id === id);
+            return deal?.owner_name || "Unknown (" + id + ")";
+          };
+
+          (appointments || []).forEach((a: any) => {
+            const ownerId = a.owner_id || "unassigned";
+            if (!stats[ownerId])
+              stats[ownerId] = { scheduled: 0, won: 0, ratio: "0%" };
+            stats[ownerId].scheduled++;
+          });
+
+          (deals || []).forEach((d: any) => {
+            const ownerId = d.owner_id || "unassigned";
+            if (!stats[ownerId])
+              stats[ownerId] = { scheduled: 0, won: 0, ratio: "0%" };
+            stats[ownerId].won++;
+          });
+
+          // Calculate Ratios
+          Object.keys(stats).forEach((ownerId) => {
+            const s = stats[ownerId];
+            if (s.scheduled > 0) {
+              s.ratio = ((s.won / s.scheduled) * 100).toFixed(1) + "%";
+            }
+          });
+
+          // Map Owner IDs to Names for human readability
+          const readableStats: Record<string, any> = {};
+          for (const [id, data] of Object.entries(stats)) {
+            // Try to fuzzy match owner name if ID is just a number/string, or use the name directly if available
+            const name = getOwnerName(id);
+            readableStats[name] = data;
+          }
+
+          return JSON.stringify(
+            {
+              period: `Last ${daysBack} days`,
+              metrics_by_owner: readableStats,
+              raw_stats: stats,
             },
             null,
             2,

@@ -22,19 +22,17 @@ import { SystemHealthMonitor } from "@/components/dashboard/SystemHealthMonitor"
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
-import { format } from "date-fns";
+import { getBusinessDate, getBusinessStartOfMonth } from "@/lib/date-utils";
+
+// ... existing imports
 
 export default function ExecutiveDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Date Range for MTD (Real Validation)
-  const now = new Date();
-  const startOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1,
-  ).toISOString();
-  const endOfDay = new Date().toISOString();
+  // Date Range for MTD (Business Time - Dubai)
+  // This ensures that "This Month" aligns with the HQ timezone
+  const startOfMonth = getBusinessStartOfMonth();
+  const endOfDay = getBusinessDate().toISOString();
 
   // Fetch REAL Stripe Stats (MTD Validated)
   interface StripeMetrics {
@@ -142,7 +140,7 @@ export default function ExecutiveDashboard() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="bg-white">
-            {format(new Date(), "MMM dd, yyyy HH:mm")}
+            {format(getBusinessDate(), "MMM dd, yyyy HH:mm")}
           </Badge>
           <Button size="sm" variant="outline">
             <Activity className="mr-2 h-4 w-4" />

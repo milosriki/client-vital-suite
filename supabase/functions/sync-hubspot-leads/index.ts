@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     const HUBSPOT_ACCESS_TOKEN = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
@@ -37,7 +37,7 @@ serve(async (req) => {
       "hubspot_owner_id",
       "createdate",
       "lastmodifieddate",
-      "lifecyclestage"
+      "lifecyclestage",
     ];
 
     const searchUrl = "https://api.hubapi.com/crm/v3/objects/contacts/search";
@@ -48,19 +48,19 @@ serve(async (req) => {
             {
               propertyName: "lastmodifieddate",
               operator: "GTE",
-              value: Date.now() - 24 * 60 * 60 * 1000 // Last 24 hours
-            }
-          ]
-        }
+              value: Date.now() - 24 * 60 * 60 * 1000, // Last 24 hours
+            },
+          ],
+        },
       ],
       properties,
       limit: 100,
       sorts: [
         {
           propertyName: "lastmodifieddate",
-          direction: "DESCENDING"
-        }
-      ]
+          direction: "DESCENDING",
+        },
+      ],
     };
 
     const response = await fetch(searchUrl, {
@@ -83,22 +83,22 @@ serve(async (req) => {
 
     const upsertData = contacts.map((contact: any) => {
       const props = contact.properties;
-      
+
       // --- SMART STATUS LOGIC ---
       // Prioritize call_status (real agent input) over hs_lead_status
-      let rawStatus = props.call_status || props.hs_lead_status || "NEW";
+      const rawStatus = props.call_status || props.hs_lead_status || "NEW";
       let normalizedStatus = "NEW";
 
       const statusMap: Record<string, string> = {
-        "connected": "CONNECTED",
-        "completed": "CONNECTED",
-        "busy": "ATTEMPTED",
-        "no_answer": "ATTEMPTED",
-        "left_voicemail": "LEFT_VOICEMAIL",
-        "bad_timing": "BAD_TIMING",
-        "wrong_number": "WRONG_NUMBER",
-        "not_interested": "DISQUALIFIED",
-        "qualified": "QUALIFIED"
+        connected: "CONNECTED",
+        completed: "CONNECTED",
+        busy: "ATTEMPTED",
+        no_answer: "ATTEMPTED",
+        left_voicemail: "LEFT_VOICEMAIL",
+        bad_timing: "BAD_TIMING",
+        wrong_number: "WRONG_NUMBER",
+        not_interested: "DISQUALIFIED",
+        qualified: "QUALIFIED",
       };
 
       // Normalize to uppercase for matching
@@ -117,7 +117,7 @@ serve(async (req) => {
         phone: props.phone,
         company: props.company,
         status: normalizedStatus, // The calculated smart status
-        raw_status: rawStatus,    // Keep original for debugging
+        raw_status: rawStatus, // Keep original for debugging
         hubspot_owner_id: props.hubspot_owner_id,
         lifecycle_stage: props.lifecyclestage || "lead",
         last_contacted: props.lastmodifieddate,
@@ -134,19 +134,23 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         processed: upsertData.length,
-        message: "Sync complete" 
+        message: "Sync complete",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (error) {
+    // Create a temporary client for error logging if not already created
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-  } catch (error) {
-    console.error("Sync Error:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return handleError(error, "sync-hubspot-leads", {
+      supabase,
+      errorCode: ErrorCode.EXTERNAL_API_ERROR,
+    });
   }
 });

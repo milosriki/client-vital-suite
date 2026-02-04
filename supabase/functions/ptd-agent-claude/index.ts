@@ -1,16 +1,25 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
 import { PTD_STATIC_KNOWLEDGE } from "../_shared/static-knowledge.ts";
 import { executeSharedTool } from "../_shared/tool-executor.ts";
-import { unifiedAI, ChatMessage, ToolDefinition } from "../_shared/unified-ai-client.ts";
+import {
+  unifiedAI,
+  ChatMessage,
+  ToolDefinition,
+} from "../_shared/unified-ai-client.ts";
 import { brain } from "../_shared/unified-brain.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -26,15 +35,22 @@ const PTD_SYSTEM_KNOWLEDGE = PTD_STATIC_KNOWLEDGE;
 const tools: ToolDefinition[] = [
   {
     name: "client_control",
-    description: "Get full client data - health scores, calls, deals, activities. Use for any client-related queries.",
+    description:
+      "Get full client data - health scores, calls, deals, activities. Use for any client-related queries.",
     input_schema: {
       type: "object",
       properties: {
         email: { type: "string", description: "Client email address" },
         action: {
           type: "string",
-          enum: ["get_all", "get_health", "get_calls", "get_deals", "get_activities"],
-          description: "Action to perform"
+          enum: [
+            "get_all",
+            "get_health",
+            "get_calls",
+            "get_deals",
+            "get_activities",
+          ],
+          description: "Action to perform",
         },
       },
       required: ["email", "action"],
@@ -42,16 +58,20 @@ const tools: ToolDefinition[] = [
   },
   {
     name: "lead_control",
-    description: "Manage leads - get all leads, search leads, get enhanced lead data with scores",
+    description:
+      "Manage leads - get all leads, search leads, get enhanced lead data with scores",
     input_schema: {
       type: "object",
       properties: {
         action: {
           type: "string",
           enum: ["get_all", "search", "get_enhanced", "get_by_status"],
-          description: "Action to perform"
+          description: "Action to perform",
         },
-        query: { type: "string", description: "Search query for lead name/email/phone" },
+        query: {
+          type: "string",
+          description: "Search query for lead name/email/phone",
+        },
         status: { type: "string", description: "Lead status filter" },
         limit: { type: "number", description: "Max results (default 20)" },
       },
@@ -60,16 +80,25 @@ const tools: ToolDefinition[] = [
   },
   {
     name: "sales_flow_control",
-    description: "Track sales pipeline - get deals, appointments, pipeline stages, recent closes",
+    description:
+      "Track sales pipeline - get deals, appointments, pipeline stages, recent closes",
     input_schema: {
       type: "object",
       properties: {
         action: {
           type: "string",
-          enum: ["get_pipeline", "get_deals", "get_appointments", "get_recent_closes"],
-          description: "Action to perform"
+          enum: [
+            "get_pipeline",
+            "get_deals",
+            "get_appointments",
+            "get_recent_closes",
+          ],
+          description: "Action to perform",
         },
-        stage: { type: "string", description: "Optional: filter by pipeline stage" },
+        stage: {
+          type: "string",
+          description: "Optional: filter by pipeline stage",
+        },
         days: { type: "number", description: "Days back to look (default 30)" },
       },
       required: ["action"],
@@ -77,30 +106,47 @@ const tools: ToolDefinition[] = [
   },
   {
     name: "stripe_control",
-    description: "Stripe intelligence - fraud scan, payment history, transaction analysis, deleted wallets/bank accounts history",
+    description:
+      "Stripe intelligence - fraud scan, payment history, transaction analysis, deleted wallets/bank accounts history",
     input_schema: {
       type: "object",
       properties: {
         action: {
           type: "string",
-          enum: ["fraud_scan", "get_summary", "get_events", "analyze", "get_deleted_wallets"],
-          description: "Action to perform. Use get_deleted_wallets for history of deleted bank accounts, cards, and wallets."
+          enum: [
+            "fraud_scan",
+            "get_summary",
+            "get_events",
+            "analyze",
+            "get_deleted_wallets",
+          ],
+          description:
+            "Action to perform. Use get_deleted_wallets for history of deleted bank accounts, cards, and wallets.",
         },
-        days: { type: "number", description: "Days back to analyze (default 90)" },
+        days: {
+          type: "number",
+          description: "Days back to analyze (default 90)",
+        },
       },
       required: ["action"],
     },
   },
   {
     name: "hubspot_control",
-    description: "HubSpot operations - sync data, get contacts, track activities, lifecycle stages",
+    description:
+      "HubSpot operations - sync data, get contacts, track activities, lifecycle stages",
     input_schema: {
       type: "object",
       properties: {
         action: {
           type: "string",
-          enum: ["sync_now", "get_contacts", "get_activities", "get_lifecycle_stages"],
-          description: "Action to perform"
+          enum: [
+            "sync_now",
+            "get_contacts",
+            "get_activities",
+            "get_lifecycle_stages",
+          ],
+          description: "Action to perform",
         },
         limit: { type: "number", description: "Max results" },
       },
@@ -109,14 +155,20 @@ const tools: ToolDefinition[] = [
   },
   {
     name: "call_control",
-    description: "Call records - get transcripts, analytics, find conversation patterns",
+    description:
+      "Call records - get transcripts, analytics, find conversation patterns",
     input_schema: {
       type: "object",
       properties: {
         action: {
           type: "string",
-          enum: ["get_all", "get_transcripts", "get_analytics", "find_patterns"],
-          description: "Action to perform"
+          enum: [
+            "get_all",
+            "get_transcripts",
+            "get_analytics",
+            "find_patterns",
+          ],
+          description: "Action to perform",
         },
         limit: { type: "number", description: "Max results (default 20)" },
       },
@@ -125,14 +177,15 @@ const tools: ToolDefinition[] = [
   },
   {
     name: "analytics_control",
-    description: "Get dashboards - health zones, revenue, coaches, interventions, campaigns",
+    description:
+      "Get dashboards - health zones, revenue, coaches, interventions, campaigns",
     input_schema: {
       type: "object",
       properties: {
         dashboard: {
           type: "string",
           enum: ["health", "revenue", "coaches", "interventions", "campaigns"],
-          description: "Dashboard to retrieve"
+          description: "Dashboard to retrieve",
         },
       },
       required: ["dashboard"],
@@ -144,21 +197,27 @@ const tools: ToolDefinition[] = [
     input_schema: {
       type: "object",
       properties: {
-        zone: { type: "string", enum: ["red", "yellow", "all"], description: "Filter by zone" },
+        zone: {
+          type: "string",
+          enum: ["red", "yellow", "all"],
+          description: "Filter by zone",
+        },
         limit: { type: "number", description: "Max results (default 20)" },
       },
     },
   },
   {
     name: "intelligence_control",
-    description: "Run AI intelligence functions - churn predictor, anomaly detector, etc.",
+    description:
+      "Run AI intelligence functions - churn predictor, anomaly detector, etc.",
     input_schema: {
       type: "object",
       properties: {
         functions: {
           type: "array",
           items: { type: "string" },
-          description: "Functions to run: churn-predictor, anomaly-detector, intervention-recommender, coach-analyzer, business-intelligence"
+          description:
+            "Functions to run: churn-predictor, anomaly-detector, intervention-recommender, coach-analyzer, business-intelligence",
         },
       },
     },
@@ -166,19 +225,23 @@ const tools: ToolDefinition[] = [
 ];
 
 // Main agent function with agentic loop + learning + RAG
-async function runAgent(supabase: any, userMessage: string, threadId: string = 'default'): Promise<string> {
+async function runAgent(
+  supabase: any,
+  userMessage: string,
+  threadId: string = "default",
+): Promise<string> {
   // Token budgets
   const MAX_SYSTEM_TOKENS = 120000;
-  
+
   // ============= PERSISTENT MEMORY + RAG MIDDLEWARE: Before =============
   // Use the unified brain to build context
   const context = await brain.buildContext(userMessage, {
     includeMemories: true,
     includeFacts: true,
     includePatterns: true,
-    memoryLimit: 5
+    memoryLimit: 5,
   });
-  
+
   console.log(`🧠 Context built via Unified Brain`);
 
   const messages: ChatMessage[] = [{ role: "user", content: userMessage }];
@@ -215,7 +278,7 @@ STAGES: lead→mql→sql→opportunity→customer
 
   let iterations = 0;
   const maxIterations = 8;
-  let finalResponse = '';
+  let finalResponse = "";
 
   while (iterations < maxIterations) {
     iterations++;
@@ -224,10 +287,12 @@ STAGES: lead→mql→sql→opportunity→customer
     // Call Unified AI Client
     const response = await unifiedAI.chat(messages, {
       max_tokens: 4096,
-      tools: tools
+      tools: tools,
     });
 
-    console.log(`Provider used: ${response.provider}, Model: ${response.model}`);
+    console.log(
+      `Provider used: ${response.provider}, Model: ${response.model}`,
+    );
 
     // Check if done (no tool calls)
     if (!response.tool_calls || response.tool_calls.length === 0) {
@@ -242,22 +307,27 @@ STAGES: lead→mql→sql→opportunity→customer
     const toolResults = await Promise.all(
       response.tool_calls.map(async (toolCall) => {
         try {
-          const result = await executeSharedTool(supabase, toolCall.name, toolCall.input);
+          const result = await executeSharedTool(
+            supabase,
+            toolCall.name,
+            toolCall.input,
+          );
           return {
             role: "user" as const, // OpenAI/Claude handle tool results differently, but user role with context works for both in this simple loop
             content: `Tool '${toolCall.name}' result: ${result}`,
-            name: toolCall.name
+            name: toolCall.name,
           };
         } catch (toolError) {
           console.error(`Tool execution failed: ${toolCall.name}`, toolError);
-          const errMsg = toolError instanceof Error ? toolError.message : String(toolError);
+          const errMsg =
+            toolError instanceof Error ? toolError.message : String(toolError);
           return {
             role: "user" as const,
             content: `Tool '${toolCall.name}' failed: ${errMsg}`,
-            name: toolCall.name
+            name: toolCall.name,
           };
         }
-      })
+      }),
     );
 
     // Add tool results to messages
@@ -274,7 +344,7 @@ STAGES: lead→mql→sql→opportunity→customer
     query: userMessage,
     response: finalResponse,
     source: "ptd-agent",
-    thread_id: threadId
+    thread_id: threadId,
   });
 
   return finalResponse;
@@ -282,7 +352,7 @@ STAGES: lead→mql→sql→opportunity→customer
 
 // HTTP Handler
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -293,7 +363,11 @@ serve(async (req) => {
       return jsonResponse({ error: "Invalid request payload" }, 400);
     }
 
-    const { message, messages: chatHistory, thread_id } = payload as Record<string, any>;
+    const {
+      message,
+      messages: chatHistory,
+      thread_id,
+    } = payload as Record<string, any>;
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -304,13 +378,18 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const derivedMessage = typeof message === "string" && message.trim().length > 0
-      ? message
-      : (Array.isArray(chatHistory) ? chatHistory[chatHistory.length - 1]?.content : undefined);
-    const userMessage = typeof derivedMessage === "string" ? derivedMessage : null;
-    const threadId = typeof thread_id === "string" && thread_id.length > 0
-      ? thread_id
-      : `default_${Date.now()}`;
+    const derivedMessage =
+      typeof message === "string" && message.trim().length > 0
+        ? message
+        : Array.isArray(chatHistory)
+          ? chatHistory[chatHistory.length - 1]?.content
+          : undefined;
+    const userMessage =
+      typeof derivedMessage === "string" ? derivedMessage : null;
+    const threadId =
+      typeof thread_id === "string" && thread_id.length > 0
+        ? thread_id
+        : `default_${Date.now()}`;
 
     if (!userMessage) {
       return jsonResponse({ error: "A 'message' string is required" }, 400);
@@ -321,8 +400,12 @@ serve(async (req) => {
 
     return jsonResponse({ response });
   } catch (error: unknown) {
-    console.error("Agent error:", error);
-    const errMsg = error instanceof Error ? error.message : String(error);
-    return jsonResponse({ error: errMsg }, 500);
+    return handleError(error, "ptd-agent-claude", {
+      supabase: createClient(
+        Deno.env.get("SUPABASE_URL") || "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+      ),
+      errorCode: ErrorCode.INTERNAL_ERROR,
+    });
   }
 });

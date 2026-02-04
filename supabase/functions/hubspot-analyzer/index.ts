@@ -1,11 +1,16 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 interface LeadLossPoint {
   point: string;
@@ -66,131 +71,216 @@ serve(async (req) => {
     const totalCalls = callRecords?.length || 0;
 
     // Unassigned leads
-    const unassignedLeads = leads?.filter(l => !l.owner_email && !l.assigned_to) || [];
-    const unassignedRate = totalLeads > 0 ? (unassignedLeads.length / totalLeads) * 100 : 0;
+    const unassignedLeads =
+      leads?.filter((l) => !l.owner_email && !l.assigned_to) || [];
+    const unassignedRate =
+      totalLeads > 0 ? (unassignedLeads.length / totalLeads) * 100 : 0;
 
     // Leads without calls (never contacted)
-    const leadsWithoutCalls = leads?.filter(l => {
-      const hasCalls = callRecords?.some(c => 
-        c.contact_email === l.email || 
-        c.caller_number?.includes(l.phone?.slice(-8) || "xxx")
-      );
-      return !hasCalls;
-    }) || [];
-    const neverCalledRate = totalLeads > 0 ? (leadsWithoutCalls.length / totalLeads) * 100 : 0;
+    const leadsWithoutCalls =
+      leads?.filter((l) => {
+        const hasCalls = callRecords?.some(
+          (c) =>
+            c.contact_email === l.email ||
+            c.caller_number?.includes(l.phone?.slice(-8) || "xxx"),
+        );
+        return !hasCalls;
+      }) || [];
+    const neverCalledRate =
+      totalLeads > 0 ? (leadsWithoutCalls.length / totalLeads) * 100 : 0;
 
     // Stale leads (no activity > 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const staleLeads = leads?.filter(l => {
-      const lastActivity = new Date(l.updated_at || l.created_at || "");
-      return lastActivity < sevenDaysAgo && 
-             (!l.conversion_status || l.conversion_status === "new");
-    }) || [];
-    const staleRate = totalLeads > 0 ? (staleLeads.length / totalLeads) * 100 : 0;
+    const staleLeads =
+      leads?.filter((l) => {
+        const lastActivity = new Date(l.updated_at || l.created_at || "");
+        return (
+          lastActivity < sevenDaysAgo &&
+          (!l.conversion_status || l.conversion_status === "new")
+        );
+      }) || [];
+    const staleRate =
+      totalLeads > 0 ? (staleLeads.length / totalLeads) * 100 : 0;
 
     // Premium leads (high-value indicators)
-    const premiumLeads = leads?.filter(l => 
-      l.location?.toLowerCase().includes("downtown") ||
-      l.location?.toLowerCase().includes("marina") ||
-      l.location?.toLowerCase().includes("difc") ||
-      (l.deal_value && l.deal_value > 10000)
-    ) || [];
-    const premiumUncontacted = premiumLeads.filter(l => 
-      !callRecords?.some(c => c.contact_email === l.email)
+    const premiumLeads =
+      leads?.filter(
+        (l) =>
+          l.location?.toLowerCase().includes("downtown") ||
+          l.location?.toLowerCase().includes("marina") ||
+          l.location?.toLowerCase().includes("difc") ||
+          (l.deal_value && l.deal_value > 10000),
+      ) || [];
+    const premiumUncontacted = premiumLeads.filter(
+      (l) => !callRecords?.some((c) => c.contact_email === l.email),
     );
 
     // Data quality issues
-    const blankEmails = leads?.filter(l => !l.email || l.email.trim() === "") || [];
-    const blankPhones = leads?.filter(l => !l.phone || l.phone.trim() === "") || [];
-    const dataQualityIssueRate = totalLeads > 0 
-      ? ((blankEmails.length + blankPhones.length) / (totalLeads * 2)) * 100 
-      : 0;
+    const blankEmails =
+      leads?.filter((l) => !l.email || l.email.trim() === "") || [];
+    const blankPhones =
+      leads?.filter((l) => !l.phone || l.phone.trim() === "") || [];
+    const dataQualityIssueRate =
+      totalLeads > 0
+        ? ((blankEmails.length + blankPhones.length) / (totalLeads * 2)) * 100
+        : 0;
 
     // Deal conversion
-    const closedDeals = deals?.filter(d => d.status === "closed" || (d.status as string) === "won") || [];
-    const conversionRate = totalDeals > 0 ? (closedDeals.length / totalDeals) * 100 : 0;
+    const closedDeals =
+      deals?.filter(
+        (d) => d.status === "closed" || (d.status as string) === "won",
+      ) || [];
+    const conversionRate =
+      totalDeals > 0 ? (closedDeals.length / totalDeals) * 100 : 0;
 
     // Stalled deals
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    const stalledDeals = deals?.filter(d => {
-      const lastUpdate = new Date(d.updated_at || d.created_at || "");
-      return lastUpdate < fourteenDaysAgo && 
-             d.status !== "closed" && 
-             d.status !== "lost" &&
-             (d.status as string) !== "won";
-    }) || [];
+    const stalledDeals =
+      deals?.filter((d) => {
+        const lastUpdate = new Date(d.updated_at || d.created_at || "");
+        return (
+          lastUpdate < fourteenDaysAgo &&
+          d.status !== "closed" &&
+          d.status !== "lost" &&
+          (d.status as string) !== "won"
+        );
+      }) || [];
 
     // Calculate revenue at risk
-    const avgDealValue = closedDeals.length > 0 
-      ? closedDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0) / closedDeals.length
-      : 5000;
-    
+    const avgDealValue =
+      closedDeals.length > 0
+        ? closedDeals.reduce((sum, d) => sum + (d.deal_value || 0), 0) /
+          closedDeals.length
+        : 5000;
+
     const revenueAtRisk = {
       unassigned: Math.round(unassignedLeads.length * avgDealValue * 0.3),
       neverCalled: Math.round(leadsWithoutCalls.length * avgDealValue * 0.25),
       stale: Math.round(staleLeads.length * avgDealValue * 0.2),
       premium: Math.round(premiumUncontacted.length * avgDealValue * 0.5),
-      stalled: stalledDeals.reduce((sum, d) => sum + (d.deal_value || avgDealValue), 0),
+      stalled: stalledDeals.reduce(
+        (sum, d) => sum + (d.deal_value || avgDealValue),
+        0,
+      ),
     };
 
     // Generate dynamic lead loss points
     const leadLossPoints: LeadLossPoint[] = [
       {
         point: "Initial Assignment",
-        status: unassignedRate > 20 ? "broken" : unassignedRate > 10 ? "partial" : "ok",
-        description: unassignedRate > 10 
-          ? `${unassignedLeads.length} leads (${unassignedRate.toFixed(1)}%) are unassigned`
-          : "Lead assignment is working well",
+        status:
+          unassignedRate > 20
+            ? "broken"
+            : unassignedRate > 10
+              ? "partial"
+              : "ok",
+        description:
+          unassignedRate > 10
+            ? `${unassignedLeads.length} leads (${unassignedRate.toFixed(1)}%) are unassigned`
+            : "Lead assignment is working well",
         leadsAffected: `${unassignedLeads.length} leads`,
-        revenueImpact: revenueAtRisk.unassigned > 0 ? `${(revenueAtRisk.unassigned / 1000).toFixed(0)}K AED` : "Low"
+        revenueImpact:
+          revenueAtRisk.unassigned > 0
+            ? `${(revenueAtRisk.unassigned / 1000).toFixed(0)}K AED`
+            : "Low",
       },
       {
         point: "First Contact Attempt",
-        status: neverCalledRate > 30 ? "critical" : neverCalledRate > 15 ? "broken" : neverCalledRate > 5 ? "partial" : "ok",
-        description: neverCalledRate > 5 
-          ? `${neverCalledRate.toFixed(1)}% of leads never received a call`
-          : "Contact attempts are consistent",
+        status:
+          neverCalledRate > 30
+            ? "critical"
+            : neverCalledRate > 15
+              ? "broken"
+              : neverCalledRate > 5
+                ? "partial"
+                : "ok",
+        description:
+          neverCalledRate > 5
+            ? `${neverCalledRate.toFixed(1)}% of leads never received a call`
+            : "Contact attempts are consistent",
         leadsAffected: `${leadsWithoutCalls.length} leads`,
-        revenueImpact: revenueAtRisk.neverCalled > 0 ? `${(revenueAtRisk.neverCalled / 1000).toFixed(0)}K AED` : "Low"
+        revenueImpact:
+          revenueAtRisk.neverCalled > 0
+            ? `${(revenueAtRisk.neverCalled / 1000).toFixed(0)}K AED`
+            : "Low",
       },
       {
         point: "Lead Follow-up Timing",
-        status: staleRate > 40 ? "critical" : staleRate > 20 ? "broken" : staleRate > 10 ? "partial" : "ok",
-        description: staleRate > 10 
-          ? `${staleLeads.length} leads (${staleRate.toFixed(1)}%) are stale (>7 days no activity)`
-          : "Follow-up timing is good",
+        status:
+          staleRate > 40
+            ? "critical"
+            : staleRate > 20
+              ? "broken"
+              : staleRate > 10
+                ? "partial"
+                : "ok",
+        description:
+          staleRate > 10
+            ? `${staleLeads.length} leads (${staleRate.toFixed(1)}%) are stale (>7 days no activity)`
+            : "Follow-up timing is good",
         leadsAffected: `${staleLeads.length} leads`,
-        revenueImpact: revenueAtRisk.stale > 0 ? `${(revenueAtRisk.stale / 1000).toFixed(0)}K AED` : "Low"
+        revenueImpact:
+          revenueAtRisk.stale > 0
+            ? `${(revenueAtRisk.stale / 1000).toFixed(0)}K AED`
+            : "Low",
       },
       {
         point: "Premium Lead Priority",
-        status: premiumUncontacted.length > 10 ? "critical" : premiumUncontacted.length > 5 ? "broken" : premiumUncontacted.length > 0 ? "partial" : "ok",
-        description: premiumUncontacted.length > 0 
-          ? `${premiumUncontacted.length} high-value leads not contacted`
-          : "Premium leads are being prioritized",
+        status:
+          premiumUncontacted.length > 10
+            ? "critical"
+            : premiumUncontacted.length > 5
+              ? "broken"
+              : premiumUncontacted.length > 0
+                ? "partial"
+                : "ok",
+        description:
+          premiumUncontacted.length > 0
+            ? `${premiumUncontacted.length} high-value leads not contacted`
+            : "Premium leads are being prioritized",
         leadsAffected: `${premiumUncontacted.length} premium leads`,
-        revenueImpact: revenueAtRisk.premium > 0 ? `${(revenueAtRisk.premium / 1000).toFixed(0)}K AED` : "Low"
+        revenueImpact:
+          revenueAtRisk.premium > 0
+            ? `${(revenueAtRisk.premium / 1000).toFixed(0)}K AED`
+            : "Low",
       },
       {
         point: "Data Quality",
-        status: dataQualityIssueRate > 20 ? "broken" : dataQualityIssueRate > 10 ? "partial" : "ok",
-        description: dataQualityIssueRate > 5 
-          ? `${blankEmails.length} blank emails, ${blankPhones.length} blank phones`
-          : "Data quality is acceptable",
+        status:
+          dataQualityIssueRate > 20
+            ? "broken"
+            : dataQualityIssueRate > 10
+              ? "partial"
+              : "ok",
+        description:
+          dataQualityIssueRate > 5
+            ? `${blankEmails.length} blank emails, ${blankPhones.length} blank phones`
+            : "Data quality is acceptable",
         leadsAffected: `${blankEmails.length + blankPhones.length} records`,
-        revenueImpact: dataQualityIssueRate > 10 ? "Wasted capacity" : "Low"
+        revenueImpact: dataQualityIssueRate > 10 ? "Wasted capacity" : "Low",
       },
       {
         point: "Deal Pipeline Health",
-        status: stalledDeals.length > 20 ? "critical" : stalledDeals.length > 10 ? "broken" : stalledDeals.length > 5 ? "partial" : "ok",
-        description: stalledDeals.length > 0 
-          ? `${stalledDeals.length} deals stalled for >14 days`
-          : "Pipeline is flowing well",
+        status:
+          stalledDeals.length > 20
+            ? "critical"
+            : stalledDeals.length > 10
+              ? "broken"
+              : stalledDeals.length > 5
+                ? "partial"
+                : "ok",
+        description:
+          stalledDeals.length > 0
+            ? `${stalledDeals.length} deals stalled for >14 days`
+            : "Pipeline is flowing well",
         leadsAffected: `${stalledDeals.length} deals`,
-        revenueImpact: revenueAtRisk.stalled > 0 ? `${(revenueAtRisk.stalled / 1000).toFixed(0)}K AED` : "Low"
-      }
+        revenueImpact:
+          revenueAtRisk.stalled > 0
+            ? `${(revenueAtRisk.stalled / 1000).toFixed(0)}K AED`
+            : "Low",
+      },
     ];
 
     // Generate dynamic recommendations
@@ -205,7 +295,7 @@ serve(async (req) => {
         description: `${unassignedLeads.length} leads are unassigned. Implement automatic round-robin assignment.`,
         effort: "Medium",
         impact: unassignedRate > 20 ? "Critical" : "High",
-        revenue: `${(revenueAtRisk.unassigned / 1000).toFixed(0)}K AED at risk`
+        revenue: `${(revenueAtRisk.unassigned / 1000).toFixed(0)}K AED at risk`,
       });
     }
 
@@ -216,7 +306,7 @@ serve(async (req) => {
         description: `${leadsWithoutCalls.length} leads never received a call. Create outbound call campaign.`,
         effort: "High",
         impact: "Critical",
-        revenue: `${(revenueAtRisk.neverCalled / 1000).toFixed(0)}K AED potential`
+        revenue: `${(revenueAtRisk.neverCalled / 1000).toFixed(0)}K AED potential`,
       });
     }
 
@@ -227,7 +317,7 @@ serve(async (req) => {
         description: `${premiumUncontacted.length} high-value leads need immediate attention. Contact today.`,
         effort: "Low",
         impact: "High",
-        revenue: `${(revenueAtRisk.premium / 1000).toFixed(0)}K AED immediate`
+        revenue: `${(revenueAtRisk.premium / 1000).toFixed(0)}K AED immediate`,
       });
     }
 
@@ -238,7 +328,7 @@ serve(async (req) => {
         description: `${staleLeads.length} leads have gone cold. Launch re-engagement campaign.`,
         effort: "Medium",
         impact: "High",
-        revenue: `${(revenueAtRisk.stale / 1000).toFixed(0)}K AED recoverable`
+        revenue: `${(revenueAtRisk.stale / 1000).toFixed(0)}K AED recoverable`,
       });
     }
 
@@ -249,7 +339,7 @@ serve(async (req) => {
         description: `${stalledDeals.length} deals stuck >14 days. Send break-up emails or escalate.`,
         effort: "Medium",
         impact: "High",
-        revenue: `${(revenueAtRisk.stalled / 1000).toFixed(0)}K AED in pipeline`
+        revenue: `${(revenueAtRisk.stalled / 1000).toFixed(0)}K AED in pipeline`,
       });
     }
 
@@ -260,7 +350,7 @@ serve(async (req) => {
         description: `${blankEmails.length + blankPhones.length} records have missing data. Add required field validation.`,
         effort: "Low",
         impact: "Medium",
-        revenue: "Prevents future data issues"
+        revenue: "Prevents future data issues",
       });
     }
 
@@ -272,16 +362,36 @@ serve(async (req) => {
         description: `Current conversion rate is ${conversionRate.toFixed(1)}%. A/B test follow-up sequences.`,
         effort: "Medium",
         impact: "Medium",
-        revenue: "Incremental improvement"
+        revenue: "Incremental improvement",
       });
     }
 
     // Property categories analysis
     const propertyCategories = [
-      { category: "Contact Info", count: contacts?.filter(c => c.email && c.phone).length || 0, usage: "Critical", quality: dataQualityIssueRate < 10 ? "Good" : "Needs Improvement" },
-      { category: "Lead Source", count: leads?.filter(l => l.source || l.utm_source).length || 0, usage: "High", quality: "Good" },
-      { category: "Deal Pipeline", count: deals?.length || 0, usage: "High", quality: conversionRate > 20 ? "Good" : "Medium" },
-      { category: "Activity Tracking", count: callRecords?.length || 0, usage: "High", quality: totalCalls > 100 ? "Good" : "Needs More Data" }
+      {
+        category: "Contact Info",
+        count: contacts?.filter((c) => c.email && c.phone).length || 0,
+        usage: "Critical",
+        quality: dataQualityIssueRate < 10 ? "Good" : "Needs Improvement",
+      },
+      {
+        category: "Lead Source",
+        count: leads?.filter((l) => l.source || l.utm_source).length || 0,
+        usage: "High",
+        quality: "Good",
+      },
+      {
+        category: "Deal Pipeline",
+        count: deals?.length || 0,
+        usage: "High",
+        quality: conversionRate > 20 ? "Good" : "Medium",
+      },
+      {
+        category: "Activity Tracking",
+        count: callRecords?.length || 0,
+        usage: "High",
+        quality: totalCalls > 100 ? "Good" : "Needs More Data",
+      },
     ];
 
     const result = {
@@ -296,30 +406,34 @@ serve(async (req) => {
         neverCalledRate: neverCalledRate.toFixed(1) + "%",
         staleRate: staleRate.toFixed(1) + "%",
         dataQualityIssueRate: dataQualityIssueRate.toFixed(1) + "%",
-        totalRevenueAtRisk: Object.values(revenueAtRisk).reduce((a, b) => a + b, 0)
+        totalRevenueAtRisk: Object.values(revenueAtRisk).reduce(
+          (a, b) => a + b,
+          0,
+        ),
       },
       leadLossPoints,
       propertyCategories,
       recommendations: recommendations.slice(0, 6), // Top 6 recommendations
-      analyzedAt: new Date().toISOString()
+      analyzedAt: new Date().toISOString(),
     };
 
     console.log("HubSpot Analysis complete:", {
       totalLeads,
-      issues: leadLossPoints.filter(p => p.status !== "ok").length,
-      recommendations: recommendations.length
+      issues: leadLossPoints.filter((p) => p.status !== "ok").length,
+      recommendations: recommendations.length,
     });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error: unknown) {
-    console.error("HubSpot analysis error:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+  } catch (error: any) {
+    return handleError(error, "hubspot-analyzer", {
+      supabase: createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      ),
+      errorCode: ErrorCode.INTERNAL_ERROR,
     });
   }
 });

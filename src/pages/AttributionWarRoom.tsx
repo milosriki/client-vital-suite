@@ -17,7 +17,64 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle2,
+  Search,
 } from "lucide-react";
+import { ErrorDetective } from "@/lib/error-detective";
+
+// --- Sub-Components ---
+
+const StatCard = ({
+  title,
+  value,
+  subtext,
+  colorClass = "",
+  warning = false,
+}: any) => (
+  <Card
+    className={
+      warning
+        ? "border-l-4 border-l-red-500"
+        : colorClass
+          ? `border-l-4 ${colorClass}`
+          : ""
+    }
+  >
+    <CardHeader className="pb-2">
+      <CardTitle className="text-sm font-medium text-muted-foreground">
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div
+        className={`text-2xl font-bold ${colorClass && !warning ? "text-foreground" : ""}`}
+      >
+        {value}
+      </div>
+      {subtext && (
+        <div className="text-xs text-muted-foreground mt-1">{subtext}</div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+const CampaignRow = ({ camp, index, formatCurrency }: any) => (
+  <div className="flex items-center justify-between p-4 border rounded-lg">
+    <div className="space-y-1">
+      <div className="font-semibold flex items-center gap-2">
+        {index < 3 && <Badge variant="secondary">#{index + 1}</Badge>}
+        {camp.name}
+      </div>
+      <div className="text-sm text-muted-foreground">
+        {camp.deals} Closed Deals
+      </div>
+    </div>
+    <div className="text-right">
+      <div className="font-bold text-lg text-green-600">
+        {formatCurrency(camp.revenue)}
+      </div>
+    </div>
+  </div>
+);
 
 const AttributionWarRoom = () => {
   const [period, setPeriod] = useState("this_month");
@@ -99,25 +156,15 @@ const AttributionWarRoom = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              True ROAS (Validated)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-3xl font-bold ${getRoasColor(data?.intelligence?.true_roas || 0)}`}
-            >
-              {(data?.intelligence?.true_roas || 0).toFixed(2)}x
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Based on{" "}
-              {formatCurrency(data?.financials?.attributed_revenue || 0)} actual
-              revenue
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="True ROAS (Validated)"
+          value={`${(data?.intelligence?.true_roas || 0).toFixed(2)}x`}
+          subtext={`Based on ${formatCurrency(data?.financials?.attributed_revenue || 0)} actual revenue`}
+          colorClass={getRoasColor(data?.intelligence?.true_roas || 0).replace(
+            "text-",
+            "border-l-",
+          )}
+        />
 
         <Card>
           <CardHeader className="pb-2">
@@ -145,41 +192,18 @@ const AttributionWarRoom = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ad Spend (Investment)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(data?.financials?.ad_spend || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Meta Ads Manager
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Ad Spend (Investment)"
+          value={formatCurrency(data?.financials?.ad_spend || 0)}
+          subtext="Meta Ads Manager"
+        />
 
-        <Card
-          className={
-            data?.discrepancies?.count > 0 ? "border-l-4 border-l-red-500" : ""
-          }
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Attribution Conflicts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {data?.discrepancies?.count || 0}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Deals with mismatched sources
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Attribution Conflicts"
+          value={data?.discrepancies?.count || 0}
+          subtext="Deals with mismatched sources"
+          warning={data?.discrepancies?.count > 0}
+        />
       </div>
 
       <Tabs defaultValue="campaigns" className="space-y-4">
@@ -202,25 +226,12 @@ const AttributionWarRoom = () => {
               <div className="space-y-4">
                 {data?.intelligence?.winning_campaigns?.map(
                   (camp: any, i: number) => (
-                    <div
+                    <CampaignRow
                       key={i}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="space-y-1">
-                        <div className="font-semibold flex items-center gap-2">
-                          {i < 3 && <Badge variant="secondary">#{i + 1}</Badge>}
-                          {camp.name}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {camp.deals} Closed Deals
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-lg text-green-600">
-                          {formatCurrency(camp.revenue)}
-                        </div>
-                      </div>
-                    </div>
+                      index={i}
+                      camp={camp}
+                      formatCurrency={formatCurrency}
+                    />
                   ),
                 )}
                 {!data?.intelligence?.winning_campaigns?.length && (

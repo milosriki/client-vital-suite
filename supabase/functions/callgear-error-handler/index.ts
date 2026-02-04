@@ -1,4 +1,8 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -8,32 +12,43 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Handles call tracking and communication issues
 // ============================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 function validateEnv(): { valid: boolean; missing: string[] } {
   const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
-  const missing = required.filter(key => !Deno.env.get(key));
+  const missing = required.filter((key) => !Deno.env.get(key));
   return { valid: missing.length === 0, missing };
 }
 
 const envCheck = validateEnv();
 if (!envCheck.valid) {
-  console.error("[Callgear Error Handler] Missing required environment variables:", envCheck.missing);
+  console.error(
+    "[Callgear Error Handler] Missing required environment variables:",
+    envCheck.missing,
+  );
 }
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") || "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
 );
 
 const CALLGEAR_API_KEY = Deno.env.get("CALLGEAR_API_KEY");
 
 interface CallgearErrorResolution {
   error_id: string;
-  error_category: "auth" | "rate_limit" | "webhook" | "data_sync" | "call_tracking" | "server" | "unknown";
+  error_category:
+    | "auth"
+    | "rate_limit"
+    | "webhook"
+    | "data_sync"
+    | "call_tracking"
+    | "server"
+    | "unknown";
   resolution_attempted: boolean;
   resolution_success: boolean;
   resolution_action: string;
@@ -52,7 +67,9 @@ interface HandlerReport {
   call_tracking_impact: boolean;
 }
 
-async function checkCallgearApiHealth(): Promise<"healthy" | "degraded" | "down" | "unknown"> {
+async function checkCallgearApiHealth(): Promise<
+  "healthy" | "degraded" | "down" | "unknown"
+> {
   if (!CALLGEAR_API_KEY) {
     return "unknown";
   }
@@ -74,14 +91,25 @@ async function checkCallgearApiHealth(): Promise<"healthy" | "degraded" | "down"
   }
 }
 
-function categorizeCallgearError(error: Record<string, unknown>): CallgearErrorResolution["error_category"] {
+function categorizeCallgearError(
+  error: Record<string, unknown>,
+): CallgearErrorResolution["error_category"] {
   const errorType = String(error.error_type || "").toLowerCase();
   const message = String(error.error_message || "").toLowerCase();
 
-  if (errorType === "auth" || message.includes("unauthorized") || message.includes("api key") || message.includes("401")) {
+  if (
+    errorType === "auth" ||
+    message.includes("unauthorized") ||
+    message.includes("api key") ||
+    message.includes("401")
+  ) {
     return "auth";
   }
-  if (errorType === "rate_limit" || message.includes("rate limit") || message.includes("429")) {
+  if (
+    errorType === "rate_limit" ||
+    message.includes("rate limit") ||
+    message.includes("429")
+  ) {
     return "rate_limit";
   }
   if (message.includes("webhook") || message.includes("callback")) {
@@ -90,16 +118,27 @@ function categorizeCallgearError(error: Record<string, unknown>): CallgearErrorR
   if (message.includes("sync") || message.includes("data")) {
     return "data_sync";
   }
-  if (message.includes("call") || message.includes("tracking") || message.includes("recording")) {
+  if (
+    message.includes("call") ||
+    message.includes("tracking") ||
+    message.includes("recording")
+  ) {
     return "call_tracking";
   }
-  if (message.includes("server") || message.includes("500") || message.includes("502") || message.includes("503")) {
+  if (
+    message.includes("server") ||
+    message.includes("500") ||
+    message.includes("502") ||
+    message.includes("503")
+  ) {
     return "server";
   }
   return "unknown";
 }
 
-async function handleAuthError(error: Record<string, unknown>): Promise<CallgearErrorResolution> {
+async function handleAuthError(
+  error: Record<string, unknown>,
+): Promise<CallgearErrorResolution> {
   const resolution: CallgearErrorResolution = {
     error_id: error.id as string,
     error_category: "auth",
@@ -129,7 +168,9 @@ async function handleAuthError(error: Record<string, unknown>): Promise<Callgear
   return resolution;
 }
 
-async function handleRateLimitError(error: Record<string, unknown>): Promise<CallgearErrorResolution> {
+async function handleRateLimitError(
+  error: Record<string, unknown>,
+): Promise<CallgearErrorResolution> {
   const resolution: CallgearErrorResolution = {
     error_id: error.id as string,
     error_category: "rate_limit",
@@ -165,7 +206,9 @@ async function handleRateLimitError(error: Record<string, unknown>): Promise<Cal
   return resolution;
 }
 
-async function handleWebhookError(error: Record<string, unknown>): Promise<CallgearErrorResolution> {
+async function handleWebhookError(
+  error: Record<string, unknown>,
+): Promise<CallgearErrorResolution> {
   const resolution: CallgearErrorResolution = {
     error_id: error.id as string,
     error_category: "webhook",
@@ -202,7 +245,9 @@ async function handleWebhookError(error: Record<string, unknown>): Promise<Callg
   return resolution;
 }
 
-async function handleDataSyncError(error: Record<string, unknown>): Promise<CallgearErrorResolution> {
+async function handleDataSyncError(
+  error: Record<string, unknown>,
+): Promise<CallgearErrorResolution> {
   const resolution: CallgearErrorResolution = {
     error_id: error.id as string,
     error_category: "data_sync",
@@ -239,7 +284,9 @@ async function handleDataSyncError(error: Record<string, unknown>): Promise<Call
   return resolution;
 }
 
-async function handleCallTrackingError(error: Record<string, unknown>): Promise<CallgearErrorResolution> {
+async function handleCallTrackingError(
+  error: Record<string, unknown>,
+): Promise<CallgearErrorResolution> {
   const resolution: CallgearErrorResolution = {
     error_id: error.id as string,
     error_category: "call_tracking",
@@ -276,7 +323,9 @@ async function handleCallTrackingError(error: Record<string, unknown>): Promise<
   return resolution;
 }
 
-async function handleServerError(error: Record<string, unknown>): Promise<CallgearErrorResolution> {
+async function handleServerError(
+  error: Record<string, unknown>,
+): Promise<CallgearErrorResolution> {
   const resolution: CallgearErrorResolution = {
     error_id: error.id as string,
     error_category: "server",
@@ -320,7 +369,9 @@ serve(async (req) => {
 
   try {
     if (!envCheck.valid) {
-      throw new Error(`Missing required environment variables: ${envCheck.missing.join(", ")}`);
+      throw new Error(
+        `Missing required environment variables: ${envCheck.missing.join(", ")}`,
+      );
     }
 
     console.log("[Callgear Error Handler] Starting error handling...");
@@ -377,7 +428,10 @@ serve(async (req) => {
             resolution_action: "Manual investigation required",
             affects_call_tracking: true,
             details: {},
-            next_steps: ["Review error details", "Check Callgear documentation"],
+            next_steps: [
+              "Review error details",
+              "Check Callgear documentation",
+            ],
           };
       }
 
@@ -389,7 +443,8 @@ serve(async (req) => {
     const report: HandlerReport = {
       timestamp: new Date().toISOString(),
       errors_processed: (errors || []).length,
-      resolutions_attempted: resolutions.filter(r => r.resolution_attempted).length,
+      resolutions_attempted: resolutions.filter((r) => r.resolution_attempted)
+        .length,
       resolutions_successful: resolutionsSuccessful,
       resolutions,
       callgear_api_status: apiStatus,
@@ -397,24 +452,31 @@ serve(async (req) => {
     };
 
     const duration = Date.now() - startTime;
-    console.log(`[Callgear Error Handler] Complete in ${duration}ms - ${resolutionsSuccessful}/${(errors || []).length} resolved`);
+    console.log(
+      `[Callgear Error Handler] Complete in ${duration}ms - ${resolutionsSuccessful}/${(errors || []).length} resolved`,
+    );
 
-    return new Response(JSON.stringify({
-      success: true,
-      duration_ms: duration,
-      report,
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        duration_ms: duration,
+        report,
+      }),
+      {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error) {
     console.error("[Callgear Error Handler] Error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   }
 });

@@ -1,21 +1,19 @@
 /// <reference lib="deno.ns" />
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
-
-// ============================================
-// CHURN PREDICTOR AGENT
-// AI-powered churn prediction with explanations
-// Daily AI-powered churn risk analysis
-// ============================================
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 // Environment variable validation
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -40,7 +38,10 @@ interface ChurnPrediction {
   ai_insight: string | null;
 }
 
-function calculateChurnFactors(client: any): { factors: string[]; score: number } {
+function calculateChurnFactors(client: any): {
+  factors: string[];
+  score: number;
+} {
   const factors: string[] = [];
   let score = 0;
 
@@ -79,10 +80,14 @@ function calculateChurnFactors(client: any): { factors: string[]; score: number 
     factors.push("Package fully depleted");
     score += 20;
   } else if (remainingPct < 10) {
-    factors.push(`Only ${outstanding} sessions remaining (${Math.round(remainingPct)}%)`);
+    factors.push(
+      `Only ${outstanding} sessions remaining (${Math.round(remainingPct)}%)`,
+    );
     score += 15;
   } else if (remainingPct < 25) {
-    factors.push(`Package at ${Math.round(remainingPct)}% - renewal conversation needed`);
+    factors.push(
+      `Package at ${Math.round(remainingPct)}% - renewal conversation needed`,
+    );
     score += 5;
   }
 
@@ -102,7 +107,10 @@ function calculateChurnFactors(client: any): { factors: string[]; score: number 
   }
 
   // Factor 6: Combined risk signals
-  if (client.health_zone === "GREEN" && client.momentum_indicator === "DECLINING") {
+  if (
+    client.health_zone === "GREEN" &&
+    client.momentum_indicator === "DECLINING"
+  ) {
     factors.push("GREEN zone but declining - early warning signal");
     score += 10;
   }
@@ -115,7 +123,9 @@ function calculateChurnFactors(client: any): { factors: string[]; score: number 
   return { factors, score: Math.min(100, score) };
 }
 
-function getRiskCategory(score: number): "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" {
+function getRiskCategory(
+  score: number,
+): "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" {
   if (score >= 75) return "CRITICAL";
   if (score >= 60) return "HIGH";
   if (score >= 40) return "MEDIUM";
@@ -137,7 +147,11 @@ function estimateDaysToChurn(client: any, score: number): number | null {
   return 45;
 }
 
-function getRecommendedActions(client: any, riskCategory: string, factors: string[]): string[] {
+function getRecommendedActions(
+  client: any,
+  riskCategory: string,
+  factors: string[],
+): string[] {
   const actions: string[] = [];
 
   if (riskCategory === "CRITICAL") {
@@ -147,7 +161,9 @@ function getRecommendedActions(client: any, riskCategory: string, factors: strin
 
   if (riskCategory === "HIGH" || riskCategory === "CRITICAL") {
     actions.push("Personal outreach within 24 hours");
-    if (factors.some(f => f.includes("depleted") || f.includes("remaining"))) {
+    if (
+      factors.some((f) => f.includes("depleted") || f.includes("remaining"))
+    ) {
       actions.push("Prepare renewal offer with incentive");
     }
   }
@@ -168,12 +184,15 @@ function getRecommendedActions(client: any, riskCategory: string, factors: strin
   return actions;
 }
 
-async function getAIInsight(client: any, factors: string[]): Promise<string | null> {
+async function getAIInsight(
+  client: any,
+  factors: string[],
+): Promise<string | null> {
   try {
-    const systemPrompt = buildAgentPrompt('CHURN_PREDICTOR', {
+    const systemPrompt = buildAgentPrompt("CHURN_PREDICTOR", {
       includeLifecycle: true,
       includeHealthZones: true,
-      outputFormat: 'CLIENT_ANALYSIS'
+      outputFormat: "CLIENT_ANALYSIS",
     });
 
     const prompt = `Analyze this fitness client's churn risk and provide a 1-2 sentence actionable insight:
@@ -187,21 +206,27 @@ Sessions Remaining: ${client.outstanding_sessions}
 Momentum: ${client.momentum_indicator}
 
 Risk Factors:
-${factors.map(f => `- ${f}`).join('\n')}
+${factors.map((f) => `- ${f}`).join("\n")}
 
 Provide a brief, actionable insight for the coach.`;
 
-    const response = await unifiedAI.chat([
-      { role: "system", content: systemPrompt },
-      { role: "user", content: prompt }
-    ], {
-      max_tokens: 150,
-      temperature: 0.7
-    });
+    const response = await unifiedAI.chat(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+      {
+        max_tokens: 150,
+        temperature: 0.7,
+      },
+    );
 
     return response.content || null;
   } catch (error) {
-    console.error(`[Churn Predictor] AI insight generation failed for ${client.email}:`, error);
+    console.error(
+      `[Churn Predictor] AI insight generation failed for ${client.email}:`,
+      error,
+    );
     return null;
   }
 }
@@ -218,7 +243,7 @@ serve(async (req: Request) => {
       min_risk = 40,
       limit = 50,
       include_ai_insights = false,
-      save_to_db = true
+      save_to_db = true,
     } = await req.json().catch(() => ({}));
 
     console.log("[Churn Predictor] Analyzing churn risks...");
@@ -256,12 +281,15 @@ serve(async (req: Request) => {
           days_to_churn_estimate: daysToChurn,
           risk_factors: factors,
           recommended_actions: actions,
-          ai_insight: aiInsight
+          ai_insight: aiInsight,
         });
 
         if (predictions.length >= limit) break;
       } catch (clientError) {
-        console.error(`[Churn Predictor] Error processing client ${client.email}:`, clientError);
+        console.error(
+          `[Churn Predictor] Error processing client ${client.email}:`,
+          clientError,
+        );
         // Continue processing other clients
         continue;
       }
@@ -269,29 +297,35 @@ serve(async (req: Request) => {
 
     // Save high-risk predictions to intervention log
     if (save_to_db) {
-      const criticalPredictions = predictions.filter(p =>
-        p.risk_category === "CRITICAL" || p.risk_category === "HIGH"
+      const criticalPredictions = predictions.filter(
+        (p) => p.risk_category === "CRITICAL" || p.risk_category === "HIGH",
       );
 
       for (const pred of criticalPredictions) {
         try {
-          await supabase.from("intervention_log").upsert({
-            client_email: pred.email,
-            email: pred.email,
-            trigger_reason: `Churn Predictor: ${pred.risk_category} risk (${pred.churn_probability}%)`,
-            intervention_type: "CHURN_PREVENTION",
-            priority: pred.risk_category,
-            ai_recommendation: pred.recommended_actions.join("; "),
-            ai_insight: pred.ai_insight || pred.risk_factors.join("; "),
-            ai_confidence: pred.churn_probability / 100,
-            status: "PENDING",
-            triggered_at: new Date().toISOString()
-          }, {
-            onConflict: "client_email",
-            ignoreDuplicates: false
-          });
+          await supabase.from("intervention_log").upsert(
+            {
+              client_email: pred.email,
+              email: pred.email,
+              trigger_reason: `Churn Predictor: ${pred.risk_category} risk (${pred.churn_probability}%)`,
+              intervention_type: "CHURN_PREVENTION",
+              priority: pred.risk_category,
+              ai_recommendation: pred.recommended_actions.join("; "),
+              ai_insight: pred.ai_insight || pred.risk_factors.join("; "),
+              ai_confidence: pred.churn_probability / 100,
+              status: "PENDING",
+              triggered_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "client_email",
+              ignoreDuplicates: false,
+            },
+          );
         } catch (dbError) {
-          console.error(`[Churn Predictor] Error saving intervention for ${pred.email}:`, dbError);
+          console.error(
+            `[Churn Predictor] Error saving intervention for ${pred.email}:`,
+            dbError,
+          );
           // Continue saving other predictions
         }
       }
@@ -302,48 +336,58 @@ serve(async (req: Request) => {
         console.log("[Churn Predictor] Triggering Intervention Recommender...");
 
         fetch(`${SUPABASE_URL}/functions/v1/intervention-recommender`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             zones: ["RED", "YELLOW"], // Focus on at-risk zones
             generate_messages: true,
-            save_to_db: true
-          })
-        }).catch(err => console.error("Failed to trigger Intervention Recommender:", err));
+            save_to_db: true,
+          }),
+        }).catch((err) =>
+          console.error("Failed to trigger Intervention Recommender:", err),
+        );
       }
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[Churn Predictor] Complete in ${duration}ms - ${predictions.length} at-risk clients`);
+    console.log(
+      `[Churn Predictor] Complete in ${duration}ms - ${predictions.length} at-risk clients`,
+    );
 
     const summary = {
       total_analyzed: clients?.length || 0,
       at_risk_count: predictions.length,
-      critical: predictions.filter(p => p.risk_category === "CRITICAL").length,
-      high: predictions.filter(p => p.risk_category === "HIGH").length,
-      medium: predictions.filter(p => p.risk_category === "MEDIUM").length
+      critical: predictions.filter((p) => p.risk_category === "CRITICAL")
+        .length,
+      high: predictions.filter((p) => p.risk_category === "HIGH").length,
+      medium: predictions.filter((p) => p.risk_category === "MEDIUM").length,
     };
 
-    return new Response(JSON.stringify({
-      success: true,
-      duration_ms: duration,
-      summary,
-      predictions
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        duration_ms: duration,
+        summary,
+        predictions,
+      }),
+      {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error) {
     console.error("[Churn Predictor] Error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   }
 });

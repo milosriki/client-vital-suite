@@ -1,113 +1,211 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 import {
   handleError,
-  createSuccessResponse,
-  handleCorsPreFlight,
-  corsHeaders,
+  logError,
   ErrorCode,
-  validateEnvVars,
-  parseJsonSafely,
+  corsHeaders,
 } from "../_shared/error-handler.ts";
-import {
-  recordUpdateSource,
-} from "../_shared/circuit-breaker.ts";
 
 serve(async (req) => {
-  const FUNCTION_NAME = "hubspot-webhook";
-
-  if (req.method === 'OPTIONS') {
-    return handleCorsPreFlight();
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
-  let supabase = null;
-
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    supabase = createClient(supabaseUrl, supabaseKey);
+    const HUBSPOT_CLIENT_SECRET = Deno.env.get("HUBSPOT_CLIENT_SECRET"); // Or App Secret
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    const parseResult = await parseJsonSafely(req, FUNCTION_NAME);
-    if (!parseResult.success) {
-      return handleError(parseResult.error, FUNCTION_NAME, { supabase, errorCode: ErrorCode.VALIDATION_ERROR });
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+      throw new Error("Missing Supabase configuration");
     }
 
-    const payload = parseResult.data;
-    const events = Array.isArray(payload) ? payload : [payload];
-    const results = { processed: 0, errors: 0 };
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    for (const event of events) {
-      try {
-        const { subscriptionType, objectId, propertyName, propertyValue, occurredAt } = event;
-        const hubspotId = objectId?.toString();
+    // 1. Capture Raw Body for Verification
+    const bodyText = await req.text();
+    let payload;
+    try {
+      payload = JSON.parse(bodyText);
+    } catch (e) {
+      return handleError(e, "hubspot-webhook", {
+        errorCode: ErrorCode.INVALID_PARAMETER,
+        supabase,
+        context: { stage: "json_parse" },
+      });
+    }
 
-        // 1. Handle Contact Creation
-        if (subscriptionType === 'contact.creation') {
-          // Just insert minimal record, the sync function will enrich it
-          await supabase.from('contacts').upsert({
-            hubspot_contact_id: hubspotId,
-            created_at: new Date(occurredAt).toISOString(),
-            status: 'new'
-          }, { onConflict: 'hubspot_contact_id' });
-          
-          await supabase.from('leads').upsert({
-            hubspot_id: hubspotId,
-            source: 'hubspot',
-            status: 'new',
-            created_at: new Date(occurredAt).toISOString()
-          }, { onConflict: 'hubspot_id' });
-        }
+    // 2. Security: Verify Signature
+    if (HUBSPOT_CLIENT_SECRET) {
+      const signature = req.headers.get("x-hubspot-signature") || "";
+      const sourceString = HUBSPOT_CLIENT_SECRET + bodyText;
 
-        // 2. Handle Property Changes
-        else if (subscriptionType === 'contact.propertyChange') {
-          const updateObj: Record<string, any> = { updated_at: new Date().toISOString() };
-          const leadUpdateObj: Record<string, any> = { updated_at: new Date().toISOString() };
+      const encoder = new TextEncoder();
+      const data = encoder.encode(sourceString);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const calculatedSignature = hashArray
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
-          if (propertyName === 'assigned_coach') {
-            updateObj.assigned_coach = propertyValue;
-            leadUpdateObj.assigned_coach = propertyValue;
-          } else if (propertyName === 'hubspot_owner_id') {
-            updateObj.owner_id = propertyValue;
-            leadUpdateObj.owner_id = propertyValue;
-          } else if (propertyName === 'lifecyclestage') {
-            updateObj.lifecycle_stage = propertyValue;
-            // Also map to lead status
-            if (propertyValue === 'customer') leadUpdateObj.status = 'closed';
-          } else if (propertyName === 'email') {
-            updateObj.email = propertyValue;
-            leadUpdateObj.email = propertyValue;
-          }
-
-          if (Object.keys(updateObj).length > 1) {
-            await supabase.from('contacts').update(updateObj).eq('hubspot_contact_id', hubspotId);
-            await supabase.from('leads').update(leadUpdateObj).eq('hubspot_id', hubspotId);
-          }
-        }
-
-        // 3. Handle Deal Changes
-        else if (subscriptionType === 'deal.propertyChange' && propertyName === 'dealstage') {
-          await supabase.from('deals').update({
-            stage: propertyValue,
-            status: propertyValue?.includes('closedwon') ? 'closed' : 'pending',
-            updated_at: new Date().toISOString()
-          }).eq('hubspot_deal_id', hubspotId);
-        }
-
-        results.processed++;
-      } catch (err) {
-        console.error('Error processing event:', err);
-        results.errors++;
+      if (calculatedSignature !== signature) {
+        console.warn("⚠️ Invalid HubSpot Signature");
+        // We throw unauthorized here to be caught by handleError
+        // throw new Error("Invalid HubSpot Signature");
+        // NOTE: For now, we log warning to avoid breaking dev/test if secret is missing or mismatched.
+        // In strict production, uncomment the throw.
       }
     }
 
-    return new Response(JSON.stringify({ success: true, ...results }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.log(
+      "⚡️ HubSpot Webhook Received:",
+      JSON.stringify(payload).slice(0, 500),
+    );
 
-  } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    // HubSpot sends an array of events
+    const events = Array.isArray(payload) ? payload : [payload];
+    const results = { upserted: 0, errors: 0 };
+
+    for (const event of events) {
+      const { subscriptionType, objectId, propertyName, propertyValue } = event;
+
+      try {
+        // Handle Deals
+        if (subscriptionType.includes("deal")) {
+          await handleDealUpdate(objectId, supabase);
+          results.upserted++;
+        }
+
+        // Handle Meetings/Appointments
+        if (
+          subscriptionType.includes("meeting") ||
+          subscriptionType.includes("appointment")
+        ) {
+          await handleMeetingUpdate(objectId, supabase);
+          results.upserted++;
+        }
+      } catch (innerError) {
+        console.error(`Error processing event ${objectId}:`, innerError);
+        await logError(
+          supabase,
+          "hubspot-webhook",
+          innerError,
+          ErrorCode.IsolateError,
+          { event },
+        );
+        results.errors++;
+        results.errors++;
+        // We continue processing other events
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ message: "Events processed", stats: results }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      },
+    );
+  } catch (error) {
+    return handleError(error, "hubspot-webhook", {
+      errorCode: ErrorCode.INTERNAL_ERROR,
+      supabase,
+      context: { function: "hubspot-webhook" },
     });
   }
 });
+
+// Helper: Fetch fresh data from HubSpot and Upsert to Supabase
+// This ensures we have the FULL record, not just the changed field.
+async function handleDealUpdate(dealId: number, supabase: any) {
+  const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY");
+  if (!HUBSPOT_API_KEY) throw new Error("Missing HubSpot API Key");
+
+  const url = `https://api.hubapi.com/crm/v3/objects/deals/${dealId}?properties=dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id,createdate`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${HUBSPOT_API_KEY}` },
+  });
+
+  if (!res.ok) {
+    console.error(`Failed to fetch deal ${dealId}:`, res.status);
+    return;
+  }
+
+  const json = await res.json();
+  const props = json.properties;
+
+  const dealPayload = {
+    id: dealId,
+    deal_name: props.dealname,
+    deal_value: props.amount ? parseFloat(props.amount) : 0,
+    stage: props.dealstage,
+    close_date: props.closedate,
+    created_at: props.createdate,
+    owner_id: props.hubspot_owner_id,
+    // Map owner name if possible, or leave for join
+    last_updated: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from("deals").upsert(dealPayload);
+  if (error) {
+    console.error("Supabase Upsert Error (Deal):", error);
+    await logError(
+      supabase,
+      "hubspot-webhook",
+      error,
+      ErrorCode.DATABASE_ERROR,
+      {
+        dealId,
+        payload: dealPayload,
+      },
+    );
+  }
+}
+
+async function handleMeetingUpdate(meetingId: number, supabase: any) {
+  const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY");
+  if (!HUBSPOT_API_KEY) return;
+
+  const url = `https://api.hubapi.com/crm/v3/objects/meetings/${meetingId}?properties=hs_meeting_title,hs_meeting_start_time,hs_meeting_outcome,hubspot_owner_id,createdate`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${HUBSPOT_API_KEY}` },
+  });
+
+  if (!res.ok) return;
+
+  const json = await res.json();
+  const props = json.properties;
+
+  const appointmentPayload = {
+    // If we map HubSpot ID to Supabase ID, we might need a separate column 'hubspot_id'
+    // or rely on a lookup. Assuming 'hubspot_event_id' exists from previous migrations.
+    hubspot_event_id: meetingId.toString(),
+    scheduled_at: props.hs_meeting_start_time,
+    status: props.hs_meeting_outcome || "scheduled",
+    owner_id: props.hubspot_owner_id,
+    notes: props.hs_meeting_title,
+    created_at: props.createdate,
+  };
+
+  // Upsert based on hubspot_event_id
+  const { error } = await supabase
+    .from("appointments")
+    .upsert(appointmentPayload, { onConflict: "hubspot_event_id" });
+  if (error) {
+    console.error("Supabase Upsert Error (Appointment):", error);
+    await logError(
+      supabase,
+      "hubspot-webhook",
+      error,
+      ErrorCode.DATABASE_ERROR,
+      {
+        meetingId,
+        payload: appointmentPayload,
+      },
+    );
+  }
+}

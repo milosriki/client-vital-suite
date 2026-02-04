@@ -1,14 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 
 const PB_TOKEN = Deno.env.get("PIPEBOARD_API_KEY")!;
-// const PB_TOKEN = "pk_5f94902b81e24b1bb5bdf85e51bd7226"; // REMOVED: Security Risk
 const PB_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
 
 async function callPipeboard(tool: string, args: any) {
@@ -52,15 +50,14 @@ serve(async (req) => {
   try {
     const { date_preset = "today" } = await req.json().catch(() => ({}));
 
+    if (!PB_TOKEN) {
+      throw new Error("Missing PIPEBOARD_API_KEY");
+    }
+
     // 1. Get Ad Account
     console.log("🔍 Fetching Ad Accounts...");
     const accounts = await callPipeboard("get_ad_accounts", { limit: 1 });
-    // accounts is likely an array or an object with data array.
-    // Based on standard graph api, it's usually { data: [...] }
-    // Let's assume Pipeboard returns key details.
 
-    // Adjust logic based on actual return from Pipeboard.
-    // Since I don't know the exact JSON shape of get_ad_accounts return, I'll log and assume standard Graph API shape if JSON.
     const accountList = Array.isArray(accounts)
       ? accounts
       : accounts.data || [];
@@ -115,7 +112,7 @@ serve(async (req) => {
       breakdown: campaignData.map((c: any) => ({
         name: c.campaign_name || c.campaign_id, // Fallback
         spend: c.spend || 0,
-        roas: c.purchase_roas?.[0]?.value || 0, // Examples of other fields
+        roas: c.purchase_roas?.[0]?.value || 0,
         clicks: c.clicks || 0,
       })),
       all_accounts: accountList,
@@ -125,13 +122,19 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Function Error:", error.message);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    // Determine error code based on message
+    let errorCode = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes("Pipeboard") || error.message.includes("MCP")) {
+      errorCode = ErrorCode.EXTERNAL_API_ERROR;
+    }
+
+    return handleError(error, "fetch-facebook-insights", {
+      supabase: createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      ),
+      errorCode,
+      context: { function: "fetch-facebook-insights" },
+    });
   }
 });

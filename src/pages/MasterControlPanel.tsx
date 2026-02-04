@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getBusinessDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -128,10 +129,17 @@ export default function MasterControlPanel() {
                       </p>
                     </div>
                     <Button
-                      size="sm"
-                      disabled={running === func.name}
-                      onClick={() => runFunction(func)}
-                      className={running === func.name ? "animate-pulse" : ""}
+            variant="outline"
+            className="w-full justify-start text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+            onClick={() => navigate("/attribution")}
+          >
+           🦅 Fishbird Analytics (Truth Layer)
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+            onClick={() => navigate("/admin/edge-functions")}
+          >            className={running === func.name ? "animate-pulse" : ""}
                     >
                       {running === func.name ? (
                         "Running..."
@@ -177,7 +185,7 @@ export default function MasterControlPanel() {
                           {log.func}
                         </span>
                         <span className="text-slate-600 ml-auto text-[10px]">
-                          {new Date().toLocaleTimeString()}
+                          {getBusinessDate().toLocaleTimeString()}
                         </span>
                       </div>
                       <pre

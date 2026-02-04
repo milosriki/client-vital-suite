@@ -1,60 +1,83 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DollarSign, TrendingUp, TrendingDown, Users, AlertCircle, Calendar } from "lucide-react";
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  AlertCircle,
+  Calendar,
+} from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { getBusinessDate } from "@/lib/date-utils";
 
 const SalesCoachTracker = () => {
-  // Get current and previous month date ranges
-  const currentMonthStart = startOfMonth(new Date());
-  const currentMonthEnd = endOfMonth(new Date());
-  const previousMonthStart = startOfMonth(subMonths(new Date(), 1));
-  const previousMonthEnd = endOfMonth(subMonths(new Date(), 1));
+  // Get current and previous month date ranges (Business Time)
+  const currentMonthStart = startOfMonth(getBusinessDate());
+  const currentMonthEnd = endOfMonth(getBusinessDate());
+  const previousMonthStart = startOfMonth(subMonths(getBusinessDate(), 1));
+  const previousMonthEnd = endOfMonth(subMonths(getBusinessDate(), 1));
 
   // Query for this month's sales (closed won deals)
-  const { data: currentMonthSales, isLoading: loadingCurrent } = useDedupedQuery({
-    queryKey: ["current-month-sales"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("client_health_scores")
-        .select("*")
-        .gte("calculated_at", currentMonthStart.toISOString())
-        .lte("calculated_at", currentMonthEnd.toISOString())
-        .eq("health_zone", "GREEN")
-        .order("calculated_at", { ascending: false })
-        .limit(3);
+  const { data: currentMonthSales, isLoading: loadingCurrent } =
+    useDedupedQuery({
+      queryKey: ["current-month-sales"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("client_health_scores")
+          .select("*")
+          .gte("calculated_at", currentMonthStart.toISOString())
+          .lte("calculated_at", currentMonthEnd.toISOString())
+          .eq("health_zone", "GREEN")
+          .order("calculated_at", { ascending: false })
+          .limit(3);
 
-      if (error) throw error;
-      return data;
-    },
-  });
+        if (error) throw error;
+        return data;
+      },
+    });
 
   // Query for previous month's sales
-  const { data: previousMonthSales, isLoading: loadingPrevious } = useDedupedQuery({
-    queryKey: ["previous-month-sales"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("client_health_scores")
-        .select("*")
-        .gte("calculated_at", previousMonthStart.toISOString())
-        .lte("calculated_at", previousMonthEnd.toISOString())
-        .eq("health_zone", "GREEN")
-        .order("calculated_at", { ascending: false })
-        .limit(3);
+  const { data: previousMonthSales, isLoading: loadingPrevious } =
+    useDedupedQuery({
+      queryKey: ["previous-month-sales"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("client_health_scores")
+          .select("*")
+          .gte("calculated_at", previousMonthStart.toISOString())
+          .lte("calculated_at", previousMonthEnd.toISOString())
+          .eq("health_zone", "GREEN")
+          .order("calculated_at", { ascending: false })
+          .limit(3);
 
-      if (error) throw error;
-      return data;
-    },
-  });
+        if (error) throw error;
+        return data;
+      },
+    });
 
   // Query for coaches with no recent sessions
   const { data: inactiveCoaches, isLoading: loadingCoaches } = useDedupedQuery({
     queryKey: ["inactive-coaches"],
     queryFn: async () => {
-      const thirtyDaysAgo = new Date();
+      const thirtyDaysAgo = getBusinessDate();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const { data, error } = await supabase
@@ -74,9 +97,9 @@ const SalesCoachTracker = () => {
 
       // Filter coaches with low or no sessions
       const inactive = Array.from(coachMap.values()).filter(
-        (coach) => 
-          (coach.avg_sessions_per_client || 0) < 1 || 
-          new Date(coach.report_date) < thirtyDaysAgo
+        (coach) =>
+          (coach.avg_sessions_per_client || 0) < 1 ||
+          new Date(coach.report_date) < thirtyDaysAgo,
       );
 
       return inactive;
@@ -84,11 +107,20 @@ const SalesCoachTracker = () => {
   });
 
   // Calculate totals
-  const currentMonthTotal = currentMonthSales?.reduce((sum, sale) => sum + (sale.package_value_aed || 0), 0) || 0;
-  const previousMonthTotal = previousMonthSales?.reduce((sum, sale) => sum + (sale.package_value_aed || 0), 0) || 0;
-  const percentageChange = previousMonthTotal > 0 
-    ? ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100 
-    : 0;
+  const currentMonthTotal =
+    currentMonthSales?.reduce(
+      (sum, sale) => sum + (sale.package_value_aed || 0),
+      0,
+    ) || 0;
+  const previousMonthTotal =
+    previousMonthSales?.reduce(
+      (sum, sale) => sum + (sale.package_value_aed || 0),
+      0,
+    ) || 0;
+  const percentageChange =
+    previousMonthTotal > 0
+      ? ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -104,7 +136,9 @@ const SalesCoachTracker = () => {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month Sales</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              This Month Sales
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -119,7 +153,9 @@ const SalesCoachTracker = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Previous Month</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Previous Month
+            </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -134,7 +170,9 @@ const SalesCoachTracker = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Month Comparison</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Month Comparison
+            </CardTitle>
             {percentageChange >= 0 ? (
               <TrendingUp className="h-4 w-4 text-success" />
             ) : (
@@ -142,12 +180,13 @@ const SalesCoachTracker = () => {
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${percentageChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {percentageChange >= 0 ? '+' : ''}{percentageChange.toFixed(1)}%
+            <div
+              className={`text-2xl font-bold ${percentageChange >= 0 ? "text-success" : "text-destructive"}`}
+            >
+              {percentageChange >= 0 ? "+" : ""}
+              {percentageChange.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">
-              vs previous month
-            </p>
+            <p className="text-xs text-muted-foreground">vs previous month</p>
           </CardContent>
         </Card>
       </div>
@@ -157,12 +196,15 @@ const SalesCoachTracker = () => {
         <CardHeader>
           <CardTitle>Top 3 Sales - This Month</CardTitle>
           <CardDescription>
-            {format(currentMonthStart, "MMMM yyyy")} - Most recent high-value clients
+            {format(currentMonthStart, "MMMM yyyy")} - Most recent high-value
+            clients
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loadingCurrent ? (
-            <div className="text-center py-8 text-muted-foreground">Loading current month sales...</div>
+            <div className="text-center py-8 text-muted-foreground">
+              Loading current month sales...
+            </div>
           ) : currentMonthSales && currentMonthSales.length > 0 ? (
             <Table>
               <TableHeader>
@@ -179,7 +221,9 @@ const SalesCoachTracker = () => {
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">
                       {sale.firstname} {sale.lastname}
-                      <div className="text-sm text-muted-foreground">{sale.email}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {sale.email}
+                      </div>
                     </TableCell>
                     <TableCell>{sale.assigned_coach || "Unassigned"}</TableCell>
                     <TableCell className="font-bold text-success">
@@ -191,7 +235,12 @@ const SalesCoachTracker = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {format(new Date(sale.calculated_at || new Date()), "MMM dd, yyyy")}
+                      {format(
+                        new Date(
+                          sale.calculated_at || getBusinessDate().toISOString(),
+                        ),
+                        "MMM dd, yyyy",
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -202,7 +251,8 @@ const SalesCoachTracker = () => {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>No Sales Found</AlertTitle>
               <AlertDescription>
-                No sales recorded for {format(currentMonthStart, "MMMM yyyy")} yet.
+                No sales recorded for {format(currentMonthStart, "MMMM yyyy")}{" "}
+                yet.
               </AlertDescription>
             </Alert>
           )}
@@ -219,7 +269,9 @@ const SalesCoachTracker = () => {
         </CardHeader>
         <CardContent>
           {loadingPrevious ? (
-            <div className="text-center py-8 text-muted-foreground">Loading previous month sales...</div>
+            <div className="text-center py-8 text-muted-foreground">
+              Loading previous month sales...
+            </div>
           ) : previousMonthSales && previousMonthSales.length > 0 ? (
             <Table>
               <TableHeader>
@@ -236,7 +288,9 @@ const SalesCoachTracker = () => {
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">
                       {sale.firstname} {sale.lastname}
-                      <div className="text-sm text-muted-foreground">{sale.email}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {sale.email}
+                      </div>
                     </TableCell>
                     <TableCell>{sale.assigned_coach || "Unassigned"}</TableCell>
                     <TableCell className="font-bold">
@@ -248,7 +302,12 @@ const SalesCoachTracker = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {format(new Date(sale.calculated_at || new Date()), "MMM dd, yyyy")}
+                      {format(
+                        new Date(
+                          sale.calculated_at || getBusinessDate().toISOString(),
+                        ),
+                        "MMM dd, yyyy",
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -279,7 +338,9 @@ const SalesCoachTracker = () => {
         </CardHeader>
         <CardContent>
           {loadingCoaches ? (
-            <div className="text-center py-8 text-muted-foreground">Loading coach activity...</div>
+            <div className="text-center py-8 text-muted-foreground">
+              Loading coach activity...
+            </div>
           ) : inactiveCoaches && inactiveCoaches.length > 0 ? (
             <Table>
               <TableHeader>
@@ -294,7 +355,9 @@ const SalesCoachTracker = () => {
               <TableBody>
                 {inactiveCoaches.map((coach) => (
                   <TableRow key={coach.id}>
-                    <TableCell className="font-medium">{coach.coach_name}</TableCell>
+                    <TableCell className="font-medium">
+                      {coach.coach_name}
+                    </TableCell>
                     <TableCell>{coach.total_clients || 0}</TableCell>
                     <TableCell>
                       <Badge variant="destructive">
@@ -302,10 +365,15 @@ const SalesCoachTracker = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {coach.report_date ? format(new Date(coach.report_date), "MMM dd, yyyy") : "N/A"}
+                      {coach.report_date
+                        ? format(new Date(coach.report_date), "MMM dd, yyyy")
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-destructive border-destructive">
+                      <Badge
+                        variant="outline"
+                        className="text-destructive border-destructive"
+                      >
                         Inactive
                       </Badge>
                     </TableCell>

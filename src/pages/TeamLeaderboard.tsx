@@ -30,12 +30,13 @@ import {
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getBusinessDate } from "@/lib/date-utils";
 
 export default function TeamLeaderboard() {
   const { data: teamData, isLoading } = useDedupedQuery({
     queryKey: ["team-leaderboard"],
     queryFn: async () => {
-      const thisMonth = format(startOfMonth(new Date()), "yyyy-MM-dd");
+      const thisMonth = format(startOfMonth(getBusinessDate()), "yyyy-MM-dd");
 
       // 1. Fetch Setter Performance (Call records + Leads set)
       const { data: calls, error: callError } = await supabase

@@ -1,17 +1,27 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 // supabase/functions/ptd-ultimate-intelligence/index.ts
 // THE ULTIMATE AI SYSTEM WITH PERSONAS & BUSINESS INTELLIGENCE
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { run } from "https://esm.sh/langsmith";
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders,
+} from "../_shared/error-handler.ts";
 import { RunTree } from "https://esm.sh/langsmith";
-import { 
-  LEAD_LIFECYCLE_PROMPT, 
-  UNIFIED_SCHEMA_PROMPT, 
+import {
+  LEAD_LIFECYCLE_PROMPT,
+  UNIFIED_SCHEMA_PROMPT,
   AGENT_ALIGNMENT_PROMPT,
   ULTIMATE_TRUTH_PROMPT,
   ROI_MANAGERIAL_PROMPT,
-  HUBSPOT_WORKFLOWS_PROMPT 
+  HUBSPOT_WORKFLOWS_PROMPT,
 } from "../_shared/unified-prompts.ts";
 
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
@@ -24,12 +34,12 @@ import { unifiedAI } from "../_shared/unified-ai-client.ts";
 // ============================================
 
 const PERSONAS = {
-    ATLAS: {
-        name: "ATLAS",
-        role: "Strategic CEO Brain",
-        model: "claude",
-        emoji: "🎯",
-        systemPrompt: `You are ATLAS, the Strategic Intelligence Brain for PTD Fitness - Dubai's premier mobile personal training service.
+  ATLAS: {
+    name: "ATLAS",
+    role: "Strategic CEO Brain",
+    model: "claude",
+    emoji: "🎯",
+    systemPrompt: `You are ATLAS, the Strategic Intelligence Brain for PTD Fitness - Dubai's premier mobile personal training service.
 
 PERSONALITY:
 - Think like a $100M CEO, not an assistant
@@ -56,15 +66,15 @@ Before any recommendation, calculate:
 - Revenue impact (AED)
 - Implementation effort (hours)
 - Risk level (low/medium/high)
-- Confidence level (based on data quality)`
-    },
+- Confidence level (based on data quality)`,
+  },
 
-    SHERLOCK: {
-        name: "SHERLOCK",
-        role: "Forensic Analyst",
-        model: "claude",
-        emoji: "🔍",
-        systemPrompt: `You are SHERLOCK, PTD's Forensic Data Analyst.
+  SHERLOCK: {
+    name: "SHERLOCK",
+    role: "Forensic Analyst",
+    model: "claude",
+    emoji: "🔍",
+    systemPrompt: `You are SHERLOCK, PTD's Forensic Data Analyst.
 
 PERSONALITY:
 - Obsessively detail-oriented
@@ -91,15 +101,15 @@ INVESTIGATION FOCUS:
 - Churn forensics: Why do clients leave?
 - Lead forensics: Why do some convert and others don't?
 - Payment forensics: Accidental vs intentional failures?
-- Coach forensics: Performance variations and causes`
-    },
+- Coach forensics: Performance variations and causes`,
+  },
 
-    REVENUE: {
-        name: "REVENUE",
-        role: "Growth Optimizer",
-        model: "gemini",
-        emoji: "💰",
-        systemPrompt: `You are REVENUE, PTD's Growth Intelligence System.
+  REVENUE: {
+    name: "REVENUE",
+    role: "Growth Optimizer",
+    model: "gemini",
+    emoji: "💰",
+    systemPrompt: `You are REVENUE, PTD's Growth Intelligence System.
 
 PERSONALITY:
 - Obsessed with finding money left on the table
@@ -134,15 +144,15 @@ UPSELL TIMING SIGNALS (Ready when ALL true):
 ✓ Never missed payment
 ✓ 90%+ session attendance
 ✓ Recent milestone achieved
-✓ Positive income signals`
-    },
+✓ Positive income signals`,
+  },
 
-    HUNTER: {
-        name: "HUNTER",
-        role: "Lead Conversion Specialist",
-        model: "gemini",
-        emoji: "🎯",
-        systemPrompt: `You are HUNTER, PTD's Lead Conversion Intelligence.
+  HUNTER: {
+    name: "HUNTER",
+    role: "Lead Conversion Specialist",
+    model: "gemini",
+    emoji: "🎯",
+    systemPrompt: `You are HUNTER, PTD's Lead Conversion Intelligence.
 
 PERSONALITY:
 - Speed-obsessed (every hour delay = lower conversion)
@@ -171,15 +181,15 @@ LEAD SCORE COMPONENTS:
 - Engagement (10 pts): Response speed, questions asked
 
 FOLLOW-UP CADENCE:
-Day 0: Immediate (5-15 min) → Day 1: Morning + afternoon → Day 3: Value-add → Day 7: Urgency → Day 14: Break-up → Day 30: Re-engage`
-    },
+Day 0: Immediate (5-15 min) → Day 1: Morning + afternoon → Day 3: Value-add → Day 7: Urgency → Day 14: Break-up → Day 30: Re-engage`,
+  },
 
-    GUARDIAN: {
-        name: "GUARDIAN",
-        role: "Retention Defender",
-        model: "claude",
-        emoji: "🛡️",
-        systemPrompt: `You are GUARDIAN, PTD's Client Retention Intelligence.
+  GUARDIAN: {
+    name: "GUARDIAN",
+    role: "Retention Defender",
+    model: "claude",
+    emoji: "🛡️",
+    systemPrompt: `You are GUARDIAN, PTD's Client Retention Intelligence.
 
 PERSONALITY:
 - Proactively protective of every client relationship
@@ -212,8 +222,8 @@ SAVE PLAYBOOKS:
 - BUSY: Flexible reschedule, 30-min sessions, pause option
 - RESULTS: Coach review, program adjust, progress visualization
 - FINANCIAL: Value exploration (not discount), restructure, pause before cancel
-- COACH: Immediate reassignment, head coach session, extra complimentary session`
-    }
+- COACH: Immediate reassignment, head coach session, extra complimentary session`,
+  },
 };
 
 // ============================================
@@ -256,137 +266,167 @@ YOU MUST FOLLOW THESE RULES WITHOUT EXCEPTION:
 // ============================================
 
 async function buildBusinessContext(supabase: any) {
-    const context: any = {
-        timestamp: new Date().toISOString(),
-        metrics: {},
-        alerts: [],
-        goals: [],
-        calibration: []
+  const context: any = {
+    timestamp: new Date().toISOString(),
+    metrics: {},
+    alerts: [],
+    goals: [],
+    calibration: [],
+  };
+
+  // 1. Client Health Summary
+  const { data: healthData } = await supabase
+    .from("client_health_scores")
+    .select("health_zone, health_score, assigned_coach");
+
+  if (healthData) {
+    const zones = { green: 0, yellow: 0, red: 0 };
+    let totalScore = 0;
+    healthData.forEach((c: any) => {
+      zones[c.health_zone as keyof typeof zones]++;
+      totalScore += c.health_score || 0;
+    });
+    context.metrics.clientHealth = {
+      total: healthData.length,
+      green: zones.green,
+      yellow: zones.yellow,
+      red: zones.red,
+      avgScore: (totalScore / healthData.length).toFixed(1),
     };
+  }
 
-    // 1. Client Health Summary
-    const { data: healthData } = await supabase
-        .from('client_health_scores')
-        .select('health_zone, health_score, assigned_coach');
+  // 2. Lead Pipeline (using unified schema - contacts table)
+  const { data: leadData } = await supabase
+    .from("contacts")
+    .select("lifecycle_stage, lead_status, created_at")
+    .gte(
+      "created_at",
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    );
 
-    if (healthData) {
-        const zones = { green: 0, yellow: 0, red: 0 };
-        let totalScore = 0;
-        healthData.forEach((c: any) => {
-            zones[c.health_zone as keyof typeof zones]++;
-            totalScore += c.health_score || 0;
-        });
-        context.metrics.clientHealth = {
-            total: healthData.length,
-            green: zones.green,
-            yellow: zones.yellow,
-            red: zones.red,
-            avgScore: (totalScore / healthData.length).toFixed(1)
-        };
-    }
+  if (leadData) {
+    const hotLeads = leadData.filter(
+      (l: any) =>
+        l.lifecycle_stage === "marketingqualifiedlead" ||
+        l.lifecycle_stage === "salesqualifiedlead",
+    ).length;
+    const warmLeads = leadData.filter(
+      (l: any) => l.lifecycle_stage === "lead",
+    ).length;
+    const coldLeads = leadData.filter(
+      (l: any) => l.lead_status === "closed" || l.lead_status === "lost",
+    ).length;
+    context.metrics.leads = {
+      total30Days: leadData.length,
+      hot: hotLeads,
+      warm: warmLeads,
+      cold: coldLeads,
+    };
+  }
 
-    // 2. Lead Pipeline (using unified schema - contacts table)
-    const { data: leadData } = await supabase
-        .from('contacts')
-        .select('lifecycle_stage, lead_status, created_at')
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+  // 3. Active Goals
+  const { data: goalsData } = await supabase
+    .from("business_goals")
+    .select("*")
+    .eq("status", "active");
 
-    if (leadData) {
-        const hotLeads = leadData.filter((l: any) => l.lifecycle_stage === 'marketingqualifiedlead' || l.lifecycle_stage === 'salesqualifiedlead').length;
-        const warmLeads = leadData.filter((l: any) => l.lifecycle_stage === 'lead').length;
-        const coldLeads = leadData.filter((l: any) => l.lead_status === 'closed' || l.lead_status === 'lost').length;
-        context.metrics.leads = {
-            total30Days: leadData.length,
-            hot: hotLeads,
-            warm: warmLeads,
-            cold: coldLeads
-        };
-    }
+  if (goalsData) {
+    context.goals = goalsData.map((g: any) => ({
+      name: g.goal_name,
+      metric: g.metric_name,
+      current: g.current_value,
+      target: g.target_value,
+      progress: (
+        ((g.current_value - g.baseline_value) /
+          (g.target_value - g.baseline_value)) *
+        100
+      ).toFixed(1),
+      deadline: g.deadline,
+    }));
+  }
 
-    // 3. Active Goals
-    const { data: goalsData } = await supabase
-        .from('business_goals')
-        .select('*')
-        .eq('status', 'active');
+  // 4. Calibration Examples (CEO's past decisions)
+  const { data: calibrationData } = await supabase
+    .from("business_calibration")
+    .select(
+      "scenario_type, scenario_description, ai_recommendation, your_decision, was_ai_correct, learning_weight",
+    )
+    .order("learning_weight", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(10);
 
-    if (goalsData) {
-        context.goals = goalsData.map((g: any) => ({
-            name: g.goal_name,
-            metric: g.metric_name,
-            current: g.current_value,
-            target: g.target_value,
-            progress: ((g.current_value - g.baseline_value) / (g.target_value - g.baseline_value) * 100).toFixed(1),
-            deadline: g.deadline
-        }));
-    }
+  if (calibrationData) {
+    context.calibration = calibrationData.map((c: any) => ({
+      scenario: c.scenario_description,
+      aiSuggested: c.ai_recommendation,
+      ceoDecided: c.your_decision,
+      aiWasCorrect: c.was_ai_correct,
+    }));
+  }
 
-    // 4. Calibration Examples (CEO's past decisions)
-    const { data: calibrationData } = await supabase
-        .from('business_calibration')
-        .select('scenario_type, scenario_description, ai_recommendation, your_decision, was_ai_correct, learning_weight')
-        .order('learning_weight', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(10);
+  // 5. Pending Actions Count
+  const { data: pendingData } = await supabase
+    .from("prepared_actions")
+    .select("risk_level")
+    .eq("status", "prepared");
 
-    if (calibrationData) {
-        context.calibration = calibrationData.map((c: any) => ({
-            scenario: c.scenario_description,
-            aiSuggested: c.ai_recommendation,
-            ceoDecided: c.your_decision,
-            aiWasCorrect: c.was_ai_correct
-        }));
-    }
+  if (pendingData) {
+    context.metrics.pendingActions = {
+      total: pendingData.length,
+      critical: pendingData.filter((a: any) => a.risk_level === "critical")
+        .length,
+      high: pendingData.filter((a: any) => a.risk_level === "high").length,
+    };
+  }
 
-    // 5. Pending Actions Count
-    const { data: pendingData } = await supabase
-        .from('prepared_actions')
-        .select('risk_level')
-        .eq('status', 'prepared');
+  // 6. Treasury Outbound Transfers (last 12 months)
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-    if (pendingData) {
-        context.metrics.pendingActions = {
-            total: pendingData.length,
-            critical: pendingData.filter((a: any) => a.risk_level === 'critical').length,
-            high: pendingData.filter((a: any) => a.risk_level === 'high').length
-        };
-    }
+  const { data: treasuryData } = await supabase
+    .from("stripe_outbound_transfers")
+    .select("*")
+    .gte("created_at", twelveMonthsAgo.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(100);
 
-    // 6. Treasury Outbound Transfers (last 12 months)
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-    
-    const { data: treasuryData } = await supabase
-        .from('stripe_outbound_transfers')
-        .select('*')
-        .gte('created_at', twelveMonthsAgo.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(100);
+  if (treasuryData && treasuryData.length > 0) {
+    const totalAmount = treasuryData.reduce(
+      (sum: number, t: any) => sum + (t.amount || 0),
+      0,
+    );
+    const posted = treasuryData.filter(
+      (t: any) => t.status === "posted",
+    ).length;
+    const processing = treasuryData.filter(
+      (t: any) => t.status === "processing",
+    ).length;
+    const failed = treasuryData.filter(
+      (t: any) => t.status === "failed" || t.status === "returned",
+    ).length;
 
-    if (treasuryData && treasuryData.length > 0) {
-        const totalAmount = treasuryData.reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
-        const posted = treasuryData.filter((t: any) => t.status === 'posted').length;
-        const processing = treasuryData.filter((t: any) => t.status === 'processing').length;
-        const failed = treasuryData.filter((t: any) => t.status === 'failed' || t.status === 'returned').length;
-        
-        context.metrics.treasury = {
-            totalTransfers12Months: treasuryData.length,
-            totalAmount: totalAmount,
-            posted,
-            processing,
-            failed,
-            recentTransfers: treasuryData.slice(0, 5).map((t: any) => ({
-                id: t.stripe_id,
-                amount: t.amount,
-                currency: t.currency,
-                status: t.status,
-                created: t.created_at
-            }))
-        };
-    } else {
-        context.metrics.treasury = { totalTransfers12Months: 0, message: 'No treasury transfers found' };
-    }
+    context.metrics.treasury = {
+      totalTransfers12Months: treasuryData.length,
+      totalAmount: totalAmount,
+      posted,
+      processing,
+      failed,
+      recentTransfers: treasuryData.slice(0, 5).map((t: any) => ({
+        id: t.stripe_id,
+        amount: t.amount,
+        currency: t.currency,
+        status: t.status,
+        created: t.created_at,
+      })),
+    };
+  } else {
+    context.metrics.treasury = {
+      totalTransfers12Months: 0,
+      message: "No treasury transfers found",
+    };
+  }
 
-    return context;
+  return context;
 }
 
 // ============================================
@@ -394,43 +434,75 @@ async function buildBusinessContext(supabase: any) {
 // ============================================
 
 function selectPersona(query: string, context: any): keyof typeof PERSONAS {
-    const q = query.toLowerCase();
+  const q = query.toLowerCase();
 
-    // Strategic/CEO-level questions
-    if (q.includes('strategy') || q.includes('decision') || q.includes('should we') ||
-        q.includes('priority') || q.includes('overall') || q.includes('business')) {
-        return 'ATLAS';
-    }
+  // Strategic/CEO-level questions
+  if (
+    q.includes("strategy") ||
+    q.includes("decision") ||
+    q.includes("should we") ||
+    q.includes("priority") ||
+    q.includes("overall") ||
+    q.includes("business")
+  ) {
+    return "ATLAS";
+  }
 
-    // Investigation/analysis
-    if (q.includes('why') || q.includes('investigate') || q.includes('analyze') ||
-        q.includes('forensic') || q.includes('root cause') || q.includes('pattern')) {
-        return 'SHERLOCK';
-    }
+  // Investigation/analysis
+  if (
+    q.includes("why") ||
+    q.includes("investigate") ||
+    q.includes("analyze") ||
+    q.includes("forensic") ||
+    q.includes("root cause") ||
+    q.includes("pattern")
+  ) {
+    return "SHERLOCK";
+  }
 
-    // Revenue/growth
-    if (q.includes('revenue') || q.includes('upsell') || q.includes('money') ||
-        q.includes('payment') || q.includes('subscription') || q.includes('stripe') ||
-        q.includes('pricing') || q.includes('discount')) {
-        return 'REVENUE';
-    }
+  // Revenue/growth
+  if (
+    q.includes("revenue") ||
+    q.includes("upsell") ||
+    q.includes("money") ||
+    q.includes("payment") ||
+    q.includes("subscription") ||
+    q.includes("stripe") ||
+    q.includes("pricing") ||
+    q.includes("discount")
+  ) {
+    return "REVENUE";
+  }
 
-    // Leads/conversion
-    if (q.includes('lead') || q.includes('convert') || q.includes('prospect') ||
-        q.includes('follow up') || q.includes('hubspot') || q.includes('marketing') ||
-        q.includes('campaign') || q.includes('ad')) {
-        return 'HUNTER';
-    }
+  // Leads/conversion
+  if (
+    q.includes("lead") ||
+    q.includes("convert") ||
+    q.includes("prospect") ||
+    q.includes("follow up") ||
+    q.includes("hubspot") ||
+    q.includes("marketing") ||
+    q.includes("campaign") ||
+    q.includes("ad")
+  ) {
+    return "HUNTER";
+  }
 
-    // Retention/churn
-    if (q.includes('churn') || q.includes('retain') || q.includes('at risk') ||
-        q.includes('cancel') || q.includes('save') || q.includes('health score') ||
-        q.includes('intervention')) {
-        return 'GUARDIAN';
-    }
+  // Retention/churn
+  if (
+    q.includes("churn") ||
+    q.includes("retain") ||
+    q.includes("at risk") ||
+    q.includes("cancel") ||
+    q.includes("save") ||
+    q.includes("health score") ||
+    q.includes("intervention")
+  ) {
+    return "GUARDIAN";
+  }
 
-    // Default to ATLAS for general queries
-    return 'ATLAS';
+  // Default to ATLAS for general queries
+  return "ATLAS";
 }
 
 // ============================================
@@ -438,130 +510,158 @@ function selectPersona(query: string, context: any): keyof typeof PERSONAS {
 // ============================================
 
 serve(async (req: Request) => {
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    };
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+  };
 
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { query, persona_override, session_id } = await req.json();
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Save user message if session_id is present
+    if (session_id) {
+      await supabase.from("agent_conversations").insert({
+        session_id,
+        role: "user",
+        content: query,
+      });
     }
+
+    // 1. Build business context
+    const businessContext = await buildBusinessContext(supabase);
+
+    // 2. Select persona
+    const selectedPersona =
+      persona_override || selectPersona(query, businessContext);
+    const persona = PERSONAS[selectedPersona as keyof typeof PERSONAS];
+
+    console.log(
+      `🤖 ${persona.emoji} ${persona.name} activated for: "${query.substring(0, 50)}..."`,
+    );
+
+    // 3. Generate Response
+    let response;
+    const parentRun = new RunTree({
+      name: "ptd_ultimate_intelligence",
+      run_type: "chain",
+      inputs: { query, persona: selectedPersona },
+      project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+    });
+    await parentRun.postRun();
 
     try {
-        const { query, persona_override, session_id } = await req.json();
-
-        const supabase = createClient(
-            Deno.env.get('SUPABASE_URL')!,
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      if (persona.model === "claude") {
+        response = await generateWithClaude(
+          query,
+          persona,
+          businessContext,
+          parentRun,
         );
+      } else {
+        response = await generateWithGemini(
+          query,
+          persona,
+          businessContext,
+          parentRun,
+        );
+      }
 
-        // Save user message if session_id is present
-        if (session_id) {
-            await supabase.from('agent_conversations').insert({
-                session_id,
-                role: 'user',
-                content: query
-            });
-        }
+      await parentRun.end({ outputs: { response } });
+      await parentRun.patchRun();
 
-        // 1. Build business context
-        const businessContext = await buildBusinessContext(supabase);
-
-        // 2. Select persona
-        const selectedPersona = persona_override || selectPersona(query, businessContext);
-        const persona = PERSONAS[selectedPersona as keyof typeof PERSONAS];
-
-        console.log(`🤖 ${persona.emoji} ${persona.name} activated for: "${query.substring(0, 50)}..."`);
-
-        // 3. Generate Response
-        let response;
-        const parentRun = new RunTree({
-            name: "ptd_ultimate_intelligence",
-            run_type: "chain",
-            inputs: { query, persona: selectedPersona },
-            project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+      // Save assistant response if session_id is present
+      if (session_id) {
+        await supabase.from("agent_conversations").insert({
+          session_id,
+          role: "assistant",
+          content:
+            typeof response === "string" ? response : JSON.stringify(response),
         });
-        await parentRun.postRun();
-
-        try {
-            if (persona.model === 'claude') {
-                response = await generateWithClaude(query, persona, businessContext, parentRun);
-            } else {
-                response = await generateWithGemini(query, persona, businessContext, parentRun);
-            }
-            
-            await parentRun.end({ outputs: { response } });
-            await parentRun.patchRun();
-
-            // Save assistant response if session_id is present
-            if (session_id) {
-                await supabase.from('agent_conversations').insert({
-                    session_id,
-                    role: 'assistant',
-                    content: typeof response === 'string' ? response : JSON.stringify(response)
-                });
-            }
-        } catch (error: any) {
-            await parentRun.end({ error: error.message });
-            await parentRun.patchRun();
-            throw error;
-        }
-
-        return new Response(JSON.stringify({
-            success: true,
-            persona: selectedPersona,
-            response: response
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-    } catch (error: unknown) {
-        console.error('PTD Intelligence Error:', error);
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return new Response(JSON.stringify({
-            success: false,
-            error: message
-        }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+      }
+    } catch (error: any) {
+      await parentRun.end({ error: error.message });
+      await parentRun.patchRun();
+      throw error;
     }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        persona: selectedPersona,
+        response: response,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (error: any) {
+    return handleError(error, "ptd-ultimate-intelligence", {
+      supabase: createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      ),
+      errorCode: ErrorCode.INTERNAL_ERROR,
+    });
+  }
 });
 
 // ============================================
 // LLM FUNCTIONS
 // ============================================
 
-async function generateWithClaude(query: string, persona: any, context: any, parentRun: any) {
-    const childRun = await parentRun.createChild({
-        name: "unified_ai_call",
-        run_type: "llm",
-        inputs: { query, model: "gpt-4o" },
-    });
-    await childRun.postRun();
+async function generateWithClaude(
+  query: string,
+  persona: any,
+  context: any,
+  parentRun: any,
+) {
+  const childRun = await parentRun.createChild({
+    name: "unified_ai_call",
+    run_type: "llm",
+    inputs: { query, model: "gpt-4o" },
+  });
+  await childRun.postRun();
 
-    try {
-        const systemPrompt = `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`;
+  try {
+    const systemPrompt = `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`;
 
-        const response = await unifiedAI.chat([
-            { role: "system", content: systemPrompt },
-            { role: "user", content: query }
-        ], {
-            max_tokens: 4000,
-            temperature: 0.7
-        });
+    const response = await unifiedAI.chat(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: query },
+      ],
+      {
+        max_tokens: 4000,
+        temperature: 0.7,
+      },
+    );
 
-        const text = response.content || "No response generated.";
-        await childRun.end({ outputs: { response: text } });
-        await childRun.patchRun();
-        return text;
-    } catch (error: any) {
-        await childRun.end({ error: error.message });
-        await childRun.patchRun();
-        throw error;
-    }
+    const text = response.content || "No response generated.";
+    await childRun.end({ outputs: { response: text } });
+    await childRun.patchRun();
+    return text;
+  } catch (error: any) {
+    await childRun.end({ error: error.message });
+    await childRun.patchRun();
+    throw error;
+  }
 }
 
-async function generateWithGemini(query: string, persona: any, context: any, parentRun: any) {
-    // Redirecting Gemini calls to UnifiedAI (which defaults to OpenAI/Claude fallback)
-    // This ensures consistent behavior and centralized key management
-    return generateWithClaude(query, persona, context, parentRun);
+async function generateWithGemini(
+  query: string,
+  persona: any,
+  context: any,
+  parentRun: any,
+) {
+  // Redirecting Gemini calls to UnifiedAI (which defaults to OpenAI/Claude fallback)
+  // This ensures consistent behavior and centralized key management
+  return generateWithClaude(query, persona, context, parentRun);
 }
