@@ -22,7 +22,7 @@ import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import { RevenueVsSpendChart } from "@/components/dashboard/RevenueVsSpendChart";
 import { ClientRiskMatrix } from "@/components/dashboard/ClientRiskMatrix";
 import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInterventionTracker";
-import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
+// import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
 import { TickerFeed } from "@/components/hubspot/TickerFeed";
 import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
 import { KanbanBoard } from "@/components/sales/KanbanBoard";
@@ -323,9 +323,6 @@ export default function Dashboard() {
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
-
-        {/* Test Data Alert - Shows when mock/test data is detected */}
-        <TestDataAlert />
 
         <Tabs
           value={activeTab}

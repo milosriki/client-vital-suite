@@ -4,7 +4,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { ZoneDistributionBar } from "@/components/ZoneDistributionBar";
 import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInterventionTracker";
 import { WeeklyAnalytics } from "@/components/WeeklyAnalytics";
-import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
+// import { TestDataAlert } from "@/components/dashboard/TestDataAlert";
 import {
   Card,
   CardContent,
@@ -534,9 +534,6 @@ const Overview = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Test Data Alert - Shows when mock/test data is detected */}
-        <TestDataAlert />
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
