@@ -22,6 +22,7 @@ import { SystemHealthMonitor } from "@/components/dashboard/SystemHealthMonitor"
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
+import { format } from "date-fns";
 import { getBusinessDate, getBusinessStartOfMonth } from "@/lib/date-utils";
 
 // ... existing imports
