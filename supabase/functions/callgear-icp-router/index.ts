@@ -1,5 +1,6 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 interface CallGearICPRequest {
   cdr_id: string;
@@ -17,6 +18,7 @@ interface CallGearICPResponse {
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

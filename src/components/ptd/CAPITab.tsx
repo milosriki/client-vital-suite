@@ -215,7 +215,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
       if (error) throw error;
 
       setProgress(100);
-      console.log("Simulated send:", payload);
+      
       
       toast({
         title: "Simulation Complete",

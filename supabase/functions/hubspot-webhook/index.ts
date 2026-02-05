@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
   logError,
@@ -9,6 +10,7 @@ import {
 } from "../_shared/error-handler.ts";
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

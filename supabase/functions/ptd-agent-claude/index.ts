@@ -14,6 +14,7 @@ import {
   ToolDefinition,
 } from "../_shared/unified-ai-client.ts";
 import { brain } from "../_shared/unified-brain.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 import {
   handleError,
@@ -352,6 +353,7 @@ STAGES: lead→mql→sql→opportunity→customer
 
 // HTTP Handler
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

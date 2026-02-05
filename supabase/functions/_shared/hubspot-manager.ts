@@ -123,4 +123,60 @@ export class HubSpotManager {
       return null;
     }
   }
+
+  async createNote(contactId: string, content: string) {
+    const url = `https://api.hubapi.com/crm/v3/objects/notes`;
+    try {
+      await this.fetchWithRetry(url, {
+        method: "POST",
+        body: JSON.stringify({
+          properties: {
+            hs_note_body: content,
+            hs_timestamp: new Date().toISOString(),
+          },
+          associations: [
+            {
+              to: { id: contactId },
+              types: [
+                {
+                  associationCategory: "HUBSPOT_DEFINED",
+                  associationTypeId: 202,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+      console.log(`✅ [HubSpotManager] Note created for contact ${contactId}`);
+    } catch (error) {
+      await this.logError(
+        `Failed to create note for contact ${contactId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async updateBotStatus(contactId: string, paused: boolean) {
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`;
+    try {
+      await this.fetchWithRetry(url, {
+        method: "PATCH",
+        body: JSON.stringify({
+          properties: {
+            bot_paused: paused.toString(),
+          },
+        }),
+      });
+      console.log(
+        `✅ [HubSpotManager] Updated bot_paused=${paused} for ${contactId}`,
+      );
+    } catch (error) {
+      await this.logError(
+        `Failed to update bot status for contact ${contactId}`,
+        error,
+      );
+      // Don't throw, just log. This is non-critical sync.
+    }
+  }
 }

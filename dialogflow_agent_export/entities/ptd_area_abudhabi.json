@@ -1,0 +1,9 @@
+{
+  "id": "e-ptd-area-abudhabi",
+  "name": "ptd_area_abudhabi",
+  "isOverridable": true,
+  "isEnum": false,
+  "isRegexp": false,
+  "automatedExpansion": true,
+  "allowFuzzyExtraction": true
+}

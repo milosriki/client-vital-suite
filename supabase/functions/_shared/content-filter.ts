@@ -6,39 +6,53 @@
  */
 
 const SENSITIVE_PATTERNS = [
-  // Skill activation markers
+  // 1. SYSTEM INSTRUCTION LEAKS (The "Citadel" Block)
+  /system prompt/gi,
+  /prompt instructions/gi,
+  /ignore previous instructions/gi,
+  /you are an AI/gi,
+  /as an AI/gi,
+  /language model/gi,
+  /openai/gi,
+  /anthropic/gi,
+  /google/gi,
+  /gemini/gi,
+  /dialogflow/gi,
+
+  // 2. INTERNAL VARIABLE PROTECTION
+  /\{\{.*?\}\}/g, // Mustache vars {{name}}
+  /\[.*?\]/g, // Bracket tags [AVATAR] (Be careful with normal brackets)
+  /<.*?>/g, // XML tags <context>
+
+  // 3. SKILL & TOOL MARKERS
   /!!! ACTIVE SKILL ACTIVATED:.*!!!/gi,
   /ACTIVE SKILL ACTIVATED:.*/gi,
   /<internal_context>[\s\S]*?<\/internal_context>/gi,
 
-  // Technical details
+  // 4. TECHNICAL INFRASTRUCTURE
   /CAPABILITIES:.*/gi,
   /\[INTERNAL\][\s\S]*?\[\/INTERNAL\]/gi,
   /internal_rules:.*/gi,
   /available_tools:.*/gi,
 
-  // Function/code references
+  // 5. CODE LEAKAGE
   /function\s+\w+\s*\(/gi,
   /const\s+\w+\s*=/gi,
   /supabase\./gi,
   /\.from\(['"].*?['"]\)/gi,
 
-  // Database/system references
+  // 6. DB & API DATA
   /database/gi,
   /table:/gi,
   /query:/gi,
   /SELECT \* FROM/gi,
-
-  // API keys and secrets
   /API[_\s]?KEY/gi,
   /SECRET/gi,
   /Bearer\s+[a-zA-Z0-9\-_.]+/g,
 
-  // Edge function names
+  // 7. DEPLOYMENT INFO
   /edge[\s-]?function/gi,
   /invoke\(/gi,
-
-  // Deno/deployment references
   /deno\./gi,
   /Deno\.env/gi,
 ];

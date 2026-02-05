@@ -25,6 +25,7 @@ import {
 } from "../_shared/unified-prompts.ts";
 
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 // const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
@@ -510,6 +511,7 @@ function selectPersona(query: string, context: any): keyof typeof PERSONAS {
 // ============================================
 
 serve(async (req: Request) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers":

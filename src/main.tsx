@@ -79,9 +79,9 @@ startBackgroundLearning();
 if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as any).testAllFunctions = testAllFunctions;
   (window as any).verifyConnections = verifyAllConnections;
-  console.log("🧪 Browser utilities loaded:");
-  console.log("   - testAllFunctions() - Test all functions");
-  console.log("   - verifyConnections() - Verify all connections");
+  
+  
+  
 }
 
 const router = createBrowserRouter([

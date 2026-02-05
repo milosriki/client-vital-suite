@@ -26,7 +26,7 @@ async function retryOperation<T>(
     try {
       const result = await operation();
       if (attempt > 1) {
-        console.log(`✅ ${operationName} succeeded on attempt ${attempt}`);
+        
       }
       return result;
     } catch (error) {
@@ -36,7 +36,7 @@ async function retryOperation<T>(
 
       if (attempt < maxRetries) {
         const delay = backoff ? delayMs * Math.pow(2, attempt - 1) : delayMs;
-        console.log(`⏳ Retrying in ${delay}ms...`);
+        
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -78,7 +78,7 @@ export async function learnFromInteraction(query: string, response: string) {
       operationName: 'Learn from interaction'
     });
 
-    console.log('✅ Agent learned from interaction');
+    
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('❌ Learning failed after retries:', errorMsg);
@@ -114,7 +114,7 @@ export async function searchKnowledge(query: string): Promise<string> {
     }
 
     if (!data?.length) {
-      console.log('ℹ️ No past learnings found in database');
+      
       return '';
     }
 
@@ -130,11 +130,11 @@ export async function searchKnowledge(query: string): Promise<string> {
     });
 
     if (relevant.length === 0) {
-      console.log('ℹ️ No relevant past conversations found');
+      
       return '';
     }
 
-    console.log(`✅ Found ${relevant.length} relevant past conversations`);
+    
 
     return relevant.slice(0, 3).map(r => {
       const val = r.value as { query?: string; response?: string };

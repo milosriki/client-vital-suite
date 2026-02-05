@@ -1,0 +1,50 @@
+[
+  {
+    "id": "uu-handoff-1",
+    "data": [
+      {
+        "text": "call me",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-handoff-2",
+    "data": [
+      {
+        "text": "human",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-handoff-3",
+    "data": [
+      {
+        "text": "agent",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-handoff-4",
+    "data": [
+      {
+        "text": "can i speak to someone",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  }
+]

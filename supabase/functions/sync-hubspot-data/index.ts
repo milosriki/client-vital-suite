@@ -1,3 +1,4 @@
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   withTracing,
   structuredLog,
@@ -14,6 +15,7 @@ import {
 } from "../_shared/error-handler.ts";
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

@@ -5,6 +5,7 @@ import {
 } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
   ErrorCode,
@@ -81,6 +82,7 @@ async function withTimeoutAndRetry<T>(
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

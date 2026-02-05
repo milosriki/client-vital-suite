@@ -1,6 +1,7 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +23,7 @@ const EXECUTION_TOOLS: Record<string, { risk: string; requires_approval: boolean
 };
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

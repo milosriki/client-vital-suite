@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,7 @@ interface Anomaly {
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

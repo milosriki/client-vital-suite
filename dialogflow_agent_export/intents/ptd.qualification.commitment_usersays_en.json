@@ -1,0 +1,56 @@
+[
+  {
+    "id": "uu-qual-1",
+    "data": [
+      {
+        "text": "this week",
+        "alias": "timeframe",
+        "meta": "@sys.date-period",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-qual-2",
+    "data": [
+      {
+        "text": "next week",
+        "alias": "timeframe",
+        "meta": "@sys.date-period",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-qual-3",
+    "data": [
+      {
+        "text": "3 times a week",
+        "userDefined": false
+      },
+      {
+        "text": " ",
+        "userDefined": false
+      },
+      {
+        "text": "starting ",
+        "userDefined": false
+      },
+      {
+        "text": "next week",
+        "alias": "timeframe",
+        "meta": "@sys.date-period",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  }
+]

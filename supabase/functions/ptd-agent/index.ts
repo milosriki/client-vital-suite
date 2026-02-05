@@ -26,6 +26,7 @@ const corsHeaders = {
 };
 
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // ANTHROPIC_API_KEY is now handled by UnifiedAIClient
 // const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -529,6 +530,7 @@ interface AgentRequest {
 }
 
 serve(async (req: Request) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

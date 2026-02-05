@@ -35,7 +35,7 @@ export function SalesPipelineFeed() {
           table: 'sales_leads'
         },
         (payload) => {
-          console.log('Change received!', payload);
+          
           fetchLeads();
         }
       )

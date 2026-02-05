@@ -3,6 +3,7 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 // Implements Supervisor Workplace functionality using CallGear's list.calls API
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // CORRECT CallGear API URLs:
 // - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
@@ -195,6 +196,7 @@ async function getQueueStats(apiKey: string): Promise<QueueStats> {
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

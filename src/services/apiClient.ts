@@ -18,7 +18,7 @@ export const apiClient = {
     functionName: string,
     body: any = {},
   ): Promise<ApiResponse<T>> {
-    console.log(`[API] Invoking ${functionName}...`);
+    
 
     try {
       const { data, error } = await supabase.functions.invoke(functionName, {

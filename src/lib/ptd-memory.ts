@@ -337,7 +337,7 @@ export async function cleanupOldThreads(): Promise<number> {
       if (error) throw error;
 
       const deletedCount = data?.length || 0;
-      console.log(`Cleaned up ${deletedCount} old thread messages`);
+      
 
       return deletedCount;
     });

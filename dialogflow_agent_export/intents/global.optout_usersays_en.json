@@ -1,0 +1,50 @@
+[
+  {
+    "id": "uu-optout-1",
+    "data": [
+      {
+        "text": "stop",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-optout-2",
+    "data": [
+      {
+        "text": "unsubscribe",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-optout-3",
+    "data": [
+      {
+        "text": "remove me",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-optout-4",
+    "data": [
+      {
+        "text": "don’t message",
+        "userDefined": false
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  }
+]

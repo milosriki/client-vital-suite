@@ -1,0 +1,30 @@
+[
+  {
+    "value": "Marina",
+    "synonyms": ["Marina", "Dubai Marina", "Marsa"]
+  },
+  {
+    "value": "JBR",
+    "synonyms": ["JBR", "Jumeirah Beach Residence", "The Walk"]
+  },
+  {
+    "value": "Downtown",
+    "synonyms": ["Downtown", "Burj Khalifa", "Downtown Dubai"]
+  },
+  {
+    "value": "DIFC",
+    "synonyms": ["DIFC", "Financial Centre"]
+  },
+  {
+    "value": "Palm Jumeirah",
+    "synonyms": ["Palm Jumeirah", "The Palm"]
+  },
+  {
+    "value": "Arabian Ranches",
+    "synonyms": ["Arabian Ranches", "Ranches", "Ranches 2"]
+  },
+  {
+    "value": "Springs",
+    "synonyms": ["Springs", "The Springs"]
+  }
+]

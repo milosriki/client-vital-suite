@@ -68,10 +68,10 @@ export async function testAllFunctions(): Promise<FunctionTestResult[]> {
   const results: FunctionTestResult[] = [];
 
   for (const func of functions) {
-    console.log(`Testing ${func.name}...`);
+    
     const result = await testFunction(func.name, func.body);
     results.push(result);
-    console.log(`${func.name}: ${result.success ? '✅' : '❌'} (${result.duration}ms)`);
+    
   }
 
   return results;
@@ -81,11 +81,11 @@ export async function testAllFunctions(): Promise<FunctionTestResult[]> {
  * Quick test - test one function
  */
 export async function quickTest(functionName: string = 'health-calculator') {
-  console.log(`🧪 Testing ${functionName}...`);
+  
   const result = await testFunction(functionName);
   
   if (result.success) {
-    console.log('✅ Success!', result.response);
+    
   } else {
     console.error('❌ Failed:', result.error);
   }
@@ -98,8 +98,8 @@ if (typeof window !== 'undefined') {
   (window as any).testFunction = testFunction;
   (window as any).testAllFunctions = testAllFunctions;
   (window as any).quickTest = quickTest;
-  console.log('🧪 Function testing utilities loaded!');
-  console.log('   Use: testFunction("function-name", {body})');
-  console.log('   Use: testAllFunctions()');
-  console.log('   Use: quickTest("function-name")');
+  
+  
+  
+  
 }

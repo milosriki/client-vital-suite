@@ -7,6 +7,7 @@ import {
   getCorrelationId,
 } from "../_shared/observability.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
   ErrorCode,
@@ -456,6 +457,7 @@ async function runGraph(
 
 // ============ MAIN HANDLER ============
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

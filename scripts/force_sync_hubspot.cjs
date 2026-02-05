@@ -81,9 +81,11 @@ async function main() {
       const props = deal.properties;
 
       const payload = {
-        id: deal.id,
+        // id: deal.id, // Removed to allow UUID generation/matching
+        hubspot_deal_id: deal.id, // Map HubSpot ID to correct column
         deal_name: props.dealname,
         amount: props.amount,
+        deal_value: props.amount || 0, // Fix NOT NULL constraint
         stage: props.dealstage,
         close_date: props.closedate,
         pipeline: props.pipeline,
@@ -91,7 +93,9 @@ async function main() {
         // hubspot_owner_id: props.hubspot_owner_id // COMMENTED OUT TO UNBLOCK SYNC
       };
 
-      const { error } = await supabase.from("deals").upsert(payload);
+      const { error } = await supabase
+        .from("deals")
+        .upsert(payload, { onConflict: "hubspot_deal_id" });
 
       if (error) {
         console.error(`❌ Failed to sync deal ${deal.id}:`, error.message);

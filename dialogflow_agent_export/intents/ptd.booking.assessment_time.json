@@ -1,0 +1,69 @@
+{
+  "id": "ptd-booking-time-id",
+  "name": "ptd.booking.assessment_time",
+  "auto": true,
+  "contexts": ["ptd.booking"],
+  "responses": [
+    {
+      "resetContexts": false,
+      "action": "ptd.booking.assessment_time",
+      "affectedContexts": [
+        {
+          "name": "ptd.session",
+          "lifespan": 50
+        },
+        {
+          "name": "ptd.booking",
+          "lifespan": 5
+        }
+      ],
+      "parameters": [
+        {
+          "id": "param-date",
+          "required": true,
+          "dataType": "@sys.date",
+          "name": "date",
+          "value": "$date",
+          "prompts": [
+            {
+              "lang": "en",
+              "value": "What day works best for you?"
+            }
+          ],
+          "isList": false
+        },
+        {
+          "id": "param-time",
+          "required": true,
+          "dataType": "@sys.time",
+          "name": "time",
+          "value": "$time",
+          "prompts": [
+            {
+              "lang": "en",
+              "value": "Better morning (7–9) or evening (6–8)?"
+            }
+          ],
+          "isList": false
+        }
+      ],
+      "messages": [
+        {
+          "type": 0,
+          "lang": "en",
+          "speech": []
+        }
+      ],
+      "defaultResponsePlatforms": {},
+      "speech": []
+    }
+  ],
+  "priority": 500000,
+  "webhookUsed": true,
+  "webhookForSlotFilling": false,
+  "fallbackIntent": false,
+  "events": [],
+  "conditionalResponses": [],
+  "condition": "",
+  "conditionalFollowupEvents": []
+}

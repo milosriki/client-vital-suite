@@ -36,7 +36,7 @@ async function retryWithBackoff<T>(
 // Discover system structure dynamically
 export async function discoverSystemStructure() {
   try {
-    console.log('🔍 Starting system structure discovery...');
+    
 
     // Get all tables with retry
     const tables = await retryWithBackoff(async () => {
@@ -87,14 +87,14 @@ export async function discoverSystemStructure() {
         }
       }, { maxRetries: 2, delayMs: 500 });
 
-      console.log('✅ System knowledge saved to database');
+      
     } catch (saveError) {
       const errorMsg = saveError instanceof Error ? saveError.message : String(saveError);
       console.warn(`⚠️ Could not save system knowledge to database: ${errorMsg}`);
       // Continue anyway - we still have the knowledge in memory
     }
 
-    console.log('✅ System structure discovered:', systemKnowledge.summary);
+    
     return systemKnowledge;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -109,7 +109,7 @@ export async function discoverSystemStructure() {
 // Learn from recent data patterns
 export async function learnRecentData() {
   try {
-    console.log('🔍 Starting data pattern analysis...');
+    
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -209,14 +209,14 @@ export async function learnRecentData() {
         }
       }, { maxRetries: 2, delayMs: 500 });
 
-      console.log('✅ Data patterns saved to database');
+      
     } catch (saveError) {
       const errorMsg = saveError instanceof Error ? saveError.message : String(saveError);
       console.warn(`⚠️ Could not save patterns to database: ${errorMsg}`);
       // Continue anyway - we still have the patterns in memory
     }
 
-    console.log('✅ Data patterns learned:', patterns.data_freshness);
+    
     return patterns;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -318,7 +318,7 @@ export async function learnFromInteraction(query: string, response: string, thre
           }
         }, { maxRetries: 2, delayMs: 500 });
 
-        console.log('✅ Pattern updated:', knowledge.pattern_type);
+        
       } catch (patternError) {
         const errorMsg = patternError instanceof Error ? patternError.message : String(patternError);
         console.warn(`⚠️ Could not update pattern: ${errorMsg}`);
@@ -326,7 +326,7 @@ export async function learnFromInteraction(query: string, response: string, thre
       }
     }
 
-    console.log('✅ Learned from interaction:', knowledge.pattern_type);
+    
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('❌ Learning failed:', errorMsg);
@@ -389,7 +389,7 @@ export async function autoLearnFromApp() {
       discoverSystemStructure(),
       learnRecentData()
     ]);
-    console.log('✅ Auto-learning cycle complete');
+    
   } catch (error) {
     console.error('Auto-learn failed:', error);
   }

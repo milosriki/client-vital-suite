@@ -1,0 +1,14 @@
+[
+  {
+    "value": "home",
+    "synonyms": ["home", "at home", "villa", "apartment", "come to me"]
+  },
+  {
+    "value": "gym",
+    "synonyms": ["gym", "building gym", "fitness first", "warehouse", "my gym"]
+  },
+  {
+    "value": "outdoor",
+    "synonyms": ["outdoor", "outside", "park", "beach"]
+  }
+]

@@ -129,7 +129,7 @@ export async function verifyAllConnections(): Promise<ConnectionStatus> {
 if (typeof window !== 'undefined') {
   (window as any).verifyConnections = verifyAllConnections;
   (window as any).verifySupabase = verifySupabaseConnection;
-  console.log('🔍 Connection verification utilities loaded!');
-  console.log('   Use: verifyConnections()');
-  console.log('   Use: verifySupabase()');
+  
+  
+  
 }

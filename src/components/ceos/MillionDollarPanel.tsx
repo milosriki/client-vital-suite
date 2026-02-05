@@ -99,10 +99,12 @@ export default function MillionDollarPanel() {
   const [leads, setLeads] = useState<number>(0);
   const [roas, setRoas] = useState<number>(0);
 
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+
   const refreshData = async () => {
     setLoading(true);
     try {
-      // Use the centralized get_dashboard_stats RPC
+      // 1. Fetch Dashboard Stats (RPC)
       const { data: stats, error } = await (supabase.rpc as any)(
         "get_dashboard_stats",
       );
@@ -116,7 +118,7 @@ export default function MillionDollarPanel() {
 
       setRevenue({ amount: revenueVal, currency: "AED" });
 
-      // We still fetch ad spend from the Meta function if possible
+      // 2. Fetch Ad Spend
       const { data: fbData } = await supabase.functions.invoke(
         "fetch-facebook-insights",
         {
@@ -127,7 +129,7 @@ export default function MillionDollarPanel() {
       const spend = fbData?.total_spend || 0;
       setAdSpend({ amount: spend, currency: fbData?.currency || "AED" });
 
-      // Leads today (keep direct for now as it's efficient)
+      // 3. Leads today
       const { count: leadCount } = await supabase
         .from("contacts")
         .select("*", { count: "exact", head: true })
@@ -138,9 +140,24 @@ export default function MillionDollarPanel() {
 
       setLeads(leadCount || 0);
 
-      // Compute ROAS
+      // 4. Compute ROAS
       const calculatedRoas = spend > 0 ? revenueVal / spend : 0;
       setRoas(calculatedRoas);
+
+      // 5. FETCH EXECUTIVE BRIEFING (OPERATIONAL HEALTH)
+      const today = new Date().toISOString().split("T")[0];
+      const { data: dailySummary } = await supabase
+        .from("daily_summary")
+        .select("executive_briefing, system_health_status, action_plan")
+        .eq("summary_date", today)
+        .maybeSingle();
+
+      if (dailySummary) {
+        setHealthStatus(dailySummary);
+      } else {
+        // Trigger BI if missing
+        supabase.functions.invoke("business-intelligence");
+      }
     } catch (e) {
       console.error("Dashboard Sync Failed", e);
       toast.error("Failed to sync Million Dollar Data");
@@ -216,6 +233,49 @@ export default function MillionDollarPanel() {
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {/* OPERATIONAL HEALTH ALERT (CRISIS MODULE) */}
+        {healthStatus && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className={`p-4 rounded-lg border-l-4 ${healthStatus.system_health_status?.includes("Healthy") ? "bg-emerald-500/10 border-emerald-500" : "bg-rose-500/10 border-rose-500"}`}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h4
+                  className={`font-bold uppercase text-sm mb-1 ${healthStatus.system_health_status?.includes("Healthy") ? "text-emerald-500" : "text-rose-500"}`}
+                >
+                  {healthStatus.system_health_status || "OPERATIONAL STATUS"}
+                </h4>
+                <p className="text-sm font-medium text-foreground/90 leading-relaxed">
+                  {healthStatus.executive_briefing}
+                </p>
+              </div>
+              {healthStatus.action_plan &&
+                healthStatus.action_plan.length > 0 && (
+                  <div className="hidden md:block min-w-[300px] pl-4 border-l border-muted/20 ml-4">
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2 uppercase">
+                      Immediate Actions
+                    </h5>
+                    <ul className="space-y-1">
+                      {healthStatus.action_plan.map(
+                        (action: string, idx: number) => (
+                          <li
+                            key={idx}
+                            className="text-xs flex items-center gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 bg-primary rounded-full" />
+                            {action}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                )}
+            </div>
+          </motion.div>
+        )}
+
         {/* TOP ROW: THE TRIANGLE (Spend -> Leads -> Cash) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <MetricCard

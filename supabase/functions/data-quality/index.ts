@@ -1,6 +1,11 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // ============================================
 // DATA QUALITY AGENT
@@ -10,7 +15,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 // Validate required environment variables
@@ -19,7 +25,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("[Data Quality] Missing required environment variables");
-  throw new Error("Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
+  throw new Error(
+    "Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+  );
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -59,8 +67,11 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
       severity: "critical",
       description: "Clients without email addresses",
       affected_count: missingEmailCount || 0,
-      sample_records: (missingEmails || []).map(c => `${c.firstname} ${c.lastname}`),
-      recommendation: "Email is required for CAPI and interventions. Update from HubSpot source."
+      sample_records: (missingEmails || []).map(
+        (c) => `${c.firstname} ${c.lastname}`,
+      ),
+      recommendation:
+        "Email is required for CAPI and interventions. Update from HubSpot source.",
     });
   }
 
@@ -78,8 +89,11 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
       severity: "high",
       description: "Health scores outside valid range (0-100)",
       affected_count: invalidScoreCount || 0,
-      sample_records: (invalidScores || []).map(c => `${c.email}: ${c.health_score}`),
-      recommendation: "Recalculate health scores using health-calculator agent."
+      sample_records: (invalidScores || []).map(
+        (c) => `${c.email}: ${c.health_score}`,
+      ),
+      recommendation:
+        "Recalculate health scores using health-calculator agent.",
     });
   }
 
@@ -98,7 +112,7 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
       description: "Health scores not updated in 7+ days",
       affected_count: staleCount || 0,
       sample_records: [],
-      recommendation: "Run health-calculator agent to refresh scores."
+      recommendation: "Run health-calculator agent to refresh scores.",
     });
   }
 
@@ -106,7 +120,9 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
   const { data: inconsistentZones } = await supabase
     .from("client_health_scores")
     .select("email, health_score, health_zone")
-    .or("and(health_score.gte.85,health_zone.neq.PURPLE),and(health_score.lt.50,health_zone.neq.RED)")
+    .or(
+      "and(health_score.gte.85,health_zone.neq.PURPLE),and(health_score.lt.50,health_zone.neq.RED)",
+    )
     .limit(10);
 
   if ((inconsistentZones || []).length > 0) {
@@ -116,8 +132,10 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
       severity: "high",
       description: "Health zone doesn't match health score",
       affected_count: inconsistentZones?.length || 0,
-      sample_records: (inconsistentZones || []).map(c => `${c.email}: score=${c.health_score}, zone=${c.health_zone}`),
-      recommendation: "Recalculate zones or fix zone assignment logic."
+      sample_records: (inconsistentZones || []).map(
+        (c) => `${c.email}: score=${c.health_score}, zone=${c.health_zone}`,
+      ),
+      recommendation: "Recalculate zones or fix zone assignment logic.",
     });
   }
 
@@ -136,8 +154,8 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
       severity: "high",
       description: "At-risk clients without assigned coach",
       affected_count: missingCoachCount || 0,
-      sample_records: (missingCoach || []).map(c => c.email),
-      recommendation: "Assign coaches to at-risk clients for intervention."
+      sample_records: (missingCoach || []).map((c) => c.email),
+      recommendation: "Assign coaches to at-risk clients for intervention.",
     });
   }
 
@@ -161,7 +179,7 @@ async function checkCAPIEvents(): Promise<DataIssue[]> {
       description: "CAPI events failed to send",
       affected_count: failedCount || 0,
       sample_records: [],
-      recommendation: "Review failed events, fix validation issues, retry."
+      recommendation: "Review failed events, fix validation issues, retry.",
     });
   }
 
@@ -181,7 +199,7 @@ async function checkCAPIEvents(): Promise<DataIssue[]> {
       description: "CAPI events pending for 24+ hours",
       affected_count: stuckCount || 0,
       sample_records: [],
-      recommendation: "Run process-capi-batch to clear pending queue."
+      recommendation: "Run process-capi-batch to clear pending queue.",
     });
   }
 
@@ -200,7 +218,7 @@ async function checkCAPIEvents(): Promise<DataIssue[]> {
       description: "CAPI events missing email or event_name",
       affected_count: missingFields || 0,
       sample_records: [],
-      recommendation: "Validate events with capi-validator before queuing."
+      recommendation: "Validate events with capi-validator before queuing.",
     });
   }
 
@@ -226,8 +244,10 @@ async function checkInterventionLog(): Promise<DataIssue[]> {
       severity: "high",
       description: "Interventions pending for 7+ days",
       affected_count: staleCount || 0,
-      sample_records: (stalePending || []).map(i => `${i.client_email} (${i.priority})`),
-      recommendation: "Review and action or close stale interventions."
+      sample_records: (stalePending || []).map(
+        (i) => `${i.client_email} (${i.priority})`,
+      ),
+      recommendation: "Review and action or close stale interventions.",
     });
   }
 
@@ -246,7 +266,7 @@ async function checkInterventionLog(): Promise<DataIssue[]> {
       description: "CRITICAL interventions not actioned",
       affected_count: criticalCount || 0,
       sample_records: [],
-      recommendation: "Immediately review and action CRITICAL interventions."
+      recommendation: "Immediately review and action CRITICAL interventions.",
     });
   }
 
@@ -260,8 +280,8 @@ async function checkDuplicates(): Promise<DataIssue[]> {
     // Check for duplicate emails in client_health_scores using RPC or direct query
     let duplicateClients: { email: string; count: number }[] | null = null;
     try {
-      const { data: rpcData } = await supabase.rpc('get_duplicate_emails', {
-        table_name: 'client_health_scores'
+      const { data: rpcData } = await supabase.rpc("get_duplicate_emails", {
+        table_name: "client_health_scores",
       });
       duplicateClients = rpcData;
     } catch {
@@ -292,8 +312,11 @@ async function checkDuplicates(): Promise<DataIssue[]> {
         severity: "high",
         description: "Duplicate email addresses found",
         affected_count: duplicateClients.length,
-        sample_records: duplicateClients.slice(0, 10).map((d: any) => `${d.email} (${d.count}x)`),
-        recommendation: "Deduplicate client records, keep most recent by calculated_at."
+        sample_records: duplicateClients
+          .slice(0, 10)
+          .map((d: any) => `${d.email} (${d.count}x)`),
+        recommendation:
+          "Deduplicate client records, keep most recent by calculated_at.",
       });
     }
 
@@ -311,8 +334,9 @@ async function checkDuplicates(): Promise<DataIssue[]> {
         }
       }
 
-      const duplicates = Array.from(emailCounts.entries())
-        .filter(([_, count]) => count > 1);
+      const duplicates = Array.from(emailCounts.entries()).filter(
+        ([_, count]) => count > 1,
+      );
 
       if (duplicates.length > 0) {
         issues.push({
@@ -321,8 +345,10 @@ async function checkDuplicates(): Promise<DataIssue[]> {
           severity: "medium",
           description: "Duplicate contact emails found",
           affected_count: duplicates.length,
-          sample_records: duplicates.slice(0, 10).map(([email, count]) => `${email} (${count}x)`),
-          recommendation: "Deduplicate contacts, merge or remove duplicates."
+          sample_records: duplicates
+            .slice(0, 10)
+            .map(([email, count]) => `${email} (${count}x)`),
+          recommendation: "Deduplicate contacts, merge or remove duplicates.",
         });
       }
     }
@@ -345,11 +371,14 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
 
     if (orphanedInterventions) {
       const clientEmails = new Set(
-        (await supabase.from("client_health_scores").select("email")).data?.map(c => c.email.toLowerCase()) || []
+        (await supabase.from("client_health_scores").select("email")).data?.map(
+          (c) => c.email.toLowerCase(),
+        ) || [],
       );
 
       const orphaned = orphanedInterventions.filter(
-        i => i.client_email && !clientEmails.has(i.client_email.toLowerCase())
+        (i) =>
+          i.client_email && !clientEmails.has(i.client_email.toLowerCase()),
       );
 
       if (orphaned.length > 0) {
@@ -359,8 +388,9 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
           severity: "medium",
           description: "Interventions for non-existent clients",
           affected_count: orphaned.length,
-          sample_records: orphaned.slice(0, 10).map(i => i.client_email),
-          recommendation: "Remove orphaned intervention records or sync missing clients from HubSpot."
+          sample_records: orphaned.slice(0, 10).map((i) => i.client_email),
+          recommendation:
+            "Remove orphaned intervention records or sync missing clients from HubSpot.",
         });
       }
     }
@@ -383,11 +413,13 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
 
       if (sampleCAPI) {
         const clientEmails = new Set(
-          (await supabase.from("client_health_scores").select("email")).data?.map(c => c.email.toLowerCase()) || []
+          (
+            await supabase.from("client_health_scores").select("email")
+          ).data?.map((c) => c.email.toLowerCase()) || [],
         );
 
         const orphanedSample = sampleCAPI.filter(
-          e => e.email && !clientEmails.has(e.email.toLowerCase())
+          (e) => e.email && !clientEmails.has(e.email.toLowerCase()),
         );
 
         if (orphanedSample.length > 0) {
@@ -397,8 +429,9 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
             severity: "low",
             description: "CAPI events for contacts not in health scores",
             affected_count: orphanedSample.length,
-            sample_records: orphanedSample.slice(0, 5).map(e => e.email),
-            recommendation: "This is normal for new contacts. Ensure health calculator runs regularly."
+            sample_records: orphanedSample.slice(0, 5).map((e) => e.email),
+            recommendation:
+              "This is normal for new contacts. Ensure health calculator runs regularly.",
           });
         }
       }
@@ -428,7 +461,7 @@ async function checkRequiredFields(): Promise<DataIssue[]> {
         description: "Contacts missing first or last name",
         affected_count: contactsMissingName,
         sample_records: [],
-        recommendation: "Update contact names from HubSpot or mark for review."
+        recommendation: "Update contact names from HubSpot or mark for review.",
       });
     }
 
@@ -446,7 +479,8 @@ async function checkRequiredFields(): Promise<DataIssue[]> {
         description: "Contacts without HubSpot ID",
         affected_count: contactsMissingHubSpot,
         sample_records: [],
-        recommendation: "Sync from HubSpot or link to existing HubSpot contacts."
+        recommendation:
+          "Sync from HubSpot or link to existing HubSpot contacts.",
       });
     }
 
@@ -464,7 +498,7 @@ async function checkRequiredFields(): Promise<DataIssue[]> {
         description: "Deals with no amount set",
         affected_count: dealsMissingAmount,
         sample_records: [],
-        recommendation: "Review deals and set appropriate amounts in HubSpot."
+        recommendation: "Review deals and set appropriate amounts in HubSpot.",
       });
     }
 
@@ -482,7 +516,8 @@ async function checkRequiredFields(): Promise<DataIssue[]> {
         description: "Leads without email addresses",
         affected_count: leadsMissingEmail,
         sample_records: [],
-        recommendation: "Email is required for lead processing. Update or remove invalid leads."
+        recommendation:
+          "Email is required for lead processing. Update or remove invalid leads.",
       });
     }
   } catch (error) {
@@ -508,9 +543,11 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
       .limit(5000);
 
     if (healthClients && contacts) {
-      const contactEmails = new Set(contacts.map(c => c.email?.toLowerCase()));
+      const contactEmails = new Set(
+        contacts.map((c) => c.email?.toLowerCase()),
+      );
       const missingInContacts = healthClients.filter(
-        h => h.email && !contactEmails.has(h.email.toLowerCase())
+        (h) => h.email && !contactEmails.has(h.email.toLowerCase()),
       );
 
       if (missingInContacts.length > 0) {
@@ -520,8 +557,9 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
           severity: "medium",
           description: "Health scores for contacts not in contacts table",
           affected_count: missingInContacts.length,
-          sample_records: missingInContacts.slice(0, 10).map(c => c.email),
-          recommendation: "Sync contacts from HubSpot or remove orphaned health scores."
+          sample_records: missingInContacts.slice(0, 10).map((c) => c.email),
+          recommendation:
+            "Sync contacts from HubSpot or remove orphaned health scores.",
         });
       }
     }
@@ -539,8 +577,11 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
         severity: "high",
         description: "Invalid health zone values",
         affected_count: invalidZones.length,
-        sample_records: invalidZones.slice(0, 10).map(c => `${c.email}: ${c.health_zone}`),
-        recommendation: "Recalculate health zones to valid values (RED, YELLOW, GREEN, PURPLE)."
+        sample_records: invalidZones
+          .slice(0, 10)
+          .map((c) => `${c.email}: ${c.health_zone}`),
+        recommendation:
+          "Recalculate health zones to valid values (RED, YELLOW, GREEN, PURPLE).",
       });
     }
   } catch (error) {
@@ -558,7 +599,7 @@ function calculateOverallScore(issues: DataIssue[]): number {
       critical: 20,
       high: 10,
       medium: 5,
-      low: 2
+      low: 2,
     }[issue.severity];
 
     score -= penalty * Math.min(issue.affected_count / 10, 1);
@@ -568,6 +609,11 @@ function calculateOverallScore(issues: DataIssue[]): number {
 }
 
 serve(async (req) => {
+  try {
+    verifyAuth(req);
+  } catch (e) {
+    return new Response("Unauthorized", { status: 401 });
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -595,10 +641,12 @@ serve(async (req) => {
           table: "client_health_scores",
           issue_type: "invalid",
           severity: "high",
-          description: "Failed to check table: " + (e instanceof Error ? e.message : "Unknown error"),
+          description:
+            "Failed to check table: " +
+            (e instanceof Error ? e.message : "Unknown error"),
           affected_count: 0,
           sample_records: [],
-          recommendation: "Check database connectivity and table existence"
+          recommendation: "Check database connectivity and table existence",
         });
       }
     }
@@ -613,10 +661,12 @@ serve(async (req) => {
           table: "capi_events_enriched",
           issue_type: "invalid",
           severity: "high",
-          description: "Failed to check table: " + (e instanceof Error ? e.message : "Unknown error"),
+          description:
+            "Failed to check table: " +
+            (e instanceof Error ? e.message : "Unknown error"),
           affected_count: 0,
           sample_records: [],
-          recommendation: "Check database connectivity and table existence"
+          recommendation: "Check database connectivity and table existence",
         });
       }
     }
@@ -631,10 +681,12 @@ serve(async (req) => {
           table: "intervention_log",
           issue_type: "invalid",
           severity: "high",
-          description: "Failed to check table: " + (e instanceof Error ? e.message : "Unknown error"),
+          description:
+            "Failed to check table: " +
+            (e instanceof Error ? e.message : "Unknown error"),
           affected_count: 0,
           sample_records: [],
-          recommendation: "Check database connectivity and table existence"
+          recommendation: "Check database connectivity and table existence",
         });
       }
     }
@@ -649,10 +701,12 @@ serve(async (req) => {
           table: "client_health_scores",
           issue_type: "invalid",
           severity: "high",
-          description: "Failed to check duplicates: " + (e instanceof Error ? e.message : "Unknown error"),
+          description:
+            "Failed to check duplicates: " +
+            (e instanceof Error ? e.message : "Unknown error"),
           affected_count: 0,
           sample_records: [],
-          recommendation: "Check database connectivity and table existence"
+          recommendation: "Check database connectivity and table existence",
         });
       }
 
@@ -695,14 +749,18 @@ serve(async (req) => {
 
     // Generate recommendations
     const recommendations: string[] = [];
-    const criticalIssues = allIssues.filter(i => i.severity === "critical");
-    const highIssues = allIssues.filter(i => i.severity === "high");
+    const criticalIssues = allIssues.filter((i) => i.severity === "critical");
+    const highIssues = allIssues.filter((i) => i.severity === "high");
 
     if (criticalIssues.length > 0) {
-      recommendations.push(`URGENT: ${criticalIssues.length} critical issues require immediate attention`);
+      recommendations.push(
+        `URGENT: ${criticalIssues.length} critical issues require immediate attention`,
+      );
     }
     if (highIssues.length > 0) {
-      recommendations.push(`${highIssues.length} high-priority issues should be resolved today`);
+      recommendations.push(
+        `${highIssues.length} high-priority issues should be resolved today`,
+      );
     }
 
     const report: DataQualityReport = {
@@ -710,7 +768,7 @@ serve(async (req) => {
       overall_score: calculateOverallScore(allIssues),
       issues: allIssues,
       table_health: tableHealth,
-      recommendations
+      recommendations,
     };
 
     // Log the check
@@ -720,31 +778,51 @@ serve(async (req) => {
       status: report.overall_score >= 80 ? "success" : "completed_with_errors",
       records_processed: allIssues.length,
       records_failed: criticalIssues.length + highIssues.length,
-      error_details: { issues_by_severity: { critical: criticalIssues.length, high: highIssues.length } },
+      error_message:
+        recommendations.length > 0
+          ? recommendations[0]
+          : "Data Quality Check Passed", // FIX: Populate error_message
+      error_details: {
+        issues_by_severity: {
+          critical: criticalIssues.length,
+          high: highIssues.length,
+        },
+        score: report.overall_score,
+        top_issues: allIssues
+          .slice(0, 3)
+          .map((i) => `${i.severity}: ${i.description}`),
+      },
       started_at: new Date(startTime).toISOString(),
       completed_at: new Date().toISOString(),
-      duration_ms: Date.now() - startTime
+      duration_ms: Date.now() - startTime,
     });
 
     const duration = Date.now() - startTime;
-    console.log(`[Data Quality] Complete in ${duration}ms - Score: ${report.overall_score}/100`);
+    console.log(
+      `[Data Quality] Complete in ${duration}ms - Score: ${report.overall_score}/100`,
+    );
 
-    return new Response(JSON.stringify({
-      success: true,
-      duration_ms: duration,
-      report
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        duration_ms: duration,
+        report,
+      }),
+      {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error) {
     console.error("[Data Quality] Error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   }
 });

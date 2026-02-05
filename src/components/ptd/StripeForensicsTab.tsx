@@ -72,12 +72,12 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
   const { data: forensicsData, isLoading, refetch, isError, isFetching } = useDedupedQuery({
     queryKey: ['stripe-forensics', mode],
     queryFn: async (): Promise<ForensicsData> => {
-      console.log('[Forensics] Fetching fresh data...');
+      
       const { data, error } = await supabase.functions.invoke('stripe-forensics', {
         body: { action: 'full-audit', mode }
       });
       if (error) throw error;
-      console.log('[Forensics] Data received:', data?.auditTimestamp);
+      
       return data;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes

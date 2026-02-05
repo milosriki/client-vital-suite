@@ -199,7 +199,7 @@ const Overview = () => {
     setErrorDetails(null);
 
     try {
-      console.log("Starting data refresh...");
+      
       setSetupStatus("Checking database connection...");
       await new Promise((resolve) => setTimeout(resolve, 500));
 

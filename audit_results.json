@@ -1,0 +1,245 @@
+{
+  "functions": {
+    "total": 130,
+    "issues": [
+      {
+        "functionName": "db-inspector",
+        "rule": "Missing Auth Check",
+        "severity": "HIGH",
+        "details": "No 'verify_jwt', 'Authorization', or 'x-auth-token' check found."
+      }
+    ]
+  },
+  "web": {
+    "issues": [
+      {
+        "file": "/src/components/FloatingChat.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 688 lines long."
+      },
+      {
+        "file": "/src/components/Navigation.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 466 lines long."
+      },
+      {
+        "file": "/src/components/ai/AIAssistantPanel.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 598 lines long."
+      },
+      {
+        "file": "/src/components/ai/PTDControlChat.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 685 lines long."
+      },
+      {
+        "file": "/src/components/ai/PTDUnlimitedChat.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 731 lines long."
+      },
+      {
+        "file": "/src/components/analytics/CreativeGallery.tsx",
+        "rule": "Image Missing Dimensions",
+        "severity": "MEDIUM",
+        "details": "<img> tag found without width/height."
+      },
+      {
+        "file": "/src/components/hubspot-live/HubSpotTabs.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 430 lines long."
+      },
+      {
+        "file": "/src/components/ptd/CAPITab.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 1017 lines long."
+      },
+      {
+        "file": "/src/components/ptd/HubSpotCommandCenter.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 565 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripeAIDashboard.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 464 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripeCompleteIntelligence.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 600 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripeDashboardTab.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 442 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripeForensicsTab.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 772 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripeMoneyFlowTab.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 419 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripePayoutControlsTab.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 765 lines long."
+      },
+      {
+        "file": "/src/components/ptd/StripeTreasuryTab.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 459 lines long."
+      },
+      {
+        "file": "/src/components/sales-pipeline/SalesTabs.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 655 lines long."
+      },
+      {
+        "file": "/src/components/ui/sidebar.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 638 lines long."
+      },
+      {
+        "file": "/src/config/edgeFunctions.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 826 lines long."
+      },
+      {
+        "file": "/src/hooks/use-ceo-data.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 402 lines long."
+      },
+      {
+        "file": "/src/integrations/supabase/types.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 6852 lines long."
+      },
+      {
+        "file": "/src/lib/prompt-library.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 757 lines long."
+      },
+      {
+        "file": "/src/lib/ptd-auto-learn.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 417 lines long."
+      },
+      {
+        "file": "/src/lib/ptd-memory.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 459 lines long."
+      },
+      {
+        "file": "/src/lib/ptd-unlimited-agent.ts",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 508 lines long."
+      },
+      {
+        "file": "/src/pages/AuditTrail.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 470 lines long."
+      },
+      {
+        "file": "/src/pages/ClientDetail.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 515 lines long."
+      },
+      {
+        "file": "/src/pages/Dashboard.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 706 lines long."
+      },
+      {
+        "file": "/src/pages/ExecutiveDashboard.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 437 lines long."
+      },
+      {
+        "file": "/src/pages/GlobalBrain.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 404 lines long."
+      },
+      {
+        "file": "/src/pages/Interventions.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 415 lines long."
+      },
+      {
+        "file": "/src/pages/Observability.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 452 lines long."
+      },
+      {
+        "file": "/src/pages/Overview.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 760 lines long."
+      },
+      {
+        "file": "/src/pages/SalesPipeline.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 421 lines long."
+      },
+      {
+        "file": "/src/pages/SetterActivityToday.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 518 lines long."
+      },
+      {
+        "file": "/src/pages/StripeIntelligence.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 418 lines long."
+      },
+      {
+        "file": "/src/pages/SuperDashboard.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 414 lines long."
+      },
+      {
+        "file": "/src/pages/WorkflowStrategy.tsx",
+        "rule": "Large Component",
+        "severity": "LOW",
+        "details": "File is 555 lines long."
+      }
+    ]
+  }
+}

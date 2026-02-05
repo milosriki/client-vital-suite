@@ -1,0 +1,48 @@
+[
+  {
+    "id": "uu-goal-1",
+    "data": [
+      {
+        "text": "i want to ",
+        "userDefined": false
+      },
+      {
+        "text": "lose weight",
+        "alias": "goal_type",
+        "meta": "@ptd_goal_type",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-goal-2",
+    "data": [
+      {
+        "text": "build muscle",
+        "alias": "goal_type",
+        "meta": "@ptd_goal_type",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-goal-3",
+    "data": [
+      {
+        "text": "fix my back pain",
+        "alias": "goal_type",
+        "meta": "@ptd_goal_type",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  }
+]

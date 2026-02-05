@@ -1,0 +1,55 @@
+{
+  "id": "ptd-discovery-goal-id",
+  "name": "ptd.discovery.goal",
+  "auto": true,
+  "contexts": ["ptd.discovery"],
+  "responses": [
+    {
+      "resetContexts": false,
+      "action": "ptd.discovery.goal",
+      "affectedContexts": [
+        {
+          "name": "ptd.session",
+          "lifespan": 50
+        },
+        {
+          "name": "ptd.location",
+          "lifespan": 5
+        }
+      ],
+      "parameters": [
+        {
+          "id": "param-goal-type",
+          "required": true,
+          "dataType": "@ptd_goal_type",
+          "name": "goal_type",
+          "value": "$goal_type",
+          "prompts": [
+            {
+              "lang": "en",
+              "value": "What is your main goal right now? (e.g. weight loss, muscle, or just getting fit)"
+            }
+          ],
+          "isList": false
+        }
+      ],
+      "messages": [
+        {
+          "type": 0,
+          "lang": "en",
+          "speech": []
+        }
+      ],
+      "defaultResponsePlatforms": {},
+      "speech": []
+    }
+  ],
+  "priority": 500000,
+  "webhookUsed": true,
+  "webhookForSlotFilling": false,
+  "fallbackIntent": false,
+  "events": [],
+  "conditionalResponses": [],
+  "condition": "",
+  "conditionalFollowupEvents": []
+}

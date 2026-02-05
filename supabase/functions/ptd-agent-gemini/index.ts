@@ -1170,6 +1170,7 @@ async function executeTool(
 }
 
 import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   sanitizeResponse,
   validateResponseSafety,
@@ -1366,6 +1367,7 @@ ${relevantSkill}
 
 // ============= HTTP HANDLER WITH IMPROVED ERROR HANDLING =============
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

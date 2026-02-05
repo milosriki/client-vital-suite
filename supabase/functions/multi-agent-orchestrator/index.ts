@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // Multi-Agent Intelligence Orchestrator
 // Coordinates 4 specialist agents that "chat" to provide recommendations
@@ -206,6 +207,7 @@ Respond with JSON: { synthesis: "...", actionPlan: ["action 1", "action 2", ...]
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

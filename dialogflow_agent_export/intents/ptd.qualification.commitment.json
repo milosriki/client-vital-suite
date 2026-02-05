@@ -1,0 +1,64 @@
+{
+  "id": "ptd-qualification-commitment-id",
+  "name": "ptd.qualification.commitment",
+  "auto": true,
+  "contexts": ["ptd.qualification"],
+  "responses": [
+    {
+      "resetContexts": false,
+      "action": "ptd.qualification.commitment",
+      "affectedContexts": [
+        {
+          "name": "ptd.session",
+          "lifespan": 50
+        },
+        {
+          "name": "ptd.booking",
+          "lifespan": 5
+        }
+      ],
+      "parameters": [
+        {
+          "id": "param-timeframe",
+          "required": true,
+          "dataType": "@sys.date-period",
+          "name": "timeframe",
+          "value": "$timeframe",
+          "prompts": [
+            {
+              "lang": "en",
+              "value": "Would you prefer the assessment this week or next week?"
+            }
+          ],
+          "isList": false
+        },
+        {
+          "id": "param-frequency",
+          "required": false,
+          "dataType": "@sys.number",
+          "name": "frequency",
+          "value": "$frequency",
+          "prompts": [],
+          "isList": false
+        }
+      ],
+      "messages": [
+        {
+          "type": 0,
+          "lang": "en",
+          "speech": []
+        }
+      ],
+      "defaultResponsePlatforms": {},
+      "speech": []
+    }
+  ],
+  "priority": 500000,
+  "webhookUsed": true,
+  "webhookForSlotFilling": false,
+  "fallbackIntent": false,
+  "events": [],
+  "conditionalResponses": [],
+  "condition": "",
+  "conditionalFollowupEvents": []
+}

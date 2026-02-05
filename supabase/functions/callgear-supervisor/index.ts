@@ -4,6 +4,7 @@ import {
   getCorrelationId,
 } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
   ErrorCode,
@@ -49,6 +50,7 @@ type SupervisorRequest =
 // Removed local corsHeaders definition in favor of shared one
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

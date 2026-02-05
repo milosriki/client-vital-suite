@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.16.0";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
   
   if (!geminiKey) {

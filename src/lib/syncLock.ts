@@ -137,7 +137,7 @@ export function acquireLock(operation: string): string | null {
   
   // Check if already locked and not expired
   if (existing && existing.isLocked && !isLockExpired(existing)) {
-    console.log(`[SyncLock] Operation "${operation}" is already locked`);
+    
     return null;
   }
   
@@ -149,7 +149,7 @@ export function acquireLock(operation: string): string | null {
     lockId
   });
   
-  console.log(`[SyncLock] Acquired lock for "${operation}" (ID: ${lockId})`);
+  
   notifySubscribers(operation, true);
   
   return lockId;
@@ -174,7 +174,7 @@ export function releaseLock(operation: string, lockId?: string): boolean {
   }
   
   locks.delete(operation);
-  console.log(`[SyncLock] Released lock for "${operation}"`);
+  
   notifySubscribers(operation, false);
   
   return true;
@@ -239,7 +239,7 @@ export async function withLock<T>(
   if (!options?.skipRateLimit) {
     const rateCheck = checkRateLimit(operation);
     if (rateCheck.limited) {
-      console.log(`[SyncLock] Rate limited "${operation}": ${rateCheck.reason}`);
+      
       return null;
     }
   }
@@ -247,7 +247,7 @@ export async function withLock<T>(
   const lockId = acquireLock(operation);
   
   if (!lockId) {
-    console.log(`[SyncLock] Skipping "${operation}" - already in progress`);
+    
     return null;
   }
   

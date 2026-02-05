@@ -1,0 +1,34 @@
+[
+  {
+    "value": "Yas Island",
+    "synonyms": ["Yas Island", "Yas"]
+  },
+  {
+    "value": "Saadiyat",
+    "synonyms": ["Saadiyat", "Saadiyat Island"]
+  },
+  {
+    "value": "Al Reem",
+    "synonyms": ["Al Reem", "Reem Island"]
+  },
+  {
+    "value": "Khalifa City",
+    "synonyms": ["Khalifa City", "Khalifa City A"]
+  },
+  {
+    "value": "Al Raha Beach",
+    "synonyms": ["Al Raha Beach", "Al Raha"]
+  },
+  {
+    "value": "Corniche",
+    "synonyms": ["Corniche"]
+  },
+  {
+    "value": "Al Maryah Island",
+    "synonyms": ["Al Maryah Island", "Maryah"]
+  },
+  {
+    "value": "Mussafah",
+    "synonyms": ["Mussafah"]
+  }
+]

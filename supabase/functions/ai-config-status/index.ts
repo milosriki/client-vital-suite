@@ -7,6 +7,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkLangSmithStatus, getLangSmithConfig, isTracingEnabled } from "../_shared/langsmith-tracing.ts";
 import { getCacheStats, getTelemetry } from "../_shared/prompt-manager.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -385,6 +386,7 @@ function determineOverallStatus(status: ConfigStatus): "healthy" | "degraded" | 
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

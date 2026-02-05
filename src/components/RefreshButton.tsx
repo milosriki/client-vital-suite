@@ -37,7 +37,7 @@ export function RefreshButton({ onRefresh, lastUpdated, global = true }: Refresh
       // GLOBAL REFRESH: Invalidate ALL caches across the entire app
       if (global) {
         invalidateAll();
-        console.log('[RefreshButton] Global cache invalidation triggered');
+        
       } else {
         // Just dashboard if not global
         invalidateDashboard();

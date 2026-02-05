@@ -1,6 +1,7 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   checkCircuitBreaker,
   recordUpdateSource,
@@ -15,6 +16,7 @@ const corsHeaders = {
 const HUBSPOT_BASE_URL = 'https://api.hubapi.com';
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

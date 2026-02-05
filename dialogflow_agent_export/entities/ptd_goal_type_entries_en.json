@@ -1,0 +1,42 @@
+[
+  {
+    "value": "fat_loss",
+    "synonyms": [
+      "fat_loss",
+      "weight loss",
+      "lose weight",
+      "slim",
+      "cut",
+      "lose fat"
+    ]
+  },
+  {
+    "value": "muscle",
+    "synonyms": [
+      "muscle",
+      "build muscle",
+      "gain size",
+      "hypertrophy",
+      "get big"
+    ]
+  },
+  {
+    "value": "strength",
+    "synonyms": ["strength", "stronger", "performance", "strong"]
+  },
+  {
+    "value": "posture_pain",
+    "synonyms": [
+      "posture_pain",
+      "back pain",
+      "posture",
+      "injury",
+      "rehab",
+      "fix back"
+    ]
+  },
+  {
+    "value": "fitness_energy",
+    "synonyms": ["fitness_energy", "stamina", "energy", "feel fit", "health"]
+  }
+]

@@ -11,8 +11,10 @@ import {
   createSupabaseClient,
 } from "../_shared/error-handler.ts";
 import { HubSpotSyncManager, HUBSPOT_PROPERTIES } from "../_shared/hubspot-sync-manager.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   const FUNCTION_NAME = "fetch-hubspot-live";
 
   if (req.method === 'OPTIONS') {

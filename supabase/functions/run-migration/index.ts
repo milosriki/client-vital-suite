@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 serve(async (req) => {
 
   try {
+    verifyAuth(req); // Security Hardening
 
     const supabase = createClient(
 

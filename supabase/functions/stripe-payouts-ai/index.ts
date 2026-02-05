@@ -5,6 +5,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { unifiedAI, ChatMessage } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

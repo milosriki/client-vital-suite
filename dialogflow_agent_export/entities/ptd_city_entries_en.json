@@ -1,0 +1,10 @@
+[
+  {
+    "value": "dubai",
+    "synonyms": ["dubai", "dxb", "Dubai Marina", "JBR", "Downtown", "DIFC"]
+  },
+  {
+    "value": "abu_dhabi",
+    "synonyms": ["abu_dhabi", "abudhabi", "auh", "Yas", "Saadiyat"]
+  }
+]

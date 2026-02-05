@@ -14,6 +14,7 @@ import {
   corsHeaders,
 } from "../_shared/error-handler.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // Environment variable validation
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -232,6 +233,7 @@ Provide a brief, actionable insight for the coach.`;
 }
 
 serve(async (req: Request) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

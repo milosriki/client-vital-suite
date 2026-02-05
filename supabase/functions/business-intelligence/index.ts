@@ -8,6 +8,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
   ErrorCode,
@@ -19,6 +20,11 @@ import {
 
 // This Agent answers: "How is my business actually doing today?"
 serve(async (req) => {
+  try {
+    verifyAuth(req);
+  } catch (e) {
+    return new Response("Unauthorized", { status: 401 });
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -136,6 +142,19 @@ serve(async (req) => {
     const highErrors =
       recentErrors?.filter((e) => e.severity === "high").length || 0;
 
+    // E. Crisis Metrics (Task 11 Fix)
+    const { count: criticalPending } = await supabase
+      .from("intervention_log")
+      .select("*", { count: "exact", head: true })
+      .eq("priority", "CRITICAL")
+      .eq("status", "PENDING");
+
+    const { count: unassignedAtRisk } = await supabase
+      .from("client_health_scores")
+      .select("*", { count: "exact", head: true })
+      .in("health_zone", ["RED", "YELLOW"])
+      .is("assigned_coach", null);
+
     const stripeRevenueToday =
       stripeRevenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
     // HubSpot revenue removed to rely on Stripe as single source of truth
@@ -157,6 +176,10 @@ DATA CONTEXT:
 - Real-Time Revenue (Stripe): AED ${stripeRevenueToday.toLocaleString()} processed in last 24h.
 
 - System Health: ${criticalErrors} critical errors, ${highErrors} high-priority errors.
+
+CRITICAL OPERATIONAL ALERTS (REQUIRES IMMEDIATE ACTION):
+- ${criticalPending} PENDING CRITICAL INTERVENTIONS.
+- ${unassignedAtRisk} At-Risk Clients (Red/Yellow) have NO COACH assigned.
 
 RECENT SYSTEM ERRORS:
 ${JSON.stringify(recentErrors?.slice(0, 5) || [])}
@@ -232,6 +255,12 @@ OUTPUT FORMAT (JSON):
           criticalErrors + highErrors > 0
             ? "Resolve system errors"
             : "Review weekly goals",
+          (criticalPending || 0) > 0
+            ? "URGENT: Action critical interventions"
+            : null,
+          (unassignedAtRisk || 0) > 100
+            ? "URGENT: Assign coaches to at-risk clients"
+            : null,
         ].filter(Boolean),
       };
     }

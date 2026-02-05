@@ -7,7 +7,7 @@ const POSTHOG_HOST =
 export const Fishbird = {
   init: () => {
     if (import.meta.env.DEV && POSTHOG_KEY === "phc_placeholder_key") {
-      console.log("🦅 Fishbird (PostHog): Running in DEV/Mock mode");
+      
       return;
     }
 
@@ -24,7 +24,7 @@ export const Fishbird = {
 
   track: (eventName: string, properties?: Record<string, any>) => {
     if (import.meta.env.DEV) {
-      console.log(`🦅 Fishbird Track: ${eventName}`, properties);
+      
     }
     posthog.capture(eventName, properties);
   },

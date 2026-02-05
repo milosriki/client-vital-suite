@@ -298,7 +298,7 @@ export function useVitalState(): VitalStateReturn {
  * 
  * Usage:
  * useVitalSubscription('deals', (payload) => {
- *   console.log('Deal changed:', payload);
+ *   
  * });
  */
 export function useVitalSubscription(

@@ -1,6 +1,7 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // ============================================
 // ERROR RETRY ORCHESTRATOR AGENT
@@ -241,6 +242,7 @@ async function getRetryQueueStatus(): Promise<OrchestratorReport["retry_queue_st
 }
 
 serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

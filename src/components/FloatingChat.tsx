@@ -270,10 +270,7 @@ export const FloatingChat = () => {
           ? `${userMessage}\n\n[UPLOADED FILES]\n${files.map((f) => `- ${f.name}`).join("\n")}\n\n[FILE CONTENTS]\n${fileContents.map((f) => `=== ${f.name} ===\n${f.content.slice(0, 50000)}`).join("\n\n")}`
           : userMessage;
 
-      console.log(
-        "📤 Sending to agent via edge function:",
-        userMessage.slice(0, 50),
-      );
+      
 
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
@@ -287,7 +284,7 @@ export const FloatingChat = () => {
       });
 
       const json = await response.json().catch(() => ({}));
-      console.log("📥 Agent response:", { status: response.status, json });
+      
 
       if (!response.ok) {
         const errMsg = json?.error || json?.message || "Failed to get response";

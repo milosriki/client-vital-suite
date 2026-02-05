@@ -1,0 +1,9 @@
+{
+  "id": "e-ptd-training-preference",
+  "name": "ptd_training_preference",
+  "isOverridable": true,
+  "isEnum": false,
+  "isRegexp": false,
+  "automatedExpansion": false,
+  "allowFuzzyExtraction": true
+}

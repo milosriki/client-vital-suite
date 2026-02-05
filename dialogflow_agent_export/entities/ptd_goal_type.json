@@ -1,0 +1,9 @@
+{
+  "id": "e-ptd-goal-type",
+  "name": "ptd_goal_type",
+  "isOverridable": true,
+  "isEnum": false,
+  "isRegexp": false,
+  "automatedExpansion": false,
+  "allowFuzzyExtraction": true
+}

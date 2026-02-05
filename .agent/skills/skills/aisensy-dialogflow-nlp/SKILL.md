@@ -233,7 +233,8 @@ For detailed information, see:
 - **[references/dialogflow_contexts.md](references/dialogflow_contexts.md)** - Context management for multi-turn conversations
 - **[references/dialogflow_fulfillment.md](references/dialogflow_fulfillment.md)** - Webhook fulfillment, dynamic responses
 - **[references/sales_conversation_patterns.md](references/sales_conversation_patterns.md)** - Complete sales flow patterns with NLP
-- **[references/best_practices.md](references/best_practices.md)** - GCP Dialogflow ES best practices from official docs
+- **[references/best_practices.md](references/best_practices.md)** - 🌟 **NEW**: Official Dialogflow ES Best Practices & Intent Design Strategy
+- **[references/advanced_optimization_guide.md](references/advanced_optimization_guide.md)** - 🚀 **NEW**: Advanced Tuning, Hybrid Classification & Problem Solving
 
 ## Testing
 

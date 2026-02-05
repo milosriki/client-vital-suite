@@ -1,0 +1,78 @@
+[
+  {
+    "id": "uu-loc-1",
+    "data": [
+      {
+        "text": "i live in ",
+        "userDefined": false
+      },
+      {
+        "text": "dubai",
+        "alias": "city",
+        "meta": "@ptd_city",
+        "userDefined": true
+      },
+      {
+        "text": " in ",
+        "userDefined": false
+      },
+      {
+        "text": "marina",
+        "alias": "area_dubai",
+        "meta": "@ptd_area_dubai",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-loc-2",
+    "data": [
+      {
+        "text": "yas island",
+        "alias": "area_abudhabi",
+        "meta": "@ptd_area_abudhabi",
+        "userDefined": true
+      },
+      {
+        "text": " ",
+        "userDefined": false
+      },
+      {
+        "text": "abu dhabi",
+        "alias": "city",
+        "meta": "@ptd_city",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  },
+  {
+    "id": "uu-loc-3",
+    "data": [
+      {
+        "text": "home",
+        "alias": "preference",
+        "meta": "@ptd_training_preference",
+        "userDefined": true
+      },
+      {
+        "text": " training in ",
+        "userDefined": false
+      },
+      {
+        "text": "jbr",
+        "alias": "area_dubai",
+        "meta": "@ptd_area_dubai",
+        "userDefined": true
+      }
+    ],
+    "isTemplate": false,
+    "count": 0,
+    "updated": 0
+  }
+]

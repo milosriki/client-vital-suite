@@ -1,0 +1,87 @@
+{
+  "id": "ptd-location-capture-id",
+  "name": "ptd.location.capture",
+  "auto": true,
+  "contexts": ["ptd.location"],
+  "responses": [
+    {
+      "resetContexts": false,
+      "action": "ptd.location.capture",
+      "affectedContexts": [
+        {
+          "name": "ptd.session",
+          "lifespan": 50
+        },
+        {
+          "name": "ptd.qualification",
+          "lifespan": 5
+        }
+      ],
+      "parameters": [
+        {
+          "id": "param-city",
+          "required": true,
+          "dataType": "@ptd_city",
+          "name": "city",
+          "value": "$city",
+          "prompts": [
+            {
+              "lang": "en",
+              "value": "Perfect — are you based in Dubai or Abu Dhabi?"
+            }
+          ],
+          "isList": false
+        },
+        {
+          "id": "param-area-dubai",
+          "required": false,
+          "dataType": "@ptd_area_dubai",
+          "name": "area_dubai",
+          "value": "$area_dubai",
+          "prompts": [],
+          "isList": false
+        },
+        {
+          "id": "param-area-abudhabi",
+          "required": false,
+          "dataType": "@ptd_area_abudhabi",
+          "name": "area_abudhabi",
+          "value": "$area_abudhabi",
+          "prompts": [],
+          "isList": false
+        },
+        {
+          "id": "param-preference",
+          "required": true,
+          "dataType": "@ptd_training_preference",
+          "name": "preference",
+          "value": "$preference",
+          "prompts": [
+            {
+              "lang": "en",
+              "value": "Do you prefer home, gym, or outdoor sessions?"
+            }
+          ],
+          "isList": false
+        }
+      ],
+      "messages": [
+        {
+          "type": 0,
+          "lang": "en",
+          "speech": []
+        }
+      ],
+      "defaultResponsePlatforms": {},
+      "speech": []
+    }
+  ],
+  "priority": 500000,
+  "webhookUsed": true,
+  "webhookForSlotFilling": false,
+  "fallbackIntent": false,
+  "events": [],
+  "conditionalResponses": [],
+  "condition": "",
+  "conditionalFollowupEvents": []
+}

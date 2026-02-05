@@ -235,7 +235,7 @@ async function executeApprovedAction(
   action: string,
   params: Record<string, any>
 ): Promise<any> {
-  console.log(`⚡ Executing action: ${action}`, params);
+  
 
   let result: any;
 
@@ -353,7 +353,7 @@ export async function runMonitoringScan(): Promise<{
   metrics: any;
   timestamp: string;
 }> {
-  console.log('🔍 Running 24/7 monitoring scan...');
+  
 
   const alerts: any[] = [];
 
@@ -429,7 +429,7 @@ export async function runMonitoringScan(): Promise<{
     expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
   });
 
-  console.log(`✅ Monitoring complete: ${alerts.length} alerts`);
+  
   return { alerts, metrics, timestamp: new Date().toISOString() };
 }
 
@@ -460,7 +460,7 @@ export async function orchestrateSpecialists(
     ? specialists.filter(s => SPECIALIST_AGENTS[s]?.active)
     : Object.keys(SPECIALIST_AGENTS).filter(s => SPECIALIST_AGENTS[s].active);
 
-  console.log(`🎯 Orchestrating ${activeSpecialists.length} specialists`);
+  
 
   const results: Record<string, any> = {};
 

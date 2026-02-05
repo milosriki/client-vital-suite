@@ -9,6 +9,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // ============================================================================
 // BULLETPROOF SUPER-AGENT ORCHESTRATOR
@@ -1047,6 +1048,7 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
 // ============================================================================
 
 serve(async (req: Request) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

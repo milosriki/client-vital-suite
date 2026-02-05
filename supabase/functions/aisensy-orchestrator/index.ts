@@ -4,6 +4,15 @@ import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { contentFilter } from "../_shared/content-filter.ts";
+import { StageDetector, type SalesStage } from "../_shared/stage-detection.ts";
+import { AvatarLogic } from "../_shared/avatar-logic.ts";
+import { SentimentTriage } from "../_shared/sentiment.ts";
+import { AntiRobot } from "../_shared/anti-robot.ts";
+import { calculateSmartPause } from "../_shared/smart-pause.ts";
+import { SalesStrategy } from "../_shared/sales-strategy.ts";
+import { RepairEngine } from "../_shared/repair-engine.ts";
+import { DubaiContext } from "../_shared/avatar-logic.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const AISENSY_API_KEY = Deno.env.get("AISENSY_API_KEY")!;
 const AISENSY_WEBHOOK_SECRET = Deno.env.get("AISENSY_WEBHOOK_SECRET")!;
@@ -19,6 +28,7 @@ const hubspot = new HubSpotManager(
 );
 
 Deno.serve(async (req) => {
+    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
   const startTime = Date.now();
   console.log("🚀 [AISensy-Orchestrator] Received request");
 
@@ -49,11 +59,35 @@ Deno.serve(async (req) => {
     console.log(`🧠 Context retrieved in ${Date.now() - startTime}ms`);
 
     // 3. AI Intelligence (Persona Pillar)
-    const persona = buildDynamicPersona(hubspotContext, chatHistory);
+    const currentStage =
+      (hubspotContext?.properties?.whatsapp_stage as SalesStage) ||
+      "1_CONNECTION";
+    const stageResult = StageDetector.detect(currentStage, incomingText);
+
+    // [SKILL: SENTIMENT TRIAGE]
+    const sentiment = SentimentTriage.analyze(incomingText);
+    let personaPrompt = "";
+
+    if (sentiment === "RISK") {
+      console.log("⚠️ RISK DETECTED - Switching to De-escalation Mode");
+      personaPrompt = `
+      You are Mark, a helpful support agent.
+      The user seems upset. Your goal is to DE-ESCALATE.
+      Do NOT sell. Do NOT be pushy.
+      Simply apologize if needed, validate their feelings, and ask how you can help fix it.
+      Keep it short and human.
+      `;
+    } else {
+      personaPrompt = buildDynamicPersona(
+        hubspotContext,
+        chatHistory,
+        stageResult.promptGoal,
+      );
+    }
 
     const aiResponse = await unifiedAI.chat(
       [
-        { role: "system", content: persona },
+        { role: "system", content: personaPrompt },
         { role: "user", content: incomingText },
       ],
       {
@@ -61,11 +95,66 @@ Deno.serve(async (req) => {
       },
     );
 
-    const sanitized = contentFilter.sanitize(aiResponse.content);
-    const filteredResponse = contentFilter.toWhatsAppFormat(sanitized);
+    let finalRawResponse = aiResponse.content;
+
+    // [SKILL: SUPER INTELLIGENCE - LOOP REPAIR]
+    // Check if we are about to say the same thing as before
+    const lastAiResponse = chatHistory[0]?.response_text || "";
+
+    if (RepairEngine.detectLoop(lastAiResponse, finalRawResponse)) {
+      console.log(
+        "🔄 LOOP DETECTED. Engaging Repair Engine (Deep Reasoning)...",
+      );
+
+      const repairPrompt = RepairEngine.generateRepairPrompt(
+        incomingText,
+        chatHistory,
+      );
+
+      const repairResponse = await unifiedAI.chat(
+        [
+          { role: "system", content: repairPrompt },
+          { role: "user", content: incomingText },
+        ],
+        { temperature: 0.8 },
+      ); // Higher temp for creative solution
+
+      finalRawResponse = repairResponse.content;
+      console.log("✅ Repair Complete. New Response:", finalRawResponse);
+    }
+
+    const sanitized = contentFilter.sanitize(finalRawResponse);
+
+    // [SAFETY] Regex Guard: Block leaked internal templates
+    if (
+      sanitized.includes("TEMPLATE 1:") ||
+      sanitized.includes("Templates for reaching out") ||
+      sanitized.length > 500
+    ) {
+      console.error("🚨 BLOCKED LEAKED RESPONSE:", sanitized);
+      const fallback =
+        "That sounds like a great goal! I'd love to help you build a plan for that. Quick question - have you tried personal training before, or would this be your first time?";
+      return new Response(
+        JSON.stringify({
+          action: "reply",
+          text: fallback,
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    let finalResponse = contentFilter.toWhatsAppFormat(sanitized);
+
+    // [SKILL: ANTI-ROBOT SYNTAX]
+    finalResponse = AntiRobot.humanize(finalResponse, "PROFESSIONAL");
+
+    // [SKILL: SMART PAUSE]
+    const delay = calculateSmartPause(incomingText + finalResponse);
+    console.log(`⏳ Smart Pause: Waiting ${delay}ms to simulate typing...`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
     // 4. Immediate Delivery (Efficiency Pillar)
-    const deliveryPromise = sendToAISensy(phone, filteredResponse);
+    const deliveryPromise = sendToAISensy(phone, finalResponse);
 
     // 5. Background Sync (Reliability Pillar)
     // We don't wait for this to finish to return the response to the webhook
@@ -73,15 +162,16 @@ Deno.serve(async (req) => {
     EdgeRuntime.waitUntil(
       (async () => {
         try {
-          await Promise.all([
+          await Promise.allSettled([
             deliveryPromise,
             syncToHubSpot(
               phone,
               incomingText,
-              filteredResponse,
+              finalResponse,
               hubspotContext,
+              stageResult.hasChanged ? stageResult.stage : undefined,
             ),
-            logInteraction(phone, incomingText, filteredResponse),
+            logInteraction(phone, incomingText, finalResponse),
           ]);
           console.log(
             `✅ [AISensy-Orchestrator] Full cycle complete in ${Date.now() - startTime}ms`,
@@ -164,7 +254,11 @@ async function getChatHistory(phone: string) {
   return data || [];
 }
 
-function buildDynamicPersona(hubspotData: any, history: any[]) {
+function buildDynamicPersona(
+  hubspotData: any,
+  history: any[],
+  currentGoal: string,
+) {
   const contactName = hubspotData?.properties?.firstname || "Friend";
   const stage = hubspotData?.properties?.whatsapp_stage || "Discovery";
 
@@ -177,16 +271,34 @@ function buildDynamicPersona(hubspotData: any, history: any[]) {
         .join("\n");
   }
 
+  const avatarType = AvatarLogic.identify(hubspotData);
+  const avatarInstruction = AvatarLogic.getInstruction(avatarType);
+  const locationContext = DubaiContext.getContext(
+    hubspotData?.properties?.city,
+  );
+  const salesStrategy = SalesStrategy.getStrategy(stage, hubspotData);
+
   return `
 ${WHATSAPP_SALES_PERSONA}
 
+=== DYNAMIC SALES INTELLIGENCE ===
+${avatarInstruction}
+${locationContext}
+
+=== ELITE SALES STRATEGY (NEPQ) ===
+${salesStrategy}
+
 Current Lead Context:
 - Name: ${contactName}
+- AVATAR SEGMENT: ${avatarType}
+- LOCATION INFO: ${locationContext.trim().split("\n")[1] || "General Dubai"}
 - Current Stage: ${stage}
 - Goal: ${hubspotData?.properties?.fitness_goal || "Unknown"}
 ${historySummary}
 
-IMPORTANT: You are talking to ${contactName}. Be helpful, concise, and drive towards the assessment.
+IMPORTANT: You are talking to ${contactName}.
+CURRENT GOAL: ${currentGoal} (This is your ONLY focus).
+Drive towards the assessment using the STRATEGY above. Be casual and concise.
 `;
 }
 
@@ -217,6 +329,7 @@ async function syncToHubSpot(
   incoming: string,
   outgoing: string,
   context: any,
+  newStage?: string,
 ) {
   try {
     let contactId = context?.id;
@@ -280,6 +393,26 @@ async function syncToHubSpot(
         ],
       }),
     });
+
+    // 3. Update Stage if changed
+    if (newStage) {
+      await fetch(
+        `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            properties: {
+              whatsapp_stage: newStage,
+            },
+          }),
+        },
+      );
+      console.log(`🚀 [Sync] Updated Stage to ${newStage}`);
+    }
 
     console.log(`✅ [Sync] HubSpot updated for ${phone}`);
   } catch (e) {

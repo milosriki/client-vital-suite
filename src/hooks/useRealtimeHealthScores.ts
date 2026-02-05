@@ -106,7 +106,7 @@ export function useRealtimeHealthScores() {
           table: 'client_health_scores'
         },
         (payload) => {
-          console.log('Health scores changed:', payload.eventType, payload.new);
+          
           
           // Use selective cache update instead of full invalidation
           updateClientInCache({
@@ -127,7 +127,7 @@ export function useRealtimeHealthScores() {
           table: 'intervention_log'
         },
         (payload) => {
-          console.log('Interventions changed:', payload.eventType);
+          
           // Debounced invalidation for interventions
           debouncedInvalidate(QUERY_KEYS.interventions.all, 'interventions');
         }
@@ -140,7 +140,7 @@ export function useRealtimeHealthScores() {
           table: 'coach_performance'
         },
         (payload) => {
-          console.log('Coach performance changed:', payload.eventType);
+          
           // Debounced invalidation for coaches
           debouncedInvalidate(QUERY_KEYS.coaches.all, 'coaches');
         }
@@ -153,7 +153,7 @@ export function useRealtimeHealthScores() {
           table: 'weekly_patterns'
         },
         (payload) => {
-          console.log('Weekly patterns changed:', payload.eventType);
+          
           // Debounced invalidation for patterns
           debouncedInvalidate(QUERY_KEYS.patterns.weekly, 'patterns');
         }
@@ -161,7 +161,7 @@ export function useRealtimeHealthScores() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           isSubscribed = true;
-          console.log('[RealtimeHealthScores] Subscription connected');
+          
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           isSubscribed = false;
           console.warn('[RealtimeHealthScores] Subscription disconnected:', status);

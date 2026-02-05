@@ -1,0 +1,34 @@
+{
+  "stages": {
+    "1_CONNECTION": {
+      "description": "Initial contact and rapport building",
+      "goal": "Get response and identify primary interest (Weight Loss vs Muscle)",
+      "next_stage": "2_SITUATION",
+      "triggers": ["lose weight", "muscle", "strength", "shredded", "tone"]
+    },
+    "2_SITUATION": {
+      "description": "Understanding their current routine and failures",
+      "goal": "Find out what they are currently doing",
+      "next_stage": "3_PROBLEM",
+      "triggers": ["gym", "home workouts", "nothing", "diet", "tried before"]
+    },
+    "3_PROBLEM": {
+      "description": "Identifying the pain and obstacles",
+      "goal": "Get them to admit why previous attempts failed",
+      "next_stage": "4_SOLUTION",
+      "triggers": ["inconsistent", "don't know how", "lazy", "food", "time"]
+    },
+    "4_SOLUTION": {
+      "description": "Visualizing the future success",
+      "goal": "Get them to state their 90-day goal clearly",
+      "next_stage": "5_CLOSING",
+      "triggers": ["10kg", "pack", "feel better", "confident", "bikini"]
+    },
+    "5_CLOSING": {
+      "description": "Presenting the offer and booking",
+      "goal": "Book a specific time slot",
+      "next_stage": "6_BOOKED",
+      "triggers": ["tuesday", "thursday", "book", "yes", "deal"]
+    }
+  }
+}

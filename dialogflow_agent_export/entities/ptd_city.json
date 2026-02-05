@@ -1,0 +1,9 @@
+{
+  "id": "e-ptd-city",
+  "name": "ptd_city",
+  "isOverridable": true,
+  "isEnum": false,
+  "isRegexp": false,
+  "automatedExpansion": false,
+  "allowFuzzyExtraction": true
+}

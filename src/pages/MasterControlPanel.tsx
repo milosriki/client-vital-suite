@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ALL_EDGE_FUNCTIONS, EdgeFunction } from "@/config/edgeFunctions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function MasterControlPanel() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [running, setRunning] = useState<string | null>(null);
   const [logs, setLogs] = useState<
@@ -129,17 +131,18 @@ export default function MasterControlPanel() {
                       </p>
                     </div>
                     <Button
-            variant="outline"
-            className="w-full justify-start text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
-            onClick={() => navigate("/attribution")}
-          >
-           🦅 Fishbird Analytics (Truth Layer)
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
-            onClick={() => navigate("/admin/edge-functions")}
-          >            className={running === func.name ? "animate-pulse" : ""}
+                      variant="outline"
+                      className="w-full justify-start text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+                      onClick={() => navigate("/attribution")}
+                    >
+                      🦅 Fishbird Analytics (Truth Layer)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className={`w-full justify-start text-blue-400 border-blue-500/30 hover:bg-blue-500/10 ${
+                        running === func.name ? "animate-pulse" : ""
+                      }`}
+                      onClick={() => runFunction(func)}
                     >
                       {running === func.name ? (
                         "Running..."
