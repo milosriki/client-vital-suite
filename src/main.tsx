@@ -55,6 +55,7 @@ import MasterControlPanel from "./pages/MasterControlPanel";
 import AttributionWarRoom from "./pages/AttributionWarRoom";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import Login from "./pages/Login"; // Import Login Page
+import { ProtectedRoute } from "@/components/ProtectedRoute"; // Auth Guard
 import ReconciliationDashboard from "./pages/ReconciliationDashboard";
 import "./index.css";
 
@@ -79,16 +80,17 @@ startBackgroundLearning();
 if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as any).testAllFunctions = testAllFunctions;
   (window as any).verifyConnections = verifyAllConnections;
-  
-  
-  
 }
 
 const router = createBrowserRouter([
   // Login Route (Outside Layout for full screen)
   { path: "/login", element: <Login /> },
   {
-    element: <Layout />,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <ExecutiveDashboard /> },

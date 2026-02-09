@@ -10,6 +10,16 @@ import { getBusinessDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Play,
   Search,
   Terminal,
@@ -22,6 +32,7 @@ export default function MasterControlPanel() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [running, setRunning] = useState<string | null>(null);
+  const [confirmFunc, setConfirmFunc] = useState<EdgeFunction | null>(null);
   const [logs, setLogs] = useState<
     { func: string; output: string; status: "success" | "error" }[]
   >([]);
@@ -73,6 +84,7 @@ export default function MasterControlPanel() {
       });
     } finally {
       setRunning(null);
+      setConfirmFunc(null);
     }
   };
 
@@ -142,7 +154,7 @@ export default function MasterControlPanel() {
                       className={`w-full justify-start text-blue-400 border-blue-500/30 hover:bg-blue-500/10 ${
                         running === func.name ? "animate-pulse" : ""
                       }`}
-                      onClick={() => runFunction(func)}
+                      onClick={() => setConfirmFunc(func)}
                     >
                       {running === func.name ? (
                         "Running..."
@@ -204,6 +216,35 @@ export default function MasterControlPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog
+        open={!!confirmFunc}
+        onOpenChange={(open) => !open && setConfirmFunc(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm Execution
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to run{" "}
+              <strong className="font-mono">{confirmFunc?.name}</strong>. This
+              action may modify data. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmFunc && runFunction(confirmFunc)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Run Function
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
