@@ -4,6 +4,7 @@ import {
   getCorrelationId,
 } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { UNIFIED_LISA_PROMPT } from "../_shared/unified-lisa-prompt.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -17,12 +18,16 @@ import {
   ToolDefinition,
   ChatMessage,
 } from "../_shared/unified-ai-client.ts";
+import { HubSpotManager } from "../_shared/hubspot-manager.ts";
+import { LearningLayer } from "../_shared/learning-layer.ts";
+import { LocationService } from "../_shared/location-service.ts";
+import { notifyMilos } from "../_shared/notification-service.ts";
 import {
-  handleError,
   logError,
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -406,35 +411,27 @@ async function searchKnowledgeDocuments(
   query: string,
 ): Promise<string> {
   try {
-    const { data: docs } = await supabase
-      .from("knowledge_documents")
-      .select("filename, content, metadata")
-      .order("created_at", { ascending: false })
-      .limit(20);
+    // 1. Generate Embedding
+    const embedding = await unifiedAI.embed(query);
+    if (!embedding || embedding.length === 0) return "";
+
+    // 2. Call Vector Search RPC
+    const { data: docs } = await supabase.rpc("match_knowledge_documents", {
+      query_embedding: embedding,
+      match_threshold: 0.7, // 70% similarity
+      match_count: 5,
+    });
 
     if (!docs || docs.length === 0) return "";
 
-    const queryLower = query.toLowerCase();
-    const keywords = queryLower
-      .split(/\s+/)
-      .filter((w: string) => w.length > 3);
-
-    const relevantDocs = docs
-      .filter((doc: any) => {
-        const content = doc.content.toLowerCase();
-        return keywords.some((kw: string) => content.includes(kw));
-      })
-      .slice(0, 3);
-
-    if (relevantDocs.length === 0) return "";
-
-    return relevantDocs
+    return docs
       .map(
-        (doc: any) => `📄 FROM ${doc.filename}:\n${doc.content.slice(0, 2000)}`,
+        (doc: any) => `📄 [RELEVANCE: ${Math.round(doc.similarity * 100)}%] ${doc.content.slice(0, 2000)}`,
       )
       .join("\n\n---\n\n");
   } catch (e) {
-    console.log("Document search skipped:", e);
+    console.log("Vector search skipped:", e);
+    // Fallback? Or just return empty. For now, empty to avoid noise.
     return "";
   }
 }
@@ -793,20 +790,46 @@ const tools: ToolDefinition[] = [
   },
   {
     name: "intelligence_control",
-    description:
-      "Run AI intelligence functions - churn predictor, anomaly detector, etc.",
+    description: "Business Intelligence Engine: Analyze retention, conversion, churn, and revenue patterns.",
     input_schema: {
       type: "object",
       properties: {
-        functions: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Functions to run: churn-predictor, anomaly-detector, intervention-recommender, coach-analyzer, business-intelligence",
-        },
+        action: {
+          type: "string",
+          enum: ["coach_retention", "goal_conversion", "churn", "anomaly", "revenue", "payouts"],
+          description: "Analysis to run. 'coach_retention' finds best coaches. 'goal_conversion' finds best niches."
+        }
       },
-    },
+      required: ["action"]
+    }
   },
+  {
+    name: "location_control",
+    description: "Google Maps Services: Validate UAE addresses and check distance/time between locations.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["validate", "check_distance"] },
+        address: { type: "string", description: "Address to check or Origin" },
+        destination: { type: "string", description: "Destination address (for check_distance)" }
+      },
+      required: ["action", "address"]
+    }
+  },
+  {
+    name: "evolution_control",
+    description: "Evolutionary Feedback: The agent uses this to self-correct when a human provides critical feedback.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["record_feedback"] },
+        feedback: { type: "string", description: "The specific rule/correction to learn" },
+        category: { type: "string", description: "Category: 'tone', 'policy', 'knowledge'" }
+      },
+      required: ["action", "feedback", "category"]
+    }
+  },
+
   {
     name: "test_api_connections",
     description:
@@ -1177,7 +1200,148 @@ import {
   formatForWhatsApp,
 } from "../_shared/content-filter.ts";
 
-// ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
+async function getClientProfile(supabase: any, contactId?: string): Promise<string> {
+  if (!contactId) return "No profile data available.";
+  
+  try {
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("hubspot_contact_id", contactId)
+      .single();
+      
+    if (!contact) return "Contact not found in local records.";
+
+    return `
+### CLIENT PROFILE (Verified Records)
+Name: ${contact.first_name || ""} ${contact.last_name || ""}
+Location: ${contact.location || contact.city || "Dubai"}
+Owner: ${contact.owner_name || "Unassigned"}
+Status: ${contact.lifecycle_stage || "Lead"}
+Lead Status: ${contact.lead_status || "New"}
+Last Activity: ${contact.last_activity_date || "None"}
+Created At: ${contact.created_at}
+    `.trim();
+  } catch (e) {
+    console.error("Error fetching client profile:", e);
+    return "Error loading profile data.";
+  }
+}
+
+// ============= HUBSPOT INTERACTION SYNC =============
+// ============= HUBSPOT INTERACTION SYNC =============
+async function syncInteractionToHubSpot(
+  supabase: any,
+  query: string,
+  response: string,
+  context: any,
+) {
+  try {
+    const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY");
+    if (!HUBSPOT_API_KEY) return;
+
+    const hubspot = new HubSpotManager(
+      HUBSPOT_API_KEY,
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const contactId = context?.contactId;
+    const phone = context?.phone;
+    const email = context?.email;
+    const intent = context?.intent;
+
+    let targetContactId = contactId;
+
+    // 1. Find or Create Contact
+    if (!targetContactId) {
+      if (phone) {
+        const contact = await hubspot.searchContactByPhone(phone);
+        if (contact) {
+          targetContactId = contact.id;
+        } 
+      }
+      
+      if (!targetContactId && email) {
+        const contact = await hubspot.searchContactByEmail(email);
+        if (contact) targetContactId = contact.id;
+      }
+
+      if (!targetContactId && (phone || email)) {
+        // Create new contact
+        const newContact = await hubspot.createContact({
+          phone: phone || "",
+          email: email || "",
+          firstname: context?.name || "New",
+          lastname: "Lead (WhatsApp)",
+          hs_lead_status: "NEW",
+        });
+        targetContactId = newContact.id;
+      }
+    }
+
+    // 2. Update Contact & Log Note
+    if (targetContactId) {
+      const isPartnership = intent === \"PARTNERSHIP_QUERY\" || /partner|collaborat|business deal/i.test(query);
+      const isBooking = intent === \"BOOKING_CONFIRMED\" || context?.current_phase === \"close\" || /assessment|book|slot/i.test(query);
+      
+      // Detect and Validate Location (Dubai/Abu Dhabi)
+      let detectedLocation = \"\";
+      const locationMatch = query.match(/in (Marina|Downtown|JVC|Palm|Business Bay|JLT|DIFC|Al Barsha|Umm Suqeim|Khalifa City|Saadiyat)/i);
+      if (locationMatch) {
+        const locService = new LocationService();
+        const locData = await locService.validateAddress(`${locationMatch[1]}, Dubai`);
+        if (locData.valid) detectedLocation = locData.formatted_address;
+      }
+
+      const updateProps: any = {
+        last_ai_interaction: new Date().toISOString(),
+        whatsapp_intent: intent || \"CHAT\",
+        whatsapp_summary: `User is interested in ${context?.goal || \"fitness\"}. Main hurdle: ${context?.dominant_pain || \"none\"}.`,
+      };
+
+      if (detectedLocation) updateProps.city = detectedLocation;
+
+      // Extract details for HubSpot
+      if (context?.goal) updateProps.fitness_goal = context.goal;
+      if (context?.dominant_pain) updateProps.dominant_pain = context.dominant_pain;
+
+      if (isPartnership) {
+        updateProps.partnership_interest = \"true\";
+        const taskBody = `Lead expressed partnership interest.\\nMessage: \"${query}\"\\nGoal: ${context?.goal || \"N/A\"}`;
+        await hubspot.createHubSpotTask(targetContactId, \"🤝 Partnership Inquiry\", taskBody, \"HIGH\");
+        await notifyMilos(\"🤝 Partnership Inquiry\", `Lead is asking about partnership: \"${query}\"`, { contactId: targetContactId, phone: phone });
+      }
+
+      if (isBooking) {
+        const taskBody = `Lead requested assessment slot.\\nMessage: \"${query}\"\\nGoal: ${context?.goal || \"N/A\"}\\nPain: ${context?.dominant_pain || \"N/A\"}`;
+        await hubspot.createHubSpotTask(targetContactId, \"📅 Assessment Pending Confirmation\", taskBody, \"HIGH\");
+        await notifyMilos(\"📅 Assessment Booked\", `Lead wants to book. Context: \"${query}\"`, { contactId: targetContactId, phone: phone });
+      }
+
+      await hubspot.updateContact(targetContactId, updateProps);
+      
+      // Log the conversation as a note
+      const noteContent = `
+--- AI CONVERSATION LOG ---
+User: ${query}
+AI: ${response}
+Intent: ${intent || \"Unknown\"}
+Goal: ${context?.goal || \"N/A\"}
+Pain: ${context?.dominant_pain || \"N/A\"}
+Partnership: ${isPartnership ? \"YES\" : \"No\"}
+Booking Signal: ${isBooking ? \"YES\" : \"No\"}
+--------------------------
+      `.trim();
+      
+      await hubspot.createNote(targetContactId, noteContent);
+      console.log(`✅ HubSpot actionable sync complete for contact ${targetContactId}`);
+    }
+  } catch (e) {
+    console.error("HubSpot sync error:", e);
+  }
+}
+
 // ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 async function runAgent(
   supabase: any,
@@ -1190,7 +1354,7 @@ async function runAgent(
   const isWhatsApp =
     context?.source === "whatsapp" || context?.platform === "whatsapp";
 
-  // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE
+  // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE + CLIENT PROFILE
   const [
     relevantMemory,
     ragKnowledge,
@@ -1198,6 +1362,8 @@ async function runAgent(
     learnedPatterns,
     dynamicKnowledge,
     relevantSkill,
+    clientProfile,
+    activeLearnings,
   ] = await Promise.all([
     searchMemory(supabase, userMessage, threadId).then((res) =>
       res.slice(0, 50000),
@@ -1211,26 +1377,58 @@ async function runAgent(
     getLearnedPatterns(supabase).then((res) => res.slice(0, 10000)),
     loadDynamicKnowledge(supabase).then((res) => res.slice(0, 50000)),
     // Only load skills for non-WhatsApp conversations
-    isWhatsApp ? Promise.resolve("") : loadActiveSkill(supabase, userMessage),
+    isWhatsApp ? loadActiveSkill(supabase, userMessage) : Promise.resolve(""),
+    isWhatsApp ? getClientProfile(supabase, context?.contactId) : Promise.resolve(""),
+    new LearningLayer(supabase).getActiveLearnings(),
   ]);
+
+
+  // Calculate conversation age for re-entry logic
+  let convStaleness = "Fresh (just started)";
+  if (chatHistory && chatHistory.length > 0) {
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    const lastTime = new Date(lastMsg.timestamp || lastMsg.created_at || Date.now());
+    const diffHours = (Date.now() - lastTime.getTime()) / (1000 * 60 * 60);
+    
+    if (diffHours > 72) convStaleness = `Very Stale (${Math.round(diffHours/24)} days since last chat)`;
+    else if (diffHours > 24) convStaleness = "Stale (1-2 days)";
+    else if (diffHours > 4) convStaleness = "Few hours gap";
+    else convStaleness = "Active conversation";
+  }
 
   // Build system prompt - use WhatsApp sales prompt for WhatsApp conversations
   const systemPrompt = isWhatsApp
     ? `
 ${WHATSAPP_SALES_PERSONA}
 
+## 📍 SESSION CONTEXT
+- **CONVERSATION STATE**: ${convStaleness}
+- **CONTACT**: HubSpot ID ${context?.contactId || "unknown"}
+- **LAST OWNER**: ${context?.owner_name || "Mark"}
+
+## 🛡️ COACHING PROTOCOL (CRITICAL)
+- **GENUINE HELP**: Your primary goal is to help the person find the right solution for their body and goals.
+- **PERSONALIZED CARE**: Use a detail from the profile below to show you are listening and care about their specific situation.
+- **WARMTH**: Be professional but warm. Use phrases like \"I'd love to help with that\" or \"That makes sense.\"
+- **CONCISENESS**: Keep messages brief (under 30 words) so they are easy to read on the move.
+
+## 👤 CLIENT PROFILE
+${clientProfile}
+
 ## 📚 CONTEXTUAL KNOWLEDGE
 ${ragKnowledge}
 ${knowledgeBase}
 ${relevantMemory}
-${dynamicKnowledge}
+${activeLearnings}
 
-REMEMBER: You are Mark from PTD. Keep responses concise and sales-focused.
+REMEMBER: You are Mark. A supportive Transformation Coach. Your focus is 100% on the person and their needs.
 `
     : `
 # PTD SUPER-INTELLIGENCE CEO (UNIFIED MODE)
 
 MISSION: Absolute truth and aggressive sales conversion.
+
+${activeLearnings}
 
 
 ## 💰 FINANCIAL TRUTH PROTOCOL (STRICT)
@@ -1261,7 +1459,9 @@ ${relevantMemory}
 ${dynamicKnowledge}
 ${learnedPatterns}
 ${relevantSkill}
+${activeLearnings}
 `;
+
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -1361,6 +1561,11 @@ ${relevantSkill}
 
   // Save to persistent memory
   await saveToMemory(supabase, threadId, userMessage, finalResponse);
+
+  // Sync interaction to HubSpot (Background)
+  (globalThis as any).EdgeRuntime?.waitUntil(
+    syncInteractionToHubSpot(supabase, userMessage, finalResponse, context)
+  );
 
   return finalResponse;
 }
