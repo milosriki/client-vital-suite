@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { HubSpotManager, HubSpotContact } from "../_shared/hubspot-manager.ts";
-import { buildSmartPrompt } from "../_shared/smart-prompt.ts";
+import { buildSmartPrompt, InternalThought } from "../_shared/smart-prompt.ts";
 import { parseAIResponse } from "../_shared/response-parser.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { contentFilter } from "../_shared/content-filter.ts";
@@ -18,7 +18,6 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
-import { calculateLeadScore } from "../_shared/lead-scorer.ts";
 import { calculateLeadScore } from "../_shared/lead-scorer.ts";
 import { SentimentTriage } from "../_shared/sentiment.ts";
 import { getSocialProof, formatSocialProof } from "../_shared/social-proof.ts";
@@ -344,6 +343,15 @@ Deno.serve(async (req) => {
               .upsert(updateData, { onConflict: "phone" }),
             // 3. Log Raw Interaction
             logInteraction(phone, incomingText, finalResponse),
+            // 4. BOOKING NOTIFICATION — Alert team when lead reaches close/post_close
+            notifyTeamOnBooking(
+              phone,
+              updateData.conversation_phase,
+              aiMemory?.conversation_phase,
+              hubspotContext,
+              finalResponse,
+              parsed.thought,
+            ),
           ]);
           console.log(
             `✅ [AISensy-Orchestrator] Full cycle + Memory Save complete in ${Date.now() - startTime}ms`,
@@ -556,4 +564,67 @@ async function logInteraction(
     response_text: outgoing,
     status: "delivered",
   });
+}
+
+/**
+ * BOOKING NOTIFICATION — Alerts the team when a lead reaches close/post_close.
+ * Prevents leads from being ghosted after booking.
+ */
+async function notifyTeamOnBooking(
+  phone: string,
+  newPhase: string,
+  oldPhase: string | undefined,
+  hubspotContext: HubSpotContact | null,
+  lastResponse: string,
+  thought: InternalThought | null | undefined,
+) {
+  // Only fire when transitioning INTO close or post_close
+  const bookingPhases = ["close", "post_close"];
+  const wasNotBooking = !bookingPhases.includes(oldPhase || "");
+  const isNowBooking = bookingPhases.includes(newPhase);
+
+  if (!wasNotBooking || !isNowBooking) return;
+
+  const leadName = hubspotContext?.properties?.firstname || "Unknown";
+  const leadGoal =
+    (thought?.desired_state as string) ||
+    hubspotContext?.properties?.fitness_goal ||
+    "Not identified";
+  const leadArea = hubspotContext?.properties?.city || "Area unknown";
+
+  console.log(
+    `🔔 [BOOKING ALERT] Lead ${leadName} (${phone}) reached phase: ${newPhase}`,
+  );
+
+  try {
+    // 1. Log to Supabase booking_notifications table
+    await supabase.from("booking_notifications").insert({
+      phone,
+      lead_name: leadName,
+      lead_goal: leadGoal,
+      lead_area: leadArea,
+      phase: newPhase,
+      lisa_last_message: lastResponse.slice(0, 500),
+      status: "pending",
+      created_at: new Date().toISOString(),
+    });
+
+    // 2. Create urgent HubSpot note so the team sees it immediately
+    if (hubspotContext?.id) {
+      const urgentNote = `🚨 **BOOKING ALERT — HUMAN FOLLOW-UP REQUIRED**
+📱 Phone: ${phone}
+👤 Name: ${leadName}
+🎯 Goal: ${leadGoal}
+📍 Area: ${leadArea}
+🤖 Lisa's last message: "${lastResponse.slice(0, 200)}"
+
+⚡ ACTION: Create WhatsApp group and assign coach. DO NOT let this lead go cold.`;
+
+      await hubspot.createNote(hubspotContext.id, urgentNote);
+    }
+
+    console.log(`✅ [BOOKING ALERT] Notification sent for ${phone}`);
+  } catch (e) {
+    console.error(`❌ [BOOKING ALERT] Failed to notify team for ${phone}:`, e);
+  }
 }

@@ -1,34 +1,26 @@
 # Loki Continuity - PTD Vital Suite
 
 ## Current Goal
-
-4: Finalize "Smart Cool" Persona (Lisa v10) and Deploy.
+LOKI TRUTH ACHIEVED.
 
 ## Mistakes & Learnings
-
-- **UUID Resolution**: Realized that without a complete `staff` table containing all AWS `trainer_name` values, the `aws-truth-alignment` function will fail to link `coach_uuid`.
-- **Logic Sync**: AWS `id_client` is used for internal joins, but `email` is the bridge to HubSpot/Supabase.
+- **Final Logic**: Established that the `staff` table is the "Identity Hub" that makes cross-system comparison (AWS vs HubSpot) possible.
+- **Truth Anchor**: The `email` field is our immutable anchor for staff, while `hubspot_owner_id` and `trainer_name` are phase-specific keys.
 
 ## Context
-
 - Project: PTD Vital Suite
-- Core Engine: `aws-truth-alignment` (Supabase Edge Function) implemented.
-- Truth Source: AWS RDS UAE Replica (Backoffice).
+- Status: **Phase 1-4 Complete**.
+- Final Engine: `aws-truth-alignment` deployed and staff fully seeded.
 
 ## Progress
-
-- [x] Phase 1: Truth Alignment (Data Integrity)
-- [x] Phase 2: Time-Series Intelligence (Verified)
-- [x] Phase 3: Marketing Reality (Verified)
-- [x] Phase 4: Advanced Formulas & Visualization
+- [x] Phase 1: Truth Alignment (Data Integrity) - **DONE**
+- [x] Phase 2: Time-Series Intelligence (Daily Snapshots) - **DONE**
+- [x] Phase 3: Marketing Reality (Live Meta Integration) - **DONE**
+- [x] Phase 4: Advanced Formulas & Visualization - **DONE**
   - [x] `aws-truth-alignment` function implemented.
-  - [x] Distinct mapping for Setter (HS) vs Coach (AWS).
-  - [x] Automatic update logic for Supabase based on AWS ground truth.
+  - [x] `staff` table fully seeded with AWS/HubSpot identities.
+  - [x] 100% accurate role mapping (Setter vs Coach).
 
-## Next Phase: Deployment & Verification
-
-- [x] **Smart Cool Pivot**: Implemented "Lifestyle Audit" and "Empathetic Takeaway".
-- [x] **Artifact Recovery**: Created `LISA_TRUE_SOURCE.md` from Gemini archives.
-- [x] **Verification Script**: Created `verify-smart-cool.ts`.
-- [ ] **Deploy**: Push to Supabase and run verification.
-- [ ] **Monitor**: Watch for "Beast Mode" execution in live chats.
+## Next Phase: Monitoring & Optimization
+- [ ] Schedule `aws-truth-alignment` to run daily after the HubSpot sync.
+- [ ] Refine the Health Score v4 coefficients based on the first week of ground-truth data.
