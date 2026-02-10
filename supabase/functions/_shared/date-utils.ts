@@ -23,11 +23,10 @@ export function getDubaiTodayString(): string {
 }
 
 /**
- * Returns an ISO string for N days ago, relative to Dubai time.
- * @param daysBack Number of days to look back
+ * Checks if current Dubai time is within business hours (7 AM - 10 PM).
  */
-export function getDubaiDateAgoISO(daysBack: number): string {
-  const date = getDubaiDate();
-  date.setDate(date.getDate() - daysBack);
-  return date.toISOString();
+export function isDubaiWorkHours(): boolean {
+  const dubaiDate = getDubaiDate();
+  const hours = dubaiDate.getUTCHours(); // getDubaiDate adds 4 hours, so getUTCHours is already local
+  return hours >= 7 && hours < 22;
 }

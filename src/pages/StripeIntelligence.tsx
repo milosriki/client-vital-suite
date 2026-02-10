@@ -39,6 +39,7 @@ import { useStripeMetrics } from "@/components/stripe-intelligence/hooks/useStri
 import { StripeMetricsCards } from "@/components/stripe-intelligence/StripeMetricsCards";
 import { StripeCharts } from "@/components/stripe-intelligence/StripeCharts";
 import { StripeTabs } from "@/components/stripe-intelligence/StripeTabs";
+import { StripeIntelligenceGhost } from "@/components/stripe-intelligence/StripeIntelligenceGhost";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -267,6 +268,10 @@ export default function StripeIntelligence() {
       color: "hsl(var(--destructive))",
     },
   ].filter((item) => item.value > 0);
+
+  if (isLoading) {
+    return <StripeIntelligenceGhost />;
+  }
 
   return (
     <div className="space-y-6 p-6">

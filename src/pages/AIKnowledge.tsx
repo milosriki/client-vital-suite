@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Brain, BookOpen, Search, TrendingUp, ArrowLeft } from "lucide-react";
+import {
+  Brain,
+  BookOpen,
+  Search,
+  TrendingUp,
+  ArrowLeft,
+  Database,
+  Sparkles,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
@@ -72,200 +86,216 @@ export default function AIKnowledge() {
     searchTerm
       ? entry.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.source?.toLowerCase().includes(searchTerm.toLowerCase())
-      : true
+      : true,
   );
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      intervention: "bg-purple-500",
-      pattern: "bg-blue-500",
-      client_insight: "bg-green-500",
-      coach_tip: "bg-amber-500",
-      health_scoring: "bg-red-500",
-      business: "bg-indigo-500",
+      intervention: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      pattern: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      client_insight:
+        "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      coach_tip: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      health_scoring: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+      business: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
     };
-    return colors[category] || "bg-gray-500";
+    return (
+      colors[category] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
+    );
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/dashboard")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Brain className="h-8 w-8 text-purple-500" />
-              AI Knowledge Base
-            </h1>
-            <p className="text-muted-foreground">
-              Browse and search AI-learned insights
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/ai-learning")}
-        >
-          <TrendingUp className="h-4 w-4 mr-2" />
-          View AI Learning
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Entries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {knowledgeEntries?.length || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Interventions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {categoryCounts?.intervention || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Patterns
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {categoryCounts?.pattern || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Business
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {categoryCounts?.business || 0}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search and Filter */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Search Knowledge Base
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search by content or source..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="intervention">Interventions</SelectItem>
-                <SelectItem value="pattern">Patterns</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
-                <SelectItem value="coach_tip">Coach Tips</SelectItem>
-                <SelectItem value="health_scoring">Health Scoring</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Knowledge Entries */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <>
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </>
-        ) : filteredEntries && filteredEntries.length > 0 ? (
-          filteredEntries.map((entry) => (
-            <Card key={entry.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5" />
-                      {entry.source || "Knowledge Entry"}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {entry.category || "General"}
-                    </CardDescription>
-                  </div>
-                  <Badge className={getCategoryColor(entry.category || "other")}>
-                    {entry.category || "other"}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {entry.content}
-                </p>
-                {entry.structured_data && Object.keys(entry.structured_data as object).length > 0 && (
-                  <div className="mt-4 p-3 bg-muted rounded-lg">
-                    <p className="text-xs font-medium mb-2">Metadata:</p>
-                    <pre className="text-xs overflow-auto">
-                      {JSON.stringify(entry.structured_data, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Source: {entry.source || "Unknown"}</span>
-                  <span>
-                    Created {entry.created_at ? format(new Date(entry.created_at), "PPp") : "N/A"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">No knowledge entries found</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                {searchTerm || categoryFilter !== "all"
-                  ? "Try adjusting your search or filters"
-                  : "The AI knowledge base is currently empty"}
+    <div className="min-h-screen bg-background text-foreground pb-20 md:pb-6">
+      <div className="p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate("/")}
+              className="bg-card border-border hover:bg-accent"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                <Brain className="h-6 w-6 text-purple-500" />
+                Knowledge Graph
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Deep memory and learned business insights
               </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/ai-learning")}
+            className="bg-card border-border hover:bg-accent hover:text-foreground gap-2"
+          >
+            <TrendingUp className="h-4 w-4 text-blue-500" />
+            View Decision Logic
+          </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="bg-card border-border shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Total Entities
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold flex items-center gap-2">
+                {knowledgeEntries?.length || 0}
+                <Database className="h-4 w-4 text-muted-foreground opacity-50" />
+              </div>
             </CardContent>
           </Card>
-        )}
+          <Card className="bg-card border-border shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Interventions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-500">
+                {categoryCounts?.intervention || 0}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Patterns
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-500">
+                {categoryCounts?.pattern || 0}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Strategy
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-indigo-500">
+                {categoryCounts?.business || 0}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filter */}
+        <Card className="bg-card border-border shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Search className="h-4 w-4 text-primary" />
+              Query Knowledge Base
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by keywords, entities, or original source..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-background border-border"
+                />
+              </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full md:w-[200px] bg-background border-border">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="intervention">Interventions</SelectItem>
+                  <SelectItem value="pattern">Patterns</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
+                  <SelectItem value="coach_tip">Coach Tips</SelectItem>
+                  <SelectItem value="health_scoring">Health Scoring</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Knowledge Entries Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading ? (
+            Array(6)
+              .fill(0)
+              .map((_, i) => (
+                <Skeleton key={i} className="h-[200px] w-full rounded-xl" />
+              ))
+          ) : filteredEntries && filteredEntries.length > 0 ? (
+            filteredEntries.map((entry) => (
+              <Card
+                key={entry.id}
+                className="bg-card border-border shadow-sm hover:border-primary/30 transition-all group flex flex-col"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`${getCategoryColor(entry.category || "other")} mb-2`}
+                    >
+                      {entry.category || "other"}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                      {entry.created_at
+                        ? format(new Date(entry.created_at), "MMM d")
+                        : ""}
+                    </span>
+                  </div>
+                  <CardTitle className="text-sm font-medium leading-relaxed line-clamp-2 min-h-[40px] flex items-start gap-2">
+                    <Sparkles className="h-3 w-3 text-primary mt-1 shrink-0 px-0" />
+                    {entry.source || "Insight"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col gap-3">
+                  <p className="text-xs text-muted-foreground line-clamp-4 leading-relaxed">
+                    {entry.content}
+                  </p>
+
+                  {/* Footer of Card */}
+                  <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Database className="h-3 w-3" />
+                      {entry.confidence
+                        ? `${Math.round(entry.confidence * 100)}% Conf.`
+                        : "Verified"}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center border border-dashed border-border rounded-xl">
+              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+              <p className="text-lg font-medium text-foreground">
+                No knowledge entries found
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                The neural network hasn't indexed any data matching your
+                criteria yet.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,11 @@ export interface SendMessageOptions {
   senderActorId?: string;
   campaignName?: string;
   projectId?: string;
+  template?: {
+    name: string;
+    language?: string;
+    params?: string[];
+  };
   [key: string]: any;
 }
 

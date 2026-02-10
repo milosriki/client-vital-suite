@@ -16,6 +16,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthProvider"; // Import AuthProvider
+import { TimeMachineProvider } from "@/contexts/TimeMachineContext"; // Import TimeMachineProvider
 import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import { testAllFunctions } from "@/utils/testFunctions";
 import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
@@ -55,8 +56,10 @@ import MasterControlPanel from "./pages/MasterControlPanel";
 import AttributionWarRoom from "./pages/AttributionWarRoom";
 import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
 import Login from "./pages/Login"; // Import Login Page
+import SkillCommandCenter from "./pages/SkillCommandCenter";
 import { ProtectedRoute } from "@/components/ProtectedRoute"; // Auth Guard
 import ReconciliationDashboard from "./pages/ReconciliationDashboard";
+import MarketingIntelligence from "./pages/MarketingIntelligence";
 import "./index.css";
 
 // Initialize Sentry
@@ -126,6 +129,8 @@ const router = createBrowserRouter([
       { path: "/master-control", element: <MasterControlPanel /> },
       { path: "/attribution", element: <AttributionWarRoom /> },
       { path: "/reconciliation", element: <ReconciliationDashboard /> },
+      { path: "/marketing-intelligence", element: <MarketingIntelligence /> },
+      { path: "/skills-matrix", element: <SkillCommandCenter /> },
       { path: "*", element: <NotFound /> },
     ],
   },
@@ -174,10 +179,12 @@ createRoot(root).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TooltipProvider>
-            <RouterProvider router={router} />
-            <VercelAnalytics />
-          </TooltipProvider>
+          <TimeMachineProvider>
+            <TooltipProvider>
+              <RouterProvider router={router} />
+              <VercelAnalytics />
+            </TooltipProvider>
+          </TimeMachineProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

@@ -7,6 +7,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,9 +18,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -31,35 +34,23 @@ serve(async (req) => {
     console.log(`[STRIPE-TREASURY] Action: ${action}`);
 
     if (action === "health_check") {
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           status: "online",
           env_check: {
             stripe_key: !!STRIPE_SECRET_KEY,
             supabase_url: !!SUPABASE_URL,
           },
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     if (!STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error("Missing required environment variables");
-      return new Response(
-        JSON.stringify({
+      return apiError("INTERNAL_ERROR", JSON.stringify({
           success: false,
           error:
             "Server misconfiguration: Missing Environment Variables (Stripe/Supabase)",
           code: "CONFIG_ERROR",
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        }), 503);
     }
 
     // Initialize Clients (Critical Fix)
@@ -75,16 +66,10 @@ serve(async (req) => {
         limit: 10,
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           accounts: accounts.data,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // ==================== CREATE OUTBOUND TRANSFER ====================
@@ -151,8 +136,7 @@ serve(async (req) => {
         // We don't fail the request if DB storage fails, but we log it
       }
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           transfer: {
             id: transfer.id,
@@ -162,12 +146,7 @@ serve(async (req) => {
             created: transfer.created,
             expected_arrival_date: transfer.expected_arrival_date,
           },
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // ==================== GET OUTBOUND TRANSFER ====================
@@ -177,16 +156,10 @@ serve(async (req) => {
 
       const transfer = await stripe.treasury.outboundTransfers.retrieve(id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           transfer,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // ==================== LIST OUTBOUND TRANSFERS (v1 Treasury API) ====================
@@ -214,17 +187,11 @@ serve(async (req) => {
       const transfers =
         await stripe.treasury.outboundTransfers.list(listParams);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           transfers: transfers.data,
           has_more: transfers.has_more,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // ==================== LIST OUTBOUND PAYMENTS (v2 Money Management API) ====================
@@ -313,8 +280,7 @@ serve(async (req) => {
         return acc;
       }, {});
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           payments,
           summary: {
@@ -324,12 +290,7 @@ serve(async (req) => {
           has_more: data.has_more,
           livemode: data.data?.[0]?.livemode ?? null,
           explanation: `Found ${payments.length} outbound payment(s). These are money transfers sent OUT from your Stripe financial account to recipients (e.g., streamer earnings, payouts to vendors).`,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // ==================== CANCEL OUTBOUND TRANSFER ====================
@@ -349,33 +310,21 @@ serve(async (req) => {
         })
         .eq("stripe_id", id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           transfer,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     throw new Error(`Unknown action: ${action}`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[STRIPE-TREASURY] Error:", error);
 
-    return new Response(
-      JSON.stringify({
+    return apiError("BAD_REQUEST", JSON.stringify({
         success: false,
         error: error.message,
         code: error.code,
         type: error.type,
-      }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+      }), 400);
   }
 });

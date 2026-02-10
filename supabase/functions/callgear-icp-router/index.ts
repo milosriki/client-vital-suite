@@ -1,6 +1,9 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 interface CallGearICPRequest {
   cdr_id: string;
@@ -18,7 +21,7 @@ interface CallGearICPResponse {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -27,7 +30,7 @@ serve(async (req) => {
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -38,27 +41,12 @@ serve(async (req) => {
     if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
       console.warn('Unauthorized request attempt');
       // Fail-safe: Return basic routing even on auth failure
-      return new Response(
-        JSON.stringify({
-          text: "Please wait while we connect you.",
-          phones: []
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return apiError("UNAUTHORIZED", "Unauthorized", 401);
     }
 
     // Only accept POST
     if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
-        {
-          status: 405,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return apiError("REQUEST_ERROR", JSON.stringify({ error: 'Method not allowed' }), 405);
     }
 
     // Parse request with timeout consideration (must respond within 2 seconds)
@@ -76,15 +64,9 @@ serve(async (req) => {
     console.log('Routing decision:', routingDecision);
 
     // Return routing instructions
-    return new Response(
-      JSON.stringify(routingDecision),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return apiSuccess(routingDecision);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error processing CallGear ICP request:', error);
 
     // Fail-safe routing on error - always return 200 with instructions to avoid dropped calls
@@ -95,13 +77,7 @@ serve(async (req) => {
       returned_code: 'ERROR_FAILSAFE'
     };
 
-    return new Response(
-      JSON.stringify(failsafeResponse),
-      {
-        status: 200, // Return 200 with failsafe to ensure call isn't dropped
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return apiSuccess(failsafeResponse);
   }
 });
 

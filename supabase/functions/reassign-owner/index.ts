@@ -2,7 +2,10 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   checkCircuitBreaker,
   recordUpdateSource,
   logCircuitBreakerTrip,
@@ -16,9 +19,9 @@ const corsHeaders = {
 const HUBSPOT_BASE_URL = 'https://api.hubapi.com';
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -34,13 +37,10 @@ serve(async (req) => {
     const { contact_id, new_owner_id, reason, old_owner_id } = await req.json();
 
     if (!contact_id || !new_owner_id) {
-      return new Response(JSON.stringify({
+      return apiError("BAD_REQUEST", JSON.stringify({
         success: false,
         error: 'Missing required fields: contact_id and new_owner_id are required'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      }), 400);
     }
 
     const contactIdStr = contact_id.toString();
@@ -53,15 +53,7 @@ serve(async (req) => {
       console.warn(`[CIRCUIT BREAKER] ${circuitCheck.reason}`);
       await logCircuitBreakerTrip(supabase, contactIdStr, circuitCheck.count, circuitCheck.reason!);
       
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Circuit breaker tripped - infinite loop detected',
-        reason: circuitCheck.reason,
-        processing_count: circuitCheck.count
-      }), {
-        status: 429, // Too Many Requests
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return apiRateLimited();
     }
 
     console.log(`[Reassign Owner] Reassigning contact ${contact_id} to owner ${new_owner_id} (attempt ${circuitCheck.count}/3)`);
@@ -136,7 +128,7 @@ serve(async (req) => {
       // Continue even if update fails
     }
 
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: true,
       contact_id,
       old_owner_id: old_owner_id || null,
@@ -144,18 +136,13 @@ serve(async (req) => {
       reason: reason || 'MANUAL_REASSIGNMENT',
       hubspot_response: hubspotData,
       reassigned_at: new Date().toISOString()
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Reassign Owner] Error:', error);
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    }), 500);
   }
 });

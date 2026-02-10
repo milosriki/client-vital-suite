@@ -8,6 +8,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -63,9 +65,9 @@ interface PaymentIntentData {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -122,8 +124,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CHECKOUT] Session created:", session.id);
 
-      return new Response(
-        JSON.stringify({
+      return apiError("INTERNAL_ERROR", JSON.stringify({
           session_id: session.id,
           url: session.url,
           expires_at: session.expires_at,
@@ -163,17 +164,11 @@ serve(async (req) => {
 
       console.log("[STRIPE-CHECKOUT] PaymentIntent created:", paymentIntent.id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           payment_intent_id: paymentIntent.id,
           client_secret: paymentIntent.client_secret,
           status: paymentIntent.status,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Confirm payment intent (for redirect-based methods)
@@ -193,17 +188,11 @@ serve(async (req) => {
         paymentIntent.id,
       );
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           payment_intent_id: paymentIntent.id,
           status: paymentIntent.status,
           next_action: paymentIntent.next_action,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Retrieve payment intent (after redirect)
@@ -213,20 +202,14 @@ serve(async (req) => {
       const paymentIntent =
         await stripe.paymentIntents.retrieve(payment_intent_id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           payment_intent_id: paymentIntent.id,
           status: paymentIntent.status,
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
           payment_method: paymentIntent.payment_method,
           metadata: paymentIntent.metadata,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Retrieve checkout session
@@ -237,8 +220,7 @@ serve(async (req) => {
         expand: ["line_items", "payment_intent", "customer"],
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           session_id: session.id,
           status: session.status,
           payment_status: session.payment_status,
@@ -249,12 +231,7 @@ serve(async (req) => {
           line_items: session.line_items,
           customer: session.customer,
           metadata: session.metadata,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // List checkout sessions
@@ -264,8 +241,7 @@ serve(async (req) => {
         ...data,
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           sessions: sessions.data.map((s: any) => ({
             id: s.id,
             status: s.status,
@@ -278,12 +254,7 @@ serve(async (req) => {
           })),
           has_more: sessions.has_more,
           total: sessions.data.length,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Create customer portal session (for managing subscriptions)
@@ -300,15 +271,9 @@ serve(async (req) => {
         customer,
       );
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           url: session.url,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Create setup intent (for saving payment methods)
@@ -323,17 +288,11 @@ serve(async (req) => {
 
       console.log("[STRIPE-CHECKOUT] SetupIntent created:", setupIntent.id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           setup_intent_id: setupIntent.id,
           client_secret: setupIntent.client_secret,
           status: setupIntent.status,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // List payment methods for a customer
@@ -345,8 +304,7 @@ serve(async (req) => {
         type: type || "card",
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           payment_methods: paymentMethods.data.map((pm: any) => ({
             id: pm.id,
             type: pm.type,
@@ -362,12 +320,7 @@ serve(async (req) => {
             created: pm.created,
           })),
           total: paymentMethods.data.length,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Expire a checkout session
@@ -378,24 +331,15 @@ serve(async (req) => {
 
       console.log("[STRIPE-CHECKOUT] Session expired:", session.id);
 
-      return new Response(
-        JSON.stringify({ session_id: session.id, status: session.status }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return apiSuccess({ session_id: session.id, status: session.status });
     }
 
     throw new Error("Invalid action: " + action);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[STRIPE-CHECKOUT] Error:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess({ error: errorMessage });
   }
 });

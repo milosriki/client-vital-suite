@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,9 +12,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabase = createClient(
@@ -53,7 +57,7 @@ serve(async (req) => {
     const actionsPrepared = actions?.length || 0;
     console.log(`[Ultimate Fix] Step 3: ${actionsPrepared} fix actions prepared.`);
 
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: true,
       message: "Ultimate Self-Healing Loop Triggered",
       details: {
@@ -62,18 +66,13 @@ serve(async (req) => {
         actions_prepared: actionsPrepared,
         next_steps: actionsPrepared > 0 ? "Review and approve prepared actions in Dashboard" : "System is healthy"
       }
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Ultimate Fix] Failed:", error);
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    }), 500);
   }
 });

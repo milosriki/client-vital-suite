@@ -3,6 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,9 +13,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -132,13 +135,12 @@ serve(async (req) => {
           enrichedEvents.push({ ...event, ...enrichment });
           console.log('Enriched event:', event.event_id);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error enriching event:', event.event_id, err);
       }
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         events_enriched: enrichedEvents.length,
         events: enrichedEvents.map(e => ({
@@ -146,24 +148,13 @@ serve(async (req) => {
           stripe_customer_id: e.stripe_customer_id,
           value: e.value
         }))
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error('Error in enrich-with-stripe:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         success: false,
         error: errorMessage
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+      }), 500);
   }
 });

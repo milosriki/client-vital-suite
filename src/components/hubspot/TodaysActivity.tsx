@@ -90,7 +90,7 @@ export function TodaysActivity({
     (data?.new_contacts || []).map((c: any) => c.source).filter(Boolean)
   ));
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <Card>
         <CardHeader>

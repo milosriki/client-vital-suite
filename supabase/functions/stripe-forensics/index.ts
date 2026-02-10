@@ -4,6 +4,9 @@ import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,9 +37,9 @@ interface MoneyFlowEvent {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   // Start LangSmith trace for the entire request
@@ -75,15 +78,12 @@ serve(async (req) => {
     // Quick health check for system monitoring
     if (action === "health-check") {
       const account = await stripe.accounts.retrieve().catch(() => null);
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           ok: true,
           connected: !!account,
           accountId: account?.id,
           timestamp: new Date().toISOString()
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Quick scan for orchestrator (lightweight)
@@ -95,15 +95,12 @@ serve(async (req) => {
         stripe.charges.list({ limit: 5 }).catch(() => ({ data: [] }))
       ]);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           balance,
           recentPayouts: recentPayouts.data,
           recentCharges: recentCharges.data,
           timestamp: new Date().toISOString()
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Calculate timestamps
@@ -1117,8 +1114,7 @@ serve(async (req) => {
       });
       securityScore = Math.max(0, securityScore);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           moneyFlow,
           summary: {
             totalInflow: totalInflow / 100,
@@ -1145,9 +1141,7 @@ serve(async (req) => {
           anomalies,
           securityScore,
           period: { days, from: new Date(daysAgo * 1000).toISOString(), to: new Date().toISOString() }
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== MONEY FLOW TRACKER (Simplified) ====================
@@ -1254,8 +1248,7 @@ serve(async (req) => {
         destinationAnalysis[dest].amount += f.amount;
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           moneyFlow,
           summary: {
             totalInflow: totalInflow / 100,
@@ -1280,9 +1273,7 @@ serve(async (req) => {
             pendingAuthorizations: 0
           },
           period: { days, from: new Date(daysAgo * 1000).toISOString(), to: new Date().toISOString() }
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== FULL AUDIT ====================
@@ -1350,8 +1341,7 @@ serve(async (req) => {
         else securityScore -= 5;
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           balance, payouts: payouts.data, balanceTransactions: balanceTransactions.data,
           payments: payments.data, refunds: refunds.data, charges: charges.data,
           transfers: transfers.data, events: events.data, webhookEndpoints: webhookEndpoints.data,
@@ -1365,15 +1355,12 @@ serve(async (req) => {
             isKnown: auditKnownIPs.includes(ip)
           })),
           anomalies, securityScore: Math.max(0, securityScore), auditTimestamp: new Date().toISOString()
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     if (action === "events-timeline") {
       const events = await stripe.events.list({ limit: 100, created: { gte: sevenDaysAgo } });
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           events: events.data,
           categorized: {
             payments: events.data.filter((e: any) => e.type.startsWith('payment_intent') || e.type.startsWith('charge')),
@@ -1384,9 +1371,7 @@ serve(async (req) => {
             disputes: events.data.filter((e: any) => e.type.includes('dispute'))
           },
           total: events.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== DEEP LLM ANALYSIS ====================
@@ -1514,14 +1499,11 @@ serve(async (req) => {
       
       if (!LOVABLE_API_KEY) {
         console.log("[STRIPE-FORENSICS] No LOVABLE_API_KEY, returning data without LLM analysis");
-        return new Response(
-          JSON.stringify({
+        return apiSuccess({
             analysisContext,
             llmAnalysis: null,
             message: "LLM analysis unavailable - LOVABLE_API_KEY not configured"
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+          });
       }
 
       console.log("[STRIPE-FORENSICS] Calling Lovable AI for deep analysis...");
@@ -1586,14 +1568,11 @@ Format your response as JSON with this structure:
       if (!llmResponse.ok) {
         const errorText = await llmResponse.text();
         console.error("[STRIPE-FORENSICS] LLM API error:", errorText);
-        return new Response(
-          JSON.stringify({
+        return apiSuccess({
             analysisContext,
             llmAnalysis: null,
             error: `LLM analysis failed: ${llmResponse.status}`
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+          });
       }
 
       const llmData = await llmResponse.json();
@@ -1614,18 +1593,15 @@ Format your response as JSON with this structure:
 
       console.log("[STRIPE-FORENSICS] Deep LLM analysis complete");
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           analysisContext,
           llmAnalysis,
           timestamp: new Date().toISOString()
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     throw new Error("Invalid action: " + action);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[STRIPE-FORENSICS] Error:", error);
 
     // End trace with error
@@ -1647,10 +1623,7 @@ Format your response as JSON with this structure:
       console.error("Failed to log to sync_errors:", logError);
     }
 
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), 500);
   }
 });
 // Force deploy Thu Dec 11 23:41:12 PST 2025

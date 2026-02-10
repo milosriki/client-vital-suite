@@ -64,7 +64,7 @@ export function TickerFeed() {
     return () => cancelAnimationFrame(animationId);
   }, [isPaused, activities]);
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="bg-card/50 border-y border-border/50 py-2">
         <div className="flex items-center gap-4 px-4 animate-pulse">

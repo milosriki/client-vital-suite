@@ -6,6 +6,8 @@ import {
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -50,16 +52,16 @@ type SupervisorRequest =
 // Removed local corsHeaders definition in favor of shared one
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
     // Validate request method
     if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      return apiError("BAD_REQUEST", JSON.stringify({ error: "Method not allowed" }), {
         status: 405,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -69,13 +71,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get("CALLGEAR_API_KEY");
     if (!apiKey) {
       console.error("CALLGEAR_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ error: "Service configuration error" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return apiError("INTERNAL_ERROR", JSON.stringify({ error: "Service configuration error" }), 500);
     }
 
     // Parse request body
@@ -87,16 +83,10 @@ serve(async (req) => {
       !action ||
       !["attach_coach", "detach_coach", "change_mode"].includes(action)
     ) {
-      return new Response(
-        JSON.stringify({
+      return apiError("BAD_REQUEST", JSON.stringify({
           error:
             "Invalid action. Must be: attach_coach, detach_coach, or change_mode",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        }), 400);
     }
 
     // Build JSON-RPC payload based on action
@@ -109,29 +99,17 @@ serve(async (req) => {
 
         // Validate required fields
         if (!call_session_id || !coach_sip_uri || !mode || !target_leg_id) {
-          return new Response(
-            JSON.stringify({
+          return apiError("BAD_REQUEST", JSON.stringify({
               error:
                 "Missing required fields for attach_coach: call_session_id, coach_sip_uri, mode, target_leg_id",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+            }), 400);
         }
 
         // Validate mode
         if (!["listen", "whisper", "barge"].includes(mode)) {
-          return new Response(
-            JSON.stringify({
+          return apiError("BAD_REQUEST", JSON.stringify({
               error: "Invalid mode. Must be: listen, whisper, or barge",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+            }), 400);
         }
 
         rpcParams = {
@@ -147,15 +125,9 @@ serve(async (req) => {
         const { call_session_id } = requestData as DetachCoachRequest;
 
         if (!call_session_id) {
-          return new Response(
-            JSON.stringify({
+          return apiError("BAD_REQUEST", JSON.stringify({
               error: "Missing required field: call_session_id",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+            }), 400);
         }
 
         rpcParams = { call_session_id };
@@ -166,29 +138,17 @@ serve(async (req) => {
         const { call_session_id, mode } = requestData as ChangeModeRequest;
 
         if (!call_session_id || !mode) {
-          return new Response(
-            JSON.stringify({
+          return apiError("BAD_REQUEST", JSON.stringify({
               error:
                 "Missing required fields for change_mode: call_session_id, mode",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+            }), 400);
         }
 
         // Validate mode
         if (!["listen", "whisper", "barge"].includes(mode)) {
-          return new Response(
-            JSON.stringify({
+          return apiError("BAD_REQUEST", JSON.stringify({
               error: "Invalid mode. Must be: listen, whisper, or barge",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+            }), 400);
         }
 
         rpcParams = {
@@ -199,10 +159,7 @@ serve(async (req) => {
       }
 
       default:
-        return new Response(JSON.stringify({ error: "Unknown action" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return apiSuccess({ error: "Unknown action" });
     }
 
     // Build JSON-RPC 2.0 envelope
@@ -234,16 +191,10 @@ serve(async (req) => {
     // Check for JSON-RPC error
     if (responseData.error) {
       console.error("CallGear API Error:", responseData.error);
-      return new Response(
-        JSON.stringify({
+      return apiError("INTERNAL_ERROR", JSON.stringify({
           error: "CallGear API error",
           details: responseData.error,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        }), 500);
     }
 
     // Check HTTP status
@@ -253,24 +204,17 @@ serve(async (req) => {
         callgearResponse.status,
         responseData,
       );
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           error: "CallGear request failed",
           status: callgearResponse.status,
           details: responseData,
-        }),
-        {
-          status: callgearResponse.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     console.log("CallGear Supervisor Success:", JSON.stringify(responseData));
 
     // Return success response
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         action,
         result: responseData.result,
@@ -278,13 +222,8 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
           request_id: rpcPayload.id,
         },
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  } catch (error: any) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "callgear-supervisor", {
       errorCode: ErrorCode.INTERNAL_ERROR,
       context: { function: "callgear-supervisor" },

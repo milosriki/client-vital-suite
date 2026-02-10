@@ -8,6 +8,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkLangSmithStatus, getLangSmithConfig, isTracingEnabled } from "../_shared/langsmith-tracing.ts";
 import { getCacheStats, getTelemetry } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,7 +99,7 @@ async function checkGeminiStatus(): Promise<ProviderStatus> {
         error: `API returned ${response.status}`,
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       name: "Gemini",
       configured: true,
@@ -168,7 +171,7 @@ async function checkAnthropicStatus(): Promise<ProviderStatus> {
         error: `API returned ${response.status}`,
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       name: "Anthropic",
       configured: true,
@@ -229,7 +232,7 @@ async function checkOpenAIStatus(): Promise<ProviderStatus> {
         error: `API returned ${response.status}`,
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       name: "OpenAI",
       configured: true,
@@ -297,7 +300,7 @@ async function checkStripeStatus(): Promise<ProviderStatus> {
         error: `API returned ${response.status}`,
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       name: "Stripe",
       configured: true,
@@ -345,7 +348,7 @@ async function checkSupabaseStatus(): Promise<ProviderStatus> {
         error: error.message,
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       name: "Supabase",
       configured: true,
@@ -386,9 +389,9 @@ function determineOverallStatus(status: ConfigStatus): "healthy" | "degraded" | 
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -450,24 +453,15 @@ serve(async (req) => {
     // Return appropriate HTTP status code
     const httpStatus = status.overall === "healthy" ? 200 : status.overall === "degraded" ? 200 : 503;
 
-    return new Response(JSON.stringify(status, null, 2), {
-      status: httpStatus,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess(status, null, 2);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[ai-config-status] Error:", error);
     
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         timestamp: new Date().toISOString(),
         overall: "error",
         error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+      }), 500);
   }
 });

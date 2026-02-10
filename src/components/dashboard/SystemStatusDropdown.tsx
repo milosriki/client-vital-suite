@@ -6,7 +6,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, RefreshCw, ExternalLink, AlertCircle, Clock, History } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  ExternalLink,
+  AlertCircle,
+  Clock,
+  History,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
@@ -19,7 +27,11 @@ interface SystemStatusDropdownProps {
   onFullSync?: () => void;
 }
 
-export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemStatusDropdownProps) {
+export function SystemStatusDropdown({
+  isSyncing,
+  onSync,
+  onFullSync,
+}: SystemStatusDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Check connection statuses
@@ -28,39 +40,40 @@ export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemSt
     dedupeIntervalMs: 1000,
     queryFn: async () => {
       const supabaseConnected = true; // We're using it right now
-      
+
       // Check last sync time from sync_queue
       const { data: syncData } = await supabase
-        .from('sync_queue')
-        .select('created_at')
-        .order('created_at', { ascending: false })
+        .from("sync_queue")
+        .select("created_at")
+        .order("created_at", { ascending: false })
         .limit(1);
-      
+
       // Check for recent errors
       const { data: errors } = await supabase
-        .from('sync_errors')
-        .select('id')
-        .gte('created_at', new Date(Date.now() - 3600000).toISOString());
+        .from("sync_errors")
+        .select("id")
+        .gte("created_at", new Date(Date.now() - 3600000).toISOString());
 
       // Check HubSpot - look for recent successful sync logs
       const { data: hubspotSync } = await supabase
-        .from('sync_logs')
-        .select('status, started_at')
-        .eq('platform', 'hubspot')
-        .order('started_at', { ascending: false })
+        .from("sync_logs")
+        .select("status, started_at")
+        .eq("platform", "hubspot")
+        .order("started_at", { ascending: false })
         .limit(1);
-      
+
       // HubSpot is connected if last sync was successful and within 24 hours
-      const hubspotConnected = hubspotSync?.[0]?.status === 'success' && 
+      const hubspotConnected =
+        hubspotSync?.[0]?.status === "success" &&
         hubspotSync?.[0]?.started_at &&
-        (Date.now() - new Date(hubspotSync[0].started_at).getTime()) < 86400000;
+        Date.now() - new Date(hubspotSync[0].started_at).getTime() < 86400000;
 
       // Check Stripe - look for recent data in deals or stripe_events
       const { data: stripeData } = await supabase
-        .from('deals')
-        .select('id')
+        .from("deals")
+        .select("id")
         .limit(1);
-      
+
       const stripeConnected = (stripeData?.length || 0) > 0;
 
       return {
@@ -74,7 +87,11 @@ export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemSt
     staleTime: Infinity, // Real-time updates via useVitalState
   });
 
-  const allGood = status?.supabase && status?.hubspot && status?.stripe && (status?.recentErrors || 0) === 0;
+  const allGood =
+    status?.supabase &&
+    status?.hubspot &&
+    status?.stripe &&
+    (status?.recentErrors || 0) === 0;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -83,9 +100,9 @@ export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemSt
           className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer",
             "hover:bg-muted/50",
-            allGood 
-              ? "bg-success/10 border-success/20 text-success" 
-              : "bg-warning/10 border-warning/20 text-warning"
+            allGood
+              ? "bg-success/10 border-success/20 text-success"
+              : "bg-warning/10 border-warning/20 text-warning",
           )}
           title="Click to see sync status"
         >
@@ -102,31 +119,27 @@ export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemSt
       <PopoverContent className="w-72 p-4" align="end">
         <div className="space-y-4">
           <h4 className="font-semibold text-sm">System Status</h4>
-          
+
           {/* Connection statuses */}
           <div className="space-y-2">
-            <StatusRow 
-              label="Supabase" 
-              connected={status?.supabase ?? false} 
-            />
-            <StatusRow 
-              label="HubSpot" 
-              connected={status?.hubspot ?? false} 
-            />
-            <StatusRow 
-              label="Stripe" 
-              connected={status?.stripe ?? false} 
-            />
+            <StatusRow label="Supabase" connected={status?.supabase ?? false} />
+            <StatusRow label="HubSpot" connected={status?.hubspot ?? false} />
+            <StatusRow label="Stripe" connected={status?.stripe ?? false} />
           </div>
-          
+
           {/* Last sync time */}
           {status?.lastSync && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              <span>Last sync: {formatDistanceToNow(new Date(status.lastSync), { addSuffix: true })}</span>
+              <span>
+                Last sync:{" "}
+                {formatDistanceToNow(new Date(status.lastSync), {
+                  addSuffix: true,
+                })}
+              </span>
             </div>
           )}
-          
+
           {/* Recent errors */}
           {(status?.recentErrors || 0) > 0 && (
             <div className="flex items-center gap-2 text-xs text-warning">
@@ -134,33 +147,47 @@ export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemSt
               <span>{status?.recentErrors} errors in last hour</span>
             </div>
           )}
-          
+
           {/* Actions */}
           <div className="flex flex-col gap-2 pt-2 border-t">
-            <Button 
-              size="sm" 
-              onClick={() => { onSync(); setIsOpen(false); }}
+            <Button
+              size="sm"
+              onClick={() => {
+                onSync();
+                setIsOpen(false);
+              }}
               disabled={isSyncing}
               className="w-full justify-center"
             >
-              <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isSyncing && "animate-spin")} />
+              <RefreshCw
+                className={cn("h-3.5 w-3.5 mr-2", isSyncing && "animate-spin")}
+              />
               {isSyncing ? "Syncing..." : "Sync Now"}
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => { onFullSync?.(); setIsOpen(false); }}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onFullSync?.();
+                setIsOpen(false);
+              }}
               disabled={isSyncing}
               className="w-full justify-center text-xs"
             >
               <History className="h-3.5 w-3.5 mr-2" />
               Full Sync (Historical)
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="w-full justify-center"
-              onClick={() => window.open('https://app.hubspot.com', '_blank')}
+              onClick={() =>
+                window.open(
+                  "https://app.hubspot.com",
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
             >
               <ExternalLink className="h-3.5 w-3.5 mr-2" />
               Open HubSpot
@@ -172,7 +199,13 @@ export function SystemStatusDropdown({ isSyncing, onSync, onFullSync }: SystemSt
   );
 }
 
-function StatusRow({ label, connected }: { label: string; connected: boolean }) {
+function StatusRow({
+  label,
+  connected,
+}: {
+  label: string;
+  connected: boolean;
+}) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-sm">{label}</span>

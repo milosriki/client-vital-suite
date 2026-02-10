@@ -1,15 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // Mock Data Generator for "God Mode" (until live APIs are fully mapped)
 // This structure matches the "3-Layer" Architecture requirements.
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -119,13 +123,8 @@ serve(async (req) => {
       atomic_ledger: atomicLedger,
     };
 
-    return new Response(JSON.stringify(responseData), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess(responseData);
+  } catch (error: unknown) {
+    return apiError("BAD_REQUEST", JSON.stringify({ error: error.message }), 400);
   }
 });

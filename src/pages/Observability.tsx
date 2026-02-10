@@ -22,6 +22,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { format, subHours } from "date-fns";
 import { getBusinessDate } from "@/lib/date-utils";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAnnounce } from "@/lib/accessibility";
 
 interface AIMetric {
   id: string;

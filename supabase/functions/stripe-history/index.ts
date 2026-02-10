@@ -3,6 +3,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,9 +13,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -68,15 +71,13 @@ serve(async (req) => {
 
       const suspiciousPayouts = payouts.data.filter((p: any) => p.status === 'paid' && p.method === 'instant');
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         source: 'api',
         payouts: payouts.data,
         events: events.data,
         deletedWallets,
         suspiciousPayouts,
         note: "Events from API are limited to last 30 days. Payouts are unlimited."
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -117,22 +118,16 @@ serve(async (req) => {
         };
       });
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         source: 'db',
         summary: { total_events: events?.length || 0 },
         deletedWallets,
         events: events
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[stripe-history] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error?.message || "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: error?.message || "Unknown error" }), 500);
   }
 });
 

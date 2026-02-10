@@ -1,170 +1,148 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// Helper for Semantic Chunking (Mirroring process-knowledge)
+function chunkTextSemantically(text: string, maxChunkSize = 1000): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+(\s+|$)|[^.!?]+$/g) || [text];
+  const chunks: string[] = [];
+  let currentChunk = "";
+  for (const sentence of sentences) {
+    if (
+      (currentChunk + sentence).length > maxChunkSize &&
+      currentChunk.length > 0
+    ) {
+      chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk += sentence;
+    }
+  }
+  if (currentChunk.trim().length > 0) chunks.push(currentChunk.trim());
+  return chunks;
 }
 
-const openaiKey = Deno.env.get('OPENAI_API_KEY')
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+  try {
+    verifyAuth(req);
+  } catch (e) {
+    return errorToResponse(new UnauthorizedError());
   }
-
-  // Validate OPENAI_API_KEY before processing
-  if (!openaiKey) {
-    return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+  if (req.method === "OPTIONS") {
+    return apiCorsPreFlight();
   }
 
   try {
-    const { action = 'generate', text, id, table = 'knowledge_base', metadata = {} } = await req.json()
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const {
+      action = "generate",
+      text,
+      id,
+      table = "knowledge_chunks", // Default to optimized table
+      metadata = {},
+    } = await req.json();
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Action: Generate embedding for new content and insert
-    if (action === 'generate' && text) {
-      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-3-small',
-          input: text.slice(0, 8000)
-        })
-      })
+    if (action === "generate" && text) {
+      // 1. Chunk
+      const chunks = chunkTextSemantically(text);
+      const insertedData = [];
 
-      if (!embRes.ok) {
-        const err = await embRes.text()
-        throw new Error(`OpenAI API error: ${err}`)
+      // 2. Embed & Insert Each Chunk
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const embedding = await unifiedAI.embed(chunk);
+
+        const { data, error } = await supabase
+          .from("knowledge_chunks")
+          .insert({
+            content: chunk,
+            chunk_index: i,
+            filepath: metadata.filename || `gen_${Date.now()}`,
+            embedding,
+            metadata: {
+              ...metadata,
+              embedding_model: "text-embedding-004",
+              source_text_length: text.length,
+            },
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        insertedData.push(data);
       }
 
-      const embData = await embRes.json()
-      const embedding = embData.data[0].embedding
-
-      // Insert into knowledge_base
-      const { data, error } = await supabase
-        .from('knowledge_base')
-        .insert({
-          content: text,
-          embedding,
-          metadata,
-          source: metadata.source || 'manual',
-          category: metadata.category || 'general'
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      return new Response(JSON.stringify({ success: true, data }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return apiSuccess({
+          success: true,
+          chunks_processed: chunks.length,
+          data: insertedData,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    // Action: Update embedding for existing row
-    if (action === 'update' && id) {
+    // Action: Update embedding for existing row (Assuming knowledge_chunks structure)
+    if (action === "update" && id) {
       const { data: row } = await supabase
         .from(table)
-        .select('content')
-        .eq('id', id)
-        .single()
+        .select("content")
+        .eq("id", id)
+        .single();
 
-      if (!row) throw new Error('Row not found')
+      if (!row) throw new Error("Row not found");
 
-      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-3-small',
-          input: row.content.slice(0, 8000)
-        })
-      })
-
-      const embData = await embRes.json()
-      const embedding = embData.data[0].embedding
+      // For update, we re-embed the content.
+      // NOTE: If content changed significantly, we arguably should re-chunk, but 'update' implies modifying a specific row/chunk.
+      // We will assume 'id' refers to a specific chunk here.
+      const embedding = await unifiedAI.embed(row.content);
 
       const { error } = await supabase
         .from(table)
-        .update({ embedding })
-        .eq('id', id)
-
-      if (error) throw error
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // Action: Batch update all rows without embeddings
-    if (action === 'batch') {
-      const { data: rows } = await supabase
-        .from('knowledge_base')
-        .select('id, content')
-        .is('embedding', null)
-        .limit(50)
-
-      if (!rows || rows.length === 0) {
-        return new Response(JSON.stringify({ success: true, processed: 0 }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        .update({
+          embedding,
+          metadata: {
+            ...metadata,
+            embedding_model: "text-embedding-004",
+            updated_at: new Date(),
+          },
         })
-      }
+        .eq("id", id);
 
-      let processed = 0
-      for (const row of rows) {
-        try {
-          const embRes = await fetch('https://api.openai.com/v1/embeddings', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openaiKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'text-embedding-3-small',
-              input: row.content.slice(0, 8000)
-            })
-          })
+      if (error) throw error;
 
-          const embData = await embRes.json()
-          const embedding = embData.data[0].embedding
-
-          await supabase
-            .from('knowledge_base')
-            .update({ embedding })
-            .eq('id', row.id)
-
-          processed++
-        } catch (e) {
-          console.error(`Error processing row ${row.id}:`, e)
-        }
-      }
-
-      return new Response(JSON.stringify({ success: true, processed, total: rows.length }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return apiError("INTERNAL_ERROR", JSON.stringify({ success: true });
     }
 
-    throw new Error('Invalid action or missing parameters')
+    // Action: Batch update (Legacy/Maintenance)
+    // Refactored to update knowledge_chunks logic if needed, but primarily strict.
+    if (action === "batch") {
+      return apiSuccess({
+          error:
+            "Batch update deprecated for semantic chunks. Use re-ingestion.",
+        });
+    }
 
+    throw new Error("Invalid action or missing parameters");
   } catch (error: unknown) {
-    console.error('generate-embeddings error:', error)
-    const errMsg = error instanceof Error ? error.message : String(error)
-    return new Response(JSON.stringify({ error: errMsg }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    console.error("generate-embeddings error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    return apiSuccess({ error: errMsg });
   }
-})
+});

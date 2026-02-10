@@ -27,6 +27,7 @@ import {
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { getBusinessDate } from "@/lib/date-utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const SalesCoachTracker = () => {
   // Get current and previous month date ranges (Business Time)

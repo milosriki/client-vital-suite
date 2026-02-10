@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { RefreshCw, LayoutGrid, List, MapPin, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAnnounce } from "@/lib/accessibility";
 
 // 3-Layer Architecture: Executive Truth -> Performance Matrix -> Atomic Ledger
 

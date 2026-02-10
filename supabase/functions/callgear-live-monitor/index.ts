@@ -4,6 +4,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // CORRECT CallGear API URLs:
 // - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
@@ -196,10 +199,10 @@ async function getQueueStats(apiKey: string): Promise<QueueStats> {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -213,8 +216,7 @@ serve(async (req) => {
     const { action, params = {} } = await req.json();
 
     if (!action) {
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           error: "Missing 'action' parameter. Valid actions: list_active_calls, get_employee_status, get_queue_stats",
         }),
         {
@@ -295,8 +297,7 @@ serve(async (req) => {
       }
 
       default:
-        return new Response(
-          JSON.stringify({
+        return apiError("INTERNAL_ERROR", JSON.stringify({
             error: `Unknown action: ${action}. Valid actions: list_active_calls, get_employee_status, get_queue_stats, get_all`,
           }),
           {
@@ -306,30 +307,9 @@ serve(async (req) => {
         );
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         action,
         data: result,
         timestamp: new Date().toISOString(),
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error) {
-    console.error("Error in callgear-live-monitor:", error);
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "An unexpected error occurred",
-        timestamp: new Date().toISOString(),
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
-});
+      });

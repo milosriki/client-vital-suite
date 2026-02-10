@@ -3,6 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -10,16 +13,13 @@ const corsHeaders = {
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
-    return new Response(JSON.stringify(body), {
-        status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess(body);
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
     if (req.method === "OPTIONS") {
-        return new Response(null, { headers: corsHeaders });
+        return apiCorsPreFlight();
     }
 
     try {
@@ -156,7 +156,7 @@ Write a SHORT (2-3 sentences) personalized initial reply. No markdown or formatt
                         processedCount++;
                     }
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error(`Failed to generate reply for lead ${lead.id}:`, error);
 
                 await supabase.from("sync_errors").insert({
@@ -176,7 +176,7 @@ Write a SHORT (2-3 sentences) personalized initial reply. No markdown or formatt
             total: newLeads.length,
             sourceTable,
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Function error:", error);
 
         return jsonResponse({

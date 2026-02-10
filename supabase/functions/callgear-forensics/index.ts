@@ -8,6 +8,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { traceStart, traceEnd } from "../_shared/langsmith-tracing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -32,9 +34,9 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   let body;
@@ -144,8 +146,7 @@ serve(async (req) => {
         });
       }
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           anomalies,
           summary: {
@@ -161,16 +162,11 @@ serve(async (req) => {
                 : 0,
           },
           timestamp: new Date().toISOString(),
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     throw new Error(`Unknown action: ${action}`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[CALLGEAR-FORENSICS] Error:`, error);
     await traceEnd(traceRun, {}, error.message);
     return handleError(error, "callgear-forensics", {

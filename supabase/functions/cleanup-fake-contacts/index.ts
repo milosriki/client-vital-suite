@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // ============================================
 // CLEANUP FAKE CONTACTS AGENT
@@ -89,7 +92,7 @@ async function cleanupTableByPatterns(
         });
         console.log(`[Cleanup] ${tableName}: Deleted ${deleted.length} records matching ${pattern}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`[Cleanup] Error deleting from ${tableName} with pattern ${pattern}:`, error);
     }
   }
@@ -118,7 +121,7 @@ async function cleanupSpecificEmails(
         sample_records: deleted.slice(0, 5).map((d: any) => d.email)
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[Cleanup] Error deleting specific emails from ${tableName}:`, error);
   }
 
@@ -147,7 +150,7 @@ async function cleanupOldTestData(
         sample_records: deleted.slice(0, 5).map((d: any) => d.email)
       };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[Cleanup] Error deleting old test data from ${tableName}:`, error);
   }
 
@@ -231,7 +234,7 @@ async function cleanupOrphanedRecords(supabase: any): Promise<OrphanedResult[]> 
       console.log(`[Cleanup] Deleted ${deletedInterventions.length} old completed interventions`);
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Cleanup] Error cleaning orphaned records:", error);
   }
 
@@ -239,9 +242,9 @@ async function cleanupOrphanedRecords(supabase: any): Promise<OrphanedResult[]> 
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -327,20 +330,14 @@ serve(async (req) => {
       duration_ms: result.duration_ms
     });
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return apiSuccess(result);
   } catch (error: unknown) {
     console.error("[Cleanup] Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       error: errorMessage,
       timestamp: new Date().toISOString()
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    }), 500);
   }
 });

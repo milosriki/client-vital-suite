@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,9 +12,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -174,18 +177,13 @@ serve(async (req) => {
 
     console.log(`✅ Monitoring complete: ${alerts.length} alerts (${monitoringReport.critical_count} critical)`);
 
-    return new Response(JSON.stringify(monitoringReport), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return apiSuccess(monitoringReport);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Monitor error:', error);
-    return new Response(JSON.stringify({ 
+    return apiError("INTERNAL_ERROR", JSON.stringify({ 
       error: 'Monitoring failed', 
       details: String(error) 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    }), 500);
   }
 });

@@ -84,7 +84,7 @@ export function LiveHealthDistribution({ clients, isLoading }: LiveHealthDistrib
     navigate(`/clients?zone=${zone.toUpperCase()}`);
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="premium-card p-6 animate-fade-up" style={{ animationDelay: '200ms' }}>
         <div className="flex items-center justify-between mb-6">

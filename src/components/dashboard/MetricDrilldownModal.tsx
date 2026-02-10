@@ -119,7 +119,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
     },
   });
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map((i) => (
@@ -186,7 +186,7 @@ const TrendTab = ({ type }: { type: string }) => {
     },
   });
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <Skeleton className="h-64 w-full" />;
   }
 

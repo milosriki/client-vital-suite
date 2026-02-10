@@ -46,7 +46,7 @@ export function StripeCompleteIntelligence({ mode = "live" }: StripeCompleteInte
     return new Date(timestamp * 1000).toLocaleString();
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-32 w-full" />

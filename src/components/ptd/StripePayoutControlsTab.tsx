@@ -270,7 +270,7 @@ export function StripePayoutControlsTab({ mode }: StripePayoutControlsTabProps) 
     updateScheduleMutation.mutate(params);
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-32 w-full" />

@@ -1,5 +1,20 @@
 import { useState, useEffect } from "react";
-import { Brain, Globe, Send, Database, FileText, Loader2, RefreshCw, Search, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Brain,
+  Globe,
+  Send,
+  Database,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Search,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { toast } from "sonner";
+import { getApiUrl } from "@/config/api";
+import { BrainVisualizer } from "@/components/BrainVisualizer";
 import { toast } from "sonner";
 import { getApiUrl } from "@/config/api";
 
@@ -48,7 +63,11 @@ export default function GlobalBrain() {
   const [newNamespace, setNewNamespace] = useState("global");
 
   // Brain stats
-  const [stats, setStats] = useState<{ total_memories: number; total_facts: number; total_patterns: number } | null>(null);
+  const [stats, setStats] = useState<{
+    total_memories: number;
+    total_facts: number;
+    total_patterns: number;
+  } | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -57,13 +76,13 @@ export default function GlobalBrain() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/brain?action=stats'));
+      const response = await fetch(getApiUrl("/api/brain?action=stats"));
       const data = await response.json();
       if (data.ok) {
         setStats(data.stats);
       }
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      console.error("Failed to load stats:", error);
     }
   };
 
@@ -71,20 +90,24 @@ export default function GlobalBrain() {
     setMemoryLoading(true);
     try {
       // Use the brain API with recent action
-      const response = await fetch(getApiUrl('/api/brain?action=recent&limit=20'));
+      const response = await fetch(
+        getApiUrl("/api/brain?action=recent&limit=20"),
+      );
       const data = await response.json();
       if (data.ok && data.memories) {
-        setMemories(data.memories.map((m: any) => ({
-          namespace: 'agent_memory',
-          key: m.id,
-          value: { query: m.query, response: m.response?.slice(0, 200) },
-          source: m.knowledge_extracted?.source,
-          updated_at: m.created_at,
-        })));
+        setMemories(
+          data.memories.map((m: any) => ({
+            namespace: "agent_memory",
+            key: m.id,
+            value: { query: m.query, response: m.response?.slice(0, 200) },
+            source: m.knowledge_extracted?.source,
+            updated_at: m.created_at,
+          })),
+        );
       }
     } catch (error) {
-      console.error('Failed to load memories:', error);
-      toast.error('Failed to load memories');
+      console.error("Failed to load memories:", error);
+      toast.error("Failed to load memories");
     } finally {
       setMemoryLoading(false);
     }
@@ -97,12 +120,12 @@ export default function GlobalBrain() {
     setResult(null);
 
     try {
-      const response = await fetch(getApiUrl('/api/query'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(getApiUrl("/api/query"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          mode: 'deep',
+          mode: "deep",
           includeEvidence: true,
         }),
       });
@@ -111,11 +134,11 @@ export default function GlobalBrain() {
       setResult(data);
 
       if (!data.ok) {
-        toast.error(data.error || 'Query failed');
+        toast.error(data.error || "Query failed");
       }
     } catch (error) {
-      console.error('Query error:', error);
-      toast.error('Failed to query the global brain');
+      console.error("Query error:", error);
+      toast.error("Failed to query the global brain");
     } finally {
       setLoading(false);
     }
@@ -123,19 +146,19 @@ export default function GlobalBrain() {
 
   const handleWriteMemory = async () => {
     if (!newKey.trim() || !newValue.trim()) {
-      toast.error('Key and value are required');
+      toast.error("Key and value are required");
       return;
     }
 
     try {
-      const response = await fetch(getApiUrl('/api/brain'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(getApiUrl("/api/brain"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: 'fact',
+          action: "fact",
           key: newKey,
           value: newValue,
-          source: 'global-brain-ui',
+          source: "global-brain-ui",
         }),
       });
 
@@ -143,16 +166,16 @@ export default function GlobalBrain() {
 
       if (data.ok) {
         toast.success(`Stored: ${newKey}`);
-        setNewKey('');
-        setNewValue('');
+        setNewKey("");
+        setNewValue("");
         loadMemories();
         loadStats();
       } else {
-        toast.error(data.error || 'Failed to store memory');
+        toast.error(data.error || "Failed to store memory");
       }
     } catch (error) {
-      console.error('Write error:', error);
-      toast.error('Failed to write memory');
+      console.error("Write error:", error);
+      toast.error("Failed to write memory");
     }
   };
 
@@ -214,7 +237,9 @@ export default function GlobalBrain() {
                   type="text"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !loading && handleQuery()}
+                  onKeyPress={(e) =>
+                    e.key === "Enter" && !loading && handleQuery()
+                  }
                   placeholder="Ask anything about your business data..."
                   className="flex-1 bg-white/10 border border-cyan-500/30 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   disabled={loading}
@@ -239,9 +264,13 @@ export default function GlobalBrain() {
                   <div className="bg-black/30 border border-white/10 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-white/50">Answer</span>
-                      <span className="text-xs text-cyan-400">{result.latencyMs}ms</span>
+                      <span className="text-xs text-cyan-400">
+                        {result.latencyMs}ms
+                      </span>
                     </div>
-                    <p className="text-white/90 whitespace-pre-wrap">{result.answer}</p>
+                    <p className="text-white/90 whitespace-pre-wrap">
+                      {result.answer}
+                    </p>
                   </div>
 
                   {/* Sources Used */}
@@ -315,6 +344,9 @@ export default function GlobalBrain() {
 
           {/* Right Sidebar - Memory Viewer/Editor */}
           <div className="space-y-6">
+            {/* Brain Visualizer (New Elite Component) */}
+            <BrainVisualizer />
+
             {/* Write Memory */}
             <div className="bg-white/5 border border-purple-500/30 rounded-xl p-4">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -358,7 +390,9 @@ export default function GlobalBrain() {
                   disabled={memoryLoading}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  <RefreshCw className={`w-4 h-4 ${memoryLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`w-4 h-4 ${memoryLoading ? "animate-spin" : ""}`}
+                  />
                 </button>
               </div>
 
@@ -382,12 +416,15 @@ export default function GlobalBrain() {
                           {mem.value?.query?.slice(0, 30) || mem.key}
                         </span>
                         {mem.source && (
-                          <span className="text-xs text-white/40">{mem.source}</span>
+                          <span className="text-xs text-white/40">
+                            {mem.source}
+                          </span>
                         )}
                       </div>
                       <p className="text-white/60 text-xs truncate">
-                        {typeof mem.value === 'object'
-                          ? mem.value?.response?.slice(0, 100) || JSON.stringify(mem.value).slice(0, 100)
+                        {typeof mem.value === "object"
+                          ? mem.value?.response?.slice(0, 100) ||
+                            JSON.stringify(mem.value).slice(0, 100)
                           : String(mem.value).slice(0, 100)}
                       </p>
                     </div>

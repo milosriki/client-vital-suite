@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode, corsHeaders as defaultCorsHeaders } from "../_shared/error-handler.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 serve(async (req) => {
 
@@ -25,7 +29,7 @@ serve(async (req) => {
 
     if (!finalSql) {
 
-      return new Response(JSON.stringify({ error: "Missing SQL query" }), { status: 400 });
+      return apiError("BAD_REQUEST", JSON.stringify({ error: "Missing SQL query" }), 400);
 
     }
 
@@ -39,17 +43,17 @@ serve(async (req) => {
 
     
 
-    return new Response(JSON.stringify({ 
+    return apiError("INTERNAL_ERROR", JSON.stringify({ 
 
       error: "Direct SQL execution via JS client is disabled. Please use migrations.",
 
       tip: "I will use 'supabase db push' instead."
 
-    }), { status: 500 });
+    }), 500);
 
   } catch (e) {
 
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    return errorToResponse(e);
 
   }
 

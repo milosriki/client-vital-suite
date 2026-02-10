@@ -1,16 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
 import {
   handleError,
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { validateOrThrow } from "../_shared/data-contracts.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS")
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
 
   try {
     const supabase = createClient(
@@ -119,10 +123,8 @@ serve(async (req) => {
 
     if (upsertError) throw upsertError;
 
-    return new Response(JSON.stringify({ success: true, data: metricRecord }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
+    return apiSuccess({ success: true, data: metricRecord });
+  } catch (error: unknown) {
     return handleError(error, "generate-daily-snapshot", {
       errorCode: ErrorCode.INTERNAL_ERROR,
       context: { function: "generate-daily-snapshot" },

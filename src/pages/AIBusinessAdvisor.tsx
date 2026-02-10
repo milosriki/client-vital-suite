@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { BrainCircuit, MessageSquare, AlertTriangle, ArrowRight, Zap, Copy, Sparkles, UserX, Clock, RefreshCw } from 'lucide-react';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { toast } from 'sonner';
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAnnounce } from "@/lib/accessibility";
 
 export default function AIBusinessAdvisor() {
   const [selectedClient, setSelectedClient] = useState<any>(null);

@@ -10,6 +10,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,9 +33,13 @@ const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 const useDirectGemini = !!geminiApiKey;
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -330,25 +341,17 @@ Enhance these ${insights.length} insights with better call scripts and actions:\
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        insights_generated: aiEnhancedInsights.length,
-        is_business_hours: isBusinessHours,
-        dubai_time: dubaiTime.toISOString(),
-        insights: aiEnhancedInsights,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return apiSuccess({
+      success: true,
+      insights_generated: aiEnhancedInsights.length,
+      is_business_hours: isBusinessHours,
+      dubai_time: dubaiTime.toISOString(),
+      insights: aiEnhancedInsights,
+    });
   } catch (error: unknown) {
     console.error("Error:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess({ error: errorMessage });
   }
 });

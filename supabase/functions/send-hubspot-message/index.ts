@@ -1,12 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
 import {
   handleError,
   logError,
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { validateOrThrow } from "../_shared/data-contracts.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 /**
  * SEND HUBSPOT MESSAGE
@@ -29,9 +33,9 @@ interface SendMessageRequest {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -41,24 +45,12 @@ serve(async (req) => {
 
   if (!HUBSPOT_API_KEY) {
     console.error("❌ HUBSPOT_API_KEY not configured");
-    return new Response(
-      JSON.stringify({ error: "HubSpot API key not configured" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: "HubSpot API key not configured" }), 500);
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     console.error("❌ Supabase credentials missing");
-    return new Response(
-      JSON.stringify({ error: "Database configuration error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: "Database configuration error" }), 500);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -68,13 +60,7 @@ serve(async (req) => {
     const { threadId, message, senderActorId } = body;
 
     if (!threadId || !message) {
-      return new Response(
-        JSON.stringify({ error: "threadId and message are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return apiError("BAD_REQUEST", JSON.stringify({ error: "threadId and message are required" }), 400);
     }
 
     console.log(`📤 Sending message to thread ${threadId}`);
@@ -126,17 +112,12 @@ serve(async (req) => {
               console.warn("Failed to log delivery:", err);
             });
 
-          return new Response(
-            JSON.stringify({
+          return apiSuccess({
               success: true,
               messageId: result.id,
               threadId,
               duration_ms: duration,
-            }),
-            {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+            });
         }
 
         // Handle HTTP errors
@@ -164,7 +145,7 @@ serve(async (req) => {
           console.log(`⏳ Retrying in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(
           `❌ Network error (attempt ${attempts}/${maxAttempts}):`,
           error,
@@ -215,18 +196,12 @@ serve(async (req) => {
       console.error("Fallback also failed:", fallbackError);
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         error: "Failed to send message",
         details: lastError?.message || "Unknown error",
         attempts: maxAttempts,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  } catch (error: any) {
+      }), 500);
+  } catch (error: unknown) {
     console.error("❌ Send message error:", error);
 
     return handleError(error, "send-hubspot-message", {

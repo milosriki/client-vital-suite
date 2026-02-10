@@ -14,12 +14,27 @@ import { CallStatusChart } from "@/components/sales-pipeline/CallStatusChart";
 import { SalesTabs } from "@/components/sales-pipeline/SalesTabs";
 import { DAYS_FILTER_OPTIONS } from "@/components/sales-pipeline/constants";
 import { getFollowUpInsights } from "@/components/sales-pipeline/utils";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAnnounce } from "@/lib/accessibility";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DollarSign } from "lucide-react";
+import { ActionIntercept } from "@/components/ui/action-intercept";
+import { SalesPipelineGhost } from "@/components/sales-pipeline/SalesPipelineGhost";
 
 export default function SalesPipeline() {
   const queryClient = useQueryClient();
   const [daysFilter, setDaysFilter] = useState<string>("3");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [selectedDeal, setSelectedDeal] = useState<any>(null);
 
   // Calculate date filter
   const getDateFilter = () => {
@@ -110,7 +125,7 @@ export default function SalesPipeline() {
   }, [queryClient]);
 
   // Fetch lead funnel data using the new dynamic_funnel_view
-  const { data: funnelData } = useDedupedQuery({
+  const { data: funnelData, isLoading: funnelLoading } = useDedupedQuery({
     queryKey: ["lead-funnel", daysFilter, ownerFilter, campaignFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -203,7 +218,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch deals data
-  const { data: dealsData } = useDedupedQuery({
+  const { data: dealsData, isLoading: dealsLoading } = useDedupedQuery({
     queryKey: ["deals-summary", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -328,6 +343,10 @@ export default function SalesPipeline() {
     ? (((dealsData?.closedCount || 0) / funnelData.total) * 100).toFixed(1)
     : "0.0";
 
+  if (funnelLoading || dealsLoading) {
+    return <SalesPipelineGhost />;
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -405,7 +424,6 @@ export default function SalesPipeline() {
       {/* Call Status Overview */}
       <CallStatusChart callRecords={callRecords} />
 
-      {/* Detailed Data Tabs */}
       <SalesTabs
         funnelData={funnelData}
         enhancedLeads={enhancedLeads || []}
@@ -414,7 +432,137 @@ export default function SalesPipeline() {
         callRecords={callRecords}
         appointments={appointments}
         allLeads={allLeads}
+        onDealClick={(deal) => setSelectedDeal(deal)}
       />
+
+      <Sheet
+        open={!!selectedDeal}
+        onOpenChange={(open) => !open && setSelectedDeal(null)}
+      >
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+          {selectedDeal && (
+            <div className="space-y-6">
+              <SheetHeader>
+                <SheetTitle className="text-2xl">
+                  {selectedDeal.deal_name}
+                </SheetTitle>
+                <SheetDescription>
+                  Deal ID: {selectedDeal.id?.slice(0, 8)}...
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-slate-50 border">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Value
+                    </p>
+                    <p className="text-2xl font-bold">
+                      AED {selectedDeal.amount?.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-slate-50 border">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Stage
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className="mt-1 capitalize text-base"
+                    >
+                      {selectedDeal.stage}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Contact Info</h3>
+                  <div className="p-4 rounded-lg border bg-white space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Name:</span>
+                      <span className="font-medium">
+                        Unknown (Sync Pending)
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Close Date:</span>
+                      <span className="font-medium">
+                        {selectedDeal.close_date
+                          ? new Date(
+                              selectedDeal.close_date,
+                            ).toLocaleDateString()
+                          : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                  <ActionIntercept
+                    trigger={
+                      <Button className="w-full bg-green-600 hover:bg-green-700">
+                        <DollarSign className="mr-2 h-4 w-4" />
+                        Mark Won
+                      </Button>
+                    }
+                    title="Mark Deal as Won?"
+                    description={
+                      <div className="space-y-2">
+                        <p>
+                          This will move the deal to <strong>Closed Won</strong>{" "}
+                          stage and update your revenue metrics.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Are you sure you want to proceed?
+                        </p>
+                      </div>
+                    }
+                    variant="success"
+                    confirmText="Confirm Won"
+                    onConfirm={() => {
+                      toast.success(
+                        `Deal ${selectedDeal.deal_name} marked as Won!`,
+                      );
+                      // In a real app, you would call a mutation here
+                    }}
+                  />
+
+                  <ActionIntercept
+                    trigger={
+                      <Button
+                        variant="outline"
+                        className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Mark Lost
+                      </Button>
+                    }
+                    title="Mark Deal as Lost?"
+                    description={
+                      <div className="space-y-2">
+                        <p>
+                          This will move the deal to{" "}
+                          <strong>Closed Lost</strong> stage.
+                        </p>
+                        <p className="text-sm text-red-600 font-medium bg-red-50 p-2 rounded">
+                          ⚠️ This action cannot be easily undone.
+                        </p>
+                      </div>
+                    }
+                    variant="danger"
+                    confirmText="Confirm Lost"
+                    onConfirm={() => {
+                      toast.success(
+                        `Deal ${selectedDeal.deal_name} marked as Lost.`,
+                      );
+                      // In a real app, you would call a mutation here
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

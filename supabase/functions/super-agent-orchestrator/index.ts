@@ -17,6 +17,8 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 // ============================================================================
 
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   logError,
   ErrorCode,
@@ -470,7 +472,7 @@ async function discoverSystem(
       functions: functions.length,
     });
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     await traceEnd(runId, { status: "error", error: String(error) });
     throw error;
   }
@@ -576,7 +578,7 @@ async function runValidation(
 
     await traceEnd(runId, { results });
     return results;
-  } catch (error) {
+  } catch (error: unknown) {
     await traceEnd(runId, { status: "error", error: String(error) });
     throw error;
   }
@@ -660,7 +662,7 @@ async function runIntelligence(
 
     await traceEnd(runId, { results });
     return results;
-  } catch (error) {
+  } catch (error: unknown) {
     await traceEnd(runId, { status: "error", error: String(error) });
     throw error;
   }
@@ -747,7 +749,7 @@ async function crossValidate(
 
     await traceEnd(runId, { issues, improvements });
     return { issues, improvements };
-  } catch (error) {
+  } catch (error: unknown) {
     await traceEnd(runId, { status: "error", error: String(error) });
     throw error;
   }
@@ -803,7 +805,7 @@ Generate a concise summary.`;
     const report = response.content || generateFallbackReport(state);
     await traceEnd(runId, { source: "unified_ai", report });
     return report;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Synthesis failed:", error);
     const report = generateFallbackReport(state);
     await traceEnd(runId, { source: "fallback", report, error: String(error) });
@@ -864,7 +866,7 @@ async function triggerHealing(
       status: "triggered",
       count: criticalFailures.length + improvements.length,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Healing trigger failed:", error);
     await traceEnd(runId, { status: "error", error: String(error) });
   }
@@ -1023,7 +1025,7 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
 
     console.log(`\n[Orchestrator] Completed: ${state.final_status}`);
     return state;
-  } catch (error) {
+  } catch (error: unknown) {
     // NEVER FAIL - even on error, return degraded state
     console.error(
       "[Orchestrator] Error (continuing with degraded state):",
@@ -1048,9 +1050,9 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
 // ============================================================================
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabase = createClient(
@@ -1071,41 +1073,26 @@ serve(async (req: Request) => {
         .limit(1)
         .single();
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           last_run: data?.value || null,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     if (action === "check_connections") {
       const connections = await checkAllConnections(supabase);
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           connections,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     if (action === "discovery") {
       const discovery = await discoverSystem(supabase);
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           ...discovery,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
     }
 
     // Default: run full orchestration
@@ -1116,8 +1103,7 @@ serve(async (req: Request) => {
 
     const duration = Date.now() - startTime;
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true, // Always true - we never fail
         run_id: result.run_id,
         duration_ms: duration,
@@ -1149,12 +1135,8 @@ serve(async (req: Request) => {
 
         improvements: result.improvements,
         final_report: result.final_report,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  } catch (error: any) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "super-agent-orchestrator", {
       supabase,
       errorCode: ErrorCode.INTERNAL_ERROR,

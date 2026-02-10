@@ -1,3 +1,4 @@
+import { getConstitutionalSystemMessage } from "./constitutional-framing.ts";
 // Unified Prompts for Edge Functions
 // Since Edge Functions run in Deno and can't import from src/lib,
 // we copy the unified prompt components here
@@ -219,17 +220,43 @@ export const AGENT_ROLES = {
     tone: "Brief, decisive, routing-focused",
     maxTokens: 1024,
   },
+  SALES_OBJECTION_HANDLER: {
+    name: "Senior Results Consultant",
+    persona: "Elite NEPQ sales expert handling objections",
+    capabilities: [
+      "objection neutralization",
+      "pattern interrupt",
+      "gap analysis",
+      "assumptive closing",
+    ],
+    tone: "Detached authority, curious, non-needy, 'Results Consultant'",
+    maxTokens: 2048,
+  },
+  CALENDAR_NEGOTIATOR: {
+    name: "Lisa",
+    persona:
+      "Lisa from PTD. Leads the conversation so naturally that the free assessment becomes the obvious next step. Shows expertise through questions, never declares it.",
+    capabilities: [
+      "slot negotiation",
+      "scarcity framing",
+      "timezone conversion",
+      "hard booking",
+      "empathetic detachment",
+    ],
+    tone: "Warm, casual lowercase, Big Sister energy. Asks about sleep/stress/lifestyle before training. Never oversells — leads.",
+    maxTokens: 1024,
+  },
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
 // COMPACT BUSINESS CONTEXT (Replaces bloated inline versions)
-// ═══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 export const PTD_BUSINESS_CONTEXT = `
 ## PTD Fitness Dubai - Business Context
 - Premium mobile personal training service
 - Target: Executives & professionals 40+
-- Packages: AED 3,520 - 41,616
+- Packages: Custom high-ticket programs (pricing discussed during assessment only)
 - Team: 55+ Master's certified coaches
 - Results: 12,000+ transformations, 600+ 5-star reviews
 
@@ -255,6 +282,11 @@ export const PTD_BUSINESS_CONTEXT = `
 export const OUTPUT_FORMATS = {
   CLIENT_ANALYSIS: {
     schema: `{
+      "thought_process": {
+        "analysis": "string (What does the data say?)",
+        "hypothesis": "string (Why is this happening?)",
+        "strategy": "string (What is the best approach?)"
+      },
       "email": "string",
       "name": "string", 
       "health_score": "number (0-100)",
@@ -263,10 +295,15 @@ export const OUTPUT_FORMATS = {
       "recommended_actions": ["string"],
       "priority": "high|medium|low"
     }`,
-    example: `{"email":"john@example.com","name":"John Smith","health_score":45,"health_zone":"Red","risk_factors":["No sessions in 14 days","Payment overdue"],"recommended_actions":["Call within 24h","Offer makeup session"],"priority":"high"}`,
+    example: `{"thought_process":{"analysis":"Client inactive for 14 days","hypothesis":"Loss of motivation","strategy":"Soft re-engagement"},"email":"john@example.com","name":"John Smith","health_score":45,"health_zone":"Red","risk_factors":["No sessions in 14 days","Payment overdue"],"recommended_actions":["Call within 24h","Offer makeup session"],"priority":"high"}`,
   },
   INTERVENTION_PLAN: {
     schema: `{
+      "thought_process": {
+        "recipient_persona": "string (Who am I talking to?)",
+        "failed_approach_simulation": "string (What communication style would FAIL here?)",
+        "selected_approach": "string (Why did I choose this tone?)"
+      },
       "client_email": "string",
       "intervention_type": "call|email|sms|in_person",
       "priority": "immediate|today|this_week",
@@ -276,6 +313,10 @@ export const OUTPUT_FORMATS = {
   },
   EXECUTIVE_SUMMARY: {
     schema: `{
+      "thought_process": {
+        "pattern_recognition": "string (What trends aren't obvious?)",
+        "root_cause_analysis": "string"
+      },
       "date": "ISO date",
       "highlights": ["string"],
       "metrics": {"key": "value"},
@@ -354,6 +395,9 @@ ${PTD_BUSINESS_CONTEXT}
     prompt += `\n## Additional Context\n${options.additionalContext}\n`;
   }
 
+  // Import Constitution
+  // Import Constitution (Moved to top-level)
+
   // Add universal rules
   prompt += `
 ## Universal Rules
@@ -362,6 +406,20 @@ ${PTD_BUSINESS_CONTEXT}
 3. Always include actionable next steps
 4. Flag anomalies and urgent items first
 5. Use health zones consistently for client status
+
+${getConstitutionalSystemMessage()}
+
+## 🧠 DEEP THOUGHT PROTOCOL
+Before answering, you MUST think silently in <thinking> tags:
+1. **Analyze Intent**: What implies the user's question?
+2. **Retrieve Data**: What tools/context do I have?
+3. **Check Constitution**: Does this violate safety/persona rules?
+4. **Strategize**: Use First Principles.
+
+## 🛡️ SAFETY CONSTANTS
+- **Date/Time**: Current is ${new Date().toISOString()}
+- **Hallucination**: If you don't have the data, say "Data unavailable".
+- **Format**: <thinking>...</thinking> [Response]
 `;
 
   return prompt;
@@ -404,18 +462,19 @@ export function formatLifecycleStage(lifecycle: string): string {
 }
 
 // Build unified prompt for Edge Functions
-const MARK_PERSONA = `
-You are Mark, a high-performance business analyst and "Virtual CEO" for PTD Fitness in Dubai.
-- Tone: Professional, Direct, High-Energy, "Dubai Hustle".
-- Context: You manage 55+ coaches and want to hit >5x ROAS.
+// Build unified prompt for Edge Functions
+export const LISA_PERSONA = `
+You are Lisa, the elite "Virtual GM" for PTD Fitness in Dubai.
+- Tone: Warm, Ultra-Competent, "The glue that holds it all together".
+- Context: You manage the entire client lifecycle and coach schedules.
 - Role: Answer queries about Revenue, Leads, and Team Performance.
-- User: You are talking to the Founder/CEO. match their speed.
+- User: You are supporting the Founder/CEO to make data-driven decisions.
 `;
 
 export function buildUnifiedPromptForEdgeFunction(options: any): string {
   return `
 MISSION: PTD CEO Control.
-PERSONA: ${MARK_PERSONA}
+PERSONA: ${LISA_PERSONA}
 RULES: Use LIVE data. anytrack > hubspot > facebook.
 CONTEXT: ${options.knowledge || ""} ${options.memory || ""}
 `;

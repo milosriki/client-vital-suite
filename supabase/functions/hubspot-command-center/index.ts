@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -100,9 +103,9 @@ function detectAnomalies(summary: any): string[] {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -190,19 +193,19 @@ serve(async (req) => {
           if (!error) synced++;
         }
 
-        return new Response(JSON.stringify({
+        return apiSuccess({
           success: true,
           action: 'sync-logins',
           synced,
           total: results.length,
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        });
       } catch (e: unknown) {
         console.error('Login sync error:', e);
-        return new Response(JSON.stringify({
+        return apiSuccess({
           success: false,
           error: e instanceof Error ? e.message : 'Unknown error',
           note: 'Login activity API may require specific HubSpot permissions',
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        });
       }
     }
 
@@ -229,19 +232,19 @@ serve(async (req) => {
           if (!error) synced++;
         }
 
-        return new Response(JSON.stringify({
+        return apiSuccess({
           success: true,
           action: 'sync-security',
           synced,
           total: results.length,
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        });
       } catch (e: unknown) {
         console.error('Security sync error:', e);
-        return new Response(JSON.stringify({
+        return apiSuccess({
           success: false,
           error: e instanceof Error ? e.message : 'Unknown error',
           note: 'Security activity API may require specific HubSpot permissions',
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        });
       }
     }
 
@@ -286,18 +289,18 @@ serve(async (req) => {
           if (!error) synced++;
         }
 
-        return new Response(JSON.stringify({
+        return apiSuccess({
           success: true,
           action: 'sync-contacts',
           synced,
           total: results.length,
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        });
       } catch (e: unknown) {
         console.error('Contact sync error:', e);
-        return new Response(JSON.stringify({
+        return apiSuccess({
           success: false,
           error: e instanceof Error ? e.message : 'Unknown error',
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        });
       }
     }
 
@@ -356,12 +359,12 @@ serve(async (req) => {
         console.error('Security sync failed:', e);
       }
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         action: 'full-sync',
         results,
         timestamp: new Date().toISOString(),
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      });
     }
 
     // ACTION: Aggregate daily summaries
@@ -441,13 +444,13 @@ serve(async (req) => {
         if (!error) aggregated++;
       }
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         action: 'aggregate',
         date: targetDate,
         usersProcessed: Object.keys(userStats).length,
         aggregated,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      });
     }
 
     // ACTION: Get overview data
@@ -496,7 +499,7 @@ serve(async (req) => {
         usersWithAnomalies: (summaries || []).filter(s => (s.anomaly_flags || []).length > 0).length,
       };
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         action: 'overview',
         dateRange: { from: fromDate, to: toDate },
@@ -506,7 +509,7 @@ serve(async (req) => {
         recentSecurity: recentSecurity || [],
         riskyChanges: riskyChanges || [],
         timestamp: new Date().toISOString(),
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      });
     }
 
     // ACTION: Get user detail
@@ -551,7 +554,7 @@ serve(async (req) => {
       const totalRiskScore = (summaries || []).reduce((sum, s) => sum + (s.risk_score || 0), 0);
       const allAnomalies = (summaries || []).flatMap(s => s.anomaly_flags || []);
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         action: 'user-detail',
         userEmail,
@@ -562,7 +565,7 @@ serve(async (req) => {
         security: security || [],
         contactChanges: contactChanges || [],
         timestamp: new Date().toISOString(),
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      });
     }
 
     // ACTION: Get risky contacts
@@ -579,26 +582,26 @@ serve(async (req) => {
         .order('occurred_at', { ascending: false })
         .limit(200);
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         action: 'risky-contacts',
         minRiskScore: minScore,
         count: (riskyChanges || []).length,
         changes: riskyChanges || [],
         timestamp: new Date().toISOString(),
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      });
     }
 
-    return new Response(JSON.stringify({
+    return apiError("BAD_REQUEST", JSON.stringify({
       error: 'Unknown action',
       availableActions: ['sync-logins', 'sync-security', 'sync-contacts', 'full-sync', 'aggregate', 'overview', 'user-detail', 'risky-contacts'],
-    }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), 400);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpot Command Center] Error:', error);
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       error: error.message,
-    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), 500);
   }
 });

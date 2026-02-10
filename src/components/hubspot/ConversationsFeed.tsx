@@ -50,7 +50,7 @@ export function ConversationsFeed() {
     return bTime - aTime;
   });
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <Card>
         <CardHeader>

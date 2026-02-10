@@ -9,6 +9,8 @@ import {
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -457,9 +459,9 @@ async function runGraph(
 
 // ============ MAIN HANDLER ============
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabase = createClient(
@@ -512,10 +514,8 @@ serve(async (req) => {
 
     await traceEnd(runId, responseData);
 
-    return new Response(JSON.stringify(responseData), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
+    return apiSuccess(responseData);
+  } catch (error: unknown) {
     return handleError(error, "agent-orchestrator", {
       supabase,
       errorCode: ErrorCode.INTERNAL_ERROR,

@@ -9,6 +9,9 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { pullPrompt } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,9 +54,9 @@ interface EnterpriseContext {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   // Parse request body early for tracing
@@ -209,9 +212,7 @@ serve(async (req) => {
       // End trace with success
       await traceEnd(traceRun, { action: "fetch-enterprise-data", transactionCount: transactions.length, dataQuality: context.dataQuality });
 
-      return new Response(JSON.stringify(context), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return apiSuccess(context);
     }
 
     // ===================================================================
@@ -352,9 +353,6 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
     // End trace with error
     await traceEnd(traceRun, { error: msg }, msg);
     
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: msg }), 500);
   }
 });

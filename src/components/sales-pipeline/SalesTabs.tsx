@@ -38,6 +38,7 @@ interface SalesTabsProps {
   callRecords: any;
   appointments: any;
   allLeads: any[];
+  onDealClick?: (deal: any) => void;
 }
 
 export const SalesTabs = ({
@@ -48,6 +49,7 @@ export const SalesTabs = ({
   callRecords,
   appointments,
   allLeads,
+  onDealClick,
 }: SalesTabsProps) => {
   return (
     <Tabs defaultValue="leads" className="space-y-4">
@@ -358,7 +360,11 @@ export const SalesTabs = ({
                 </TableHeader>
                 <TableBody>
                   {dealsData?.deals?.map((deal: any) => (
-                    <TableRow key={deal.id}>
+                    <TableRow
+                      key={deal.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => onDealClick && onDealClick(deal)}
+                    >
                       <TableCell className="font-medium">
                         {deal.deal_name ||
                           `Deal ${(deal.id || "").slice(0, 8)}`}

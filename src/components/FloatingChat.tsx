@@ -63,7 +63,7 @@ export const FloatingChat = () => {
   // Timer for loading state
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isLoading) {
+    if (isLoading && !data) {
       setLoadingSeconds(0);
       interval = setInterval(() => {
         setLoadingSeconds((prev) => prev + 1);

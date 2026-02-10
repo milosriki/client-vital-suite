@@ -4,6 +4,9 @@ import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,9 +51,9 @@ interface Anomaly {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   // Parse request body early for tracing
@@ -610,23 +613,18 @@ serve(async (req) => {
     // End trace with success
     await traceEnd(traceRun, response);
 
-    return new Response(JSON.stringify(response, null, 2), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess(response);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[stripe-deep-agent] Error:", error);
     
     // End trace with error
     await traceEnd(traceRun, { error: error.message }, error.message);
     
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       error: error.message,
       stack: error.stack,
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }), 500);
   }
 });

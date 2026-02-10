@@ -5,6 +5,8 @@ import {
   getCorrelationId,
 } from "../_shared/observability.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   createSuccessResponse,
   ErrorResponse,
@@ -15,9 +17,9 @@ import {
 } from "../_shared/error-handler.ts";
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -109,7 +111,7 @@ serve(async (req) => {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching contacts:", error);
     }
 
@@ -131,7 +133,7 @@ serve(async (req) => {
         syncStats.deals.synced = dealsData.results?.length || 0;
         console.log(`Successfully processed ${syncStats.deals.synced} deals.`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching deals:", error);
     }
 
@@ -217,7 +219,7 @@ serve(async (req) => {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching meetings:", error);
     }
 
@@ -241,19 +243,13 @@ serve(async (req) => {
 
     console.log("✅ Sync complete:", syncStats);
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         message: "HubSpot sync completed",
         stats: syncStats,
         duration:
           new Date(syncEndTime).getTime() - new Date(syncStartTime).getTime(),
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      },
-    );
+      });
   } catch (error: unknown) {
     return handleError(error, "sync-hubspot-data", {
       errorCode: ErrorCode.INTERNAL_ERROR,

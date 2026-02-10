@@ -115,7 +115,7 @@ export function HeroStatCard({
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div 
         className={cn(

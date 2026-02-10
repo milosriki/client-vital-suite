@@ -24,16 +24,45 @@ export class AISensyProvider implements WhatsAppProvider {
     const projectId = options?.projectId || "default";
     const url = `${this.apiUrl}/${projectId}/messages`;
 
+    // Construct payload based on message type
+    let messagePayload: any;
+
+    if (options?.template) {
+      // TEMPLATE MESSAGE (Proactive / Re-engagement)
+      messagePayload = {
+        type: "template",
+        template: {
+          name: options.template.name,
+          language: {
+            code: options.template.language || "en",
+            policy: "deterministic",
+          },
+          components: [
+            {
+              type: "body",
+              parameters: (options.template.params || []).map((p) => ({
+                type: "text",
+                text: p,
+              })),
+            },
+          ],
+        },
+      };
+    } else {
+      // TEXT MESSAGE (Session / Daily)
+      messagePayload = {
+        type: "text",
+        text: {
+          body: message,
+        },
+      };
+    }
+
     const payload = {
       apiKey: this.apiKey,
       campaignName: options?.campaignName || "direct_reply",
       destinationNumber: this.formatPhoneNumber(phone),
-      message: {
-        type: "text",
-        payload: {
-          text: message,
-        },
-      },
+      ...messagePayload,
     };
 
     const response = await fetch(url, {

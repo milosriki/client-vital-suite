@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // SHA-256 hash function for PII (Meta CAPI requirement)
 async function hashPII(value: string | null | undefined): Promise<string | null> {
@@ -35,9 +38,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -50,19 +53,13 @@ serve(async (req) => {
     // Stape is optional - if no key, return success but don't send
     if (!STAPE_CAPIG_API_KEY) {
       console.log('⚠️  STAPE_CAPIG_API_KEY not configured - event stored but not sent to Meta CAPI');
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           mode,
           event_id: `evt_${Date.now()}`,
           message: 'Stape API key not configured - event stored but not sent',
           stored_only: true
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+        });
     }
 
     console.log('Sending event to Stape CAPI:', {
@@ -125,30 +122,18 @@ serve(async (req) => {
       throw new Error(`Stape CAPI error: ${JSON.stringify(responseData)}`);
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         mode,
         event_id: responseData.event_id || `evt_${Date.now()}`,
         response: responseData
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error('Error in send-to-stape-capi:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         success: false,
         error: errorMessage
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+      }), 500);
   }
 });

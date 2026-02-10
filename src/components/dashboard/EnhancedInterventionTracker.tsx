@@ -152,7 +152,7 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
     completed: interventions.filter((i) => i.status === "COMPLETED"),
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <Card className="border-border/50 bg-card/80">
         <CardHeader>

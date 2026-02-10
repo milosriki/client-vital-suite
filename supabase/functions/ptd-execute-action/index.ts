@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,9 +26,9 @@ const EXECUTION_TOOLS: Record<string, { risk: string; requires_approval: boolean
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -44,18 +47,12 @@ serve(async (req) => {
         .single();
 
       if (!request) {
-        return new Response(JSON.stringify({ error: 'Request not found' }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        return apiError("NOT_FOUND", JSON.stringify({ error: 'Request not found' }), 404);
       }
 
       const execRequest = request.value;
       if (execRequest.status !== 'approved' && !force_approval) {
-        return new Response(JSON.stringify({ error: 'Request not approved' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        return apiError("REQUEST_ERROR", JSON.stringify({ error: 'Request not approved' }), 403);
       }
 
       return await executeAction(supabase, execRequest.action, execRequest.params, request_key);
@@ -63,13 +60,10 @@ serve(async (req) => {
 
     // New execution request
     if (!action || !EXECUTION_TOOLS[action]) {
-      return new Response(JSON.stringify({ 
+      return apiError("BAD_REQUEST", JSON.stringify({ 
         error: 'Invalid action',
         available_actions: Object.keys(EXECUTION_TOOLS)
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      }), 400);
     }
 
     const toolConfig = EXECUTION_TOOLS[action];
@@ -93,29 +87,24 @@ serve(async (req) => {
 
       console.log(`⏳ Execution queued for approval: ${action}`);
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         status: 'pending_approval',
         request_key: requestKey,
         action,
         risk_level: toolConfig.risk,
         message: `Action ${action} requires approval. Use request_key to execute after approval.`
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     // Execute immediately
     return await executeAction(supabase, action, params);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Execution error:', error);
-    return new Response(JSON.stringify({ 
+    return apiError("INTERNAL_ERROR", JSON.stringify({ 
       error: 'Execution failed', 
       details: String(error) 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    }), 500);
   }
 });
 
@@ -330,15 +319,13 @@ async function executeAction(
 
     console.log(`✅ Executed successfully: ${action}`);
 
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: true,
       action,
       result
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`❌ Execution failed: ${action}`, error);
 
     // Update request status if from queue
@@ -355,13 +342,10 @@ async function executeAction(
         .eq('key', requestKey);
     }
 
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       action,
       error: String(error)
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    }), 500);
   }
 }

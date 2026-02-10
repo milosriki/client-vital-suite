@@ -16,6 +16,7 @@ import { CEOActionCenter } from "@/components/ceo/CEOActionCenter";
 import { CEOInsights } from "@/components/ceo/CEOInsights";
 import { CEOMemory } from "@/components/ceo/CEOMemory";
 import { CEOActionModal } from "@/components/ceo/CEOActionModal";
+import { DataFreshnessWidget } from "@/components/dashboard/DataFreshnessWidget";
 
 export function UltimateAICEO() {
   // State
@@ -74,6 +75,9 @@ export function UltimateAICEO() {
 
         {/* Churn Alerts */}
         <CEOChurnAlerts churnAlerts={churnAlerts} />
+
+        {/* Data Freshness SLO — per observability-engineer skill */}
+        <DataFreshnessWidget />
 
         {/* Command Input */}
         <CEOCommandInput

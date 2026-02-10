@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,9 +16,9 @@ const corsHeaders = {
 // ============================================================
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -82,8 +85,7 @@ serve(async (req) => {
         transactionsByType[t.type].amount += t.amount;
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           mode: "READ_ONLY",
           balance: {
@@ -141,9 +143,7 @@ serve(async (req) => {
             })),
             by_type: transactionsByType,
           },
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== GET PAYOUT HISTORY (READ-ONLY) ====================
@@ -190,8 +190,7 @@ serve(async (req) => {
         if (p.status === "pending") stats.pending_count++;
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           payouts: payouts.data.map((p: Stripe.Payout) => ({
             id: p.id,
@@ -211,9 +210,7 @@ serve(async (req) => {
           })),
           has_more: payouts.has_more,
           stats,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== GET BALANCE DETAILS ====================
@@ -226,8 +223,7 @@ serve(async (req) => {
         type: "charge",
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           balance: {
             available: balance.available.map((b: Stripe.Balance.Available) => ({
@@ -262,9 +258,7 @@ serve(async (req) => {
             created: t.created,
             description: t.description,
           })),
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== GET CHARGES (READ-ONLY) ====================
@@ -288,8 +282,7 @@ serve(async (req) => {
         dailyTotals[date].refunded += c.amount_refunded;
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           charges: charges.data.map((c: Stripe.Charge) => ({
             id: c.id,
@@ -308,9 +301,7 @@ serve(async (req) => {
           })),
           has_more: charges.has_more,
           daily_totals: dailyTotals,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== GET SUBSCRIPTIONS (READ-ONLY) ====================
@@ -343,8 +334,7 @@ serve(async (req) => {
         }
       });
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           subscriptions: subscriptions.data.map((s: Stripe.Subscription) => ({
             id: s.id,
@@ -371,15 +361,12 @@ serve(async (req) => {
             trialing_count: subscriptions.data.filter((s: Stripe.Subscription) => s.status === 'trialing').length,
             canceled_count: subscriptions.data.filter((s: Stripe.Subscription) => s.status === 'canceled').length,
           },
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // ==================== AVAILABLE ACTIONS ====================
     if (action === "list-actions") {
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           mode: "READ_ONLY",
           available_actions: [
@@ -391,14 +378,12 @@ serve(async (req) => {
             { action: "get-subscriptions", description: "Active subscriptions with MRR" },
             { action: "list-actions", description: "List all available actions" },
           ],
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     throw new Error(`Unknown action: ${action}. Use 'list-actions' to see available actions.`);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[PAYOUT-CONTROLS] Error:", error);
     
     // Handle Stripe-specific errors
@@ -415,15 +400,12 @@ serve(async (req) => {
       errorMessage = "Permission denied for this operation.";
     }
 
-    return new Response(
-      JSON.stringify({ 
+    return apiSuccess({ 
         success: false, 
         error: errorMessage,
         code: error.code,
         type: error.type,
-      }),
-      { status: statusCode, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      });
   }
 });
 

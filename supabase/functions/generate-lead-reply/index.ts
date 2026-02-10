@@ -20,6 +20,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   logError,
   ErrorCode,
@@ -27,9 +29,9 @@ import {
 } from "../_shared/error-handler.ts";
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabase = createClient(
@@ -66,13 +68,10 @@ serve(async (req: Request) => {
     }
 
     if (!leadsToProcess || leadsToProcess.length === 0) {
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           message: "No new leads to process",
           processed: 0,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+        });
     }
 
     console.log(`[Lead Reply Agent] Processing ${leadsToProcess.length} leads`);
@@ -127,7 +126,7 @@ SMS BEST PRACTICES:
           );
 
           suggestedReply = response.content?.trim() || "";
-        } catch (err) {
+        } catch (err: unknown) {
           console.error(
             `[Lead Reply Agent] AI generation failed for lead ${lead.id}:`,
             err,
@@ -154,7 +153,7 @@ SMS BEST PRACTICES:
 
         console.log(`[Lead Reply Agent] Generated reply for lead ${lead.id}`);
         return { leadId: lead.id, success: true, reply: suggestedReply };
-      } catch (error) {
+      } catch (error: unknown) {
         const message =
           error instanceof Error ? error.message : "Unknown error";
         console.error(
@@ -198,16 +197,13 @@ SMS BEST PRACTICES:
       `[Lead Reply Agent] Batch complete: ${successCount} success, ${failCount} failed`,
     );
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         processed: successCount,
         failed: failCount,
         results,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error: any) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "generate-lead-reply", {
       supabase: createClient(
         Deno.env.get("SUPABASE_URL")!,

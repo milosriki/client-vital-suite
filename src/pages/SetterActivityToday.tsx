@@ -32,6 +32,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { getBusinessTodayString, getBusinessDate } from "@/lib/date-utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const SetterActivityToday = () => {
   // Use Dubai Business Time

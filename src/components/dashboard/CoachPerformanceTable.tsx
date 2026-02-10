@@ -42,7 +42,7 @@ export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTa
     return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <Card>
         <CardHeader>

@@ -7,6 +7,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -244,9 +246,9 @@ async function generateReport(): Promise<DailyReport> {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -368,17 +370,12 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[Daily Report] Complete in ${duration}ms`);
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         duration_ms: duration,
         report,
-      }),
-      {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      },
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "daily-report", {
       supabase,
       errorCode: ErrorCode.INTERNAL_ERROR,

@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,9 +32,9 @@ function normalizePhoneUAE(phone: string | null): string | null {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -194,7 +197,7 @@ serve(async (req) => {
           sentCount++; // Count as "processed" even though not sent
           console.log('Stored event (Stape not configured):', event.event_id);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error sending event:', event.event_id, err);
         failedCount++;
         errors.push({
@@ -240,32 +243,20 @@ serve(async (req) => {
       failed: failedCount
     });
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         batch_id: batchJob.id,
         events_processed: events?.length || 0,
         events_sent: sentCount,
         events_failed: failedCount,
         errors: errors
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error('Error in process-capi-batch:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         success: false,
         error: errorMessage
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+      }), 500);
   }
 });

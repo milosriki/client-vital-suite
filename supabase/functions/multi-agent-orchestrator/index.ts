@@ -2,7 +2,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // Multi-Agent Intelligence Orchestrator
 // Coordinates 4 specialist agents that "chat" to provide recommendations
@@ -207,9 +212,9 @@ Respond with JSON: { synthesis: "...", actionPlan: ["action 1", "action 2", ...]
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -262,14 +267,9 @@ serve(async (req) => {
       timestamp: new Date().toISOString(),
     };
 
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
+    return apiSuccess(response);
+  } catch (error: unknown) {
     console.error("[Multi-Agent] Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: error.message }), 500);
   }
 });

@@ -6,6 +6,7 @@ import PTDUnlimitedChat from "@/components/ai/PTDUnlimitedChat";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useVitalState } from "@/hooks/useVitalState";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { SkipNavigation } from "@/components/ui/skip-navigation";
 
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
@@ -31,10 +32,16 @@ export const Layout = () => {
 
   return (
     <>
+      <SkipNavigation />
       <Navigation />
       <ErrorBoundary>
         <div className="min-h-screen bg-background gradient-mesh font-sans antialiased">
-          <main className="flex-1 overflow-x-hidden pt-16 lg:pt-0 lg:pl-[72px] transition-all duration-300 ease-in-out">
+          <main
+            id="main-content"
+            role="main"
+            aria-label="Main content"
+            className="flex-1 overflow-x-hidden pt-16 lg:pt-0 lg:pl-[72px] transition-all duration-300 ease-in-out"
+          >
             <Outlet />
           </main>
         </div>

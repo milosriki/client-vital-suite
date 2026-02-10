@@ -12,9 +12,11 @@ import {
 } from "../_shared/error-handler.ts";
 import { HubSpotSyncManager, HUBSPOT_PROPERTIES } from "../_shared/hubspot-sync-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   const FUNCTION_NAME = "fetch-hubspot-live";
 
   if (req.method === 'OPTIONS') {
@@ -118,7 +120,7 @@ serve(async (req) => {
           sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
           limit: 100
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         return handleError(
           new Error(`HubSpot API error: ${error.message}`),
           FUNCTION_NAME,
@@ -153,7 +155,7 @@ serve(async (req) => {
         try {
           // Use unified property list and batch fetch method
           deals = await syncManager.batchFetchHubSpot('deals', dealIds, HUBSPOT_PROPERTIES.DEALS);
-        } catch (error) {
+        } catch (error: unknown) {
           console.warn('Failed to fetch deals:', error);
           // Continue without deals
         }
@@ -197,12 +199,7 @@ serve(async (req) => {
           totalDeals: deals.length
         });
 
-      return new Response(
-        JSON.stringify(successResponse),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return apiSuccess(successResponse);
     }
 
     // If type is 'activity' - fetch recent activity
@@ -224,7 +221,7 @@ serve(async (req) => {
           sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
           limit: 100
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         return handleError(
           new Error(`HubSpot activity API error: ${error.message}`),
           FUNCTION_NAME,
@@ -254,12 +251,7 @@ serve(async (req) => {
           totalActivities: activityData.results.length
         });
 
-      return new Response(
-        JSON.stringify(successResponse),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return apiSuccess(successResponse);
     }
 
     return handleError(
@@ -272,7 +264,7 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     // Determine appropriate error code
     let errorCode = ErrorCode.INTERNAL_ERROR;
 

@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { validateOrThrow } from "../_shared/data-contracts.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,8 +13,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  if (req.method === 'OPTIONS') return apiCorsPreFlight();
 
   try {
     const supabase = createClient(
@@ -32,7 +37,7 @@ serve(async (req) => {
 
     if (staleError) throw staleError;
 
-    return new Response(JSON.stringify({ 
+    return apiSuccess({ 
       success: true, 
       underworked_count: underworked?.length || 0,
       stale_deals_count: staleDeals?.length || 0,
@@ -40,13 +45,8 @@ serve(async (req) => {
         underworked,
         staleDeals
       }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: e.message }), 500);
   }
 });

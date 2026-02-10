@@ -1,0 +1,15 @@
+{
+  "botium": {
+    "Capabilities": {
+      "PROJECTNAME": "Dialogflow Production Test",
+      "CONTAINERMODE": "dialogflow",
+      "DIALOGFLOW_PROJECT_ID": "your-project-id",
+      "DIALOGFLOW_CLIENT_EMAIL": "dialogflow-client@your-project.iam.gserviceaccount.com",
+      "DIALOGFLOW_PRIVATE_KEY": "-----BEGIN PRIVATE KEY----- ...",
+      "DIALOGFLOW_USE_INTENT": true
+    },
+    "Sources": {
+      "GITURL": "https://github.com/my-org/my-agent-tests.git"
+    }
+  }
+}

@@ -47,6 +47,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { useAnnounce } from "@/lib/accessibility";
 
 export default function Dashboard() {
   useRealtimeHealthScores();

@@ -14,7 +14,16 @@
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "supabase:login": "supabase login",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:deploy": "supabase functions deploy",
+    "supabase:deploy:all": "supabase functions deploy --all",
+    "supabase:db:diff": "supabase db diff",
+    "supabase:db:push": "supabase db push",
+    "supabase:gen:types": "supabase gen types typescript --local > src/types/supabase.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -105,6 +114,7 @@
     "jsdom": "^27.4.0",
     "lovable-tagger": "^1.1.10",
     "postcss": "^8.5.6",
+    "supabase": "^2.75.5",
     "tailwindcss": "^3.4.17",
     "ts-jest": "^29.4.6",
     "typescript": "^5.8.3",

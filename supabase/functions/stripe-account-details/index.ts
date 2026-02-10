@@ -5,6 +5,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,9 +15,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -35,7 +38,7 @@ serve(async (req) => {
         expand: ["external_accounts", "settings.payouts"]
       });
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         type: "main-account",
         account: {
@@ -53,8 +56,6 @@ serve(async (req) => {
           settings: account.settings,
           type: account.type,
         }
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -69,7 +70,7 @@ serve(async (req) => {
         expand: ["external_accounts", "settings.payouts"]
       });
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         type: "connected-account",
         account: {
@@ -88,8 +89,6 @@ serve(async (req) => {
           type: account.type,
           metadata: account.metadata,
         }
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -101,7 +100,7 @@ serve(async (req) => {
       
       const accounts = await stripe.accounts.list({ limit: 100 });
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         type: "connected-accounts-list",
         count: accounts.data.length,
@@ -116,8 +115,6 @@ serve(async (req) => {
           default_currency: acc.default_currency,
           created: acc.created,
         }))
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -152,7 +149,7 @@ serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({
+      return apiSuccess({
         success: true,
         type: "full-diagnostic",
         timestamp: new Date().toISOString(),
@@ -207,8 +204,6 @@ serve(async (req) => {
           error: specificAccount.error,
         } : null,
         
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -217,9 +212,6 @@ serve(async (req) => {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[STRIPE-ACCOUNT] Error:", msg);
-    return new Response(JSON.stringify({ success: false, error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return apiError("INTERNAL_ERROR", JSON.stringify({ success: false, error: msg }), 500);
   }
 });

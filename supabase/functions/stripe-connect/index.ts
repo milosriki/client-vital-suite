@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,9 +38,9 @@ interface PayoutData {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -61,8 +64,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Accounts fetched:", accounts.data.length);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           accounts: accounts.data.map((acc: any) => ({
             id: acc.id,
             type: acc.type,
@@ -77,9 +79,7 @@ serve(async (req) => {
           })),
           has_more: accounts.has_more,
           total: accounts.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Get account details
@@ -88,10 +88,7 @@ serve(async (req) => {
       
       const account = await stripe.accounts.retrieve(account_id);
 
-      return new Response(
-        JSON.stringify({ account }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ account });
     }
 
     // Create connected account (Express)
@@ -111,10 +108,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Account created:", account.id);
 
-      return new Response(
-        JSON.stringify({ account }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ account });
     }
 
     // Create account onboarding link
@@ -130,10 +124,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Onboarding link created for:", account_id);
 
-      return new Response(
-        JSON.stringify({ url: accountLink.url, expires_at: accountLink.expires_at }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ url: accountLink.url, expires_at: accountLink.expires_at });
     }
 
     // Create dashboard login link for connected account
@@ -142,10 +133,7 @@ serve(async (req) => {
 
       const loginLink = await stripe.accounts.createLoginLink(account_id);
 
-      return new Response(
-        JSON.stringify({ url: loginLink.url }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ url: loginLink.url });
     }
 
     // Create destination charge (payment to connected account)
@@ -166,14 +154,11 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Destination charge created:", paymentIntent.id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           payment_intent: paymentIntent.id,
           client_secret: paymentIntent.client_secret,
           status: paymentIntent.status
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Create transfer to connected account
@@ -191,10 +176,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Transfer created:", transfer.id);
 
-      return new Response(
-        JSON.stringify({ transfer }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ transfer });
     }
 
     // List transfers
@@ -209,14 +191,11 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Transfers fetched:", transfers.data.length);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           transfers: transfers.data,
           has_more: transfers.has_more,
           total: transfers.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Create payout to connected account's bank
@@ -235,10 +214,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Payout created:", payout.id, "for account:", payoutData.connected_account);
 
-      return new Response(
-        JSON.stringify({ payout }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ payout });
     }
 
     // Get connected account balance
@@ -250,10 +226,7 @@ serve(async (req) => {
         { stripeAccount: account_id }
       );
 
-      return new Response(
-        JSON.stringify({ balance }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ balance });
     }
 
     // Get Connect dashboard data (overview)
@@ -287,8 +260,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-CONNECT] Dashboard data compiled");
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           summary: {
             total_accounts: accounts.data.length,
             enabled_accounts: enabledAccounts.length,
@@ -310,19 +282,14 @@ serve(async (req) => {
           recent_transfers: transfers.data.slice(0, 10),
           account_balances: accountBalances,
           platform_balance: platformBalance
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     throw new Error("Invalid action: " + action);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[STRIPE-CONNECT] Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: errorMessage }), 500);
   }
 });

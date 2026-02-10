@@ -1,16 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
 import {
   handleError,
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { validateOrThrow } from "../_shared/data-contracts.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -135,15 +139,12 @@ serve(async (req) => {
       if (error) throw error;
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         processed: upsertData.length,
         message: "Sync complete",
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     // Create a temporary client for error logging if not already created
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",

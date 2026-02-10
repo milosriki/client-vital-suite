@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,9 +55,9 @@ interface CardData {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -78,14 +81,11 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Cardholders fetched:", cardholders.data.length);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           cardholders: cardholders.data,
           has_more: cardholders.has_more,
           total: cardholders.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Create a cardholder
@@ -102,10 +102,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Cardholder created:", cardholder.id);
 
-      return new Response(
-        JSON.stringify({ cardholder }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ cardholder });
     }
 
     // List all cards
@@ -117,8 +114,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Cards fetched:", cards.data.length);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           cards: cards.data.map((card: any) => ({
             id: card.id,
             last4: card.last4,
@@ -134,9 +130,7 @@ serve(async (req) => {
           })),
           has_more: cards.has_more,
           total: cards.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Create a card
@@ -162,8 +156,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Card created:", card.id);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           card: {
             id: card.id,
             last4: card.last4,
@@ -175,9 +168,7 @@ serve(async (req) => {
             cardholder: card.cardholder,
             created: card.created
           }
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Update card status
@@ -192,10 +183,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Card updated:", card.id, "Status:", card.status);
 
-      return new Response(
-        JSON.stringify({ card }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ card });
     }
 
     // List transactions
@@ -207,8 +195,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Transactions fetched:", transactions.data.length);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           transactions: transactions.data.map((tx: any) => ({
             id: tx.id,
             amount: tx.amount,
@@ -222,9 +209,7 @@ serve(async (req) => {
           })),
           has_more: transactions.has_more,
           total: transactions.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // List authorizations
@@ -236,8 +221,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Authorizations fetched:", authorizations.data.length);
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           authorizations: authorizations.data.map((auth: any) => ({
             id: auth.id,
             amount: auth.amount,
@@ -252,9 +236,7 @@ serve(async (req) => {
           })),
           has_more: authorizations.has_more,
           total: authorizations.data.length
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     // Approve/Decline authorization (for real-time authorization webhooks)
@@ -270,10 +252,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Authorization", approved ? "approved" : "declined", authorization.id);
 
-      return new Response(
-        JSON.stringify({ authorization }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess({ authorization });
     }
 
     // Get issuing dashboard data (overview)
@@ -300,8 +279,7 @@ serve(async (req) => {
 
       console.log("[STRIPE-ISSUING] Dashboard data compiled");
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           summary: {
             total_cardholders: cardholders.data.length,
             total_cards: cards.data.length,
@@ -336,20 +314,17 @@ serve(async (req) => {
             merchant_data: auth.merchant_data,
             created: auth.created
           }))
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        });
     }
 
     throw new Error("Invalid action: " + action);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[STRIPE-ISSUING] Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     // Check for specific Stripe errors
     if (errorMessage.includes("Issuing is not available")) {
-      return new Response(
-        JSON.stringify({ 
+      return apiError("INTERNAL_ERROR", JSON.stringify({ 
           error: "Stripe Issuing is not enabled for this account. Please contact Stripe to enable Issuing.",
           code: "issuing_not_enabled"
         }),
@@ -357,9 +332,6 @@ serve(async (req) => {
       );
     }
     
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return apiSuccess({ error: errorMessage });
   }
 });

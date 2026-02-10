@@ -67,7 +67,7 @@ export function MetricCard({
 
   const styles = variantStyles[variant];
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <PremiumCard
         className={cn(

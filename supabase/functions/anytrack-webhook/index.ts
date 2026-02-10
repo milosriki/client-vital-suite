@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   createSuccessResponse,
   handleCorsPreFlight,
@@ -14,7 +16,7 @@ import {
 
 // AnyTrack Webhook Receiver - syncs conversion events to Supabase
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   const FUNCTION_NAME = "anytrack-webhook";
 
   if (req.method === "OPTIONS") {
@@ -215,10 +217,7 @@ serve(async (req) => {
       message: `Processed ${processed} events from AnyTrack`,
     });
 
-    return new Response(
-      JSON.stringify(successResponse),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return apiSuccess(successResponse);
 
   } catch (error: unknown) {
     // Determine appropriate error code

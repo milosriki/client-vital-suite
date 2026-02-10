@@ -7,7 +7,15 @@ import {
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 serve(async (req) => {
   try {
     verifyAuth(req); // Security Hardening
@@ -91,15 +99,10 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, message: "Scan completed" }),
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return apiSuccess({ success: true, message: "Scan completed" });
   } catch (error: unknown) {
     console.error("Scanner Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
+    return apiError("INTERNAL_ERROR", message, 500);
   }
 });

@@ -26,6 +26,8 @@ import {
 
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 // const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
@@ -511,7 +513,7 @@ function selectPersona(query: string, context: any): keyof typeof PERSONAS {
 // ============================================
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers":
@@ -519,7 +521,7 @@ serve(async (req: Request) => {
   };
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -590,21 +592,18 @@ serve(async (req: Request) => {
             typeof response === "string" ? response : JSON.stringify(response),
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       await parentRun.end({ error: error.message });
       await parentRun.patchRun();
       throw error;
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         persona: selectedPersona,
         response: response,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error: any) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "ptd-ultimate-intelligence", {
       supabase: createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -650,7 +649,7 @@ async function generateWithClaude(
     await childRun.end({ outputs: { response: text } });
     await childRun.patchRun();
     return text;
-  } catch (error: any) {
+  } catch (error: unknown) {
     await childRun.end({ error: error.message });
     await childRun.patchRun();
     throw error;

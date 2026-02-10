@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "test": "deno test --allow-all"
+  },
+  "imports": {
+    "std/": "https://deno.land/std@0.168.0/"
+  },
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  }
+}

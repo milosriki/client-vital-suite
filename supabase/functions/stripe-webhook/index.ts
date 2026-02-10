@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   createSuccessResponse,
   handleCorsPreFlight,
@@ -29,7 +31,7 @@ interface StripeEvent {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   const FUNCTION_NAME = "stripe-webhook";
 
   // Handle CORS preflight
@@ -104,10 +106,7 @@ serve(async (req) => {
       } catch (err: any) {
         console.error("❌ Webhook signature verification failed:", err.message);
         // Return 200 to stop Stripe from retrying indefinitely
-        return new Response(
-          JSON.stringify({ received: true, status: "ignored", reason: "signature_verification_failed" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-        );
+        return apiSuccess({ received: true, status: "ignored", reason: "signature_verification_failed" });
       }
     } else {
       if (STRIPE_WEBHOOK_SECRET && !signature) {
@@ -127,20 +126,14 @@ serve(async (req) => {
         event = JSON.parse(body);
       } catch (parseError) {
         console.error("❌ JSON parse failed:", parseError);
-        return new Response(
-          JSON.stringify({ received: true, status: "ignored", reason: "invalid_json" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-        );
+        return apiSuccess({ received: true, status: "ignored", reason: "invalid_json" });
       }
     }
 
     // Validate event structure
     if (!event.id || !event.type) {
       console.error("❌ Invalid event format");
-      return new Response(
-        JSON.stringify({ received: true, status: "ignored", reason: "invalid_format" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      return apiSuccess({ received: true, status: "ignored", reason: "invalid_format" });
     }
 
     console.log(`📨 Received Stripe event: ${event.type} (${event.id})`);
@@ -263,15 +256,9 @@ serve(async (req) => {
       ...result,
     });
 
-    return new Response(
-      JSON.stringify(successResponse),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return apiSuccess(successResponse);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Determine appropriate error code based on error type
     let errorCode = ErrorCode.INTERNAL_ERROR;
 

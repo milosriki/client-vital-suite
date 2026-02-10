@@ -33,7 +33,11 @@ export function ClientContextMenu({
 
   const openHubSpot = () => {
     if (hubspotId) {
-      window.open(`https://app.hubspot.com/contacts/27656685/contact/${hubspotId}`, '_blank');
+      window.open(
+        `https://app.hubspot.com/contacts/27656685/contact/${hubspotId}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
     }
   };
 
@@ -46,13 +50,19 @@ export function ClientContextMenu({
           View Profile
         </ContextMenuItem>
         {phone && (
-          <ContextMenuItem onClick={() => window.open(`tel:${phone}`)} className="gap-2">
+          <ContextMenuItem
+            onClick={() => window.open(`tel:${phone}`)}
+            className="gap-2"
+          >
             <Phone className="h-4 w-4" />
             Call
           </ContextMenuItem>
         )}
         {email && (
-          <ContextMenuItem onClick={() => window.open(`mailto:${email}`)} className="gap-2">
+          <ContextMenuItem
+            onClick={() => window.open(`mailto:${email}`)}
+            className="gap-2"
+          >
             <Mail className="h-4 w-4" />
             Email
           </ContextMenuItem>
@@ -65,13 +75,19 @@ export function ClientContextMenu({
           </ContextMenuItem>
         )}
         {email && (
-          <ContextMenuItem onClick={() => copyToClipboard(email, "Email")} className="gap-2">
+          <ContextMenuItem
+            onClick={() => copyToClipboard(email, "Email")}
+            className="gap-2"
+          >
             <Copy className="h-4 w-4" />
             Copy Email
           </ContextMenuItem>
         )}
         {phone && (
-          <ContextMenuItem onClick={() => copyToClipboard(phone, "Phone")} className="gap-2">
+          <ContextMenuItem
+            onClick={() => copyToClipboard(phone, "Phone")}
+            className="gap-2"
+          >
             <Copy className="h-4 w-4" />
             Copy Phone
           </ContextMenuItem>
@@ -87,7 +103,11 @@ interface PhoneContextMenuProps {
   onSearch?: () => void;
 }
 
-export function PhoneContextMenu({ children, phone, onSearch }: PhoneContextMenuProps) {
+export function PhoneContextMenu({
+  children,
+  phone,
+  onSearch,
+}: PhoneContextMenuProps) {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(phone);
     toast({ title: "Copied", description: "Phone number copied" });
@@ -97,7 +117,10 @@ export function PhoneContextMenu({ children, phone, onSearch }: PhoneContextMenu
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ContextMenuItem onClick={() => window.open(`tel:${phone}`)} className="gap-2">
+        <ContextMenuItem
+          onClick={() => window.open(`tel:${phone}`)}
+          className="gap-2"
+        >
           <Phone className="h-4 w-4" />
           Call
         </ContextMenuItem>

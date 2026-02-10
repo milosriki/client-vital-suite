@@ -15,6 +15,8 @@ import {
 } from "../_shared/error-handler.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // Environment variable validation
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -217,13 +219,25 @@ Provide a brief, actionable insight for the coach.`;
         { role: "user", content: prompt },
       ],
       {
-        max_tokens: 150,
+        max_tokens: 300, // Increased for thinking depth
         temperature: 0.7,
+        jsonMode: true, // Enforce JSON output for structured thinking
       },
     );
 
-    return response.content || null;
-  } catch (error) {
+    // Parse the structured response
+    const content = response.content;
+    try {
+      const parsed = JSON.parse(content);
+      // We return the strategy as the insight, but we could log the full thought process
+      if (parsed.thought_process && parsed.recommended_actions) {
+        return `${parsed.thought_process.hypothesis}. Recommendation: ${parsed.recommended_actions[0]}`;
+      }
+      return content;
+    } catch (e) {
+      return content;
+    }
+  } catch (error: unknown) {
     console.error(
       `[Churn Predictor] AI insight generation failed for ${client.email}:`,
       error,
@@ -233,9 +247,13 @@ Provide a brief, actionable insight for the coach.`;
 }
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch (e) {
+    return errorToResponse(new UnauthorizedError());
+  } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -368,28 +386,17 @@ serve(async (req: Request) => {
       medium: predictions.filter((p) => p.risk_category === "MEDIUM").length,
     };
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         duration_ms: duration,
         summary,
         predictions,
-      }),
-      {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      },
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error("[Churn Predictor] Error:", error);
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      },
-    );
+      }), 500);
   }
 });

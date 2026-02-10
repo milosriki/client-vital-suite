@@ -8,6 +8,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -31,9 +33,9 @@ interface Recommendation {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -396,6 +398,28 @@ serve(async (req) => {
       },
     ];
 
+    // Owner Performance Analysis (Mini-version of hubspot-owner-intelligence)
+    const ownerStats: Record<string, any> = {};
+    leads?.forEach(lead => {
+      const ownerId = lead.hubspot_owner_id || "Unassigned";
+      if (!ownerStats[ownerId]) {
+        ownerStats[ownerId] = { id: ownerId, leads: 0, conversions: 0 };
+      }
+      ownerStats[ownerId].leads++;
+      if (lead.lifecycle_stage === 'opportunity' || lead.lifecycle_stage === 'customer') {
+        ownerStats[ownerId].conversions++;
+      }
+    });
+    
+    const ownerPerformance = Object.values(ownerStats)
+      .map((s: any) => ({
+        id: s.id,
+        leads: s.leads,
+        conversion_rate: s.leads > 0 ? (s.conversions / s.leads * 100).toFixed(1) : "0.0"
+      }))
+      .sort((a, b) => parseFloat(b.conversion_rate) - parseFloat(a.conversion_rate))
+      .slice(0, 5); // Top 5
+
     const result = {
       success: true,
       summary: {
@@ -415,6 +439,7 @@ serve(async (req) => {
       },
       leadLossPoints,
       propertyCategories,
+      ownerPerformance, // Added this field
       recommendations: recommendations.slice(0, 6), // Top 6 recommendations
       analyzedAt: new Date().toISOString(),
     };
@@ -425,11 +450,8 @@ serve(async (req) => {
       recommendations: recommendations.length,
     });
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-  } catch (error: any) {
+    return apiSuccess(result);
+  } catch (error: unknown) {
     return handleError(error, "hubspot-analyzer", {
       supabase: createClient(
         Deno.env.get("SUPABASE_URL")!,

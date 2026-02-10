@@ -10,7 +10,11 @@ import {
   ArrowDownRight,
   CheckCircle,
   XCircle,
+  RotateCcw,
+  RefreshCw,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ActionIntercept } from "@/components/ui/action-intercept";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -177,6 +181,53 @@ export const StripeTabs = ({
                       >
                         {payment.status}
                       </Badge>
+
+                      {/* Action Intercept: Refund or Retry */}
+                      {payment.status === "succeeded" && (
+                        <ActionIntercept
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive ml-2"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                              <span className="sr-only">Refund</span>
+                            </Button>
+                          }
+                          title="Issue Refund?"
+                          description={`Are you sure you want to refund ${formatCurrency(payment.amount, payment.currency)}? This action will reverse the transfer and cannot be undone.`}
+                          variant="danger"
+                          confirmText="Process Refund"
+                          onConfirm={() => {
+                            // In a real app, this would call the refund API
+                            console.log("Refund initiated:", payment.id);
+                          }}
+                        />
+                      )}
+
+                      {payment.status !== "succeeded" && (
+                        <ActionIntercept
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-primary ml-2"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              <span className="sr-only">Retry</span>
+                            </Button>
+                          }
+                          title="Retry Payment?"
+                          description="This will attempt to charge the customer's payment method again."
+                          variant="warning"
+                          confirmText="Retry Charge"
+                          onConfirm={() => {
+                            // In a real app, this would retry the charge
+                            console.log("Retry initiated:", payment.id);
+                          }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

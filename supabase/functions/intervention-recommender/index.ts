@@ -6,6 +6,9 @@ import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // ============================================
 // INTERVENTION RECOMMENDER AGENT
@@ -163,7 +166,7 @@ Write the message:`;
     });
 
     return response.content || getTemplateMessage(client, interventionType);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[Intervention Recommender] AI generation failed for ${client.email}:`, error);
     return getTemplateMessage(client, interventionType);
   }
@@ -231,9 +234,9 @@ function calculateSuccessProbability(client: any, interventionType: string): num
 }
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -268,7 +271,7 @@ serve(async (req: Request) => {
     // Handle empty query results
     if (!clients || clients.length === 0) {
       console.log("[Intervention Recommender] No clients found matching criteria");
-      return new Response(JSON.stringify({
+      return apiError("INTERNAL_ERROR", JSON.stringify({
         success: true,
         duration_ms: Date.now() - startTime,
         count: 0,
@@ -350,23 +353,18 @@ serve(async (req: Request) => {
     const duration = Date.now() - startTime;
     console.log(`[Intervention Recommender] Complete in ${duration}ms - ${recommendations.length} recommendations`);
 
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: true,
       duration_ms: duration,
       count: recommendations.length,
       recommendations
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Intervention Recommender] Error:", error);
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 });

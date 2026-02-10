@@ -191,6 +191,7 @@ ORDER BY occurrences DESC;
 
 ✅ **Implemented**:
 
+- **HubSpot Signature Verification** - Rejects spoofed webhooks
 - Content sanitization removes sensitive patterns
 - Safety validation on every WhatsApp response
 - Separate prompts for internal vs customer-facing

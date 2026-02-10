@@ -6,6 +6,9 @@ import {
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // ============================================
 // DATA QUALITY AGENT
@@ -352,7 +355,7 @@ async function checkDuplicates(): Promise<DataIssue[]> {
         });
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Data Quality] Error checking duplicates:", error);
   }
 
@@ -436,7 +439,7 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
         }
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Data Quality] Error checking orphaned records:", error);
   }
 
@@ -520,7 +523,7 @@ async function checkRequiredFields(): Promise<DataIssue[]> {
           "Email is required for lead processing. Update or remove invalid leads.",
       });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Data Quality] Error checking required fields:", error);
   }
 
@@ -584,7 +587,7 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
           "Recalculate health zones to valid values (RED, YELLOW, GREEN, PURPLE).",
       });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Data Quality] Error checking consistency:", error);
   }
 
@@ -612,10 +615,10 @@ serve(async (req) => {
   try {
     verifyAuth(req);
   } catch (e) {
-    return new Response("Unauthorized", { status: 401 });
+    return errorToResponse(new UnauthorizedError());
   } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -802,27 +805,16 @@ serve(async (req) => {
       `[Data Quality] Complete in ${duration}ms - Score: ${report.overall_score}/100`,
     );
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         duration_ms: duration,
         report,
-      }),
-      {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      },
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error("[Data Quality] Error:", error);
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      },
-    );
+      }), 500);
   }
 });

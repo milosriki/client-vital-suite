@@ -3,6 +3,54 @@ import {
   SupabaseClient,
 } from "https://esm.sh/@supabase/supabase-js@2";
 
+// TYPES
+export interface HubSpotContactProperties {
+  email?: string;
+  firstname?: string;
+  lastname?: string;
+  phone?: string;
+  lifecyclestage?: string;
+  whatsapp_stage?: string;
+  whatsapp_intent?: string;
+  assigned_coach?: string;
+  bot_paused?: string | boolean; // HubSpot returns string "true"/"false" usually
+  fitness_goal?: string;
+  city?: string;
+  housing_type?: string;
+  lead_score?: string;
+  lead_maturity?: string;
+  biggest_challenge_?: string;
+  whatsapp_summary?: string;
+  whatsapp_last_message?: string;
+  whatsapp_last_reply?: string;
+  [key: string]: string | boolean | undefined; // Allow flexible props
+}
+
+export interface HubSpotContact {
+  id: string;
+  properties: HubSpotContactProperties;
+  createdAt: string;
+  updatedAt: string;
+  archived: boolean;
+}
+
+export interface HubSpotNote {
+  id: string;
+  properties: {
+    hs_note_body: string;
+    hs_timestamp: string;
+  };
+}
+
+export interface HubSpotCall {
+  id: string;
+  properties: {
+    hs_call_body: string;
+    hs_call_title: string;
+    hs_timestamp: string;
+  };
+}
+
 export class HubSpotManager {
   private apiKey: string;
   private supabase: SupabaseClient;
@@ -12,7 +60,7 @@ export class HubSpotManager {
     this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
-  private async logError(message: string, details: any) {
+  private async logError(message: string, details: unknown) {
     console.error(`[HubSpotManager] ${message}`, details);
     await this.supabase.from("sync_logs").insert({
       platform: "hubspot",
@@ -23,24 +71,35 @@ export class HubSpotManager {
     });
   }
 
-  private async fetchWithRetry(
+  private async fetchWithRetry<T>(
     url: string,
-    options: any = {},
+    options: RequestInit = {},
     retries = 3,
-  ): Promise<any> {
-    for (let i = 0; i < retries; i++) {
+    timeout = 10000,
+  ): Promise<T | null> {
+    for (let i = 0; i <= retries; i++) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+
       try {
+        const headers: Record<string, string> = {
+          ...(options.headers as Record<string, string>),
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        };
+
         const response = await fetch(url, {
           ...options,
-          headers: {
-            ...options.headers,
-            Authorization: `Bearer ${this.apiKey}`,
-            "Content-Type": "application/json",
-          },
+          signal: controller.signal,
+          headers,
         });
+        clearTimeout(id);
 
         if (response.status === 429) {
-          const waitTime = (i + 1) * 2000; // Exponential backoff: 2s, 4s, 6s
+          if (i === retries) {
+            throw new Error("Rate limit exceeded and retries exhausted");
+          }
+          const waitTime = (i + 1) * 2000;
           console.warn(
             `[HubSpotManager] Rate limited. Waiting ${waitTime}ms...`,
           );
@@ -49,31 +108,59 @@ export class HubSpotManager {
         }
 
         if (!response.ok) {
+          let errorBody = "";
+          try {
+            errorBody = await response.text();
+          } catch {
+            // ignore
+          }
           throw new Error(
-            `HubSpot API Error: ${response.status} ${response.statusText}`,
+            `HubSpot API Error: ${response.status} ${response.statusText} - ${errorBody}`,
           );
         }
 
-        return await response.json();
-      } catch (error) {
-        if (i === retries - 1) throw error;
+        if (response.status === 204) return null;
+
+        return (await response.json()) as T;
+      } catch (error: unknown) {
+        clearTimeout(id);
+        const err = error as Error;
+        if (err.name === "AbortError") {
+          console.warn(
+            `[HubSpotManager] Request timed out after ${timeout}ms: ${url}`,
+          );
+          throw new Error(`HubSpot Request Timeout (${timeout}ms)`);
+        }
+        if (i === retries) throw error;
+        if (!err.message.includes("Rate limit")) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
     }
+    return null; // Should not reach here
   }
 
-  async fetchContacts(limit = 100, after?: string) {
+  async fetchContacts(
+    limit = 100,
+    after?: string,
+  ): Promise<{ results: HubSpotContact[]; paging?: any }> {
     let url = `https://api.hubapi.com/crm/v3/objects/contacts?limit=${limit}&properties=email,firstname,lastname,phone,lifecyclestage`;
     if (after) url += `&after=${after}`;
 
     try {
-      return await this.fetchWithRetry(url);
+      const data = await this.fetchWithRetry<{
+        results: HubSpotContact[];
+        paging?: any;
+      }>(url);
+      return data || { results: [] };
     } catch (error) {
       await this.logError("Failed to fetch contacts", error);
       throw error;
     }
   }
 
-  async fetchDeals(limit = 100, after?: string) {
+  async fetchDeals(limit = 100, after?: string): Promise<any> {
+    // Keep any for Deals for now as we focus on Contacts
     let url = `https://api.hubapi.com/crm/v3/objects/deals?limit=${limit}&properties=dealname,amount,dealstage,closedate`;
     if (after) url += `&after=${after}`;
 
@@ -85,7 +172,10 @@ export class HubSpotManager {
     }
   }
 
-  async searchContactByPhone(phone: string) {
+  async searchContactByPhone(
+    phone: string,
+    options: { retries?: number; timeout?: number } = {},
+  ): Promise<HubSpotContact | null> {
     const url = `https://api.hubapi.com/crm/v3/objects/contacts/search`;
     const body = {
       filterGroups: [
@@ -108,23 +198,155 @@ export class HubSpotManager {
         "whatsapp_stage",
         "whatsapp_intent",
         "assigned_coach",
+        "bot_paused",
+        "fitness_goal",
+        "city",
+        "housing_type",
+        "lead_score",
+        "lead_maturity",
+        "biggest_challenge_", // HubSpot internal name often has underscore
       ],
       limit: 1,
     };
 
     try {
-      const data = await this.fetchWithRetry(url, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return data.results?.[0] || null;
+      const data = await this.fetchWithRetry<{ results: HubSpotContact[] }>(
+        url,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+        options.retries ?? 3,
+        options.timeout ?? 10000,
+      );
+      return data?.results?.[0] || null;
     } catch (error) {
-      await this.logError(`Failed to search contact by phone: ${phone}`, error);
+      if (!options.timeout || options.timeout > 2000) {
+        await this.logError(
+          `Failed to search contact by phone: ${phone}`,
+          error,
+        );
+      }
       return null;
     }
   }
 
-  async createNote(contactId: string, content: string) {
+  async searchContactByEmail(email: string): Promise<HubSpotContact | null> {
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts/search`;
+    const body = {
+      filterGroups: [
+        {
+          filters: [{ propertyName: "email", operator: "EQ", value: email }],
+        },
+      ],
+      properties: [
+        "email",
+        "firstname",
+        "lastname",
+        "phone",
+        "lifecyclestage",
+        "assigned_coach",
+      ],
+      limit: 1,
+    };
+
+    try {
+      const data = await this.fetchWithRetry<{ results: HubSpotContact[] }>(
+        url,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
+      return data?.results?.[0] || null;
+    } catch (error) {
+      await this.logError(`Failed to search contact by email: ${email}`, error);
+      return null;
+    }
+  }
+
+  async createHubSpotTask(
+    contactId: string,
+    subject: string,
+    body: string,
+    priority: "LOW" | "MEDIUM" | "HIGH" = "MEDIUM",
+  ) {
+    const url = `https://api.hubapi.com/crm/v3/objects/tasks`;
+    const now = new Date();
+
+    // Payload
+    const payload = {
+      properties: {
+        hs_task_subject: subject,
+        hs_task_body: body,
+        hs_task_priority: priority,
+        hs_task_status: "WAITING",
+        hs_timestamp: now.toISOString(),
+        hubspot_owner_id: "7973797",
+      },
+      associations: [
+        {
+          to: { id: contactId },
+          types: [
+            { associationCategory: "HUBSPOT_DEFINED", associationTypeId: 204 },
+          ],
+        },
+      ],
+    };
+
+    try {
+      return await this.fetchWithRetry(url, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      await this.logError(
+        `Failed to create task for contact ${contactId}`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async createContact(
+    properties: Record<string, string>,
+  ): Promise<HubSpotContact> {
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts`;
+    try {
+      const res = await this.fetchWithRetry<HubSpotContact>(url, {
+        method: "POST",
+        body: JSON.stringify({ properties }),
+      });
+      if (!res) throw new Error("Failed to create contact (empty response)");
+      return res;
+    } catch (error) {
+      await this.logError(
+        `Failed to create contact: ${properties.email}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async updateContact(
+    contactId: string,
+    properties: Record<string, string>,
+  ): Promise<HubSpotContact> {
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`;
+    try {
+      const res = await this.fetchWithRetry<HubSpotContact>(url, {
+        method: "PATCH",
+        body: JSON.stringify({ properties }),
+      });
+      if (!res) throw new Error("Failed to update contact (empty response)");
+      return res;
+    } catch (error) {
+      await this.logError(`Failed to update contact: ${contactId}`, error);
+      throw error;
+    }
+  }
+
+  async createNote(contactId: string, content: string): Promise<void> {
     const url = `https://api.hubapi.com/crm/v3/objects/notes`;
     try {
       await this.fetchWithRetry(url, {
@@ -157,7 +379,11 @@ export class HubSpotManager {
     }
   }
 
-  async updateBotStatus(contactId: string, paused: boolean) {
+  async updateBotStatus(
+    contactId: string | undefined,
+    paused: boolean,
+  ): Promise<void> {
+    if (!contactId) return;
     const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`;
     try {
       await this.fetchWithRetry(url, {
@@ -176,7 +402,49 @@ export class HubSpotManager {
         `Failed to update bot status for contact ${contactId}`,
         error,
       );
-      // Don't throw, just log. This is non-critical sync.
+    }
+  }
+
+  async fetchContactNotes(contactId: string): Promise<HubSpotNote[]> {
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}/associations/notes`;
+    try {
+      const data = await this.fetchWithRetry<{ results: { id: string }[] }>(
+        url,
+      );
+      if (!data?.results) return [];
+
+      const notes = await Promise.all(
+        data.results.map(async (res) => {
+          const noteUrl = `https://api.hubapi.com/crm/v3/objects/notes/${res.id}?properties=hs_note_body,hs_timestamp`;
+          return (await this.fetchWithRetry<HubSpotNote>(noteUrl))!;
+        }),
+      );
+      // Filter out any nulls if fetches failed slightly
+      return notes.filter((n) => n !== null && n !== undefined);
+    } catch (error) {
+      console.error(`Error fetching notes for ${contactId}:`, error);
+      return [];
+    }
+  }
+
+  async fetchContactCalls(contactId: string): Promise<HubSpotCall[]> {
+    const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}/associations/calls`;
+    try {
+      const data = await this.fetchWithRetry<{ results: { id: string }[] }>(
+        url,
+      );
+      if (!data?.results) return [];
+
+      const calls = await Promise.all(
+        data.results.map(async (res) => {
+          const callUrl = `https://api.hubapi.com/crm/v3/objects/calls/${res.id}?properties=hs_call_body,hs_call_title,hs_timestamp`;
+          return (await this.fetchWithRetry<HubSpotCall>(callUrl))!;
+        }),
+      );
+      return calls.filter((c) => c !== null);
+    } catch (error) {
+      console.error(`Error fetching calls for ${contactId}:`, error);
+      return [];
     }
   }
 }

@@ -121,7 +121,7 @@ export function StripeMoneyFlowTab({ mode }: StripeMoneyFlowTabProps) {
     return flow.category === filterType;
   }) || [];
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-32 w-full" />

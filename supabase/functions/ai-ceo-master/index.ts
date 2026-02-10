@@ -9,6 +9,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RunTree } from "https://esm.sh/langsmith";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   ErrorCode,
   corsHeaders,
@@ -98,9 +100,9 @@ function selectPersona(query: string): keyof typeof PERSONAS {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS")
-    return new Response("ok", { headers: corsHeaders });
+    return apiCorsPreFlight();
 
   try {
     const { command, session_id } = await req.json();
@@ -171,7 +173,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
       );
       await parentRun.end({ outputs: { response } });
       await parentRun.patchRun();
-    } catch (error: any) {
+    } catch (error: unknown) {
       await parentRun.end({ error: error.message });
       await parentRun.patchRun();
       throw error;
@@ -207,8 +209,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
 
     if (insertError) throw insertError;
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         status: "awaiting_approval",
         action_id: action.id,
@@ -217,10 +218,8 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
           persona: persona.name,
           emoji: persona.emoji,
         },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error: any) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "ai-ceo-master", {
       errorCode: ErrorCode.INTERNAL_ERROR,
       context: { function: "ai-ceo-master" },
@@ -283,7 +282,7 @@ RESPOND WITH VALID JSON ONLY:
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     return JSON.parse(jsonMatch ? jsonMatch[0] : text);
-  } catch (error: any) {
+  } catch (error: unknown) {
     await childRun.end({ error: error.message });
     await childRun.patchRun();
     throw error;

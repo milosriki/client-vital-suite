@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
 import {
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
   handleError,
   logError,
   ErrorCode,
@@ -9,9 +12,13 @@ import {
 } from "../_shared/error-handler.ts";
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch (e) {
+    return errorToResponse(new UnauthorizedError());
+  } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -80,6 +87,28 @@ serve(async (req) => {
 
     if (dealsError) throw dealsError;
 
+    // 1.5 Fetch AnyTrack Attribution Events (The "Hard" Truth)
+    // These events are verified server-side conversions from AnyTrack
+    let attributionEvents: any[] = [];
+    try {
+      const { data, error: attrError } = await supabase
+        .from("attribution_events")
+        .select("*")
+        .gte("event_time", firstDay);
+
+      if (attrError && attrError.code !== "PGRST116") {
+        // Ignore if table missing (dev env)
+        console.error("Error fetching attribution events:", attrError);
+      } else {
+        attributionEvents = data || [];
+      }
+    } catch (e) {
+      console.warn(
+        "attribution_events table access failed (likely missing in dev env):",
+        e,
+      );
+    }
+
     // 2. Fetch Ad Spend (The Investment)
     // We call our internal Facebook Insights function
     const fbRes = await fetch(
@@ -104,9 +133,17 @@ serve(async (req) => {
     let attributedRevenue = 0;
     let organicRevenue = 0;
     const discrepancies: any[] = [];
+    let attributedRevenue = 0;
+    let organicRevenue = 0;
+    let anytrackRevenue = 0; // Revenue confirmed by AnyTrack
+    const discrepancies: any[] = [];
     const campaignPerformance: Record<
       string,
-      { revenue: number; deals: number }
+      {
+        revenue: number;
+        deals: number;
+        source: "hubspot" | "anytrack" | "mixed";
+      }
     > = {};
 
     // ------------------------------------------
@@ -176,22 +213,63 @@ serve(async (req) => {
       return { source, isPaid, discrepancy, dealValue };
     }
 
+    // ------------------------------------------
+    // Helper: Match Deal to AnyTrack
+    // ------------------------------------------
+    function findAnyTrackMatch(deal: Deal, events: any[]) {
+      // 1. Try matching by Email (Strongest)
+      if (deal.contacts?.email && events) {
+        const match = events.find(
+          (e: any) =>
+            e.email === deal.contacts.email &&
+            (e.event_name === "Purchase" || e.event_name === "Lead"),
+        );
+        if (match) return match;
+      }
+      return null;
+    }
+
     // ... (Inside main loop) ...
     deals.forEach((rawDeal: any) => {
       const { source, isPaid, discrepancy, dealValue } =
         determineAttribution(rawDeal);
 
+      // Match with AnyTrack
+      const anytrackMatch = findAnyTrackMatch(rawDeal, attributionEvents || []);
+      let finalSource = source;
+      let finalIsPaid = isPaid;
+
+      if (anytrackMatch) {
+        // Validated by AnyTrack
+        if (
+          anytrackMatch.source === "Facebook Ads" ||
+          anytrackMatch.platform === "facebook"
+        ) {
+          finalSource = "Facebook Ads (Verified)";
+          finalIsPaid = true;
+          anytrackRevenue += dealValue;
+        }
+      }
+
       if (discrepancy) {
         discrepancies.push(discrepancy);
       }
 
-      if (isPaid) {
+      const campaign =
+        anytrackMatch?.campaign ||
+        anytrackMatch?.utm_campaign ||
+        rawDeal.contacts?.utm_campaign ||
+        "Unattributed Campaign";
+
+      if (finalIsPaid) {
         attributedRevenue += dealValue;
-        const campaign =
-          rawDeal.contacts?.utm_campaign || "Unattributed Campaign";
 
         if (!campaignPerformance[campaign]) {
-          campaignPerformance[campaign] = { revenue: 0, deals: 0 };
+          campaignPerformance[campaign] = {
+            revenue: 0,
+            deals: 0,
+            source: anytrackMatch ? "anytrack" : "hubspot",
+          };
         }
         campaignPerformance[campaign].revenue += dealValue;
         campaignPerformance[campaign].deals += 1;
@@ -228,8 +306,7 @@ serve(async (req) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         period: date_range,
         financials: {
@@ -255,12 +332,8 @@ serve(async (req) => {
           count: discrepancies.length,
           items: discrepancies,
         },
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  } catch (error: any) {
+      });
+  } catch (error: unknown) {
     return handleError(error, "data-reconciler", {
       supabase: createClient(
         Deno.env.get("SUPABASE_URL")!,

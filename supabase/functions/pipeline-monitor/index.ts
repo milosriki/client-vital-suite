@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // ============================================
 // PIPELINE MONITOR AGENT
@@ -418,9 +421,9 @@ function generateRecommendations(stages: PipelineStage[]): string[] {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -498,7 +501,7 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[Pipeline Monitor] Complete in ${duration}ms - Health: ${report.overall_health}%`);
 
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: true,
       duration_ms: duration,
       report
@@ -506,14 +509,11 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Pipeline Monitor] Error:", error);
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 });

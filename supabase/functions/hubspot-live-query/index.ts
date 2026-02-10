@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,9 +33,9 @@ const corsHeaders = {
  */
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -77,16 +80,13 @@ serve(async (req) => {
     // QUERY: owners - Get all team members
     // =====================
     if (query === 'owners') {
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'owners',
           fetched_at: new Date().toISOString(),
           count: ownersList.length,
           owners: ownersList
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -132,16 +132,13 @@ serve(async (req) => {
         conversion_event: c.properties.recent_conversion_event_name
       }));
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'latest_contacts',
           count: contacts.length,
           fetched_at: new Date().toISOString(),
           contacts
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -181,16 +178,13 @@ serve(async (req) => {
         probability: d.properties.hs_deal_stage_probability
       }));
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'latest_deals',
           count: deals.length,
           fetched_at: new Date().toISOString(),
           deals
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -272,8 +266,7 @@ serve(async (req) => {
         console.log('Could not fetch notes:', e);
       }
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'contact_detail',
           fetched_at: new Date().toISOString(),
@@ -285,9 +278,7 @@ serve(async (req) => {
           },
           recent_calls: calls,
           recent_notes: notes
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -317,17 +308,14 @@ serve(async (req) => {
         console.log('Conversations API response:', errorText);
       }
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'conversations',
           fetched_at: new Date().toISOString(),
           count: conversations.length,
           conversations,
           note: conversations.length === 0 ? 'Conversations API may require Service Hub Professional or higher' : null
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -340,8 +328,7 @@ serve(async (req) => {
       );
       const pipelinesData = await pipelinesResponse.json();
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'pipelines',
           fetched_at: new Date().toISOString(),
@@ -356,9 +343,7 @@ serve(async (req) => {
               probability: s.metadata?.probability
             }))
           }))
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -389,8 +374,7 @@ serve(async (req) => {
       const contactsData = await contactsResponse.json();
       const dealsData = await dealsResponse.json();
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'search',
           search_term,
@@ -413,9 +397,7 @@ serve(async (req) => {
             owner: ownerMap[d.properties.hubspot_owner_id]?.name || 'Unassigned',
             created: d.properties.createdate
           }))
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -463,8 +445,7 @@ serve(async (req) => {
       const contactsData = await contactsResponse.json();
       const dealsData = await dealsResponse.json();
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'today_activity',
           date: todayStart.toISOString().split('T')[0],
@@ -492,9 +473,7 @@ serve(async (req) => {
             contacts_today: contactsData.total || contactsData.results?.length || 0,
             deals_today: dealsData.total || dealsData.results?.length || 0
           }
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -536,17 +515,14 @@ serve(async (req) => {
         console.log('Could not log reassignment:', e);
       }
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'reassign',
           contact_id,
           new_owner_id,
           new_owner_name: newOwnerName,
           reassigned_at: new Date().toISOString()
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -569,16 +545,13 @@ serve(async (req) => {
 
       const result = await updateResponse.json();
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'update_contact',
           contact_id,
           updated_properties: Object.keys(properties),
           updated_at: new Date().toISOString()
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
@@ -616,23 +589,19 @@ serve(async (req) => {
         }
       );
 
-      return new Response(
-        JSON.stringify({
+      return apiSuccess({
           success: true,
           query: 'log_note',
           note_id: note.id,
           contact_id,
           created_at: new Date().toISOString()
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        });
     }
 
     // =====================
     // Unknown query - show available options
     // =====================
-    return new Response(
-      JSON.stringify({
+    return apiError("BAD_REQUEST", JSON.stringify({
         success: false,
         error: 'Unknown query type',
         available_queries: {
@@ -652,16 +621,11 @@ serve(async (req) => {
           update_contact: { query: 'update_contact', contact_id: '123456', properties: { lifecyclestage: 'customer' } },
           log_note: { query: 'log_note', contact_id: '123456', note_body: 'Called - interested in premium package' }
         }
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    );
+      }), 400);
 
   } catch (error: unknown) {
     console.error('Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ success: false, error: errorMessage }), 500);
   }
 });

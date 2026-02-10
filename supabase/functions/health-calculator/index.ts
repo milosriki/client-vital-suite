@@ -1,484 +1,622 @@
-/// <reference lib="deno.ns" />
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { createRDSClient } from "../_shared/rds-client.ts"; // Shared RDS Logic
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // ============================================
-// HEALTH CALCULATOR AGENT
-// Recalculates all client health scores
-// Daily health score calculation for all clients
+// HEALTH CALCULATOR AGENT v3.0 (SUPER INTELLIGENCE)
+// FUSION EDITION: RDS Truth + Physics + Behavior
 // ============================================
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 // Validate required environment variables
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-if (!SUPABASE_URL) {
-  throw new Error("SUPABASE_URL environment variable is required");
-}
-
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required");
-}
-
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Domains used for test/mock data that should be excluded from calculations
-const TEST_EMAIL_PATTERNS = ["%@example.com", "%@test.com", "%@email.com"];
-
 // ============================================
-// SCORING ALGORITHMS (PENALTY-BASED FORMULA - OWNER APPROVED)
-// BASE: 100 points, then subtract penalties and add bonuses
+// DATA STRUCTURES
 // ============================================
 
-interface ScoreFactors {
-  inactivityPenalty: number;
-  frequencyDropPenalty: number;
-  utilizationPenalty: number;
-  commitmentBonus: number;
+interface RDSSessionData {
+  email: string;
+  remaining_sessions: number;
+  total_purchased: number;
+  last_session_date: string | null;
+  sessions_last_7d: number;
+  sessions_last_30d: number;
+  sessions_last_90d: number; // Added for V3 Momentum
 }
 
-// Helper function to calculate days since a date
-function getDaysSince(dateValue: string | number | null | undefined): number {
-  if (!dateValue) return 999;
-  
-  let date: Date;
-  if (typeof dateValue === 'number') {
-    // HubSpot sometimes returns millisecond timestamps
-    date = new Date(dateValue);
-  } else if (typeof dateValue === 'string') {
-    // Try parsing as ISO string or timestamp
-    const parsed = Date.parse(dateValue);
-    if (isNaN(parsed)) return 999;
-    date = new Date(parsed);
-  } else {
-    return 999;
-  }
-  
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+export interface ClientData {
+  id: string;
+  email: string;
+  firstname?: string | null;
+  lastname?: string | null;
+  // Session Activity
+  last_paid_session_date?: string | null;
+  of_sessions_conducted__last_7_days_?: string | null;
+  of_conducted_sessions__last_30_days_?: string | null;
+  of_sessions_conducted__last_90_days_?: string | null;
+  days_since_last_session_calc?: string | null;
+  // Package Data
+  outstanding_sessions?: string | null;
+  sessions_purchased?: string | null;
+  last_package_cost?: string | null;
+  days_until_renewal?: string | null;
+  // Booking Data
+  next_session_is_booked?: string | null;
+  of_future_booked_sessions?: string | null;
+  days_until_next_booked_session?: string | null;
+  // Coach Data
+  assigned_coach?: string | null;
+  coach_assignment_timestamp?: string | null;
+  // History
+  reactivation?: string | null;
+  last_subscription_cancelled_?: string | null;
 }
 
-// Calculate engagement score (kept for backwards compatibility with UI)
-function calculateEngagementScore(client: any): number {
-  let score = 50;
-  const sessions7d = client.sessions_last_7d || 0;
-  if (sessions7d >= 3) score += 30;
-  else if (sessions7d >= 2) score += 20;
-  else if (sessions7d >= 1) score += 10;
-
-  const sessions30d = client.sessions_last_30d || 0;
-  if (sessions30d >= 12) score += 15;
-  else if (sessions30d >= 8) score += 10;
-
-  let daysSince = getDaysSince(client.last_paid_session_date || client.last_activity_date);
-  if (client.days_since_last_session && client.days_since_last_session < daysSince) {
-    daysSince = client.days_since_last_session;
-  }
-
-  if (daysSince > 30) score -= 30;
-  else if (daysSince > 14) score -= 15;
-  else if (daysSince > 7) score -= 5;
-
-  return Math.max(0, Math.min(100, score));
+interface DimensionScore {
+  score: number;
+  weight: number;
+  confidence: number;
+  signals: string[];
 }
 
-// Calculate package health score (kept for backwards compatibility with UI)
-function calculatePackageHealthScore(client: any): number {
-  const outstanding = client.outstanding_sessions || 0;
-  const purchased = client.sessions_purchased || 1;
-  const remainingPct = (outstanding / purchased) * 100;
-
-  if (remainingPct >= 50) return 90;
-  if (remainingPct >= 30) return 70;
-  if (remainingPct >= 10) return 50;
-  return 30;
+interface MomentumAnalysis {
+  velocity: number;
+  acceleration: number;
+  jerk: number;
+  status: string;
+  description: string;
 }
 
-// Calculate momentum score (kept for backwards compatibility with UI)
-function calculateMomentumScore(client: any): number {
-  const avgWeekly7d = client.sessions_last_7d || 0;
-  const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
-
-  if (avgWeekly30d === 0) {
-    return client.sessions_last_7d > 0 ? 70 : 30;
-  }
-
-  const rateOfChange = ((avgWeekly7d - avgWeekly30d) / avgWeekly30d) * 100;
-
-  if (rateOfChange > 20) return 90;
-  if (rateOfChange > 0) return 70;
-  if (rateOfChange > -20) return 50;
-  return 30;
+interface BehavioralPattern {
+  pattern: string;
+  confidence: number;
+  description: string;
+  interventionUrgency: string;
 }
 
-function getMomentumIndicator(client: any): string {
-  const avgWeekly7d = client.sessions_last_7d || 0;
-  const avgWeekly30d = (client.sessions_last_30d || 0) / 4.3;
-
-  if (avgWeekly30d === 0) {
-    return client.sessions_last_7d > 0 ? "STABLE" : "DECLINING";
-  }
-
-  const rateOfChange = ((avgWeekly7d - avgWeekly30d) / avgWeekly30d) * 100;
-
-  if (rateOfChange > 20) return "ACCELERATING";
-  if (rateOfChange > -20) return "STABLE";
-  return "DECLINING";
-}
-
-// Helper function to calculate relationship score based on communication history
-function calculateRelationshipScore(client: any): number {
-  let score = 50; // Neutral starting point
-  
-  // Communication volume (last 30-90 days typically reflected in these counts)
-  const meetings = client.num_meetings || 0;
-  const notes = client.num_notes || 0;
-  const emails = client.num_emails || 0;
-  
-  score += (meetings * 10); // Meetings are high value
-  score += (notes * 5);     // Notes indicate manual touchpoints
-  score += (emails * 2);    // Emails are standard touchpoints
-  
-  return Math.max(0, Math.min(100, score));
-}
-
-// NEW: Penalty-based health score calculation (Owner Approved Formula v2)
-function calculateHealthScoreWithFactors(client: any): { score: number; factors: ScoreFactors } {
-  let score = 100;
-  const factors: ScoreFactors = {
-    inactivityPenalty: 0,
-    frequencyDropPenalty: 0,
-    utilizationPenalty: 0,
-    commitmentBonus: 0,
+interface HealthScoreResult {
+  contactId: string;
+  email: string;
+  name: string;
+  healthScore: number;
+  healthZone: "RED" | "YELLOW" | "GREEN" | "PURPLE";
+  dimensions: {
+    engagement: DimensionScore;
+    momentum: DimensionScore;
+    packageHealth: DimensionScore;
+    relationship: DimensionScore;
+    commitment: DimensionScore;
   };
+  momentumAnalysis: MomentumAnalysis;
+  behavioralPattern: BehavioralPattern;
+  churnPrediction: {
+    probability30d: number;
+    riskFactors: string[];
+  };
+  dataConfidence: {
+    overall: number;
+    source: "RDS_TRUTH" | "HUBSPOT_FALLBACK";
+  };
+  recommendedAction: string;
+  calculatedAt: string;
+}
 
-  // 1. INACTIVITY PENALTY (v2: More forgiving thresholds)
-  let daysSinceSession = getDaysSince(client.last_paid_session_date || client.last_activity_date);
-  if (client.days_since_last_session && client.days_since_last_session < daysSinceSession) {
-    daysSinceSession = client.days_since_last_session;
-  }
-  
-  if (daysSinceSession > 60) {
-    factors.inactivityPenalty = 40;
-  } else if (daysSinceSession > 30) {
-    factors.inactivityPenalty = 30;
-  } else if (daysSinceSession > 14) {
-    factors.inactivityPenalty = 20;
-  } else if (daysSinceSession > 7) {
-    factors.inactivityPenalty = 10;
-  }
-  score -= factors.inactivityPenalty;
+// ============================================
+// RDS DATA FETCHING (SOURCE OF TRUTH)
+// ============================================
 
-  // 2. FREQUENCY DROP PENALTY (max -25)
-  const sessions7d = client.sessions_last_7d || 0;
-  const sessions30d = client.sessions_last_30d || 0;
-  const expectedWeekly = sessions30d / 4;
-  
-  if (expectedWeekly > 0) {
-    const dropPercent = ((expectedWeekly - sessions7d) / expectedWeekly) * 100;
-    if (dropPercent >= 50) {
-      factors.frequencyDropPenalty = 25;
-    } else if (dropPercent >= 25) {
-      factors.frequencyDropPenalty = 15;
+async function fetchRDSData(
+  emails: string[],
+): Promise<Record<string, RDSSessionData>> {
+  if (emails.length === 0) return {};
+
+  const client = await createRDSClient("powerbi");
+  try {
+    const placeholders = emails.map((_, i) => `$${i + 1}`).join(",");
+    const query = `
+      SELECT 
+        m.email,
+        COALESCE(p.remainingsessions, 0) as remaining_sessions,
+        COALESCE(p.packsize, 0) as total_purchased,
+        (SELECT MAX(s.training_date_utc) 
+         FROM enhancesch.vw_schedulers s 
+         WHERE s.id_client = m.id_client 
+         AND s.status IN ('Completed', 'Attended')
+        ) as last_session_date,
+        (SELECT COUNT(*) 
+         FROM enhancesch.vw_schedulers s 
+         WHERE s.id_client = m.id_client 
+         AND s.training_date_utc > NOW() - INTERVAL '7 days'
+         AND s.status IN ('Completed', 'Attended')
+        ) as sessions_last_7d,
+        (SELECT COUNT(*) 
+         FROM enhancesch.vw_schedulers s 
+         WHERE s.id_client = m.id_client 
+         AND s.training_date_utc > NOW() - INTERVAL '30 days'
+         AND s.status IN ('Completed', 'Attended')
+        ) as sessions_last_30d,
+        (SELECT COUNT(*) 
+         FROM enhancesch.vw_schedulers s 
+         WHERE s.id_client = m.id_client 
+         AND s.training_date_utc > NOW() - INTERVAL '90 days'
+         AND s.status IN ('Completed', 'Attended')
+        ) as sessions_last_90d
+      FROM enhancesch.vw_client_master m
+      LEFT JOIN enhancesch.vw_client_packages p ON m.id_client = p.id_client
+      WHERE m.email IN (${placeholders})
+    `;
+
+    const result = await client.queryObject(query, emails);
+    const map: Record<string, RDSSessionData> = {};
+    for (const row of result.rows as any[]) {
+      if (row.email) {
+        map[row.email.toLowerCase()] = {
+          email: row.email,
+          remaining_sessions: Number(row.remaining_sessions),
+          total_purchased: Number(row.total_purchased),
+          last_session_date: row.last_session_date
+            ? new Date(row.last_session_date).toISOString()
+            : null,
+          sessions_last_7d: Number(row.sessions_last_7d),
+          sessions_last_30d: Number(row.sessions_last_30d),
+          sessions_last_90d: Number(row.sessions_last_90d),
+        };
+      }
+    }
+    return map;
+  } catch (e) {
+    console.error("[Health Calculator] RDS Fetch Error:", e);
+    return {};
+  } finally {
+    await client.end();
+  }
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function safe(value: string | null | undefined, fallback = 0): number {
+  if (!value || value === "") return fallback;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? fallback : parsed;
+}
+
+function daysSince(dateStr: string | null | undefined): number | null {
+  if (!dateStr || dateStr === "") return null;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null;
+  const now = new Date();
+  return Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function isDubaiSummer(): boolean {
+  const month = new Date().getMonth(); // 0-indexed
+  return month >= 5 && month <= 8; // June-September
+}
+
+function isRamadanPeriod(): boolean {
+  // Approximate Ramadan 2026: Feb 18 - Mar 19
+  const now = new Date();
+  const month = now.getMonth();
+  const day = now.getDate();
+  if (month === 1 && day >= 10) return true; // Late Feb
+  if (month === 2 && day <= 25) return true; // Through Mar
+  return false;
+}
+
+function isNewClient(coachTimestamp: string | null | undefined): boolean {
+  if (!coachTimestamp) return false;
+  const days = daysSince(coachTimestamp);
+  return days !== null && days <= 30;
+}
+
+// ============================================
+// V3.0 LOGIC ENGINES
+// ============================================
+
+// 1. ENGAGEMENT ENGINE
+function calculateEngagement(client: ClientData): DimensionScore {
+  const signals: string[] = [];
+  let score = 100;
+
+  const s7d = safe(client.of_sessions_conducted__last_7_days_);
+  const s30d = safe(client.of_conducted_sessions__last_30_days_);
+  const daysInactive = daysSince(client.last_paid_session_date);
+
+  // Inactivity Penalty
+  if (daysInactive !== null && daysInactive >= 0) {
+    if (daysInactive > 21) {
+      score -= 45;
+      signals.push(`${daysInactive}d inactive (CRITICAL)`);
+    } else if (daysInactive > 14) {
+      score -= 30;
+      signals.push(`${daysInactive}d inactive`);
+    } else if (daysInactive > 7) {
+      score -= 15;
+      signals.push(`${daysInactive}d inactive`);
+    }
+  } else if (s7d === 0 && s30d === 0) {
+    score -= 40;
+    signals.push("No recent activity detected");
+  }
+
+  // Frequency Drop
+  if (s30d > 0) {
+    const expectedWeekly = s30d / 4.3;
+    if (expectedWeekly > 0) {
+      const drop = (expectedWeekly - s7d) / expectedWeekly;
+      if (drop >= 0.5) {
+        score -= 20;
+        signals.push("50%+ frequency drop");
+      }
     }
   }
-  score -= factors.frequencyDropPenalty;
 
-  // 3. PACKAGE UTILIZATION PENALTY (max -15)
-  const purchased = client.sessions_purchased || 0;
-  const remaining = client.outstanding_sessions || 0;
-  const used = purchased - remaining;
-  const utilization = purchased > 0 ? (used / purchased) * 100 : 0;
-  
-  if (utilization < 20) {
-    factors.utilizationPenalty = 15;
-  } else if (utilization < 50) {
-    factors.utilizationPenalty = 5;
-  }
-  score -= factors.utilizationPenalty;
-
-  // 4. COMMITMENT BONUS (max +10)
-  const nextSessionBooked = client.next_session_is_booked;
-  const isBooked = nextSessionBooked === true || 
-                   nextSessionBooked === 'Y' || 
-                   nextSessionBooked === 'Yes' || 
-                   nextSessionBooked === 'true' || 
-                   nextSessionBooked === '1';
-  
-  if (isBooked) {
-    const futureBooked = client.future_booked_sessions || 0;
-    factors.commitmentBonus = futureBooked > 1 ? 10 : 5;
-  }
-  score += factors.commitmentBonus;
-
-  // Cap 0-100
-  const finalScore = Math.max(0, Math.min(100, Math.round(score)));
-
-  return { score: finalScore, factors };
+  return { score: clamp(score, 0, 100), weight: 0.3, confidence: 1, signals };
 }
 
-// Main health score function (uses new penalty-based formula)
-function calculateHealthScore(client: any): number {
-  const { score } = calculateHealthScoreWithFactors(client);
-  return score;
-}
+// 2. MOMENTUM PHYSICS ENGINE
+export function analyzeMomentum(client: ClientData): MomentumAnalysis {
+  const s7d = safe(client.of_sessions_conducted__last_7_days_);
+  const s30d = safe(client.of_conducted_sessions__last_30_days_);
+  const s90d = safe(client.of_sessions_conducted__last_90_days_);
 
-function getHealthZone(score: number, client: any): string {
-  if (score >= 85) return "PURPLE";
-  if (score >= 70) return "GREEN";
-  if (score >= 50) return "YELLOW";
-  
-  // RED threshold v2: Only if score < 50 AND inactive for > 14 days
-  let daysSince = getDaysSince(client.last_paid_session_date || client.last_activity_date);
-  if (client.days_since_last_session && client.days_since_last_session < daysSince) {
-    daysSince = client.days_since_last_session;
-  }
-  
-  if (daysSince > 14) return "RED";
-  
-  return "YELLOW"; // If recently active but low score, keep in Yellow
-}
-
-function calculatePredictiveRisk(client: any, healthZone: string, momentum: string): number {
-  let risk = 50;
-
-  // Momentum impact
-  if (momentum === "DECLINING") risk += 30;
-  else if (momentum === "ACCELERATING") risk -= 15;
-
-  // Recent activity
-  const sessions7d = client.sessions_last_7d || 0;
-  if (sessions7d === 0) risk += 25;
-  else if (sessions7d < 1) risk += 15;
-  else if (sessions7d >= 2) risk -= 10;
-
-  // Gap impact
-  // Calculate days since last activity if we have a date
-  let daysSince = 999;
-  if (client.last_activity_date) {
-    const lastDate = new Date(client.last_activity_date);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  } else if (client.days_since_last_session) {
-    daysSince = client.days_since_last_session;
+  if (s90d === 0 && s30d === 0) {
+    return {
+      velocity: 0,
+      acceleration: 0,
+      jerk: 0,
+      status: "NO_DATA",
+      description: "Insufficient data",
+    };
   }
 
-  if (daysSince > 30) risk += 25;
-  else if (daysSince > 14) risk += 15;
-  else if (daysSince <= 7) risk -= 10;
+  const w7 = s7d;
+  const w30 = s30d / 4.3;
+  const w90 = s90d / 13;
 
-  // Package depletion
-  const outstanding = client.outstanding_sessions || 0;
-  const purchased = client.sessions_purchased || 1; // Prevent division by zero
-  const remainingPct = (outstanding / purchased) * 100;
-  if (remainingPct < 10 && sessions7d < 2) risk += 20;
-  else if (remainingPct > 50) risk -= 10;
+  const velocity = w30 > 0 ? ((w7 - w30) / w30) * 100 : 0;
+  const accel = w90 > 0 ? ((w30 - w90) / w90) * 100 : 0;
+  const jerk = 0; // Simplified for MVP
 
-  // Zone mismatch
-  if (healthZone === "GREEN" && momentum === "DECLINING") risk += 10;
+  let status = "STABLE";
+  if (w7 === 0 && w30 > 1) status = "CLIFF_FALL";
+  else if (velocity < -20) status = "DECLINING";
+  else if (velocity > 20) status = "ACCELERATING";
+  else if (velocity > 10 && w90 > w30) status = "RECOVERING";
 
-  return Math.max(0, Math.min(100, risk));
+  return {
+    velocity,
+    acceleration: accel,
+    jerk,
+    status,
+    description: `${status}: ${w7.toFixed(1)}/wk vs ${w30.toFixed(1)} avg`,
+  };
 }
 
-function getInterventionPriority(zone: string, risk: number, momentum: string): string {
-  if (zone === "RED" && risk > 75) return "CRITICAL";
-  if (zone === "RED" || risk > 60) return "HIGH";
-  if (zone === "YELLOW" && momentum === "DECLINING") return "HIGH";
-  if (zone === "GREEN" && momentum === "DECLINING") return "MEDIUM";
-  if (zone === "YELLOW") return "MEDIUM";
-  return "LOW";
+function calculateMomentumScore(
+  client: ClientData,
+  momentum: MomentumAnalysis,
+): DimensionScore {
+  let score = 70;
+  const signals = [momentum.description];
+
+  if (momentum.status === "ACCELERATING") score = 95;
+  if (momentum.status === "RECOVERING") score = 80;
+  if (momentum.status === "DECLINING") score = 35;
+  if (momentum.status === "CLIFF_FALL") score = 5;
+
+  if (isDubaiSummer()) {
+    score += 5;
+    signals.push("Summer adjustment");
+  }
+  if (isRamadanPeriod()) {
+    score += 10;
+    signals.push("Ramadan adjustment");
+  }
+
+  return { score: clamp(score, 0, 100), weight: 0.25, confidence: 1, signals };
+}
+
+// 3. PACKAGE HEALTH
+function calculatePackageHealth(client: ClientData): DimensionScore {
+  let score = 100;
+  const signals: string[] = [];
+  const outstanding = safe(client.outstanding_sessions);
+  const purchased = safe(client.sessions_purchased);
+
+  if (purchased <= 0)
+    return { score: 50, weight: 0.2, confidence: 0.5, signals: ["No package"] };
+
+  const used = purchased - outstanding;
+  const usageRate = used / purchased;
+
+  if (usageRate < 0.1) {
+    score -= 25;
+    signals.push("Barely started");
+  }
+  if (outstanding <= 3) {
+    score -= 15;
+    signals.push("Low balance");
+  }
+
+  return { score: clamp(score, 0, 100), weight: 0.2, confidence: 1, signals };
+}
+
+// 4. RELATIONSHIP
+function calculateRelationship(client: ClientData): DimensionScore {
+  let score = 70;
+  const signals: string[] = [];
+  if (!client.assigned_coach) {
+    score -= 20;
+    signals.push("No coach");
+  }
+  return { score: clamp(score, 0, 100), weight: 0.1, confidence: 0.5, signals };
+}
+
+// 5. COMMITMENT
+function calculateCommitment(client: ClientData): DimensionScore {
+  let score = 50;
+  const signals: string[] = [];
+  const future = safe(client.of_future_booked_sessions);
+
+  if (future >= 3) {
+    score = 85;
+    signals.push("Strong bookings");
+  } else if (future >= 1) {
+    score = 65;
+    signals.push("Has bookings");
+  } else {
+    score = 35;
+    signals.push("No future bookings");
+  }
+
+  return { score: clamp(score, 0, 100), weight: 0.15, confidence: 1, signals };
+}
+
+// 6. PATTERN RECOGNITION
+export function detectPattern(
+  client: ClientData,
+  momentum: MomentumAnalysis,
+): BehavioralPattern {
+  const s7d = safe(client.of_sessions_conducted__last_7_days_);
+  const s30d = safe(client.of_conducted_sessions__last_30_days_);
+  const s90d = safe(client.of_sessions_conducted__last_90_days_);
+
+  if (momentum.status === "CLIFF_FALL")
+    return {
+      pattern: "SUDDEN_STOP",
+      confidence: 0.9,
+      description: "Abrupt stop",
+      interventionUrgency: "IMMEDIATE",
+    };
+  if (s90d > 6 && s30d < (s90d / 3) * 0.6 && s7d <= 1)
+    return {
+      pattern: "SILENT_FADE",
+      confidence: 0.8,
+      description: "Gradual decline",
+      interventionUrgency: "HIGH",
+    };
+
+  return {
+    pattern: "NONE",
+    confidence: 0,
+    description: "Normal",
+    interventionUrgency: "LOW",
+  };
 }
 
 // ============================================
-// MAIN HANDLER
+// MAIN COMPOSITE ENGINE
+// ============================================
+
+export function calculateHealthScoreV3(
+  client: ClientData,
+  rdsSource: boolean,
+): HealthScoreResult {
+  const engagement = calculateEngagement(client);
+  const momentumAnalysis = analyzeMomentum(client);
+  const momentum = calculateMomentumScore(client, momentumAnalysis);
+  const packageHealth = calculatePackageHealth(client);
+  const relationship = calculateRelationship(client);
+  const commitment = calculateCommitment(client);
+  const pattern = detectPattern(client, momentumAnalysis);
+
+  // Weighted Average
+  let totalScore = 0;
+  let totalWeight = 0;
+  const dims = [engagement, momentum, packageHealth, relationship, commitment];
+
+  for (const d of dims) {
+    totalScore += d.score * d.weight;
+    totalWeight += d.weight;
+  }
+
+  const compositeScore = Math.round(totalScore / totalWeight);
+
+  const zone =
+    compositeScore < 50
+      ? "RED"
+      : compositeScore < 70
+        ? "YELLOW"
+        : compositeScore < 85
+          ? "GREEN"
+          : "PURPLE";
+
+  // Churn Prediction (Simplified)
+  const churnProb = clamp((100 - compositeScore) * 1.2, 5, 95);
+
+  return {
+    contactId: client.id,
+    email: client.email,
+    name: `${client.firstname} ${client.lastname}`,
+    healthScore: compositeScore,
+    healthZone: zone as any,
+    dimensions: {
+      engagement,
+      momentum,
+      packageHealth,
+      relationship,
+      commitment,
+    },
+    momentumAnalysis,
+    behavioralPattern: pattern,
+    churnPrediction: {
+      probability30d: churnProb,
+      riskFactors: pattern.pattern !== "NONE" ? [pattern.description] : [],
+    },
+    dataConfidence: {
+      overall: rdsSource ? 1.0 : 0.6,
+      source: rdsSource ? "RDS_TRUTH" : "HUBSPOT_FALLBACK",
+    },
+    recommendedAction: zone === "RED" ? "Urgent Intervention" : "Maintain",
+    calculatedAt: new Date().toISOString(),
+  };
+}
+
+// ============================================
+// HANDLER
 // ============================================
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const startTime = Date.now();
-  const debugLogs: any[] = [];
-
+  if (req.method === "OPTIONS")
+    return apiCorsPreFlight();
   try {
-    const { mode = "full", client_emails = [] } = await req.json().catch(() => ({}));
+    verifyAuth(req);
+    const { client_emails = [] } = await req.json().catch(() => ({}));
 
-    console.log(`[Health Calculator] Starting ${mode} calculation...`);
-    debugLogs.push({ location: 'health-calculator/index.ts:191', message: 'Starting calculation', data: { mode }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
+    // 1. Fetch Candidates (Supabase)
+    const BATCH_SIZE = 100;
+    let allContacts: any[] = [];
+    let from = 0;
+    let hasMore = true;
 
-    // Fetch only real customers from CONTACTS table (Source of Truth)
-    let query = supabase
-      .from("contacts")
-      .select("*")
-      .eq("lifecycle_stage", "customer");
-
-    for (const pattern of TEST_EMAIL_PATTERNS) {
-      query = query.not("email", "ilike", pattern);
-    }
-
-    if (client_emails.length > 0) {
-      query = query.in("email", client_emails);
-    }
-
-    const { data: contacts, error: fetchError } = await query;
-
-    debugLogs.push({ location: 'health-calculator/index.ts:202', message: 'Contacts fetched', data: { count: contacts?.length, error: fetchError }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
-
-    if (fetchError) {
-      console.error("Error fetching contacts:", fetchError);
-      throw fetchError;
-    }
-
-    // Process all contacts
-    console.log(`[Health Calculator] Processing ${contacts?.length || 0} clients from contacts table`);
-
-    const results = {
-      processed: 0,
-      updated: 0,
-      errors: 0,
-      zones: { RED: 0, YELLOW: 0, GREEN: 0, PURPLE: 0 },
-      avgHealthScore: 0,
-      criticalInterventions: 0
-    };
-
-    const upsertPayloads: any[] = [];
-    let totalScore = 0;
-
-    for (const client of contacts || []) {
-      try {
-        if (!client.email) continue;
-
-        const engagement = calculateEngagementScore(client);
-        const packageHealth = calculatePackageHealthScore(client);
-        const momentumScore = calculateMomentumScore(client);
-        const relationshipScore = calculateRelationshipScore(client);
-        const healthScore = calculateHealthScore(client);
-        const healthZone = getHealthZone(healthScore, client);
-        const momentum = getMomentumIndicator(client);
-        const predictiveRisk = calculatePredictiveRisk(client, healthZone, momentum);
-        const interventionPriority = getInterventionPriority(healthZone, predictiveRisk, momentum);
-
-        if (results.processed === 0) {
-          debugLogs.push({ location: 'health-calculator/index.ts:238', message: 'Calculated score for first client', data: { email: client.email, score: healthScore, zone: healthZone }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
-        }
-
-        upsertPayloads.push({
-          email: client.email,
-          firstname: client.first_name,
-          lastname: client.last_name,
-          hubspot_contact_id: client.hubspot_contact_id,
-          health_score: healthScore,
-          health_zone: healthZone,
-          engagement_score: engagement,
-          package_health_score: packageHealth,
-          relationship_score: relationshipScore,
-          momentum_score: momentumScore,
-          health_trend: momentum,
-          churn_risk_score: predictiveRisk,
-          intervention_priority: interventionPriority,
-          sessions_last_7d: client.sessions_last_7d || 0,
-          sessions_last_30d: client.sessions_last_30d || 0,
-          outstanding_sessions: client.outstanding_sessions || 0,
-          sessions_purchased: client.sessions_purchased || 0,
-          days_since_last_session: client.days_since_last_session || 0,
-          assigned_coach: client.assigned_coach,
-          owner_name: client.owner_name,
-          calculated_at: new Date().toISOString(),
-          calculated_on: new Date().toISOString().split("T")[0],
-          calculation_version: "PENALTY_v4_ALIGNED"
-        });
-
-        results.processed++;
-        results.zones[healthZone as keyof typeof results.zones]++;
-        totalScore += healthScore;
-
-        if (interventionPriority === "CRITICAL") {
-          results.criticalInterventions++;
-        }
-
-      } catch (clientError) {
-        console.error(`Error processing client ${client.email}:`, clientError);
-        results.errors++;
-        continue;
+    while (hasMore) {
+      let query = supabase
+        .from("contacts")
+        .select("*")
+        .eq("lifecycle_stage", "customer");
+      
+      if (client_emails.length > 0) {
+        query = query.in("email", client_emails);
       }
-    }
 
-    // Batch upsert for performance
-    const batchSize = 100;
-    let batchIndex = 0;
-    let batchFailures = 0;
-    while (batchIndex * batchSize < upsertPayloads.length) {
-      const start = batchIndex * batchSize;
-      const batch = upsertPayloads.slice(start, start + batchSize);
-      console.log(`[Health Calculator] Upserting batch ${batchIndex + 1} with ${batch.length} records`);
+      const { data: contacts, error } = await query
+        .range(from, from + BATCH_SIZE - 1);
 
-      const { error: upsertError } = await supabase
-        .from("client_health_scores")
-        .upsert(batch, { onConflict: "email" });
-
-      if (upsertError) {
-        batchFailures += batch.length;
-        console.error("Batch upsert error:", upsertError);
+      if (error) throw error;
+      if (!contacts || contacts.length === 0) {
+        hasMore = false;
       } else {
-        results.updated += batch.length;
+        allContacts = [...allContacts, ...contacts];
+        from += BATCH_SIZE;
+        if (contacts.length < BATCH_SIZE) hasMore = false;
       }
-
-      batchIndex++;
+      
+      // Safety limit to avoid infinite loops or memory issues
+      if (from >= 5000) break;
     }
 
-    console.log(`[Health Calculator] Processed ${results.processed} contacts across ${batchIndex} batches with ${batchFailures} failures`);
+    // 2. Fetch Truth (RDS)
+    const emails = allContacts?.map((c) => c.email).filter(Boolean) || [];
+    console.log(`Fetching RDS truth for ${emails.length} clients...`);
+    const rdsMap = await fetchRDSData(emails);
 
-    results.avgHealthScore = results.processed > 0
-      ? Math.round(totalScore / results.processed)
-      : 0;
+    // 3. Process
+    const results: any[] = [];
+    const upserts: any[] = [];
 
-    // Update daily summary
-    const today = new Date().toISOString().split("T")[0];
-    await supabase.from("daily_summary").upsert({
-      summary_date: today,
-      total_active_clients: results.processed,
-      avg_health_score: results.avgHealthScore,
-      red_clients: results.zones.RED,
-      yellow_clients: results.zones.YELLOW,
-      green_clients: results.zones.GREEN,
-      purple_clients: results.zones.PURPLE,
-      critical_interventions: results.criticalInterventions,
-      updated_at: new Date().toISOString()
-    }, { onConflict: "summary_date" });
+    for (const c of allContacts || []) {
+      if (!c.email) continue;
+      const rds = rdsMap[c.email.toLowerCase()];
 
-    const duration = Date.now() - startTime;
-    console.log(`[Health Calculator] Complete in ${duration}ms:`, results);
+      // FUSION MAP
+      const clientData: ClientData = {
+        id: c.hubspot_contact_id || c.id,
+        email: c.email,
+        firstname: c.first_name,
+        lastname: c.last_name,
+        last_paid_session_date:
+          rds?.last_session_date || c.last_paid_session_date,
+        of_sessions_conducted__last_7_days_: rds
+          ? String(rds.sessions_last_7d)
+          : String(c.sessions_last_7d || 0),
+        of_conducted_sessions__last_30_days_: rds
+          ? String(rds.sessions_last_30d)
+          : String(c.sessions_last_30d || 0),
+        of_sessions_conducted__last_90_days_: rds
+          ? String(rds.sessions_last_90d)
+          : String(c.sessions_last_90d || 0),
+        outstanding_sessions: rds
+          ? String(rds.remaining_sessions)
+          : String(c.outstanding_sessions || 0),
+        sessions_purchased: rds
+          ? String(rds.total_purchased)
+          : String(c.sessions_purchased || 0),
+        // Keep other HubSpot fields
+        assigned_coach: c.assigned_coach,
+        next_session_is_booked: c.next_session_is_booked,
+        of_future_booked_sessions: c.future_booked_sessions,
+      };
 
-    return new Response(JSON.stringify({
-      success: true,
-      duration_ms: duration,
-      results,
-      debugLogs
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+      const res = calculateHealthScoreV3(clientData, !!rds);
 
-  } catch (error) {
-    debugLogs.push({ location: 'health-calculator/index.ts:317', message: 'Global error', data: { error: String(error) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
-    console.error("[Health Calculator] Error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      debugLogs
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+      results.push(res);
+      upserts.push({
+        email: c.email,
+        firstname: c.first_name,
+        lastname: c.last_name,
+        hubspot_contact_id: c.hubspot_contact_id,
+        health_score: res.healthScore,
+        health_zone: res.healthZone,
+        churn_risk_score: res.churnPrediction.probability30d,
+        health_trend: res.momentumAnalysis.status,
+        calculated_at: new Date().toISOString(),
+        calculation_version: "v3.0-SuperIntelligence",
+        audit_source: res.dataConfidence.source,
+        last_paid_session_date: clientData.last_paid_session_date, // Sync truth back
+        sessions_last_7d: Number(
+          clientData.of_sessions_conducted__last_7_days_,
+        ),
+        sessions_last_30d: Number(
+          clientData.of_conducted_sessions__last_30_days_,
+        ),
+      });
+    }
+
+    // 4. Write
+    if (upserts.length) {
+      const { error: wErr } = await supabase
+        .from("client_health_scores")
+        .upsert(upserts, { onConflict: "email" });
+      if (wErr) console.error("Write error:", wErr);
+    }
+
+    return apiSuccess({ success: true, processed: results.length, results });
+  } catch (e) {
+    console.error(e);
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: String(e) }), 500);
   }
 });

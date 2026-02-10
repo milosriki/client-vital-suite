@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,10 +21,10 @@ interface TokenListParams {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -88,36 +91,27 @@ serve(async (req) => {
       hasMore: tokens.has_more,
     };
 
-    return new Response(JSON.stringify({
+    return apiSuccess({
       success: true,
       summary,
       tokens: enrichedTokens,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[stripe-issuing-tokens] Error:", error.message);
     
     // Handle specific Stripe errors
     if (error.type === 'StripeInvalidRequestError' || error.code === 'resource_missing') {
-      return new Response(JSON.stringify({
+      return apiError("BAD_REQUEST", JSON.stringify({
         success: false,
         error: "Stripe Issuing is not enabled for this account",
         code: "issuing_not_enabled"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
+      }), 400);
     }
 
-    return new Response(JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,
       error: error.message
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    }), 500);
   }
 });

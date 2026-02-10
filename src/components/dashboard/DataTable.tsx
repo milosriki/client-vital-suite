@@ -31,7 +31,7 @@ export function DataTable<T extends Record<string, any>>({
   rowClassName,
   maxHeight = "400px",
 }: DataTableProps<T>) {
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-2">
         {[...Array(5)].map((_, i) => (

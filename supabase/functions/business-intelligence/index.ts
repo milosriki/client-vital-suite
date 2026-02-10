@@ -1,4 +1,3 @@
-/// <reference lib="deno.ns" />
 import {
   withTracing,
   structuredLog,
@@ -9,6 +8,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import {
   handleError,
   ErrorCode,
@@ -23,10 +28,10 @@ serve(async (req) => {
   try {
     verifyAuth(req);
   } catch (e) {
-    return new Response("Unauthorized", { status: 401 });
+    return errorToResponse(new UnauthorizedError());
   } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const supabase = createClient(
@@ -173,7 +178,6 @@ DATA CONTEXT:
 - Utilization: ${utilizationRate}% (${totalClients} active clients managed by ${activeTrainers} coaches).
 - Growth: ${newLeads} new leads. ${missedFollowUps} are potentially waiting for follow-up.
 - Real-Time Revenue (Stripe): AED ${stripeRevenueToday.toLocaleString()} processed in last 24h.
-- Real-Time Revenue (Stripe): AED ${stripeRevenueToday.toLocaleString()} processed in last 24h.
 
 - System Health: ${criticalErrors} critical errors, ${highErrors} high-priority errors.
 
@@ -184,10 +188,20 @@ CRITICAL OPERATIONAL ALERTS (REQUIRES IMMEDIATE ACTION):
 RECENT SYSTEM ERRORS:
 ${JSON.stringify(recentErrors?.slice(0, 5) || [])}
 
+DEEP ANALYSIS REQUESTED:
+1. PREDICTIVE ANALYTICS: Forecast next week's revenue and utilization based on current trends.
+2. ANOMALY DETECTION: Identify any unusual patterns in the error logs or lead flow.
+3. SENTIMENT ANALYSIS: Infer team/client sentiment based on the urgency of interventions and errors.
+
 OUTPUT FORMAT (JSON):
 {
   "executive_summary": "A 3-sentence summary of the business health. Be direct. ${staleWarning ? "MENTION THE STALE DATA WARNING!" : ""}",
   "system_status": "${staleWarning ? "STALE DATA WARNING - " : ""}${criticalErrors + highErrors > 0 ? `${criticalErrors} critical, ${highErrors} high errors` : "Healthy"}",
+  "deep_analysis": {
+    "predictive_forecast": "Forecast for next week...",
+    "anomalies_detected": "Any unusual patterns...",
+    "sentiment_inference": " inferred sentiment..."
+  },
   "data_freshness": "${dataIsStale ? "STALE" : "FRESH"}",
   "action_plan": ["Action 1", "Action 2", "Action 3"]
 }`;
@@ -201,8 +215,9 @@ OUTPUT FORMAT (JSON):
       const response = await unifiedAI.chat(
         [{ role: "user", content: prompt }],
         {
-          max_tokens: 1000,
+          max_tokens: 2000, // Increased for deep analysis
           jsonMode: true, // Request JSON output
+          model: "gemini-3-flash-preview", // Use Flash for Low Latency Dashboard
         },
       );
 
@@ -290,16 +305,13 @@ OUTPUT FORMAT (JSON):
       `[BI Agent] Analysis complete. Data freshness: ${aiResponse.data_freshness}`,
     );
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        analysis: aiResponse,
-        dataFreshness: aiResponse.data_freshness,
-        staleWarning: staleWarning || null,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error) {
+    return apiSuccess({
+      success: true,
+      analysis: aiResponse,
+      dataFreshness: aiResponse.data_freshness,
+      staleWarning: staleWarning || null,
+    });
+  } catch (error: unknown) {
     return handleError(error, "business-intelligence", {
       supabase,
       errorCode: ErrorCode.INTERNAL_ERROR,

@@ -6,6 +6,9 @@ import {
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,9 +21,9 @@ const BATCH_SIZE = 100;
 const MAX_RECORDS_PER_SYNC = 1000; // Process 1000 at a time, call again for more
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   const startTime = Date.now();
@@ -119,6 +122,19 @@ serve(async (req) => {
 
       console.log("Fake data cleared");
     }
+
+    // Fetch staff for UUID resolution
+    const { data: staffList } = await supabase
+      .from("staff")
+      .select("id, full_name, hubspot_owner_id");
+    
+    const staffByHubSpotId: Record<string, string> = {};
+    const staffByName: Record<string, string> = {};
+    
+    staffList?.forEach(s => {
+      if (s.hubspot_owner_id) staffByHubSpotId[s.hubspot_owner_id] = s.id;
+      if (s.full_name) staffByName[s.full_name.toLowerCase()] = s.id;
+    });
 
     // Fetch owners for mapping (cache this)
     let ownerMap: Record<string, string> = {};
@@ -319,9 +335,14 @@ serve(async (req) => {
             .filter((c: any) => c.properties?.email)
             .map((contact: any) => {
               const props = contact.properties;
+              const ownerId = props.hubspot_owner_id || "unassigned";
               const ownerName = props.hubspot_owner_id
-                ? ownerMap[props.hubspot_owner_id] || null
-                : null;
+                ? ownerMap[props.hubspot_owner_id] || "Unassigned / Admin"
+                : "Unassigned / Admin";
+
+              // Resolve UUIDs
+              const setterUuid = props.hubspot_owner_id ? staffByHubSpotId[props.hubspot_owner_id] : null;
+              const coachUuid = props.assigned_coach ? staffByName[props.assigned_coach.toLowerCase()] : null;
 
               // Get associated deal IDs from associations
               const dealIds =
@@ -337,8 +358,10 @@ serve(async (req) => {
                 // AnyTrack IDs for CAPI alignment
                 facebook_id: props.atclid || null,
                 google_id: props.satid || null,
-                owner_id: props.hubspot_owner_id,
+                owner_id: ownerId,
                 owner_name: ownerName,
+                setter_uuid: setterUuid,
+                coach_uuid: coachUuid,
                 lifecycle_stage: props.lifecyclestage,
                 status: props.hs_lead_status || "active",
                 city: props.city,
@@ -485,11 +508,16 @@ serve(async (req) => {
               .map((contact: any) => {
                 const props = contact.properties;
                 // Matthew and other Contact Owners are SETTERS
+                const setterId = props.hubspot_owner_id || "unassigned";
                 const setterName = props.hubspot_owner_id
-                  ? ownerMap[props.hubspot_owner_id] || null
-                  : null;
+                  ? ownerMap[props.hubspot_owner_id] || "Unassigned / Admin"
+                  : "Unassigned / Admin";
                 // Assigned Coach is the CLOSER
                 const closerName = props.assigned_coach || null;
+
+                // Resolve UUIDs
+                const setterUuid = props.hubspot_owner_id ? staffByHubSpotId[props.hubspot_owner_id] : null;
+                const coachUuid = props.assigned_coach ? staffByName[props.assigned_coach.toLowerCase()] : null;
 
                 return {
                   hubspot_id: contact.id,
@@ -502,8 +530,10 @@ serve(async (req) => {
                     props.lifecyclestage,
                     props.hs_lead_status,
                   ),
-                  owner_id: props.hubspot_owner_id, // This is the Setter ID
+                  owner_id: setterId, // This is the Setter ID
                   assigned_coach: closerName, // This is the Closer
+                  setter_uuid: setterUuid,
+                  coach_uuid: coachUuid,
                   created_at: props.createdate,
                 };
               });
@@ -793,8 +823,7 @@ serve(async (req) => {
       `Sync completed in ${results.processing_time_ms}ms: ${results.contacts_synced} contacts, has_more=${results.has_more}`,
     );
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         success: true,
         message: results.has_more
           ? `Synced ${results.contacts_synced} contacts, more available. Call again with cursor.`
@@ -805,22 +834,14 @@ serve(async (req) => {
             results.next_cursor +
             '" } to continue'
           : undefined,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error("Sync error:", error);
-    return new Response(
-      JSON.stringify({
+    return apiError("INTERNAL_ERROR", JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         processing_time_ms: Date.now() - startTime,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+      }), 500);
   }
 });
 

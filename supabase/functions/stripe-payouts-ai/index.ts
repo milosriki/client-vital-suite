@@ -1,39 +1,61 @@
 /// <reference lib="deno.ns" />
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
-import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
+import {
+  traceStart,
+  traceEnd,
+  createStripeTraceMetadata,
+} from "../_shared/langsmith-tracing.ts";
 import { unifiedAI, ChatMessage } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   // Parse request body early for tracing
   const { mode, action, message, context, history } = await req.json();
-  
+
   // Start LangSmith trace for the entire request
   const traceRun = await traceStart(
     {
       name: `stripe-payouts-ai:${action || "chat"}`,
       runType: "chain",
-      metadata: createStripeTraceMetadata(action || "chat", { mode, hasMessage: !!message }),
+      metadata: createStripeTraceMetadata(action || "chat", {
+        mode,
+        hasMessage: !!message,
+      }),
       tags: ["stripe", "payouts-ai", action || "chat"],
     },
-    { mode, action, message, context }
+    { mode, action, message, context },
   );
 
   try {
-    
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       throw new Error("STRIPE_SECRET_KEY not configured");
@@ -44,8 +66,14 @@ serve(async (req) => {
     // Action: fetch-data - Get all payout-related data
     if (action === "fetch-data") {
       console.log("[STRIPE-PAYOUTS] Fetching payout data...");
-      
-      const [balance, payouts, transfers, balanceTransactions, treasuryTransfers] = await Promise.all([
+
+      const [
+        balance,
+        payouts,
+        transfers,
+        balanceTransactions,
+        treasuryTransfers,
+      ] = await Promise.all([
         stripe.balance.retrieve().catch((e: Error) => {
           console.error("Balance error:", e);
           return null;
@@ -63,10 +91,12 @@ serve(async (req) => {
           return { data: [] };
         }),
 
-        stripe.treasury.outboundTransfers.list({ limit: 50 }).catch((e: Error) => {
-          console.error("Treasury transfers error:", e);
-          return { data: [] };
-        }),
+        stripe.treasury.outboundTransfers
+          .list({ limit: 50 })
+          .catch((e: Error) => {
+            console.error("Treasury transfers error:", e);
+            return { data: [] };
+          }),
       ]);
 
       console.log("[STRIPE-PAYOUTS] Data fetched:", {
@@ -85,38 +115,52 @@ serve(async (req) => {
       };
 
       // End trace with success
-      await traceEnd(traceRun, { action: "fetch-data", counts: { payouts: payouts.data?.length || 0, transfers: transfers.data?.length || 0 } });
+      await traceEnd(traceRun, {
+        action: "fetch-data",
+        counts: {
+          payouts: payouts.data?.length || 0,
+          transfers: transfers.data?.length || 0,
+        },
+      });
 
-      return new Response(
-        JSON.stringify(responseData),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiSuccess(responseData);
     }
 
     // Action: lookup - Lookup specific charge, customer, or payout by ID
     if (action === "lookup") {
-      const { chargeId, customerId, payoutId, invoiceId } = await req.json().catch(() => ({}));
-      console.log("[STRIPE-PAYOUTS-AI] Looking up:", { chargeId, customerId, payoutId, invoiceId });
-      
+      const { chargeId, customerId, payoutId, invoiceId } = await req
+        .json()
+        .catch(() => ({}));
+      console.log("[STRIPE-PAYOUTS-AI] Looking up:", {
+        chargeId,
+        customerId,
+        payoutId,
+        invoiceId,
+      });
+
       const results: Record<string, unknown> = {};
-      
+
       if (chargeId) {
         try {
-          results.charge = await stripe.charges.retrieve(chargeId, { expand: ['customer', 'invoice', 'balance_transaction'] });
+          results.charge = await stripe.charges.retrieve(chargeId, {
+            expand: ["customer", "invoice", "balance_transaction"],
+          });
         } catch (e) {
           results.chargeError = `Charge not found: ${chargeId}`;
         }
       }
-      
+
       if (customerId) {
         try {
           results.customer = await stripe.customers.retrieve(customerId);
-          results.customerCharges = (await stripe.charges.list({ customer: customerId, limit: 20 })).data;
+          results.customerCharges = (
+            await stripe.charges.list({ customer: customerId, limit: 20 })
+          ).data;
         } catch (e) {
           results.customerError = `Customer not found: ${customerId}`;
         }
       }
-      
+
       if (payoutId) {
         try {
           results.payout = await stripe.payouts.retrieve(payoutId);
@@ -124,7 +168,7 @@ serve(async (req) => {
           results.payoutError = `Payout not found: ${payoutId}`;
         }
       }
-      
+
       if (invoiceId) {
         try {
           results.invoice = await stripe.invoices.retrieve(invoiceId);
@@ -132,51 +176,56 @@ serve(async (req) => {
           results.invoiceError = `Invoice not found: ${invoiceId}`;
         }
       }
-      
-      // End trace with success
-      await traceEnd(traceRun, { action: "lookup", found: Object.keys(results).filter(k => !k.includes("Error")).length });
 
-      return new Response(
-        JSON.stringify({ success: true, ...results }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // End trace with success
+      await traceEnd(traceRun, {
+        action: "lookup",
+        found: Object.keys(results).filter((k) => !k.includes("Error")).length,
+      });
+
+      return apiSuccess({ success: true, ...results });
     }
 
     // Action: trace - Full transaction trace with payout discovery
     if (action === "trace") {
       const { chargeId } = await req.json().catch(() => ({}));
       console.log("[STRIPE-PAYOUTS-AI] Full trace for charge:", chargeId);
-      
+
       if (!chargeId) {
-        return new Response(
-          JSON.stringify({ error: "chargeId required" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
+        return apiError("BAD_REQUEST", "chargeId required", 400);
       }
-      
+
       try {
         // Get charge with all expansions
         const charge = await stripe.charges.retrieve(chargeId, {
-          expand: ['customer', 'balance_transaction', 'payment_intent', 'invoice']
+          expand: [
+            "customer",
+            "balance_transaction",
+            "payment_intent",
+            "invoice",
+          ],
         });
-        
+
         const balanceTxn = charge.balance_transaction as any;
         let payoutInfo = null;
-        
+
         // Find payout if balance transaction exists
         if (balanceTxn?.available_on) {
           const availableOn = balanceTxn.available_on;
           // Search payouts around that date
-          const payouts = await stripe.payouts.list({ 
+          const payouts = await stripe.payouts.list({
             limit: 20,
-            arrival_date: { gte: availableOn - 86400, lte: availableOn + 86400 * 7 }
+            arrival_date: {
+              gte: availableOn - 86400,
+              lte: availableOn + 86400 * 7,
+            },
           });
-          
+
           // Try to find which payout contains this transaction
           for (const payout of payouts.data) {
             const txns = await stripe.balanceTransactions.list({
               payout: payout.id,
-              limit: 100
+              limit: 100,
             });
             if (txns.data.find((t: any) => t.id === balanceTxn?.id)) {
               payoutInfo = {
@@ -184,146 +233,26 @@ serve(async (req) => {
                 amount: payout.amount,
                 currency: payout.currency,
                 status: payout.status,
-                arrival_date: new Date(payout.arrival_date * 1000).toISOString().split('T')[0],
+                arrival_date: new Date(payout.arrival_date * 1000)
+                  .toISOString()
+                  .split("T")[0],
                 created: new Date(payout.created * 1000).toISOString(),
-                transactionCount: txns.data.length
+                transactionCount: txns.data.length,
               };
               break;
-            }
-          }
-        }
-        
-        const card = charge.payment_method_details?.card as any;
-        const customer = charge.customer as any;
-        
-        const trace = {
-          charge: {
-            id: charge.id,
-            amount: charge.amount / 100,
-            currency: charge.currency.toUpperCase(),
-            status: charge.status,
-            created: new Date(charge.created * 1000).toISOString()
-          },
-          customer: customer ? {
-            id: customer.id,
-            name: customer.name,
-            email: customer.email
-          } : null,
-          paymentMethod: {
-            brand: card?.brand?.toUpperCase(),
-            last4: card?.last4,
-            fingerprint: card?.fingerprint,
-            wallet: card?.wallet?.type || null,
-            walletNote: card?.wallet?.type === 'apple_pay' ? 
-              '⚠️ Apple Pay tokenizes cards - physical card number may be different!' : null
-          },
-          balanceTransaction: balanceTxn ? {
-            id: balanceTxn.id,
-            gross: balanceTxn.amount / 100,
-            fee: balanceTxn.fee / 100,
-            net: balanceTxn.net / 100,
-            currency: balanceTxn.currency?.toUpperCase(),
-            availableOn: new Date(balanceTxn.available_on * 1000).toISOString().split('T')[0]
-          } : null,
-          payout: payoutInfo,
-          timeline: [
-            { event: 'Charge Created', date: new Date(charge.created * 1000).toISOString(), details: card?.wallet?.type ? `via ${card.wallet.type}` : 'Direct card' },
-            balanceTxn ? { event: 'Funds Available', date: new Date(balanceTxn.available_on * 1000).toISOString().split('T')[0] } : null,
-            payoutInfo ? { event: 'Included in Payout', date: payoutInfo.arrival_date, details: `Payout ${payoutInfo.id} (${payoutInfo.transactionCount} transactions)` } : null,
-            payoutInfo?.status === 'paid' ? { event: 'Paid to Bank', date: payoutInfo.arrival_date, details: '✅ Complete' } : null
-          ].filter(Boolean)
-        };
-        
-        // End trace with success
-        await traceEnd(traceRun, { action: "trace", chargeId, payoutFound: !!payoutInfo });
-
-        return new Response(
-          JSON.stringify({ success: true, trace }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } catch (e: any) {
-        // End trace with error for trace action
-        await traceEnd(traceRun, { action: "trace", error: e.message }, e.message);
-
-        return new Response(
-          JSON.stringify({ error: e.message }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        throw new Error(
+          "No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)",
         );
       }
-    }
-
-    // Action: chat - AI chat about payouts
-    if (action === "chat") {
-      console.log("[STRIPE-PAYOUTS-AI] Processing chat message:", message);
-
-      // Auto-fetch Stripe data if no context provided
-      let stripeContext = context;
-      if (!stripeContext || Object.keys(stripeContext).length === 0) {
-        console.log("[STRIPE-PAYOUTS-AI] No context provided, auto-fetching Stripe data...");
-        const [balance, payouts, transfers, balanceTransactions, treasuryTransfers, charges, customers] = await Promise.all([
-          stripe.balance.retrieve().catch((e: Error) => {
-            console.error("Balance error:", e);
-            return { available: [], pending: [] };
-          }),
-          stripe.payouts.list({ limit: 20 }).catch((e: Error) => {
-            console.error("Payouts error:", e);
-            return { data: [] };
-          }),
-          stripe.transfers.list({ limit: 20 }).catch((e: Error) => {
-            console.error("Transfers error:", e);
-            return { data: [] };
-          }),
-          stripe.balanceTransactions.list({ limit: 100 }).catch((e: Error) => {
-            console.error("Balance transactions error:", e);
-            return { data: [] };
-          }),
-          stripe.treasury.outboundTransfers.list({ limit: 50 }).catch((e: Error) => {
-            console.error("Treasury transfers error:", e);
-            return { data: [] };
-          }),
-          // Add charges for detailed transaction data
-          stripe.charges.list({ limit: 100, expand: ['data.customer'] }).catch((e: Error) => {
-            console.error("Charges error:", e);
-            return { data: [] };
-          }),
-          // Add customers for customer lookup
-          stripe.customers.list({ limit: 100 }).catch((e: Error) => {
-            console.error("Customers error:", e);
-            return { data: [] };
-          }),
-        ]);
-        stripeContext = {
-          balance,
-          payouts: payouts.data || [],
-          transfers: transfers.data || [],
-          balanceTransactions: balanceTransactions.data || [],
-          treasuryTransfers: treasuryTransfers.data || [],
-          charges: charges.data || [],
-          customers: customers.data || [],
-        };
-        console.log("[STRIPE-PAYOUTS-AI] Auto-fetched data:", {
-          payoutsCount: stripeContext.payouts.length,
-          transactionsCount: stripeContext.balanceTransactions.length,
-          chargesCount: stripeContext.charges.length,
-          customersCount: stripeContext.customers.length,
-        });
-      }
-
-      // Use direct Gemini API (LOVABLE_API_KEY is optional, only for fallback)
-      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      const useDirectGemini = !!GEMINI_API_KEY;
-      
-      if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
-        throw new Error("No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)");
-      }
-      console.log(`🤖 Using ${useDirectGemini ? 'Direct Gemini API' : 'Lovable Gateway (fallback)'}`);
+      console.log(
+        `🤖 Using ${useDirectGemini ? "Direct Gemini API" : "Lovable Gateway (fallback)"}`,
+      );
 
       // Check LangSmith configuration status
       const langsmithKey = Deno.env.get("LANGSMITH_API_KEY");
       const langsmithConfigured = !!langsmithKey;
 
-      const basePrompt = buildAgentPrompt('STRIPE_PAYOUTS_AI', {
+      const basePrompt = buildAgentPrompt("STRIPE_PAYOUTS_AI", {
         additionalContext: `Focus on: payout reconciliation, fee analysis, chargeback detection
 
 === SYSTEM INTEGRATION STATUS ===
@@ -332,9 +261,11 @@ When users ask about "LangSmith", "LangChain", "tracing", or "AI connection stat
 - This AI is powered by: ${GEMINI_API_KEY ? "Google Gemini API (Direct)" : "Lovable AI Gateway"}
 - AI Model: gemini-3.0-flash / gemini-3.0-flash
 
-If asked about LangSmith/LangChain: ${langsmithConfigured 
-  ? "Tell the user: 'Yes! LangSmith is configured and active. All AI conversations are being traced for monitoring and debugging.'"
-  : "Tell the user: 'LangSmith is NOT configured. The LANGSMITH_API_KEY secret needs to be added to enable tracing.'"}`
+If asked about LangSmith/LangChain: ${
+          langsmithConfigured
+            ? "Tell the user: 'Yes! LangSmith is configured and active. All AI conversations are being traced for monitoring and debugging.'"
+            : "Tell the user: 'LangSmith is NOT configured. The LANGSMITH_API_KEY secret needs to be added to enable tracing.'"
+        }`,
       });
 
       const systemPrompt = `${basePrompt}
@@ -389,10 +320,12 @@ Your job is to:
 Be concise but thorough. Format amounts properly (divide by 100 for major currency units).
 If data is missing, say so explicitly.`;
 
-
       const messages: ChatMessage[] = [
         { role: "system", content: systemPrompt },
-        ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),
+        ...(history || []).map((m: any) => ({
+          role: m.role,
+          content: m.content,
+        })),
         { role: "user", content: message },
       ];
 
@@ -401,13 +334,16 @@ If data is missing, say so explicitly.`;
       // Use UnifiedAIClient for chat
       const response = await unifiedAI.chat(messages, {
         max_tokens: 1000,
-        temperature: 0.2
+        temperature: 0.2,
       });
 
       console.log("[STRIPE-PAYOUTS-AI] UnifiedAIClient response received");
 
       // End trace with success
-      await traceEnd(traceRun, { action: "chat", responseLength: response.content.length });
+      await traceEnd(traceRun, {
+        action: "chat",
+        responseLength: response.content.length,
+      });
 
       // Return as SSE event stream for compatibility with frontend
       const stream = new ReadableStream({
@@ -416,14 +352,16 @@ If data is missing, say so explicitly.`;
           const text = response.content;
           // Simulate streaming by sending chunks
           const chunks = text.match(/.{1,20}/g) || [text];
-          
+
           for (const chunk of chunks) {
-            const data = JSON.stringify({ choices: [{ delta: { content: chunk } }] });
+            const data = JSON.stringify({
+              choices: [{ delta: { content: chunk } }],
+            });
             controller.enqueue(encoder.encode(`data: ${data}\n\n`));
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
-        }
+        },
       });
 
       return new Response(stream, {
@@ -433,15 +371,15 @@ If data is missing, say so explicitly.`;
 
     throw new Error("Invalid action");
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error("[STRIPE-PAYOUTS-AI] Error:", errorMessage);
-    
+
     // End trace with error
     await traceEnd(traceRun, { error: errorMessage }, errorMessage);
-    
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+
+    return errorToResponse(
+      error instanceof Error ? error : new Error(errorMessage),
+    );
   }
 });

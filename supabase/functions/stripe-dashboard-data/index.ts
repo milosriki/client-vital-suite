@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,9 +46,9 @@ function formatAED(amount: number): string {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -275,8 +278,7 @@ serve(async (req) => {
       ? convertToAED(balance.pending[0].amount, balance.pending[0].currency)
       : 0;
 
-    return new Response(
-      JSON.stringify({
+    return apiSuccess({
         balance: {
           ...balance,
           available: [{ amount: balanceAvailableAED, currency: "aed" }],
@@ -318,21 +320,10 @@ serve(async (req) => {
         chartData,
         dateRange: { startDate, endDate },
         currency: "aed", // Global currency indicator
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error) {
+      });
+  } catch (error: unknown) {
     console.error("Error in stripe-dashboard-data:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: errorMessage }), 500);
   }
 });

@@ -2,6 +2,9 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,7 +105,7 @@ async function checkFunction(
       responseTime,
       message: `HTTP ${response.status}` 
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return { 
       status: "error", 
       responseTime: Date.now() - start,
@@ -149,9 +152,9 @@ async function checkDatabase(supabaseUrl: string, serviceKey: string): Promise<{
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -228,14 +231,9 @@ serve(async (req) => {
 
     console.log(`[SYSTEM-HEALTH] Complete: ${overall.toUpperCase()} - ${summary.healthy}/${summary.total} functions healthy`);
 
-    return new Response(JSON.stringify(report, null, 2), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
+    return apiSuccess(report);
+  } catch (error: unknown) {
     console.error("[SYSTEM-HEALTH] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return apiError("INTERNAL_ERROR", JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), 500);
   }
 });

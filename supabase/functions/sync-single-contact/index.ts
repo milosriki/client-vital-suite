@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,9 +13,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return apiCorsPreFlight();
   }
 
   try {
@@ -54,7 +58,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 404)
-        return new Response(JSON.stringify({ message: "Contact not found" }));
+        return apiError("INTERNAL_ERROR", JSON.stringify({ message: "Contact not found" }));
       throw new Error(`HubSpot API Error: ${await response.text()}`);
     }
 
@@ -92,17 +96,9 @@ serve(async (req) => {
       `[Sync-Single-Contact] Successfully synced contact ${props.email}`,
     );
 
-    return new Response(
-      JSON.stringify({ success: true, contact: contactData }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  } catch (error) {
+    return apiSuccess({ success: true, contact: contactData });
+  } catch (error: unknown) {
     console.error("[Sync-Single-Contact] Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return apiSuccess({ error: error.message });
   }
 });

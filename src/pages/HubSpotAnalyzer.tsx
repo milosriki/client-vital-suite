@@ -77,7 +77,7 @@ const HubSpotAnalyzer = () => {
   const recommendations: Recommendation[] = analysisData?.recommendations || [];
   const leadLossPoints = analysisData?.leadLossPoints || [];
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="p-8 space-y-8">
         <Skeleton className="h-12 w-64" />
