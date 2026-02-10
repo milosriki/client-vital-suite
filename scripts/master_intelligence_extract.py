@@ -4,7 +4,8 @@ import json
 import re
 import time
 
-HUBSPOT_API_KEY = "pat-na1-7dc3217b-65d8-41c8-9281-730818836a5a"
+import os
+HUBSPOT_API_KEY = os.environ.get("HUBSPOT_API_KEY", "")
 HEADERS = {
     "Authorization": f"Bearer {HUBSPOT_API_KEY}",
     "Content-Type": "application/json"
