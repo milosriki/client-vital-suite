@@ -56,7 +56,14 @@ export const HUBSPOT_PROPERTIES = {
     // PTD-specific Custom Properties
     'assigned_coach', 'assessment_scheduled', 'assessment_date',
     'package_type', 'sessions_purchased', 'outstanding_sessions',
-    'coach_notes', 'preferred_location', 'fitness_goals', 'call_status'
+    'coach_notes', 'preferred_location', 'fitness_goals', 'call_status',
+    // Session Activity (REAL-TIME)
+    'of_sessions_conducted__last_7_days_',
+    'of_conducted_sessions__last_30_days_',
+    'of_sessions_conducted__last_90_days_',
+    'next_session_is_booked',
+    'of_future_booked_sessions',
+    'last_package_cost'
   ],
 
   // Deal properties

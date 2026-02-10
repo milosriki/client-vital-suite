@@ -1,30 +1,34 @@
 # Loki Continuity - PTD Vital Suite
 
 ## Current Goal
-Implement the Ground Truth Comparison Engine (AWS + HubSpot + Stripe + CallGear).
+
+4: Finalize "Smart Cool" Persona (Lisa v10) and Deploy.
 
 ## Mistakes & Learnings
-- **Multi-Source Complexity**: Learned that CallGear drives Setter assignment if unassigned.
-- **Financial Forensics**: Stripe data is already being used for advanced fraud detection (Structuring/Ghost Protocol).
-- **Attribution Flow**: AnyTrack provides the "First Touch" truth while HubSpot provides the "Sale" truth.
+
+- **UUID Resolution**: Realized that without a complete `staff` table containing all AWS `trainer_name` values, the `aws-truth-alignment` function will fail to link `coach_uuid`.
+- **Logic Sync**: AWS `id_client` is used for internal joins, but `email` is the bridge to HubSpot/Supabase.
 
 ## Context
+
 - Project: PTD Vital Suite
-- Ecosystem: Fully mapped (HubSpot, AWS RDS, Stripe, CallGear, AnyTrack, Meta).
-- Goal: 100% accurate health scores and coach performance metrics.
+- Core Engine: `aws-truth-alignment` (Supabase Edge Function) implemented.
+- Truth Source: AWS RDS UAE Replica (Backoffice).
 
 ## Progress
+
 - [x] Phase 1: Truth Alignment (Data Integrity)
 - [x] Phase 2: Time-Series Intelligence (Verified)
 - [x] Phase 3: Marketing Reality (Verified)
 - [x] Phase 4: Advanced Formulas & Visualization
-  - [x] Corrected Matthew Twigg role (Setter).
-  - [x] Mapped AWS ground truth (Training).
-  - [x] Discovered CallGear auto-assignment logic.
-  - [x] Mapped Stripe forensic signatures.
+  - [x] `aws-truth-alignment` function implemented.
+  - [x] Distinct mapping for Setter (HS) vs Coach (AWS).
+  - [x] Automatic update logic for Supabase based on AWS ground truth.
 
-## Next Phase: The Final Truth Engine
-- [ ] Implement `aws-truth-alignment` function.
-- [ ] Automate reconciliation of Outstanding Sessions (AWS master).
-- [ ] Calculate "True CPA" (Facebook Spend / AWS Completed Assessments).
-- [ ] Link every Client to their actual Ongoing Trainer (AWS master).
+## Next Phase: Deployment & Verification
+
+- [x] **Smart Cool Pivot**: Implemented "Lifestyle Audit" and "Empathetic Takeaway".
+- [x] **Artifact Recovery**: Created `LISA_TRUE_SOURCE.md` from Gemini archives.
+- [x] **Verification Script**: Created `verify-smart-cool.ts`.
+- [ ] **Deploy**: Push to Supabase and run verification.
+- [ ] **Monitor**: Watch for "Beast Mode" execution in live chats.
