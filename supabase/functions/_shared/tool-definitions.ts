@@ -99,6 +99,29 @@ export const tools: ToolDefinition[] = [
     },
   },
 
+  // 3.5 SOCIAL PROOF (New - Loki v1.0)
+  {
+    name: "get_success_stories",
+    description:
+      "Get verified client success stories/testimonials. Use this when a lead is skeptical or asks for proof.",
+    input_schema: {
+      type: "object",
+      properties: {
+        goal_type: {
+          type: "string",
+          enum: [
+            "weight_loss",
+            "muscle_gain",
+            "injury_recovery",
+            "general_fitness",
+          ],
+          description: "Filter by goal type (optional, defaults to random mix)",
+        },
+        limit: { type: "number", description: "Max results (default 3)" },
+      },
+    },
+  },
+
   // 4. BUSINESS INTELLIGENCE (Merged intelligence_control, get_coach_performance, get_daily_summary)
   {
     name: "intelligence_control",

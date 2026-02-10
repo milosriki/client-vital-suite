@@ -33,6 +33,7 @@ export interface ConversationContext {
   days_since_last_reply: number;
   referral_source: string | null;
   voice_mood?: string | null;
+  social_proof?: string | null; // New field for injected testimonials
 }
 
 export function buildSmartPrompt(context: ConversationContext): string {
@@ -248,6 +249,8 @@ Psych Profile: ${context.psychological_profile || "Not enough data yet"}
 Days Since Last Reply: ${context.days_since_last_reply.toFixed(1)}
 Voice Mood: ${context.voice_mood || "Text only"}
 Referral Source: ${context.referral_source || "Unknown"}
+
+${context.social_proof ? `=== ANONYMIZED CLIENT RESULTS (Reference these results generally, NEVER by name) ===\n${context.social_proof}` : ""}
 `;
 }
 
