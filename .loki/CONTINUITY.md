@@ -1,29 +1,30 @@
 # Loki Continuity - PTD Vital Suite
 
 ## Current Goal
-Execute wide discovery and implement Ground Truth Comparison.
+Implement the Ground Truth Comparison Engine (AWS + HubSpot + Stripe + CallGear).
 
 ## Mistakes & Learnings
-- **Dual-Phase Coaching**: Verified that `assigned_coach` in HubSpot is for assessments, while AWS `vw_schedulers` is for ongoing training.
-- **Setter Mapping**: Confirmed `hubspot_owner_id` is strictly for Setters.
-- **Data Hierarchy**: AWS is the definitive source for training sessions and package balances for "Customer" status clients.
+- **Multi-Source Complexity**: Learned that CallGear drives Setter assignment if unassigned.
+- **Financial Forensics**: Stripe data is already being used for advanced fraud detection (Structuring/Ghost Protocol).
+- **Attribution Flow**: AnyTrack provides the "First Touch" truth while HubSpot provides the "Sale" truth.
 
 ## Context
 - Project: PTD Vital Suite
-- Data Ecosystem: HubSpot (Sales/Assessments), AWS RDS (Training/Backoffice), Stripe (Payments), Meta (Ads).
-- Stack: Supabase, Deno, AWS RDS UAE Replica.
+- Ecosystem: Fully mapped (HubSpot, AWS RDS, Stripe, CallGear, AnyTrack, Meta).
+- Goal: 100% accurate health scores and coach performance metrics.
 
 ## Progress
 - [x] Phase 1: Truth Alignment (Data Integrity)
 - [x] Phase 2: Time-Series Intelligence (Verified)
 - [x] Phase 3: Marketing Reality (Verified)
 - [x] Phase 4: Advanced Formulas & Visualization
-  - [x] Wide discovery of AWS and HubSpot field logic.
-  - [x] Mapped dual identity transition (Assessment -> Training).
-  - [x] Identified AWS ground truth for session frequency.
+  - [x] Corrected Matthew Twigg role (Setter).
+  - [x] Mapped AWS ground truth (Training).
+  - [x] Discovered CallGear auto-assignment logic.
+  - [x] Mapped Stripe forensic signatures.
 
-## Next Phase: Ground Truth Comparison Engine
-- [ ] Create `aws-truth-alignment` Edge Function.
-- [ ] Generate `discrepancy_report` artifacts.
-- [ ] Link `coach_uuid` in Supabase directly to AWS `trainer_name`.
-- [ ] Update HubSpot `outstanding_sessions` from AWS when 100% sure.
+## Next Phase: The Final Truth Engine
+- [ ] Implement `aws-truth-alignment` function.
+- [ ] Automate reconciliation of Outstanding Sessions (AWS master).
+- [ ] Calculate "True CPA" (Facebook Spend / AWS Completed Assessments).
+- [ ] Link every Client to their actual Ongoing Trainer (AWS master).

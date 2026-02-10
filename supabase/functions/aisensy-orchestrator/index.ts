@@ -95,20 +95,12 @@ Deno.serve(async (req) => {
         .eq("phone", phone)
         .eq("phone", phone)
         .maybeSingle(),
-      // 2.1 Fetch Social Proof (Goal-based if known) - Optimized Parallel Fetch
-      // We surmise goal from likely context - defaulting to general if unknown at this stage
-      // But we can refine after goal is parsed in later turns. For now, fetch broadly.
-      getSocialProof(
-        supabase,
-        hubspotContext?.properties?.fitness_goal ||
-          aiMemoryRes?.data?.desired_outcome ||
-          "general",
-        2,
-      ),
+      // 2.1 Social Proof REMOVED per User Instruction ("No Social Proof on New Leads")
+      // getSocialProof(supabase, ...) -> Skipped.
     ]);
 
     const aiMemory = aiMemoryRes.data;
-    const relevantProof = formatSocialProof(hubspotContext as any); // Wait, array destruct logic above needs adjustment if I add 4th promise.
+    // const relevantProof = ...; -> Skipped.
     // Correction: promise array index access for proof. The signature of getSocialProof returns SocialProof[].
     // Let's adjust the Promise.all structure more cleanly.
 
@@ -172,8 +164,7 @@ Deno.serve(async (req) => {
       days_since_last_reply: daysSinceLastReply,
       referral_source: null,
       voice_mood: voiceTone,
-      social_proof: formatSocialProof(hubspotContext), // Logic error in previous chunk, need to capture result properly.
-      // Re-doing the chunk logic below to be correct.
+      // social_proof: ... REMOVED
     });
 
     if (sentiment.sentiment === "RISK") {
