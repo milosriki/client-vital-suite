@@ -62,6 +62,10 @@ const REPLACEMENT_MAP: Record<string, string> = {
   database: "our records",
   function: "feature",
   API: "service",
+  "as an ai": "actually",
+  "language model": "person",
+  "how can i assist": "how can i help",
+  "unauthorized": "not allowed",
 };
 
 export function sanitizeResponse(aiResponse: string): string {
@@ -94,22 +98,22 @@ export function validateResponseSafety(response: string): {
   const issues: string[] = [];
 
   // Check for capability mentions
-  if (/capabilities/i.test(response)) {
-    issues.push("Response mentions 'capabilities'");
+  if (/capabilities|internal systems/i.test(response)) {
+    issues.push("Response mentions 'capabilities' or 'internal systems'");
   }
 
   // Check for skill activation
-  if (/skill.*activate/i.test(response)) {
+  if (/skill.*activate|activated skill/i.test(response)) {
     issues.push("Response mentions skill activation");
   }
 
   // Check for internal markers
-  if (/<internal/i.test(response)) {
+  if (/<internal/i.test(response) || /\[INTERNAL\]/i.test(response)) {
     issues.push("Response contains internal context markers");
   }
 
   // Check for code-like content
-  if (/function|const|let|var\s+\w+\s*=/i.test(response)) {
+  if (/function|const|let|var\s+\w+\s*=|=>/i.test(response)) {
     issues.push("Response contains code-like syntax");
   }
 
@@ -120,9 +124,11 @@ export function validateResponseSafety(response: string): {
     "database query",
     "API key",
     "invoke",
+    "endpoint",
+    "payload",
   ];
   technicalTerms.forEach((term) => {
-    if (new RegExp(term, "i").test(response)) {
+    if (new RegExp(`\\b${term}\\b`, "i").test(response)) {
       issues.push(`Response contains technical term: "${term}"`);
     }
   });
@@ -137,16 +143,20 @@ export function formatForWhatsApp(message: string): string {
   // Ensure proper WhatsApp formatting
   let formatted = message;
 
-  // Convert markdown bold to WhatsApp bold (if needed)
+  // Convert markdown bold to WhatsApp bold
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, "*$1*");
 
-  // Keep line breaks reasonable (WhatsApp-friendly)
-  formatted = formatted.replace(/\n{3,}/g, "\n\n");
+  // Remove markdown bullet points - convert to simple dashes or just space
+  formatted = formatted.replace(/^\s*[\*\-]\s+/gm, "- ");
+
+  // Ensure no "AI-isms" remain
+  formatted = formatted.replace(/Certainly!/gi, "");
+  formatted = formatted.replace(/Of course!/gi, "");
+  formatted = formatted.replace(/I understand./gi, "ok, cool.");
 
   // Limit message length (WhatsApp has ~4096 char limit)
   if (formatted.length > 4000) {
-    formatted =
-      formatted.slice(0, 3950) + "\n\n...(message truncated for length)";
+    formatted = formatted.slice(0, 3950) + "...";
   }
 
   return formatted.trim();

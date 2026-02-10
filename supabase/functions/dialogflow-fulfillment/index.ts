@@ -1,554 +1,393 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildSmartPrompt } from "../_shared/smart-prompt.ts";
+import { parseAIResponse } from "../_shared/response-parser.ts";
+import { calculateLeadScore } from "../_shared/lead-scorer.ts";
 import { HubSpotManager } from "../_shared/hubspot-manager.ts";
-import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
-import { unifiedAI } from "../_shared/unified-ai-client.ts";
-import { contentFilter } from "../_shared/content-filter.ts";
-import { StageDetector, type SalesStage } from "../_shared/stage-detection.ts";
-import { AvatarLogic } from "../_shared/avatar-logic.ts";
 import { SentimentTriage } from "../_shared/sentiment.ts";
-import { AntiRobot } from "../_shared/anti-robot.ts";
-import { SalesStrategy } from "../_shared/sales-strategy.ts";
 import { RepairEngine } from "../_shared/repair-engine.ts";
-import { DubaiContext } from "../_shared/avatar-logic.ts";
+import { AntiRobot } from "../_shared/anti-robot.ts";
+import { DubaiContext, AvatarLogic } from "../_shared/avatar-logic.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import {
+  handleError,
+  ErrorCode,
+  corsHeaders as defaultCorsHeaders,
+} from "../_shared/error-handler.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rate-limiter.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  UnauthorizedError,
+  RateLimitError,
+  ExternalServiceError,
+  errorToResponse,
+} from "../_shared/app-errors.ts";
 
-const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const hubspotKey = Deno.env.get("HUBSPOT_API_KEY") || "";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-const hubspot = new HubSpotManager(
-  HUBSPOT_API_KEY,
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-);
+const supabase = createClient(supabaseUrl, supabaseKey);
+const hubspot = new HubSpotManager(hubspotKey, supabaseUrl, supabaseKey);
 
-const DIALOGFLOW_AUTH_TOKEN = Deno.env.get("DIALOGFLOW_AUTH_TOKEN");
-
-Deno.serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+// @ts-ignore
+Deno.serve(async (req: Request) => {
   const startTime = Date.now();
-  console.log("🤖 [Dialogflow-Fulfillment] Received request");
-
-  // [SECURITY] Auth Check
-  if (DIALOGFLOW_AUTH_TOKEN) {
-    const authHeader = req.headers.get("x-auth-token");
-    if (authHeader !== DIALOGFLOW_AUTH_TOKEN) {
-      console.error("🚨 Unauthorized Access Attempt");
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
-    }
-  } else {
-    console.warn(
-      "⚠️ SECURITY WARNING: DIALOGFLOW_AUTH_TOKEN not set. Endpoint is public.",
-    );
-  }
-
   try {
-    const data = await req.json();
-    const queryResult = data.queryResult;
-    const intent = queryResult?.intent?.displayName;
-    const incomingText = queryResult?.queryText; // User's message
-    const originalFulfillmentText = queryResult?.fulfillmentText;
-
-    const session = data.session;
-    const originalDetectIntentRequest = data.originalDetectIntentRequest;
-
-    let phone: string | null = null;
-
-    // --- PHONE EXTRACTION (Multi-Provider Support) ---
-    if (originalDetectIntentRequest?.payload?.data?.From) {
-      phone = originalDetectIntentRequest.payload.data.From;
-    } else if (originalDetectIntentRequest?.payload?.waNumber) {
-      phone = originalDetectIntentRequest.payload.waNumber;
-    } else if (originalDetectIntentRequest?.payload?.destinationNumber) {
-      phone = originalDetectIntentRequest.payload.destinationNumber;
-    }
-
-    if (!incomingText || !phone) {
-      console.warn("⚠️ Missing incoming text or phone number", {
-        incomingText,
-        phone,
-      });
-      return new Response(
-        JSON.stringify({
-          fulfillmentText:
-            originalFulfillmentText || "I'm sorry, I couldn't process that.",
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    // --- PAUSE CHECK (Human Takeover) ---
-    const isPaused = await checkBotPaused(phone);
-    if (isPaused && intent !== "RESUME_BOT") {
-      console.log(`⏸️ Bot is PAUSED for ${phone}. Skipping response.`);
-      return new Response(JSON.stringify({ fulfillmentText: "" }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // --- DETERMINISTIC LANES (Hypothesis 3) ---
-    if (intent === "STOP" || intent === "OPT_OUT") {
-      return new Response(
-        JSON.stringify({
-          fulfillmentText:
-            "You have been opted out. You will not receive further messages.",
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    if (intent === "BOOKING") {
-      return new Response(
-        JSON.stringify({
-          fulfillmentText:
-            "Great! You can book your consultation here: https://ptd-fitness.com/book",
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    if (intent === "HUMAN_HANDOFF") {
-      await setBotPaused(phone, true);
-      // Sync to HubSpot
-      EdgeRuntime.waitUntil(hubspot.updateBotStatus(hubspotContext?.id, true));
-
-      return new Response(
-        JSON.stringify({
-          fulfillmentText:
-            "I've flagged this for a human coach. They will be with you shortly.",
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // --- RESUME LANE ---
-    if (intent === "RESUME_BOT") {
-      await setBotPaused(phone, false);
-      EdgeRuntime.waitUntil(hubspot.updateBotStatus(hubspotContext?.id, false));
-      return new Response(
-        JSON.stringify({ fulfillmentText: "I'm back online! How can I help?" }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // --- 1. CONTEXT RETRIEVAL (Dual-Layer: DB + Dialogflow Context) ---
-    const outputContexts = queryResult?.outputContexts || [];
-    const ptdSessionContext = outputContexts.find((c: any) =>
-      c.name.endsWith("/contexts/ptd.session"),
-    );
-
-    // Fallback Code (Dialogflow Memory)
-    const sessionParams = ptdSessionContext?.parameters || {};
-
-    // Try to get DB history, fallback to empty if fails (don't crash)
-    let chatHistory: any[] = [];
-    let hubspotContext: any = null;
-
+    // Auth — per auth-implementation-patterns skill
     try {
-      const [hsResult, dbResult] = await Promise.allSettled([
-        hubspot.searchContactByPhone(phone),
-        getChatHistory(phone),
-      ]);
-
-      hubspotContext = hsResult.status === "fulfilled" ? hsResult.value : null;
-      chatHistory = dbResult.status === "fulfilled" ? dbResult.value : [];
-
-      if (hsResult.status === "rejected")
-        console.error("⚠️ HubSpot Lookup Failed", hsResult.reason);
-      if (dbResult.status === "rejected")
-        console.error(
-          "⚠️ Database History Lookup Failed (Using Context Fallback)",
-          dbResult.reason,
-        );
-    } catch (err) {
-      console.error("⚠️ Critical Context Error", err);
+      verifyAuth(req);
+    } catch {
+      throw new UnauthorizedError();
     }
 
-    console.log(
-      `🧠 Context retrieved. History Size: ${chatHistory.length}. Session Params: ${Object.keys(sessionParams).length}`,
-    );
+    // Rate limit — per api-patterns/rate-limiting.md
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    const rateCheck = checkRateLimit(req, RATE_LIMITS.chat);
+    if (!rateCheck.allowed) throw new RateLimitError();
 
-    // --- 2. AI INTELLIGENCE ---
-    const currentStage =
-      (hubspotContext?.properties?.whatsapp_stage as SalesStage) ||
-      sessionParams.stage || // Fallback to session
-      "1_CONNECTION";
+    const body = await req.json();
+    let userMessage = body.queryResult?.queryText || "";
+    const userPhone =
+      body.originalDetectIntentRequest?.payload?.phone || "";
+    const intentName = body.queryResult?.intent?.displayName || "Unknown";
 
-    const stageResult = StageDetector.detect(currentStage, incomingText);
-
-    // [SKILL: SENTIMENT TRIAGE]
-    const sentiment = SentimentTriage.analyze(incomingText);
-    let personaPrompt = "";
-
-    // [RAG] Fetch Dynamic Knowledge
-    const kbContext = await getKnowledgeBase(incomingText);
-
-    if (sentiment === "RISK") {
-      console.log("⚠️ RISK DETECTED - Switching to De-escalation Mode");
-      personaPrompt = `
-      You are Mark, a helpful support agent.
-      The user seems upset. Your goal is to DE-ESCALATE.
-      Do NOT sell. Do NOT be pushy.
-      Simply apologize if needed, validate their feelings, and ask how you can help fix it.
-      Keep it short and human.
-      `;
-    } else {
-      // Merge Hubspot Context with Session Context for the AI
-      const mergedContext = { ...hubspotContext, ...sessionParams };
-      personaPrompt = buildDynamicPersona(
-        mergedContext,
-        chatHistory,
-        stageResult.promptGoal,
-        kbContext, // Injected here
+    // [SKILL: VOICE-TO-VALUE] - Handle Audio URL in message
+    let voiceTone = "";
+    if (
+      userMessage.startsWith("https://") &&
+      (userMessage.includes("/audio/") || userMessage.includes("/voice/"))
+    ) {
+      console.log(
+        `🎤 Audio URL detected in Dialogflow: ${userMessage}. Transcribing...`,
       );
+      const audioResult = await unifiedAI.transcribeAudio(userMessage);
+      userMessage = audioResult.text;
+      voiceTone = audioResult.tone;
+      console.log(`📝 Transcribed: "${userMessage}" | Tone: ${voiceTone}`);
     }
+
+    // 2. Parallel Context
+    const [leadRes, aiMemoryRes, hubspotContext] = await Promise.all([
+      supabase.from("leads").select("*").eq("phone", userPhone).maybeSingle(),
+      supabase
+        .from("conversation_intelligence")
+        .select("*")
+        .eq("phone", userPhone)
+        .maybeSingle(),
+      hubspot.searchContactByPhone(userPhone),
+    ]);
+
+    const lead = leadRes.data;
+    const aiMemory = aiMemoryRes.data;
+
+    // Dual Mode — bot paused: return empty per api-patterns envelope
+    if (hubspotContext?.properties?.bot_paused === "true") {
+      structuredLog("info", "dialogflow-fulfillment: bot paused", {
+        phone: userPhone,
+      });
+      return apiSuccess({ fulfillmentText: "" });
+    }
+
+    if (!aiMemory) {
+      await supabase.from("conversation_intelligence").insert({
+        phone: userPhone,
+        lead_score: 10,
+        conversation_phase: "hook",
+      });
+    }
+
+    // 3. Sentiment & Persona
+    const sentiment = SentimentTriage.analyze(userMessage);
+    let systemPrompt = buildSmartPrompt({
+      name: hubspotContext?.properties?.firstname || lead?.name || "Friend",
+      phone: userPhone,
+      goal:
+        hubspotContext?.properties?.fitness_goal ||
+        lead?.goal ||
+        aiMemory?.desired_outcome ||
+        null,
+      area: hubspotContext?.properties?.city || lead?.area || null,
+      housing_type: lead?.housing_type || null,
+      history_summary: aiMemory?.conversation_summary || "New conversation.",
+      message_count: (aiMemory?.message_count || 0) + 1,
+      last_message: userMessage,
+      lead_score: aiMemory?.lead_score || 10,
+      dominant_pain: aiMemory?.dominant_pain || null,
+      psychological_profile: aiMemory?.psychological_profile || null,
+      days_since_last_reply: aiMemory?.last_lead_message_at
+        ? (Date.now() - new Date(aiMemory.last_lead_message_at).getTime()) /
+          86400000
+        : 0,
+      referral_source: lead?.source || null,
+    });
+
+    if (sentiment.sentiment === "RISK") {
+      systemPrompt =
+        "You are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.";
+    }
+
+    // 4. AI Call (With ATLAS Handoff Tool)
+    const askAtlasTool = {
+      name: "ask_atlas",
+      description:
+        "Use this tool for questions about PAYMENTS, REFUNDS, STRIPE, or BUSINESS STRATEGY. Do not guess.",
+      input_schema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The specific question about finance/strategy",
+          },
+          urgency: {
+            type: "string",
+            enum: ["low", "high"],
+            description: "Urgency of the request",
+          },
+        },
+        required: ["query"],
+      },
+    };
 
     const aiResponse = await unifiedAI.chat(
       [
-        { role: "system", content: personaPrompt },
-        { role: "user", content: incomingText },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
       ],
       {
-        temperature: 0.7,
+        tools: [askAtlasTool],
+        temperature: 0.3, // Lower temp for precise tool usage
       },
     );
 
-    let finalRawResponse = aiResponse.content;
+    // Check for Tool Execution (Handoff)
+    if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
+      const call = aiResponse.tool_calls.find((c) => c.name === "ask_atlas");
+      if (call) {
+        const { query, urgency } = call.input;
+        console.log(`🦄 ATLAS HANDOFF TRIGGERED: ${query}`);
 
-    // [SKILL: SUPER INTELLIGENCE - LOOP REPAIR]
-    const lastAiResponse = chatHistory[0]?.response_text || "";
-    if (RepairEngine.detectLoop(lastAiResponse, finalRawResponse)) {
-      console.log("🔄 LOOP DETECTED. Engaging Repair Engine...");
-      const repairPrompt = RepairEngine.generateRepairPrompt(
-        incomingText,
-        chatHistory,
-      );
-      const repairResponse = await unifiedAI.chat(
-        [
-          { role: "system", content: repairPrompt },
-          { role: "user", content: incomingText },
-        ],
-        { temperature: 0.8 },
-      );
-      finalRawResponse = repairResponse.content;
-    }
-
-    const sanitized = contentFilter.sanitize(finalRawResponse);
-
-    // [SAFETY] Guard against leaked templates
-    if (
-      sanitized.includes("TEMPLATE 1:") ||
-      sanitized.includes("Templates for reaching out") ||
-      sanitized.length > 500
-    ) {
-      console.error("🚨 BLOCKED LEAKED/LONG RESPONSE", sanitized);
-      return new Response(
-        JSON.stringify({
-          fulfillmentText:
-            "That sounds like a great goal! I'd love to help you build a plan for that. Quick question - have you tried personal training before, or would this be your first time?",
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    let finalResponse = contentFilter.toWhatsAppFormat(sanitized);
-
-    // [SKILL: ANTI-ROBOT SYNTAX]
-    finalResponse = AntiRobot.humanize(finalResponse, "PROFESSIONAL");
-
-    // --- 3. BACKGROUND SYNC (Robust Error Handling) ---
-    // @ts-expect-error: EdgeRuntime is available in Supabase
-    EdgeRuntime.waitUntil(
-      (async () => {
-        const results = await Promise.allSettled([
-          syncToHubSpot(
-            phone,
-            incomingText,
-            finalResponse,
-            hubspotContext,
-            stageResult.hasChanged ? stageResult.stage : undefined,
-            intent,
-          ),
-          logInteraction(phone, incomingText, finalResponse),
-        ]);
-
-        results.forEach((result, index) => {
-          if (result.status === "rejected") {
-            const jobName = index === 0 ? "HubSpot Sync" : "DB Log";
-            console.error(
-              `❌ [Critical Fail] ${jobName} failed:`,
-              result.reason,
-            );
-            // TODO: Write to 'error_logs' table if available
-          }
+        // Create Async Task
+        await supabase.from("agent_tasks").insert({
+          requestor: "dialogflow-fulfillment",
+          task_type: "finance_query",
+          payload: {
+            query,
+            phone: userPhone,
+            user_message: userMessage,
+            context: hubspotContext,
+          },
+          priority: urgency === "high" ? "high" : "normal",
+          status: "pending",
         });
 
-        if (results.every((r) => r.status === "fulfilled")) {
-          console.log(
-            `✅ [Fulfillment] Full cycle complete in ${Date.now() - startTime}ms`,
-          );
-        }
-      })(),
-    );
+        const reply =
+          "I'm checking that with our finance team right now. I'll send you an update shortly!";
 
-    // --- 4. RESPONSE TO DIALOGFLOW (With Context Update) ---
-    // Persist memory in Dialogflow Context (Lifespan 50)
-    const sessionName = `${session}/contexts/ptd.session`;
-    const updatedContexts = [
-      {
-        name: sessionName,
-        lifespanCount: 50,
-        parameters: {
-          ...sessionParams,
-          last_stage: currentStage,
-          last_interaction: new Date().toISOString(),
+        // Log interaction as usual
+        await supabase.from("whatsapp_interactions").insert({
+          phone_number: userPhone,
+          message_text: userMessage,
+          response_text: reply,
+          metadata: { handoff: "atlas" },
+        });
+
+        return apiSuccess({ fulfillmentText: reply });
+      }
+    }
+
+    let parsed = parseAIResponse(aiResponse.content);
+
+    // Loop Repair
+    const prevSummary = aiMemory?.conversation_summary || "";
+    const summaryLines = prevSummary.split("\n").filter(Boolean);
+    const lastLisaResponse =
+      [...summaryLines]
+        .reverse()
+        .find((l) => l.startsWith("Lisa:"))
+        ?.replace(/^Lisa:\s*/, "") || "";
+    if (RepairEngine.detectLoop(lastLisaResponse, parsed.reply)) {
+      const chatHistory = summaryLines
+        .slice(-6)
+        .map((line) => {
+          if (line.startsWith("User:"))
+            return { role: "user" as const, content: line.replace(/^User:\s*/, "") };
+          return { role: "assistant" as const, content: line.replace(/^Lisa:\s*/, "") };
+        });
+      const repairRes = await unifiedAI.chat([
+        {
+          role: "system",
+          content: RepairEngine.generateRepairPrompt(userMessage, chatHistory),
         },
-      },
-    ];
+        { role: "user", content: userMessage },
+      ]);
+      parsed = parseAIResponse(repairRes.content);
+    }
 
-    return new Response(
-      JSON.stringify({
-        fulfillmentText: finalResponse,
-        outputContexts: updatedContexts,
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-      },
+    // Humanize
+    parsed.reply = AntiRobot.humanize(parsed.reply, "PROFESSIONAL");
+
+    // 5. Update & Sync
+    const finalScore = Math.round(
+      (parsed.thought?.recommended_lead_score || 10) * 0.6 + 10 * 0.4,
     );
-  } catch (error) {
-    console.error("❌ Fulfillment Error:", error);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+    const updateData = {
+      phone: userPhone,
+      lead_score: finalScore,
+      message_count: (aiMemory?.message_count || 0) + 1,
+      last_lead_message_at: new Date().toISOString(),
+      conversation_phase: parsed.thought?.conversation_phase || "hook",
+      psychological_profile:
+        parsed.thought?.psychological_profile ||
+        aiMemory?.psychological_profile,
+      dominant_pain: parsed.thought?.current_state || aiMemory?.dominant_pain,
+      desired_outcome:
+        parsed.thought?.desired_state || aiMemory?.desired_outcome,
+      primary_blocker: parsed.thought?.blocker || aiMemory?.primary_blocker,
+      last_internal_thought: parsed.thought,
+      conversation_summary: (
+        (aiMemory?.conversation_summary || "") +
+        `\nUser: ${userMessage}\nLisa: ${parsed.reply}`
+      )
+        .split("\n")
+        .slice(-10)
+        .join("\n"),
+    };
+
+    const logInteractionPromise = supabase
+      .from("whatsapp_interactions")
+      .insert({
+        phone_number: userPhone,
+        message_text: userMessage,
+        response_text: parsed.reply,
+      });
+    const hubspotPromise = syncToHubSpot(
+      userPhone,
+      userMessage,
+      parsed.reply,
+      hubspotContext,
+      intentName,
+      updateData.conversation_phase,
+      finalScore,
+      parsed.thought,
+      voiceTone,
+    );
+    const intelligencePromise = supabase
+      .from("conversation_intelligence")
+      .upsert(updateData, { onConflict: "phone" });
+
+    // @ts-ignore
+    if (typeof EdgeRuntime !== "undefined") {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(
+        Promise.allSettled([
+          logInteractionPromise,
+          hubspotPromise,
+          intelligencePromise,
+        ]),
+      );
+    } else {
+      await Promise.all([
+        logInteractionPromise,
+        hubspotPromise,
+        intelligencePromise,
+      ]);
+    }
+
+    // Success — per api-patterns/response.md
+    structuredLog("info", "dialogflow-fulfillment: success", {
+      phone: userPhone,
+      intent: intentName,
+      score: finalScore,
+      latency_ms: Date.now() - startTime,
+    });
+    return apiSuccess({ fulfillmentText: parsed.reply });
+  } catch (error: unknown) {
+    // Enterprise error handling — per error-handling-patterns skill
+    structuredLog("error", "dialogflow-fulfillment: failed", {
+      error: error instanceof Error ? error.message : String(error),
+      latency_ms: Date.now() - startTime,
+    });
+    // For Dialogflow: always return 200 with fallback text so the bot doesn't break
+    if (error instanceof UnauthorizedError || error instanceof RateLimitError) {
+      return errorToResponse(error);
+    }
+    return apiSuccess({
+      fulfillmentText: "Hey, tech hiccup. Can you send that again?",
     });
   }
 });
-
-// --- HELPER FUNCTIONS ---
-
-async function getChatHistory(phone: string) {
-  const { data } = await supabase
-    .from("whatsapp_interactions")
-    .select("message_text, response_text")
-    .eq("phone_number", phone)
-    .order("created_at", { ascending: false })
-    .limit(5);
-  return data || [];
-}
-
-function buildDynamicPersona(
-  hubspotData: any,
-  history: any[],
-  currentGoal: string,
-  kbContext: string = "",
-) {
-  const contactName = hubspotData?.properties?.firstname || "Friend";
-  const stage = hubspotData?.properties?.whatsapp_stage || "Discovery";
-
-  let historySummary = "";
-  if (history.length > 0) {
-    historySummary =
-      "\nRecent Conversation:\n" +
-      history
-        .map((h) => `User: ${h.message_text}\nAI: ${h.response_text}`)
-        .join("\n");
-  }
-
-  const avatarType = AvatarLogic.identify(hubspotData);
-  const avatarInstruction = AvatarLogic.getInstruction(avatarType);
-  const locationContext = DubaiContext.getContext(
-    hubspotData?.properties?.city,
-  );
-  const salesStrategy = SalesStrategy.getStrategy(stage, hubspotData);
-
-  return `
-${WHATSAPP_SALES_PERSONA}
-
-=== DYNAMIC KNOWLEDGE BASE (STRICT) ===
-Use this information to answer user questions if relevant:
-${kbContext || "No specific database articles found."}
-
-=== DYNAMIC SALES INTELLIGENCE ===
-${avatarInstruction}
-${locationContext}
-
-=== ELITE SALES STRATEGY (NEPQ) ===
-${salesStrategy}
-
-Current Lead Context:
-- Name: ${contactName}
-- AVATAR SEGMENT: ${avatarType}
-- LOCATION INFO: ${locationContext.trim().split("\n")[1] || "General Dubai"}
-- Current Stage: ${stage}
-- Goal: ${hubspotData?.properties?.fitness_goal || "Unknown"}
-${historySummary}
-
-IMPORTANT: You are talking to ${contactName}.
-CURRENT GOAL: ${currentGoal} (This is your ONLY focus).
-Drive towards the assessment using the STRATEGY above. Be casual and concise.
-`;
-}
 
 async function syncToHubSpot(
   phone: string,
   incoming: string,
   outgoing: string,
-  context: any,
-  newStage?: string,
-  intent?: string,
+  contact: any,
+  intent: string,
+  stage: string,
+  score: number,
+  thought: any,
+  voiceTone?: string,
 ) {
   try {
-    let contactId = context?.id;
-
+    let contactId = contact?.id;
     if (!contactId) {
       const existing = await hubspot.searchContactByPhone(phone);
-      if (existing) {
-        contactId = existing.id;
-      } else {
-        const email = `${phone.replace("+", "")}@whatsapp.placeholder.com`;
-        const createUrl = `https://api.hubapi.com/crm/v3/objects/contacts`;
-        const createRes = await fetch(createUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            properties: {
-              phone,
-              email,
-              firstname: "WhatsApp",
-              lastname: "Lead",
-              hs_lead_status: "NEW",
-            },
-          }),
+      if (existing) contactId = existing.id;
+      else {
+        const res = await hubspot.createContact({
+          phone,
+          email: `${phone.replace("+", "")}@whatsapp.com`,
+          firstname: "WhatsApp",
+          lastname: "Lead",
         });
-        const createData = await createRes.json();
-        contactId = createData.id;
+        contactId = res?.id;
       }
     }
+    if (contactId) {
+      // Construct a "High-Status Intelligence Brief" for the Human Coach
+      const toneLine = voiceTone ? `🎭 Mood: ${voiceTone}\n` : "";
+      const intelligenceBrief = thought
+        ? `
+--- 🕵️ AI STRATEGIST BRIEF ---
+🌡️ Temperature: ${thought.lead_temperature?.toUpperCase() || "UNKNOWN"}
+🎯 Stage: ${stage.toUpperCase()}
+${toneLine}💔 Pain identified: ${thought.current_state || "Not yet identified"}
+✨ Desired outcome: ${thought.desired_state || "Not yet identified"}
+🛑 Primary blocker: ${thought.blocker || "Not yet identified"}
+🧠 Psych Profile: ${thought.psychological_profile || "Not yet assessed"}
+⚖️ Gap Size: ${thought.gap_size?.toUpperCase() || "UNKNOWN"}
+---------------------------
+`
+        : "";
 
-    // Log Message as Note
-    const noteUrl = `https://api.hubapi.com/crm/v3/objects/notes`;
-    const noteBody = `📲 **Dialogflow Chat**\n\n**Intent**: ${intent || "N/A"}\n**User**: ${incoming}\n**Mark**: ${outgoing}`;
+      const noteBody = `📲 **WhatsApp Interaction (Lisa AI Strategist)**\n${intelligenceBrief}\n**User**: ${incoming}\n**Lisa**: ${outgoing}`;
 
-    await fetch(noteUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        properties: {
-          hs_note_body: noteBody,
-          hs_timestamp: new Date().toISOString(),
-        },
-        associations: [
-          {
-            to: { id: contactId },
-            types: [
-              {
-                associationCategory: "HUBSPOT_DEFINED",
-                associationTypeId: 202,
-              },
-            ],
-          },
-        ],
-      }),
-    });
+      const updates: Record<string, string> = {
+        whatsapp_stage: stage,
+        lead_score: score.toString(),
+        whatsapp_intent: intent,
+        whatsapp_last_message: incoming,
+        whatsapp_last_reply: outgoing,
+        whatsapp_summary: thought?.hubspot_summary || "",
+        lead_maturity: thought?.lead_status || "casual",
+      };
 
-    if (newStage) {
-      await fetch(
-        `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ properties: { whatsapp_stage: newStage } }),
-        },
+      // Map intelligence to existing HubSpot fields if they match
+      if (thought?.current_state) updates.fitness_goal = thought.current_state;
+      if (thought?.blocker) updates.biggest_challenge_ = thought.blocker;
+
+      await Promise.all([
+        hubspot.createNote(contactId, noteBody),
+        hubspot.updateContact(contactId, updates),
+      ]);
+      console.log(
+        `✅ Antigravity CRM Sync: Intelligence logged for contact ${contactId}`,
       );
     }
   } catch (e) {
-    console.error("❌ [Sync] HubSpot sync failed:", e);
+    console.error("HS Sync Fail:", e);
   }
-}
-
-async function logInteraction(
-  phone: string,
-  incoming: string,
-  outgoing: string,
-) {
-  await supabase.from("whatsapp_interactions").insert({
-    phone_number: phone,
-    message_text: incoming,
-    response_text: outgoing,
-    status: "delivered",
-  });
-}
-
-// [RAG] Dynamic Knowledge Base
-async function getKnowledgeBase(query: string): Promise<string> {
-  if (!query) return "";
-
-  try {
-    // 1. Keyword Search (Simple & Fast)
-    const { data, error } = await supabase
-      .from("knowledge_base")
-      .select("question, answer, category")
-      .eq("is_active", true)
-      .textSearch("question", query, { type: "websearch", config: "english" })
-      .limit(3);
-
-    if (error) {
-      console.warn("⚠️ Knowledge Base Lookup Failed", error);
-      return "";
-    }
-
-    if (!data || data.length === 0) return "";
-
-    return data
-      .map(
-        (item) => `
-[Q]: ${item.question}
-[A]: ${item.answer}
-    `,
-      )
-      .join("\n");
-  } catch (e) {
-    console.error("⚠️ KB Error", e);
-    return "";
-  }
-}
-
-async function checkBotPaused(phone: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("lead_states")
-    .select("bot_paused")
-    .eq("phone_number", phone)
-    .single();
-  return data?.bot_paused || false;
-}
-
-async function setBotPaused(phone: string, paused: boolean) {
-  await supabase
-    .from("lead_states")
-    .upsert(
-      {
-        phone_number: phone,
-        bot_paused: paused,
-        last_interaction: new Date().toISOString(),
-      },
-      { onConflict: "phone_number" },
-    );
-  console.log(`🔄 Bot Paused State set to ${paused} for ${phone}`);
 }

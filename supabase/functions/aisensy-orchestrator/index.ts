@@ -1,19 +1,31 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { HubSpotManager } from "../_shared/hubspot-manager.ts";
-import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
+import { HubSpotManager, HubSpotContact } from "../_shared/hubspot-manager.ts";
+import { buildSmartPrompt } from "../_shared/smart-prompt.ts";
+import { parseAIResponse } from "../_shared/response-parser.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { contentFilter } from "../_shared/content-filter.ts";
-import { StageDetector, type SalesStage } from "../_shared/stage-detection.ts";
-import { AvatarLogic } from "../_shared/avatar-logic.ts";
-import { SentimentTriage } from "../_shared/sentiment.ts";
 import { AntiRobot } from "../_shared/anti-robot.ts";
 import { calculateSmartPause } from "../_shared/smart-pause.ts";
-import { SalesStrategy } from "../_shared/sales-strategy.ts";
+import { splitMessage } from "../_shared/message-splitter.ts";
 import { RepairEngine } from "../_shared/repair-engine.ts";
-import { DubaiContext } from "../_shared/avatar-logic.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { withTracing, structuredLog } from "../_shared/observability.ts";
+import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { calculateLeadScore } from "../_shared/lead-scorer.ts";
+import { SentimentTriage } from "../_shared/sentiment.ts";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 const AISENSY_API_KEY = Deno.env.get("AISENSY_API_KEY")!;
 const AISENSY_WEBHOOK_SECRET = Deno.env.get("AISENSY_WEBHOOK_SECRET")!;
 const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY")!;
@@ -28,7 +40,11 @@ const hubspot = new HubSpotManager(
 );
 
 Deno.serve(async (req) => {
-    try { verifyAuth(req); } catch(e) { return new Response("Unauthorized", {status: 401}); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   const startTime = Date.now();
   console.log("🚀 [AISensy-Orchestrator] Received request");
 
@@ -37,57 +53,122 @@ Deno.serve(async (req) => {
     const signature = req.headers.get("x-aisensy-signature");
     const bodyText = await req.text();
 
-    if (!verifySignature(bodyText, signature, AISENSY_WEBHOOK_SECRET)) {
+    if (!(await verifySignature(bodyText, signature, AISENSY_WEBHOOK_SECRET))) {
       console.error("❌ Invalid signature");
-      return new Response("Unauthorized", { status: 401 });
+      return errorToResponse(new UnauthorizedError());
     }
 
     const payload = JSON.parse(bodyText);
-    const incomingText = payload.message?.payload?.text;
-    const phone = payload.destinationNumber; // AISensy format
+    let incomingText = payload.message?.payload?.text;
+    const mediaUrl =
+      payload.message?.payload?.url || payload.message?.payload?.mediaUrl;
+    const messageType = payload.message?.type; // 'text', 'audio', 'voice', 'image'
+    const phone = payload.destinationNumber;
 
-    if (!incomingText || !phone) {
-      return new Response("Missing data", { status: 400 });
+    // [SKILL: VOICE-TO-VALUE] - Handle Audio Transcription
+    let voiceTone = "";
+    if ((messageType === "audio" || messageType === "voice") && mediaUrl) {
+      console.log(`🎤 Audio detected: ${mediaUrl}. Transcribing...`);
+      const audioResult = await unifiedAI.transcribeAudio(mediaUrl);
+      incomingText = audioResult.text;
+      voiceTone = audioResult.tone;
+      console.log(`📝 Transcribed: "${incomingText}" | Tone: ${voiceTone}`);
+    }
+
+    if (!incomingText && messageType !== "image") {
+      return apiSuccess({
+        status: "skipped",
+        message: "No text or audio found",
+      });
     }
 
     // 2. Parallel Context Retrieval (Speed Pillar)
-    const [hubspotContext, chatHistory] = await Promise.all([
+    // [BRAIN TRANSPLANT] Now fetching Long Term Memory (conversation_intelligence)
+    const [hubspotContext, chatHistory, aiMemoryRes] = await Promise.all([
       hubspot.searchContactByPhone(phone),
       getChatHistory(phone),
+      supabase
+        .from("conversation_intelligence")
+        .select("*")
+        .eq("phone", phone)
+        .maybeSingle(),
     ]);
+
+    const aiMemory = aiMemoryRes.data;
+
+    // [BRAIN TRANSPLANT] Initialize Memory if new
+    if (!aiMemory) {
+      await supabase.from("conversation_intelligence").insert({
+        phone: phone,
+        lead_score: 10,
+        conversation_phase: "hook",
+      });
+    }
 
     console.log(`🧠 Context retrieved in ${Date.now() - startTime}ms`);
 
-    // 3. AI Intelligence (Persona Pillar)
-    const currentStage =
-      (hubspotContext?.properties?.whatsapp_stage as SalesStage) ||
-      "1_CONNECTION";
-    const stageResult = StageDetector.detect(currentStage, incomingText);
+    // [SKILL: DUAL MODE] - Check if Bot is Paused
+    if (
+      hubspotContext?.properties?.bot_paused === "true" ||
+      hubspotContext?.properties?.bot_paused === true
+    ) {
+      console.log("⏸️ BOT PAUSED for this contact. Skipping AI response.");
+      return apiSuccess({ status: "skipped_bot_paused" });
+    }
 
-    // [SKILL: SENTIMENT TRIAGE]
+    // 3. AI Intelligence (Lisa 9.2 Brain)
+    // [BRAIN TRANSPLANT] Calculate Memory Horizon
+    const daysSinceLastReply = aiMemory?.last_lead_message_at
+      ? (Date.now() - new Date(aiMemory.last_lead_message_at).getTime()) /
+        86400000
+      : 0;
+
+    // [BRAIN TRANSPLANT] Sentiment Analysis
     const sentiment = SentimentTriage.analyze(incomingText);
-    let personaPrompt = "";
 
-    if (sentiment === "RISK") {
-      console.log("⚠️ RISK DETECTED - Switching to De-escalation Mode");
-      personaPrompt = `
-      You are Mark, a helpful support agent.
-      The user seems upset. Your goal is to DE-ESCALATE.
-      Do NOT sell. Do NOT be pushy.
-      Simply apologize if needed, validate their feelings, and ask how you can help fix it.
-      Keep it short and human.
-      `;
-    } else {
-      personaPrompt = buildDynamicPersona(
-        hubspotContext,
-        chatHistory,
-        stageResult.promptGoal,
+    let systemPrompt = buildSmartPrompt({
+      name: hubspotContext?.properties?.firstname || "Friend",
+      phone: phone,
+      goal:
+        hubspotContext?.properties?.fitness_goal ||
+        aiMemory?.desired_outcome ||
+        null,
+      area: hubspotContext?.properties?.city || null,
+      housing_type: hubspotContext?.properties?.housing_type || null,
+      history_summary:
+        aiMemory?.conversation_summary ||
+        chatHistory
+          .map((h) => `User: ${h.message_text}\nLisa: ${h.response_text}`)
+          .join("\n"),
+      message_count: (aiMemory?.message_count || chatHistory.length) + 1,
+      last_message: incomingText,
+      lead_score:
+        aiMemory?.lead_score ||
+        parseInt(hubspotContext?.properties?.lead_score || "10"),
+      dominant_pain:
+        aiMemory?.dominant_pain ||
+        hubspotContext?.properties?.biggest_challenge_ ||
+        null,
+      psychological_profile:
+        aiMemory?.psychological_profile ||
+        hubspotContext?.properties?.lead_maturity ||
+        "casual",
+      days_since_last_reply: daysSinceLastReply,
+      referral_source: null,
+      voice_mood: voiceTone,
+    });
+
+    if (sentiment.sentiment === "RISK") {
+      console.log(
+        "⚠️ Sentiment RISK detected. Switching to De-escalation Prompt.",
       );
+      systemPrompt =
+        "You are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.";
     }
 
     const aiResponse = await unifiedAI.chat(
       [
-        { role: "system", content: personaPrompt },
+        { role: "system", content: systemPrompt },
         { role: "user", content: incomingText },
       ],
       {
@@ -96,6 +177,8 @@ Deno.serve(async (req) => {
     );
 
     let finalRawResponse = aiResponse.content;
+    const parsed = parseAIResponse(finalRawResponse);
+    finalRawResponse = parsed.reply;
 
     // [SKILL: SUPER INTELLIGENCE - LOOP REPAIR]
     // Check if we are about to say the same thing as before
@@ -125,56 +208,136 @@ Deno.serve(async (req) => {
 
     const sanitized = contentFilter.sanitize(finalRawResponse);
 
-    // [SAFETY] Regex Guard: Block leaked internal templates
-    if (
-      sanitized.includes("TEMPLATE 1:") ||
-      sanitized.includes("Templates for reaching out") ||
-      sanitized.length > 500
-    ) {
-      console.error("🚨 BLOCKED LEAKED RESPONSE:", sanitized);
+    // [SAFETY] Leak Pattern Guard — blocks system prompt / template leakage
+    const LEAK_PATTERNS = [
+      "TEMPLATE 1:",
+      "Templates for reaching out",
+      "THOUGHT_START",
+      "THOUGHT_END",
+      "REPLY_START",
+      "REPLY_END",
+      "SYSTEM PROMPT",
+      "INTERNAL MONOLOGUE",
+      "=== IDENTITY ===",
+      "=== THE EXPERT RULES",
+      "=== CONVERSATION FLOW",
+      "=== CURRENT CONTEXT ===",
+      "buildSmartPrompt",
+      "fitness_intent",
+      "is_warmed_up",
+      "recommended_lead_score",
+    ];
+
+    if (LEAK_PATTERNS.some((p) => sanitized.includes(p))) {
+      console.error("🚨 BLOCKED LEAKED RESPONSE:", sanitized.slice(0, 200));
       const fallback =
         "That sounds like a great goal! I'd love to help you build a plan for that. Quick question - have you tried personal training before, or would this be your first time?";
-      return new Response(
-        JSON.stringify({
-          action: "reply",
-          text: fallback,
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
+      return apiSuccess({
+        action: "reply",
+        text: fallback,
+      });
     }
 
     let finalResponse = contentFilter.toWhatsAppFormat(sanitized);
 
-    // [SKILL: ANTI-ROBOT SYNTAX]
-    finalResponse = AntiRobot.humanize(finalResponse, "PROFESSIONAL");
+    // [SKILL: ANTI-ROBOT SYNTAX + MESSAGE SPLITTER]
+    // Split into 1-4 WhatsApp bubbles, humanize each independently
+    const userName = hubspotContext?.properties?.firstname || undefined;
+    const bubbles = splitMessage(finalResponse);
+    const humanizedBubbles = bubbles.map((b) => ({
+      ...b,
+      text: AntiRobot.humanize(b.text, {
+        mood: "CASUAL",
+        userName,
+      }),
+    }));
 
-    // [SKILL: SMART PAUSE]
-    const delay = calculateSmartPause(incomingText + finalResponse);
+    // Keep full text for logging (pre-humanized is fine for summaries)
+    finalResponse = humanizedBubbles.map((b) => b.text).join("\n");
+
+    // [SKILL: SMART PAUSE] — initial typing delay before first bubble
+    const delay = calculateSmartPause(incomingText, humanizedBubbles[0].text);
     console.log(`⏳ Smart Pause: Waiting ${delay}ms to simulate typing...`);
     await new Promise((resolve) => setTimeout(resolve, delay));
 
-    // 4. Immediate Delivery (Efficiency Pillar)
-    const deliveryPromise = sendToAISensy(phone, finalResponse);
+    // 4. Immediate Delivery — Multi-Bubble Send Loop
+    console.log(`💬 Sending ${humanizedBubbles.length} bubble(s) to ${phone}`);
+    const deliveryPromise = (async () => {
+      for (let i = 0; i < humanizedBubbles.length; i++) {
+        const bubble = humanizedBubbles[i];
+        // Inter-bubble delay (first bubble delay is 0 from splitter)
+        if (bubble.delayMs > 0) {
+          console.log(`⏳ Inter-bubble pause: ${bubble.delayMs}ms`);
+          await new Promise((r) => setTimeout(r, bubble.delayMs));
+        }
+        await sendToAISensy(phone, bubble.text);
+        console.log(`✅ Bubble ${i + 1}/${humanizedBubbles.length} sent`);
+      }
+    })();
 
     // 5. Background Sync (Reliability Pillar)
-    // We don't wait for this to finish to return the response to the webhook
-    // @ts-expect-error: EdgeRuntime is available in Supabase
+    // [BRAIN TRANSPLANT] Parse Thought for Intelligence
+    // The 'parsed' object now contains the 'thought' (Internal Monologue)
+
+    // 5. Update & Sync (The "Memory Write" Step)
+    const finalScore = Math.round(
+      (parsed.thought?.recommended_lead_score || aiMemory?.lead_score || 10) *
+        0.6 +
+        10 * 0.4,
+    );
+
+    const updateData = {
+      phone: phone,
+      lead_score: finalScore,
+      message_count: (aiMemory?.message_count || 0) + 1,
+      last_lead_message_at: new Date().toISOString(),
+      conversation_phase:
+        parsed.thought?.conversation_phase ||
+        aiMemory?.conversation_phase ||
+        "hook",
+      psychological_profile:
+        parsed.thought?.psychological_profile ||
+        aiMemory?.psychological_profile,
+      dominant_pain: parsed.thought?.current_state || aiMemory?.dominant_pain,
+      desired_outcome:
+        parsed.thought?.desired_state || aiMemory?.desired_outcome,
+      primary_blocker: parsed.thought?.blocker || aiMemory?.primary_blocker,
+      last_internal_thought: parsed.thought,
+      conversation_summary: (
+        (aiMemory?.conversation_summary || "") +
+        `\nUser: ${incomingText}\nLisa: ${finalResponse}`
+      )
+        .split("\n")
+        .slice(-10) // Keep last 10 turns in summary, but DB holds the structured facts forever
+        .join("\n"),
+    };
+
+    // Parallel Write-Back
     EdgeRuntime.waitUntil(
       (async () => {
         try {
           await Promise.allSettled([
             deliveryPromise,
+            // 1. Sync to HubSpot (Visuals for Humans)
             syncToHubSpot(
               phone,
               incomingText,
               finalResponse,
               hubspotContext,
-              stageResult.hasChanged ? stageResult.stage : undefined,
+              updateData.conversation_phase, // Use Phase as "Stage-like" info
+              voiceTone,
+              finalScore,
+              parsed.thought,
             ),
+            // 2. Sync to Supabase Intelligence (Brain for AI)
+            supabase
+              .from("conversation_intelligence")
+              .upsert(updateData, { onConflict: "phone" }),
+            // 3. Log Raw Interaction
             logInteraction(phone, incomingText, finalResponse),
           ]);
           console.log(
-            `✅ [AISensy-Orchestrator] Full cycle complete in ${Date.now() - startTime}ms`,
+            `✅ [AISensy-Orchestrator] Full cycle + Memory Save complete in ${Date.now() - startTime}ms`,
           );
         } catch (e) {
           console.error("❌ Background sync failed", e);
@@ -182,17 +345,14 @@ Deno.serve(async (req) => {
       })(),
     );
 
-    return new Response(JSON.stringify({ status: "processing" }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return apiSuccess({ status: "processing" });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Internal Server Error";
     console.error("💥 Orchestrator Error:", error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return errorToResponse(
+      error instanceof Error ? error : new Error(errorMessage),
+    );
   }
 });
 
@@ -205,8 +365,8 @@ async function verifySignature(
 ): Promise<boolean> {
   if (!signature) return false;
   if (!secret) {
-    console.warn("⚠️ AISENSY_WEBHOOK_SECRET not set. Skipping verification.");
-    return true;
+    console.error("🚨 AISENSY_WEBHOOK_SECRET not set. Rejecting unsigned request.");
+    return false;
   }
 
   try {
@@ -238,7 +398,7 @@ async function verifySignature(
       signatureBuffer.buffer as any,
       data,
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Signature verification error:", error);
     return false;
   }
@@ -254,82 +414,49 @@ async function getChatHistory(phone: string) {
   return data || [];
 }
 
-function buildDynamicPersona(
-  hubspotData: any,
-  history: any[],
-  currentGoal: string,
-) {
-  const contactName = hubspotData?.properties?.firstname || "Friend";
-  const stage = hubspotData?.properties?.whatsapp_stage || "Discovery";
-
-  let historySummary = "";
-  if (history.length > 0) {
-    historySummary =
-      "\nRecent Conversation:\n" +
-      history
-        .map((h) => `User: ${h.message_text}\nAI: ${h.response_text}`)
-        .join("\n");
-  }
-
-  const avatarType = AvatarLogic.identify(hubspotData);
-  const avatarInstruction = AvatarLogic.getInstruction(avatarType);
-  const locationContext = DubaiContext.getContext(
-    hubspotData?.properties?.city,
-  );
-  const salesStrategy = SalesStrategy.getStrategy(stage, hubspotData);
-
-  return `
-${WHATSAPP_SALES_PERSONA}
-
-=== DYNAMIC SALES INTELLIGENCE ===
-${avatarInstruction}
-${locationContext}
-
-=== ELITE SALES STRATEGY (NEPQ) ===
-${salesStrategy}
-
-Current Lead Context:
-- Name: ${contactName}
-- AVATAR SEGMENT: ${avatarType}
-- LOCATION INFO: ${locationContext.trim().split("\n")[1] || "General Dubai"}
-- Current Stage: ${stage}
-- Goal: ${hubspotData?.properties?.fitness_goal || "Unknown"}
-${historySummary}
-
-IMPORTANT: You are talking to ${contactName}.
-CURRENT GOAL: ${currentGoal} (This is your ONLY focus).
-Drive towards the assessment using the STRATEGY above. Be casual and concise.
-`;
-}
-
-async function sendToAISensy(phone: string, text: string) {
+async function sendToAISensy(phone: string, text: string, retries = 2) {
   const url = `https://backend.aisensy.com/devapi/v1/project/default/messages`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${AISENSY_API_KEY}`,
-    },
-    body: JSON.stringify({
-      apiKey: AISENSY_API_KEY,
-      campaignName: "direct_reply",
-      destinationNumber: phone,
-      message: {
-        type: "text",
-        payload: { text },
-      },
-    }),
-  });
-  if (!response.ok)
-    throw new Error(`AISensy Send Failed: ${await response.text()}`);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${AISENSY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          apiKey: AISENSY_API_KEY,
+          campaignName: "direct_reply",
+          destinationNumber: phone,
+          message: {
+            type: "text",
+            payload: { text },
+          },
+        }),
+      });
+      if (response.ok) return;
+      const body = await response.text();
+      if (attempt === retries)
+        throw new Error(`AISensy Send Failed after ${retries + 1} attempts: ${body}`);
+      console.warn(`⚠️ AISensy attempt ${attempt + 1} failed (${response.status}). Retrying...`);
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    } catch (e) {
+      if (attempt === retries) throw e;
+      console.warn(`⚠️ AISensy attempt ${attempt + 1} error. Retrying...`);
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
 }
 
 async function syncToHubSpot(
   phone: string,
   incoming: string,
   outgoing: string,
-  context: any,
-  newStage?: string,
+  context: HubSpotContact | null,
+  stage?: string,
+  voiceTone?: string,
+  score?: number,
+  thought?: any, // Keeping 'thought' as any for now as logic is dynamic JSON
 ) {
   try {
     let contactId = context?.id;
@@ -342,78 +469,61 @@ async function syncToHubSpot(
         contactId = existing.id;
       } else {
         const email = `${phone.replace("+", "")}@whatsapp.placeholder.com`;
-        const createUrl = `https://api.hubapi.com/crm/v3/objects/contacts`;
-        const createRes = await fetch(createUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            properties: {
-              phone,
-              email,
-              firstname: "WhatsApp",
-              lastname: "Lead",
-              hs_lead_status: "NEW",
-            },
-          }),
-        });
-        const createData = await createRes.json();
-        contactId = createData.id;
+        const createProp: Record<string, string> = {
+          phone,
+          email,
+          firstname: "WhatsApp",
+          lastname: "Lead",
+          hs_lead_status: "NEW",
+        };
+        const created = await hubspot.createContact(createProp);
+        contactId = created.id;
         console.log(`🆕 [Sync] Created new contact ${contactId}`);
       }
     }
 
-    // 2. Log Message as Note (Engagement)
-    const noteUrl = `https://api.hubapi.com/crm/v3/objects/notes`;
-    const noteBody = `📲 **WhatsApp Chat (Direct Path)**\n\n**User**: ${incoming}\n**Mark**: ${outgoing}`;
+    // 2. Log Message as Note (Engagement) with INTELLIGENCE
+    const toneLine = voiceTone ? `\n🎭 **Detected Mood**: ${voiceTone}` : "";
 
-    await fetch(noteUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        properties: {
-          hs_note_body: noteBody,
-          hs_timestamp: new Date().toISOString(),
-        },
-        associations: [
-          {
-            to: { id: contactId },
-            types: [
-              {
-                associationCategory: "HUBSPOT_DEFINED",
-                associationTypeId: 202,
-              },
-            ],
-          },
-        ],
-      }),
-    });
+    // Construct the "High-Status Intelligence Brief"
+    const intelligenceBrief = thought
+      ? `
+--- 🕵️ AI STRATEGIST BRIEF ---
+🌡️ Temperature: ${thought.lead_temperature?.toUpperCase() || "UNKNOWN"}
+🎯 Phase: ${stage?.toUpperCase() || "UNKNOWN"}
+${toneLine}💔 Pain identified: ${thought.current_state || "Not yet identified"}
+✨ Desired outcome: ${thought.desired_state || "Not yet identified"}
+🛑 Primary blocker: ${thought.blocker || "Not yet identified"}
+🧠 Psych Profile: ${thought.psychological_profile || "Not yet assessed"}
+⚖️ Gap Size: ${thought.gap_size?.toUpperCase() || "UNKNOWN"}
+---------------------------
+`
+      : "";
 
-    // 3. Update Stage if changed
-    if (newStage) {
-      await fetch(
-        `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            properties: {
-              whatsapp_stage: newStage,
-            },
-          }),
-        },
-      );
-      console.log(`🚀 [Sync] Updated Stage to ${newStage}`);
-    }
+    const noteBody = `📲 **WhatsApp Chat (Lisa AI Strategist)**\n${intelligenceBrief}\n**User**: ${incoming}\n**Lisa**: ${outgoing}`;
+    const noteProm = hubspot.createNote(contactId, noteBody);
 
+    // 3. Update Contact Props (Score, Maturity, etc)
+    const contactUpdates: Record<string, string> = {
+      whatsapp_last_message: incoming,
+      whatsapp_last_reply: outgoing,
+    };
+
+    if (stage) contactUpdates.whatsapp_stage = stage;
+    if (score) contactUpdates.lead_score = score.toString();
+    if (thought?.lead_status)
+      contactUpdates.lead_maturity = thought.lead_status;
+    if (thought?.hubspot_summary)
+      contactUpdates.whatsapp_summary = thought.hubspot_summary;
+    if (thought?.current_state)
+      contactUpdates.fitness_goal = thought.current_state;
+    if (thought?.blocker) contactUpdates.biggest_challenge_ = thought.blocker;
+
+    const updateProm = hubspot.updateContact(contactId, contactUpdates);
+
+    await Promise.all([noteProm, updateProm]);
+
+    console.log(`🚀 [Sync] Updated HubSpot Note & Properties for ${phone}`);
     console.log(`✅ [Sync] HubSpot updated for ${phone}`);
   } catch (e) {
     console.error("❌ [Sync] HubSpot sync failed:", e);
