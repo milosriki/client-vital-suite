@@ -45,6 +45,14 @@ function rateLimit(ip: string | undefined): {
  *   Body: { message: string, thread_id?: string, messages?: Message[], agent_function?: string }
  */
 
+function getHeaderString(
+  val: string | string[] | undefined,
+): string | undefined {
+  if (typeof val === "string") return val;
+  if (Array.isArray(val) && val.length > 0) return val[0];
+  return undefined;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -76,19 +84,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Optional API key check (set AGENT_API_KEY to require it)
   const requiredApiKey = process.env.AGENT_API_KEY;
   if (requiredApiKey && false) {
-    // Temporarily disabled for testing
     // Accept x-ptd-key (frontend), x-agent-api-key, or authorization header
-    const headerValue =
-      req.headers["x-ptd-key"] ??
-      req.headers["x-agent-api-key"] ??
-      req.headers["authorization"];
-
-    let token: string | undefined;
-    if (typeof headerValue === "string") {
-      token = headerValue;
-    } else if (Array.isArray(headerValue) && headerValue.length > 0) {
-      token = headerValue[0];
-    }
+    const token =
+      getHeaderString(req.headers["x-ptd-key"]) ??
+      getHeaderString(req.headers["x-agent-api-key"]) ??
+      getHeaderString(req.headers["authorization"]);
 
     // Also check PTD_INTERNAL_ACCESS_KEY for internal calls
     const ptdKey = process.env.PTD_INTERNAL_ACCESS_KEY;
