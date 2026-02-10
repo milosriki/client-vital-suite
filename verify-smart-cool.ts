@@ -20,7 +20,7 @@ const mockContext = {
 console.log("🔍 VERIFYING SMART COOL PERSONA...");
 
 const prompt = buildSmartPrompt(mockContext);
-let errors = [];
+const errors = [];
 
 // 1. Verify Identity & Vibe
 if (!prompt.includes('You have "SMART COOL" energy')) {
@@ -61,6 +61,13 @@ if (!prompt.includes("honesty is key")) {
   errors.push("❌ Missing 'Empathetic Takeaway' script.");
 } else {
   console.log("✅ 'Empathetic Takeaway' Verified.");
+}
+
+// 6. Verify Conditional Scarcity / Momentum
+if (!prompt.includes("MOMENTUM/EXCITEMENT")) {
+  errors.push("❌ Missing 'Momentum/Excitement' instruction.");
+} else {
+  console.log("✅ 'Conditional Scarcity' (Momentum) Verified.");
 }
 
 console.log("\n--- REPORT ---");
