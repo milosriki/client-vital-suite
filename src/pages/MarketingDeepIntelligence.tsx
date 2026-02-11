@@ -16,6 +16,9 @@ import {
   ShieldAlert,
   Rocket,
   Activity,
+  Eye,
+  FileText,
+  Briefcase,
 } from "lucide-react";
 import {
   Card,
@@ -33,6 +36,8 @@ import {
   type HistoricalBaseline,
   type FunnelMetric,
   type LossAnalysisRow,
+  type AssessmentTruth,
+  type CeoBrief,
 } from "@/hooks/useDeepIntelligence";
 import { cn } from "@/lib/utils";
 
@@ -688,6 +693,315 @@ export default function MarketingDeepIntelligence() {
               marketing-predictor agent
             </p>
           </section>
+
+          {/* ═══ ZONE 7 + 8: ASSESSMENT TRUTH + CEO BRIEF ═══ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* ZONE 7: ASSESSMENT TRUTH MATRIX */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">
+                  Zone 7: Assessment Truth
+                </h2>
+              </div>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>HubSpot vs AWS Ground Truth</CardTitle>
+                      <CardDescription>
+                        Do bookings in CRM match actual attendance?
+                      </CardDescription>
+                    </div>
+                    {data?.assessmentTruth && (
+                      <div
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold",
+                          data.assessmentTruth.accuracy >= 80
+                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                            : data.assessmentTruth.accuracy >= 50
+                              ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                              : "bg-rose-500/10 text-rose-500 border-rose-500/20",
+                        )}
+                      >
+                        <Activity className="h-3.5 w-3.5" />
+                        {data.assessmentTruth.accuracy}% Verified
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {data?.assessmentTruth && data.assessmentTruth.total > 0 ? (
+                    <div className="space-y-4">
+                      {/* Status breakdown */}
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg">
+                          <p className="text-lg font-bold text-emerald-500">
+                            {data.assessmentTruth.counts.CONFIRMED_ATTENDED}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Confirmed
+                          </p>
+                        </div>
+                        <div className="p-2 bg-amber-500/10 rounded-lg">
+                          <p className="text-lg font-bold text-amber-500">
+                            {
+                              data.assessmentTruth.counts
+                                .HUBSPOT_ONLY_NO_AWS_PROOF
+                            }
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            CRM Only
+                          </p>
+                        </div>
+                        <div className="p-2 bg-rose-500/10 rounded-lg">
+                          <p className="text-lg font-bold text-rose-500">
+                            {data.assessmentTruth.counts.BOOKED_NOT_ATTENDED}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            No-Show
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Additional counts */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between p-2 bg-muted/20 rounded-lg text-xs">
+                          <span className="text-muted-foreground">
+                            AWS ✓ but CRM ✗
+                          </span>
+                          <span className="font-bold text-blue-400">
+                            {
+                              data.assessmentTruth.counts
+                                .ATTENDED_BUT_HUBSPOT_NOT_UPDATED
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between p-2 bg-muted/20 rounded-lg text-xs">
+                          <span className="text-muted-foreground">
+                            Past Stage
+                          </span>
+                          <span className="font-bold">
+                            {data.assessmentTruth.counts.PAST_ASSESSMENT_STAGE}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Recent records */}
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {data.assessmentTruth.recent
+                          .slice(0, 6)
+                          .map((r: AssessmentTruth, i: number) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between p-2 bg-muted/10 rounded text-xs"
+                            >
+                              <span className="truncate max-w-[100px]">
+                                {r.first_name} {r.last_name?.[0]}.
+                              </span>
+                              <span className="text-muted-foreground truncate max-w-[80px]">
+                                {r.coach}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[9px]",
+                                  r.truth_status === "CONFIRMED_ATTENDED" &&
+                                    "text-emerald-500 border-emerald-500/30",
+                                  r.truth_status === "BOOKED_NOT_ATTENDED" &&
+                                    "text-rose-500 border-rose-500/30",
+                                  r.truth_status ===
+                                    "HUBSPOT_ONLY_NO_AWS_PROOF" &&
+                                    "text-amber-500 border-amber-500/30",
+                                )}
+                              >
+                                {r.truth_status
+                                  .replace(/_/g, " ")
+                                  .toLowerCase()}
+                              </Badge>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Eye className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No assessment truth data yet.</p>
+                      <p className="text-xs mt-1">
+                        Deploy SQL migration to create assessment_truth_matrix
+                        view.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* ZONE 8: CEO MORNING BRIEF */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Briefcase className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">
+                  Zone 8: CEO Morning Brief
+                </h2>
+              </div>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Latest Intelligence Brief</CardTitle>
+                      <CardDescription>
+                        Auto-generated daily by the marketing-brief agent
+                      </CardDescription>
+                    </div>
+                    {data?.ceoBrief && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-mono"
+                      >
+                        {data.ceoBrief.brief_date}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {data?.ceoBrief ? (
+                    <div className="space-y-4">
+                      {/* Yesterday snapshot */}
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                          Yesterday
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="p-2 bg-muted/30 rounded-lg text-center">
+                            <p className="text-sm font-bold">
+                              AED{" "}
+                              {data.ceoBrief.yesterday_spend?.toLocaleString() ??
+                                "—"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Spend
+                            </p>
+                          </div>
+                          <div className="p-2 bg-muted/30 rounded-lg text-center">
+                            <p className="text-sm font-bold">
+                              {data.ceoBrief.yesterday_leads ?? "—"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Leads
+                            </p>
+                          </div>
+                          <div className="p-2 bg-muted/30 rounded-lg text-center">
+                            <p className="text-sm font-bold">
+                              AED {data.ceoBrief.yesterday_cpl ?? "—"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              CPL
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 7-Day rolling */}
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                          7-Day Rolling
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center justify-between p-2 bg-muted/20 rounded-lg">
+                            <span className="text-xs text-muted-foreground">
+                              ROAS
+                            </span>
+                            <span
+                              className={cn(
+                                "text-sm font-bold",
+                                (data.ceoBrief.rolling_7d_roas ?? 0) >= 3
+                                  ? "text-emerald-500"
+                                  : "text-amber-500",
+                              )}
+                            >
+                              {data.ceoBrief.rolling_7d_roas?.toFixed(2) ?? "—"}
+                              x
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-2 bg-muted/20 rounded-lg">
+                            <span className="text-xs text-muted-foreground">
+                              Ghost
+                            </span>
+                            <span
+                              className={cn(
+                                "text-sm font-bold",
+                                (data.ceoBrief.rolling_7d_ghost_rate ?? 100) <=
+                                  25
+                                  ? "text-emerald-500"
+                                  : "text-rose-500",
+                              )}
+                            >
+                              {data.ceoBrief.rolling_7d_ghost_rate?.toFixed(
+                                1,
+                              ) ?? "—"}
+                              %
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action items */}
+                      <div className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Pending Actions
+                        </p>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="p-2 bg-primary/10 rounded-lg">
+                            <p className="text-sm font-bold text-primary">
+                              {(data.ceoBrief.actions_required || []).length}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Actions
+                            </p>
+                          </div>
+                          <div className="p-2 bg-amber-500/10 rounded-lg">
+                            <p className="text-sm font-bold text-amber-500">
+                              {(data.ceoBrief.budget_proposals || []).length}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Budget
+                            </p>
+                          </div>
+                          <div className="p-2 bg-rose-500/10 rounded-lg">
+                            <p className="text-sm font-bold text-rose-500">
+                              {(data.ceoBrief.fatigue_alerts || []).length}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Fatigue
+                            </p>
+                          </div>
+                        </div>
+                        {data.ceoBrief.new_copy_pending > 0 && (
+                          <div className="flex items-center gap-2 p-2 bg-blue-500/10 rounded-lg">
+                            <FileText className="h-3.5 w-3.5 text-blue-400" />
+                            <span className="text-xs text-blue-400">
+                              {data.ceoBrief.new_copy_pending} new creative
+                              {data.ceoBrief.new_copy_pending > 1 ? "s" : ""}{" "}
+                              pending review
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Briefcase className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No CEO brief generated yet.</p>
+                      <p className="text-xs mt-1">
+                        The daily-marketing-brief agent runs at 08:30 UAE.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+          </div>
 
           {/* ═══ ALERT BAR ═══ */}
           {data?.alerts && data.alerts.length > 0 && (

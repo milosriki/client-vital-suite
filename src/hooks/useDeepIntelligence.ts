@@ -59,47 +59,110 @@ export interface SourceDiscrepancy {
   trust_verdict: string;
 }
 
+export interface AssessmentTruth {
+  email: string;
+  first_name: string;
+  last_name: string;
+  coach: string;
+  hubspot_stage_name: string;
+  hubspot_says_completed: boolean;
+  aws_confirms_attended: boolean;
+  truth_status: string;
+  attribution_source: string;
+  health_score: number;
+  health_zone: string;
+}
+
+export interface CeoBrief {
+  brief_date: string;
+  yesterday_spend: number;
+  yesterday_leads: number;
+  yesterday_cpl: number;
+  yesterday_assessments: number;
+  yesterday_true_cpa: number;
+  rolling_7d_spend: number;
+  rolling_7d_revenue: number;
+  rolling_7d_roas: number;
+  rolling_7d_ghost_rate: number;
+  actions_required: Record<string, unknown>[];
+  budget_proposals: Record<string, unknown>[];
+  fatigue_alerts: Record<string, unknown>[];
+  new_copy_pending: number;
+  historical_context: Record<string, unknown>;
+  funnel_health: Record<string, unknown> | null;
+  loss_analysis: Record<string, unknown>;
+  source_alignment: Record<string, unknown>;
+  projections: {
+    revenue_30d: number;
+    revenue_60d: number;
+    revenue_90d: number;
+    spend_30d: number;
+    roas_30d: number;
+  };
+}
+
 export function useDeepIntelligence() {
   return useQuery({
     queryKey: ["deep-intelligence"],
     queryFn: async () => {
-      const [baselinesRes, funnelRes, lossRes, sourceRes, projectionsRes] =
-        await Promise.all([
-          // 1. Historical baselines (overall, 90d)
-          supabase
-            .from("historical_baselines" as any)
-            .select("*")
-            .eq("dimension_type", "overall")
-            .order("period_days", { ascending: true }),
+      const [
+        baselinesRes,
+        funnelRes,
+        lossRes,
+        sourceRes,
+        projectionsRes,
+        truthRes,
+        briefRes,
+      ] = await Promise.all([
+        // 1. Historical baselines (overall, 90d)
+        supabase
+          .from("historical_baselines" as any)
+          .select("*")
+          .eq("dimension_type", "overall")
+          .order("period_days", { ascending: true }),
 
-          // 2. Latest funnel metrics (overall)
-          supabase
-            .from("funnel_metrics" as any)
-            .select("*")
-            .eq("dimension_type", "overall")
-            .order("metric_date", { ascending: false })
-            .limit(1),
+        // 2. Latest funnel metrics (overall)
+        supabase
+          .from("funnel_metrics" as any)
+          .select("*")
+          .eq("dimension_type", "overall")
+          .order("metric_date", { ascending: false })
+          .limit(1),
 
-          // 3. Loss analysis — aggregate by reason
-          supabase
-            .from("loss_analysis" as any)
-            .select("primary_loss_reason, confidence_pct")
-            .order("analyzed_at", { ascending: false })
-            .limit(200),
+        // 3. Loss analysis — aggregate by reason
+        supabase
+          .from("loss_analysis" as any)
+          .select("primary_loss_reason, confidence_pct")
+          .order("analyzed_at", { ascending: false })
+          .limit(200),
 
-          // 4. Source discrepancy — last 7 days
-          supabase
-            .from("source_discrepancy_matrix" as any)
-            .select("*")
-            .order("report_date", { ascending: false })
-            .limit(30),
+        // 4. Source discrepancy — last 7 days
+        supabase
+          .from("source_discrepancy_matrix" as any)
+          .select("*")
+          .order("report_date", { ascending: false })
+          .limit(30),
 
-          // 5. Projections from marketing-predictor
-          supabase.functions.invoke("marketing-predictor", {
-            body: {},
-            method: "POST",
-          }),
-        ]);
+        // 5. Projections from marketing-predictor
+        supabase.functions.invoke("marketing-predictor", {
+          body: {},
+          method: "POST",
+        }),
+
+        // 6. Assessment truth matrix — HubSpot vs AWS
+        supabase
+          .from("assessment_truth_matrix" as any)
+          .select("*")
+          .order("stage_updated_at", { ascending: false })
+          .limit(50),
+
+        // 7. Latest CEO morning brief
+        supabase
+          .from("daily_marketing_briefs" as any)
+          .select("*")
+          .order("brief_date", { ascending: false })
+          .limit(1),
+      ]);
 
       // Aggregate loss reasons client-side
       const lossData = (lossRes.data || []) as any[];
@@ -176,6 +239,35 @@ export function useDeepIntelligence() {
           message: "Source data alignment is BROKEN — FB vs DB mismatch >25%",
         });
 
+      // Aggregate assessment truth statuses
+      const truthData = (truthRes.data || []) as any[];
+      const truthCounts = {
+        CONFIRMED_ATTENDED: 0,
+        HUBSPOT_ONLY_NO_AWS_PROOF: 0,
+        BOOKED_NOT_ATTENDED: 0,
+        ATTENDED_BUT_HUBSPOT_NOT_UPDATED: 0,
+        UNKNOWN: 0,
+        PAST_ASSESSMENT_STAGE: 0,
+      };
+      truthData.forEach((row: any) => {
+        const status = row.truth_status || "UNKNOWN";
+        if (status in truthCounts)
+          truthCounts[status as keyof typeof truthCounts]++;
+      });
+      const totalTruth = Object.values(truthCounts).reduce((s, v) => s + v, 0);
+      const truthAccuracy =
+        totalTruth > 0
+          ? Math.round(
+              ((truthCounts.CONFIRMED_ATTENDED +
+                truthCounts.PAST_ASSESSMENT_STAGE) /
+                totalTruth) *
+                100,
+            )
+          : 0;
+
+      // Get latest CEO brief
+      const latestBrief = (briefRes.data?.[0] as any) || null;
+
       return {
         baselines: (baselinesRes.data || []) as unknown as HistoricalBaseline[],
         funnel: funnel as FunnelMetric | null,
@@ -187,6 +279,13 @@ export function useDeepIntelligence() {
           details: sourceData.slice(0, 7) as SourceDiscrepancy[],
         },
         projections: projectionsRes.data || null,
+        assessmentTruth: {
+          counts: truthCounts,
+          total: totalTruth,
+          accuracy: truthAccuracy,
+          recent: truthData.slice(0, 10) as AssessmentTruth[],
+        },
+        ceoBrief: latestBrief as CeoBrief | null,
         alerts,
       };
     },
