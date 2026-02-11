@@ -1,21 +1,31 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 // CallGear Live Monitor - Real-time call monitoring Edge Function
 // Implements Supervisor Workplace functionality using CallGear's list.calls API
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 // CORRECT CallGear API URLs:
 // - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
 // - Call API: https://callapi.callgear.com/v4.0 (REST for call management)
-const CALLGEAR_API_URL = Deno.env.get("CALLGEAR_API_URL") || "https://dataapi.callgear.com/v2.0";
+const CALLGEAR_API_URL =
+  Deno.env.get("CALLGEAR_API_URL") || "https://dataapi.callgear.com/v2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -62,13 +72,13 @@ interface QueueStats {
 async function makeCallGearRequest(
   apiKey: string,
   method: string,
-  params: Record<string, any> = {}
+  params: Record<string, any> = {},
 ): Promise<JsonRpcResponse> {
   const request: JsonRpcRequest = {
     jsonrpc: "2.0",
     method,
     params: {
-      access_token: apiKey,  // CORRECT: use access_token not auth_token
+      access_token: apiKey, // CORRECT: use access_token not auth_token
       ...params,
     },
     id: Date.now(),
@@ -83,7 +93,9 @@ async function makeCallGearRequest(
   });
 
   if (!response.ok) {
-    throw new Error(`CallGear API error: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `CallGear API error: ${response.status} ${response.statusText}`,
+    );
   }
 
   return await response.json();
@@ -93,11 +105,11 @@ async function listActiveCalls(apiKey: string): Promise<ActiveCall[]> {
   // Use get.calls_report with filter for recent calls
   const now = new Date();
   const oneHourAgo = new Date(now.getTime() - 3600000);
-  
+
   const response = await makeCallGearRequest(apiKey, "get.calls_report", {
-    date_from: oneHourAgo.toISOString().replace('T', ' ').slice(0, 19),
-    date_till: now.toISOString().replace('T', ' ').slice(0, 19),
-    limit: 100
+    date_from: oneHourAgo.toISOString().replace("T", " ").slice(0, 19),
+    date_till: now.toISOString().replace("T", " ").slice(0, 19),
+    limit: 100,
   });
 
   if (response.error) {
@@ -121,7 +133,11 @@ async function getEmployeeStatus(apiKey: string): Promise<EmployeeStatus[]> {
   const activeCalls = await listActiveCalls(apiKey);
 
   // Get employee list using correct method
-  const employeeResponse = await makeCallGearRequest(apiKey, "get.employees", {});
+  const employeeResponse = await makeCallGearRequest(
+    apiKey,
+    "get.employees",
+    {},
+  );
 
   if (employeeResponse.error) {
     throw new Error(`CallGear API error: ${employeeResponse.error.message}`);
@@ -157,11 +173,18 @@ async function getEmployeeStatus(apiKey: string): Promise<EmployeeStatus[]> {
 
 async function getQueueStats(apiKey: string): Promise<QueueStats> {
   // Get all recent calls using correct method
-  const allCallsResponse = await makeCallGearRequest(apiKey, "get.calls_report", {
-    date_from: new Date(Date.now() - 3600000).toISOString().replace('T', ' ').slice(0, 19),
-    date_till: new Date().toISOString().replace('T', ' ').slice(0, 19),
-    limit: 100
-  });
+  const allCallsResponse = await makeCallGearRequest(
+    apiKey,
+    "get.calls_report",
+    {
+      date_from: new Date(Date.now() - 3600000)
+        .toISOString()
+        .replace("T", " ")
+        .slice(0, 19),
+      date_till: new Date().toISOString().replace("T", " ").slice(0, 19),
+      limit: 100,
+    },
+  );
 
   if (allCallsResponse.error) {
     throw new Error(`CallGear API error: ${allCallsResponse.error.message}`);
@@ -171,12 +194,17 @@ async function getQueueStats(apiKey: string): Promise<QueueStats> {
 
   // Get employee status to count available agents
   const employees = await getEmployeeStatus(apiKey);
-  const agentsAvailable = employees.filter((emp) => emp.status === "online").length;
+  const agentsAvailable = employees.filter(
+    (emp) => emp.status === "online",
+  ).length;
   const totalAgents = employees.length;
 
   // Filter calls that are waiting (ringing state, not yet answered)
   const waitingCalls = calls.filter(
-    (call: any) => call.state === "ringing" || call.status === "waiting" || call.status === "queued"
+    (call: any) =>
+      call.state === "ringing" ||
+      call.status === "waiting" ||
+      call.status === "queued",
   );
 
   const callsWaiting = waitingCalls.length;
@@ -188,7 +216,8 @@ async function getQueueStats(apiKey: string): Promise<QueueStats> {
     totalWaitTime += duration;
   });
 
-  const averageWaitTime = callsWaiting > 0 ? Math.round(totalWaitTime / callsWaiting) : 0;
+  const averageWaitTime =
+    callsWaiting > 0 ? Math.round(totalWaitTime / callsWaiting) : 0;
 
   return {
     calls_waiting: callsWaiting,
@@ -199,7 +228,11 @@ async function getQueueStats(apiKey: string): Promise<QueueStats> {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
@@ -216,13 +249,10 @@ serve(async (req) => {
     const { action, params = {} } = await req.json();
 
     if (!action) {
-      return apiSuccess({
-          error: "Missing 'action' parameter. Valid actions: list_active_calls, get_employee_status, get_queue_stats",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+      return apiError(
+        "BAD_REQUEST",
+        "Missing 'action' parameter. Valid actions: list_active_calls, get_employee_status, get_queue_stats, get_all",
+        400,
       );
     }
 
@@ -297,19 +327,26 @@ serve(async (req) => {
       }
 
       default:
-        return apiError("INTERNAL_ERROR", JSON.stringify({
+        return apiError(
+          "INTERNAL_ERROR",
+          JSON.stringify({
             error: `Unknown action: ${action}. Valid actions: list_active_calls, get_employee_status, get_queue_stats, get_all`,
           }),
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
     }
 
     return apiSuccess({
-        success: true,
-        action,
-        data: result,
-        timestamp: new Date().toISOString(),
-      });
+      success: true,
+      action,
+      data: result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return apiError("INTERNAL_ERROR", msg, 500);
+  }
+});

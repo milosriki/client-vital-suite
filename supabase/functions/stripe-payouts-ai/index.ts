@@ -240,13 +240,44 @@ serve(async (req) => {
                 transactionCount: txns.data.length,
               };
               break;
-        throw new Error(
-          "No AI API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY)",
-        );
+            }
+          }
+        }
+
+        return apiSuccess({
+          success: true,
+          charge: {
+            id: charge.id,
+            amount: charge.amount,
+            currency: charge.currency,
+            status: charge.status,
+            created: new Date(charge.created * 1000).toISOString(),
+            customer: charge.customer,
+          },
+          balance_transaction: balanceTxn
+            ? {
+                id: balanceTxn.id,
+                amount: balanceTxn.amount,
+                fee: balanceTxn.fee,
+                net: balanceTxn.net,
+                available_on: new Date(
+                  balanceTxn.available_on * 1000,
+                ).toISOString(),
+              }
+            : null,
+          payout: payoutInfo,
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return apiError("INTERNAL_ERROR", `Trace failed: ${msg}`, 500);
       }
-      console.log(
-        `🤖 Using ${useDirectGemini ? "Direct Gemini API" : "Lovable Gateway (fallback)"}`,
-      );
+    }
+
+    // Action: chat - AI-assisted analysis
+    if (action === "chat" || !action) {
+      const stripeContext = { mode, context };
+      const GEMINI_API_KEY =
+        Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
 
       // Check LangSmith configuration status
       const langsmithKey = Deno.env.get("LANGSMITH_API_KEY");

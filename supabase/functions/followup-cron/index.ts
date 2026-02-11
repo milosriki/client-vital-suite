@@ -9,8 +9,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import {
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import {
   handleError,
   corsHeaders,
   ErrorCode,
@@ -123,9 +127,7 @@ serve(async (req) => {
 
     if (error) {
       console.error("Error fetching leads:", error);
-      return apiSuccess({ error: error.message }), {
-        status: 500,
-      });
+      return apiError("INTERNAL_ERROR", error.message, 500);
     }
 
     if (!leads || leads.length === 0) {
@@ -158,3 +160,9 @@ serve(async (req) => {
     }
 
     return apiSuccess({ processed, total: leads.length });
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("[followup-cron] Error:", errMsg);
+    return apiError("INTERNAL_ERROR", errMsg, 500);
+  }
+});

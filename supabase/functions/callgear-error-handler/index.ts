@@ -13,9 +13,9 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 // Handles call tracking and communication issues
 // ============================================
 
-import {
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import {
   handleError,
   ErrorCode,
   corsHeaders,

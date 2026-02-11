@@ -17,8 +17,12 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 // ============================================================================
 
 import {
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import {
   handleError,
   logError,
   ErrorCode,
@@ -599,7 +603,11 @@ async function runIntelligence(
   try {
     // Run all intelligence agents in parallel
     const agents = [
-      { name: "health-calculator", key: "health_calc_result", body: { mode: "calculate" } },
+      {
+        name: "health-calculator",
+        key: "health_calc_result",
+        body: { mode: "calculate" },
+      },
       { name: "business-intelligence", key: "bi_result", body: {} },
       { name: "churn-predictor", key: "churn_result", body: {} },
       { name: "anomaly-detector", key: "anomaly_result", body: {} },
@@ -620,12 +628,22 @@ async function runIntelligence(
       console.log(`[Phase 3] Running chunk of ${chunk.length} agents...`);
       const chunkPromises = chunk.map(async (agent) => {
         const start = Date.now();
-        const result = await invokeWithFallback(supabase, agent.name, agent.body, agent.key);
+        const result = await invokeWithFallback(
+          supabase,
+          agent.name,
+          agent.body,
+          agent.key,
+        );
         return {
           name: agent.name,
           result: {
             name: agent.name,
-            status: result.source === "live" ? "success" : result.source === "cached" ? "cached" : "degraded",
+            status:
+              result.source === "live"
+                ? "success"
+                : result.source === "cached"
+                  ? "cached"
+                  : "degraded",
             data: result.data,
             fallback_used: result.source !== "live" ? result.source : undefined,
             duration_ms: Date.now() - start,
@@ -1050,7 +1068,11 @@ async function runBulletproofOrchestrator(supabase: any): Promise<SystemState> {
 // ============================================================================
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -1074,25 +1096,25 @@ serve(async (req: Request) => {
         .single();
 
       return apiSuccess({
-          success: true,
-          last_run: data?.value || null,
-        });
+        success: true,
+        last_run: data?.value || null,
+      });
     }
 
     if (action === "check_connections") {
       const connections = await checkAllConnections(supabase);
       return apiSuccess({
-          success: true,
-          connections,
-        });
+        success: true,
+        connections,
+      });
     }
 
     if (action === "discovery") {
       const discovery = await discoverSystem(supabase);
       return apiSuccess({
-          success: true,
-          ...discovery,
-        });
+        success: true,
+        ...discovery,
+      });
     }
 
     // Default: run full orchestration
@@ -1104,44 +1126,43 @@ serve(async (req: Request) => {
     const duration = Date.now() - startTime;
 
     return apiSuccess({
-        success: true, // Always true - we never fail
-        run_id: result.run_id,
-        duration_ms: duration,
-        status: result.final_status,
+      success: true, // Always true - we never fail
+      run_id: result.run_id,
+      duration_ms: duration,
+      status: result.final_status,
 
-        discovery: {
-          tables: result.tables_discovered,
-          functions: result.functions_discovered,
-        },
+      discovery: {
+        tables: result.tables_discovered,
+        functions: result.functions_discovered,
+      },
 
-        connections: result.api_connections,
+      connections: result.api_connections,
 
-        agents: {
-          total: result.total_agents_run,
-          successful: result.successful_agents,
-          validation: Object.fromEntries(
-            Object.entries(result.validation_results).map(([k, v]) => [
-              k,
-              { status: v.status, duration_ms: v.duration_ms },
-            ]),
-          ),
-          intelligence: Object.fromEntries(
-            Object.entries(result.intelligence_results).map(([k, v]) => [
-              k,
-              { status: v.status, duration_ms: v.duration_ms },
-            ]),
-          ),
-        },
+      agents: {
+        total: result.total_agents_run,
+        successful: result.successful_agents,
+        validation: Object.fromEntries(
+          Object.entries(result.validation_results).map(([k, v]) => [
+            k,
+            { status: v.status, duration_ms: v.duration_ms },
+          ]),
+        ),
+        intelligence: Object.fromEntries(
+          Object.entries(result.intelligence_results).map(([k, v]) => [
+            k,
+            { status: v.status, duration_ms: v.duration_ms },
+          ]),
+        ),
+      },
 
-        improvements: result.improvements,
-        final_report: result.final_report,
-      });
+      improvements: result.improvements,
+      final_report: result.final_report,
+    });
   } catch (error: unknown) {
     return handleError(error, "super-agent-orchestrator", {
       supabase,
       errorCode: ErrorCode.INTERNAL_ERROR,
-      context: { action: "http_handler_failure" }
+      context: { action: "http_handler_failure" },
     });
   }
 });
-```

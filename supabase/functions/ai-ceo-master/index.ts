@@ -8,9 +8,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RunTree } from "https://esm.sh/langsmith";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
-import {
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import {
   handleError,
   ErrorCode,
   corsHeaders,

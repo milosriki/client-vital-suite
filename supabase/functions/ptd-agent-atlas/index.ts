@@ -572,16 +572,9 @@ import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
-  ErrorCode,
   corsHeaders as defaultCorsHeaders,
 } from "../_shared/error-handler.ts";
-import {
-  apiSuccess,
-  apiError,
-  apiValidationError,
-  apiCorsPreFlight,
-} from "../_shared/api-response.ts";
-import { checkRateLimit, RATE_LIMITS } from "../_shared/rate-limiter.ts";
+import { apiError, apiValidationError } from "../_shared/api-response.ts";
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import {
   sanitizeResponse,

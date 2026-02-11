@@ -20,8 +20,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import {
   handleError,
   logError,
   ErrorCode,
@@ -29,7 +33,11 @@ import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 } from "../_shared/error-handler.ts";
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -69,9 +77,9 @@ serve(async (req: Request) => {
 
     if (!leadsToProcess || leadsToProcess.length === 0) {
       return apiSuccess({
-          message: "No new leads to process",
-          processed: 0,
-        });
+        message: "No new leads to process",
+        processed: 0,
+      });
     }
 
     console.log(`[Lead Reply Agent] Processing ${leadsToProcess.length} leads`);
@@ -198,11 +206,11 @@ SMS BEST PRACTICES:
     );
 
     return apiSuccess({
-        success: true,
-        processed: successCount,
-        failed: failCount,
-        results,
-      });
+      success: true,
+      processed: successCount,
+      failed: failCount,
+      results,
+    });
   } catch (error: unknown) {
     return handleError(error, "generate-lead-reply", {
       supabase: createClient(
@@ -213,4 +221,3 @@ SMS BEST PRACTICES:
     });
   }
 });
-```

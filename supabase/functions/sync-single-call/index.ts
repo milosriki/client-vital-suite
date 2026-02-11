@@ -3,7 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
@@ -13,7 +17,11 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -56,8 +64,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 404)
-        return apiSuccess({ message: "Call not found (deleted?)" }),
-        );
+        return apiSuccess({ message: "Call not found (deleted?)" });
       throw new Error(`HubSpot API Error: ${await response.text()}`);
     }
 
@@ -116,7 +123,7 @@ serve(async (req) => {
       `[Sync-Single-Call] Saved call ${objectId} linked to contact ${contactId}`,
     );
 
-    return apiError("INTERNAL_ERROR", JSON.stringify({ success: true, call: callRecord });
+    return apiSuccess({ success: true, call: callRecord });
   } catch (error: unknown) {
     console.error("[Sync-Single-Call] Error:", error);
     return apiSuccess({ error: error.message });

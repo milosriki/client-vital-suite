@@ -4,7 +4,11 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
@@ -88,14 +92,10 @@ serve(async (req) => {
       }
 
       return apiSuccess({
-          success: true,
-          chunks_processed: chunks.length,
-          data: insertedData,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        success: true,
+        chunks_processed: chunks.length,
+        data: insertedData,
+      });
     }
 
     // Action: Update embedding for existing row (Assuming knowledge_chunks structure)
@@ -127,16 +127,15 @@ serve(async (req) => {
 
       if (error) throw error;
 
-      return apiError("INTERNAL_ERROR", JSON.stringify({ success: true });
+      return apiSuccess({ success: true, updated: id });
     }
 
     // Action: Batch update (Legacy/Maintenance)
     // Refactored to update knowledge_chunks logic if needed, but primarily strict.
     if (action === "batch") {
       return apiSuccess({
-          error:
-            "Batch update deprecated for semantic chunks. Use re-ingestion.",
-        });
+        error: "Batch update deprecated for semantic chunks. Use re-ingestion.",
+      });
     }
 
     throw new Error("Invalid action or missing parameters");
