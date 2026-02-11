@@ -42,11 +42,11 @@ serve(async (req) => {
     // ========================================
     const { data: allContacts } = await supabase
       .from("contacts")
-      .select("email, utm_source, first_touch_source, hubspot_contact_id");
+      .select("id, email, utm_source, first_touch_source, hubspot_contact_id");
 
     const { data: allDeals } = await supabase
       .from("deals")
-      .select("hubspot_contact_id, deal_value, status")
+      .select("contact_id, deal_value, status")
       .eq("status", "closed");
 
     const sourceStats: Record<
@@ -66,14 +66,15 @@ serve(async (req) => {
       }
       sourceStats[source].leads.add(contact.email);
 
+      // Bug fix: join on deals.contact_id (UUID FK) → contacts.id, NOT hubspot_contact_id
       const deals =
         allDeals?.filter(
-          (d) => d.hubspot_contact_id === contact.hubspot_contact_id,
+          (d: Record<string, unknown>) => d.contact_id === contact.id,
         ) || [];
       if (deals.length > 0) {
         sourceStats[source].deals += deals.length;
-        deals.forEach((deal) => {
-          sourceStats[source].revenue += parseFloat(deal.deal_value || 0);
+        deals.forEach((deal: Record<string, unknown>) => {
+          sourceStats[source].revenue += parseFloat(String(deal.deal_value || 0));
         });
       }
     });
@@ -220,12 +221,12 @@ serve(async (req) => {
 
     const { data: deals } = await supabase
       .from("deals")
-      .select("hubspot_contact_id, deal_value, status")
+      .select("contact_id, deal_value, status")
       .eq("status", "closed");
 
     const { data: contacts } = await supabase
       .from("contacts")
-      .select("email, hubspot_contact_id");
+      .select("id, email, hubspot_contact_id");
 
     const creativePerformance: Record<
       string,
@@ -244,17 +245,18 @@ serve(async (req) => {
       creativePerformance[adId].leads.add(event.email);
     });
 
+    // Bug fix: join on deals.contact_id (UUID FK) → contacts.id
     contacts?.forEach((contact: any) => {
       const matchingDeals =
         deals?.filter(
-          (d) => d.hubspot_contact_id === contact.hubspot_contact_id,
+          (d: Record<string, unknown>) => d.contact_id === contact.id,
         ) || [];
-      matchingDeals.forEach((deal) => {
+      matchingDeals.forEach((deal: Record<string, unknown>) => {
         Object.keys(creativePerformance).forEach((adId) => {
           if (creativePerformance[adId].leads.has(contact.email)) {
             creativePerformance[adId].deals.add(contact.email);
             creativePerformance[adId].revenue += parseFloat(
-              deal.deal_value || 0,
+              String(deal.deal_value || 0),
             );
           }
         });
@@ -417,12 +419,12 @@ serve(async (req) => {
 
     const { data: q5Contacts } = await supabase
       .from("contacts")
-      .select("utm_campaign, lifecycle_stage, email, hubspot_contact_id")
+      .select("id, utm_campaign, lifecycle_stage, email, hubspot_contact_id")
       .not("utm_campaign", "is", null);
 
     const { data: q5Deals } = await supabase
       .from("deals")
-      .select("hubspot_contact_id, deal_value, status")
+      .select("contact_id, deal_value, status")
       .eq("status", "closed");
 
     const campaignMetrics: Record<
@@ -455,13 +457,14 @@ serve(async (req) => {
         ) {
           campaignMetrics[c.utm_campaign].qualified++;
         }
+        // Bug fix: join on deals.contact_id (UUID FK) → contacts.id
         const deal = q5Deals?.find(
-          (d) => d.hubspot_contact_id === c.hubspot_contact_id,
+          (d: Record<string, unknown>) => d.contact_id === c.id,
         );
         if (deal) {
           campaignMetrics[c.utm_campaign].closed++;
           campaignMetrics[c.utm_campaign].revenue += parseFloat(
-            deal.deal_value || 0,
+            String(deal.deal_value || 0),
           );
         }
       }

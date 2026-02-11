@@ -51,44 +51,16 @@ import { VisualDNA } from "@/components/dashboard/VisualDNA";
 import { usePeriodComparison } from "@/hooks/usePeriodComparison";
 
 export default function MarketingIntelligence() {
-  const [range, setRange] = useState<"today" | "week" | "month">("today");
+  const [range, setRange] = useState<"today" | "week" | "month">("month");
   const { data: deltas } = usePeriodComparison();
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["marketing-intelligence", range],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke(
-        "business-intelligence-dashboard",
-        {
-          body: {}, // Body checks for range in searchParams usually, but let's try passing in URL
-        },
-      );
-
-      // Supabase invoke helper doesn't easily let us append search params to URL unless we build it manually or use body.
-      // My Edge Function checks `req.url` searchParams.
-      // Let's modify the invoke to pass query params via options if supported, or just put them in body and update Edge Function?
-      // Actually, passing body JSON is cleaner. Let's assume I updated Edge Function to read body too?
-      // No, let's keep it simple: pass range in body for now, but my Edge Function reads URL.
-      // Wait, `supabase.functions.invoke` sends a POST by default.
-      // My Edge Function handles `req.url` which is fine.
-      // Ideally I should update Edge Function to read body, but let's try passing query params in the URL of invoke?
-      // `invoke` takes `functionName` and options.
-      // Workaround: Re-deploy Edge Function to look at Body? No, let's use the current one.
-      // I can fetch directly via URL if I had the URL, but `invoke` is better for Auth.
-      // Let's look at `invoke` signature. It's `invoke(functionName, { body, headers, method })`.
-      // It sends to `.../functions/v1/functionName`.
-      // I can't easily append query params via `invoke`.
-      // I will update my Edge Function to read from JSON body as well for robustness.
-      // OR, I can just rely on defaults ("today") for now, but I want "week/month".
-      // Let's assume I'll fix the Edge Function to read body.
-
-      // Attempting to send body
+      // Edge function reads range from POST body
       const response = await supabase.functions.invoke(
         "business-intelligence-dashboard",
-        {
-          body: { range }, // Sending range in body
-          method: "POST",
-        },
+        { body: { range } },
       );
 
       if (response.error) throw response.error;
@@ -388,7 +360,7 @@ export default function MarketingIntelligence() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold">AED {deal.amount}</p>
+                          <p className="font-bold">AED {Number(deal.amount || 0).toLocaleString()}</p>
                           <Badge variant="outline" className="capitalize">
                             {deal.stage}
                           </Badge>

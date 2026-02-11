@@ -19,13 +19,21 @@ export default function CampaignMoneyMap() {
       const { data, error } = await supabase.rpc('get_campaign_money_map', { days_back: 90 });
       if (error) throw error;
       
-      return (data || []).map((row: any) => ({
-        name: row.campaign_name,
-        spend: Number(row.total_spend || 0),
-        leads: Number(row.total_leads || 0),
-        revenue: Number(row.total_revenue || 0),
-        deals: Number(row.total_deals || 0)
-      }));
+      return (data || []).map((row: any) => {
+        const spend = Number(row.total_spend || 0);
+        const leads = Number(row.total_leads || 0);
+        const revenue = Number(row.total_revenue || 0);
+        const deals = Number(row.total_deals || 0);
+        return {
+          name: row.campaign_name,
+          spend,
+          leads,
+          revenue,
+          deals,
+          cpl: spend > 0 && leads > 0 ? Math.round(spend / leads) : 0,
+          cpo: spend > 0 && deals > 0 ? Math.round(spend / deals) : 0,
+        };
+      });
     }
   });
 
@@ -74,11 +82,13 @@ export default function CampaignMoneyMap() {
       </div>
 
       {/* Hero Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <HeroCard title="Total Ad Spend" value={`AED ${totals.spend.toLocaleString()}`} icon={Wallet} color="text-red-400" />
         <HeroCard title="Total Revenue" value={`AED ${totals.revenue.toLocaleString()}`} icon={DollarSign} color="text-green-400" />
         <HeroCard title="Total Leads" value={totals.leads} icon={Users} color="text-blue-400" />
         <HeroCard title="Total Deals" value={totals.deals} icon={Target} color="text-purple-400" />
+        <HeroCard title="Avg CPL" value={totals.leads > 0 ? `AED ${Math.round(totals.spend / totals.leads)}` : "—"} icon={Target} color="text-amber-400" />
+        <HeroCard title="Avg CPO" value={totals.deals > 0 ? `AED ${Math.round(totals.spend / totals.deals)}` : "—"} icon={DollarSign} color="text-orange-400" />
       </div>
 
       <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
@@ -94,6 +104,9 @@ export default function CampaignMoneyMap() {
                   <TableHead>Campaign Name</TableHead>
                   <TableHead className="text-right">Spend (AED)</TableHead>
                   <TableHead className="text-right">Leads</TableHead>
+                  <TableHead className="text-right">CPL (AED)</TableHead>
+                  <TableHead className="text-right">Deals</TableHead>
+                  <TableHead className="text-right">CPO (AED)</TableHead>
                   <TableHead className="text-right">Revenue (AED)</TableHead>
                   <TableHead className="text-right">ROAS</TableHead>
                   <TableHead className="text-right">Status</TableHead>
@@ -101,7 +114,7 @@ export default function CampaignMoneyMap() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10">Calculating ROI...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-10">Calculating ROI...</TableCell></TableRow>
                 ) : (campaignData || []).map((c: any) => {
                   const roas = c.spend > 0 ? (c.revenue / c.spend).toFixed(1) : "∞";
                   const isProfitable = parseFloat(roas) > 2 || roas === "∞";
@@ -111,6 +124,9 @@ export default function CampaignMoneyMap() {
                       <TableCell className="font-medium max-w-[250px] truncate">{c.name}</TableCell>
                       <TableCell className="text-right font-mono text-red-400">{c.spend.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{c.leads}</TableCell>
+                      <TableCell className="text-right font-mono text-amber-400">{c.cpl > 0 ? c.cpl.toLocaleString() : "—"}</TableCell>
+                      <TableCell className="text-right font-mono">{c.deals}</TableCell>
+                      <TableCell className="text-right font-mono text-orange-400">{c.cpo > 0 ? c.cpo.toLocaleString() : "—"}</TableCell>
                       <TableCell className="text-right font-mono text-green-400">{c.revenue.toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <Badge variant={isProfitable ? "success" : "destructive"} className="font-mono">

@@ -160,6 +160,13 @@ serve(async (req) => {
             landing_page: event.location || null,
             referrer: event.mainAttribution?.referrer || null,
             platform: "anytrack",
+            // Facebook attribution IDs — populated from fbclid/click_id when available
+            fb_ad_id: event.mainAttribution?.fbclid || event.clickId || null,
+            fb_campaign_id: event.mainAttribution?.campaign_id || null,
+            fb_adset_id: event.mainAttribution?.adset_id || null,
+            fb_campaign_name: event.mainAttribution?.campaign || null,
+            fb_ad_name: event.adName || null,
+            fb_adset_name: event.adSetName || null,
           };
 
           await supabase

@@ -132,9 +132,6 @@ serve(async (req) => {
     // 3. Attribution Logic (The "Hyros" Layer)
     let attributedRevenue = 0;
     let organicRevenue = 0;
-    const discrepancies: any[] = [];
-    let attributedRevenue = 0;
-    let organicRevenue = 0;
     let anytrackRevenue = 0; // Revenue confirmed by AnyTrack
     const discrepancies: any[] = [];
     const campaignPerformance: Record<

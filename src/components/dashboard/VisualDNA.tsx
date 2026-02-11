@@ -25,11 +25,12 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {ads.map((ad, i) => {
-        // Calculate Roas
-        // If purchase_value is present, use it. Otherwise 0.
-        const platformRoas = ad.purchase_value
-          ? ad.purchase_value / ad.spend
-          : 0;
+        // Calculate ROAS — prefer direct roas field from Meta API, fall back to purchase_value/spend
+        const platformRoas = ad.roas && ad.roas > 0
+          ? ad.roas
+          : ad.purchase_value && ad.spend > 0
+            ? ad.purchase_value / ad.spend
+            : 0;
         // Apply Integrity Score (The "Truth")
         const trueRoas = platformRoas * integrityScore;
 

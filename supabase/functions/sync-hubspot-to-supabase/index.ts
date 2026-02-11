@@ -7,7 +7,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
@@ -21,7 +25,11 @@ const BATCH_SIZE = 100;
 const MAX_RECORDS_PER_SYNC = 1000; // Process 1000 at a time, call again for more
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -127,11 +135,11 @@ serve(async (req) => {
     const { data: staffList } = await supabase
       .from("staff")
       .select("id, full_name, hubspot_owner_id");
-    
+
     const staffByHubSpotId: Record<string, string> = {};
     const staffByName: Record<string, string> = {};
-    
-    staffList?.forEach(s => {
+
+    staffList?.forEach((s) => {
       if (s.hubspot_owner_id) staffByHubSpotId[s.hubspot_owner_id] = s.id;
       if (s.full_name) staffByName[s.full_name.toLowerCase()] = s.id;
     });
@@ -341,8 +349,12 @@ serve(async (req) => {
                 : "Unassigned / Admin";
 
               // Resolve UUIDs
-              const setterUuid = props.hubspot_owner_id ? staffByHubSpotId[props.hubspot_owner_id] : null;
-              const coachUuid = props.assigned_coach ? staffByName[props.assigned_coach.toLowerCase()] : null;
+              const setterUuid = props.hubspot_owner_id
+                ? staffByHubSpotId[props.hubspot_owner_id]
+                : null;
+              const coachUuid = props.assigned_coach
+                ? staffByName[props.assigned_coach.toLowerCase()]
+                : null;
 
               // Get associated deal IDs from associations
               const dealIds =
@@ -516,8 +528,12 @@ serve(async (req) => {
                 const closerName = props.assigned_coach || null;
 
                 // Resolve UUIDs
-                const setterUuid = props.hubspot_owner_id ? staffByHubSpotId[props.hubspot_owner_id] : null;
-                const coachUuid = props.assigned_coach ? staffByName[props.assigned_coach.toLowerCase()] : null;
+                const setterUuid = props.hubspot_owner_id
+                  ? staffByHubSpotId[props.hubspot_owner_id]
+                  : null;
+                const coachUuid = props.assigned_coach
+                  ? staffByName[props.assigned_coach.toLowerCase()]
+                  : null;
 
                 return {
                   hubspot_id: contact.id,
@@ -611,7 +627,7 @@ serve(async (req) => {
             const assocData = await assocResponse.json();
             associationResults = assocData.results || [];
           } else {
-            console.warn("⚠️ Failed to fetch associations batch.");
+          consconsole.warn("⚠️ Failed to fetch associations batch.");
           }
 
           // Map Deal ID -> Contact ID (HubSpot)
@@ -651,6 +667,12 @@ serve(async (req) => {
             const hsContactId = dealToContactHSId[deal.id];
             const resolvedUUID = hsContactId ? contactMap[hsContactId] : null;
 
+            // Resolve deal owner (setter/closer)
+            const dealOwnerId = props.hubspot_owner_id || null;
+            const dealOwnerName = dealOwnerId
+              ? ownerMap[dealOwnerId] || null
+              : null;
+
             return {
               hubspot_deal_id: deal.id,
               deal_name: props.dealname,
@@ -662,6 +684,8 @@ serve(async (req) => {
                 ? new Date(props.closedate).toISOString()
                 : null,
               status: mapDealStageToStatus(props.dealstage),
+              owner_id: dealOwnerId,
+              owner_name: dealOwnerName,
               created_at: props.createdate
                 ? new Date(props.createdate).toISOString()
                 : new Date().toISOString(),
@@ -824,24 +848,28 @@ serve(async (req) => {
     );
 
     return apiSuccess({
-        success: true,
-        message: results.has_more
-          ? `Synced ${results.contacts_synced} contacts, more available. Call again with cursor.`
-          : `HubSpot ${results.mode} sync completed`,
-        ...results,
-        instructions: results.has_more
-          ? 'Call this function again with { "cursor": "' +
-            results.next_cursor +
-            '" } to continue'
-          : undefined,
-      });
+      success: true,
+      message: results.has_more
+        ? `Synced ${results.contacts_synced} contacts, more available. Call again with cursor.`
+        : `HubSpot ${results.mode} sync completed`,
+      ...results,
+      instructions: results.has_more
+        ? 'Call this function again with { "cursor": "' +
+          results.next_cursor +
+          '" } to continue'
+        : undefined,
+    });
   } catch (error: unknown) {
     console.error("Sync error:", error);
-    return apiError("INTERNAL_ERROR", JSON.stringify({
+    return apiError(
+      "INTERNAL_ERROR",
+      JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         processing_time_ms: Date.now() - startTime,
-      }), 500);
+      }),
+      500,
+    );
   }
 });
 

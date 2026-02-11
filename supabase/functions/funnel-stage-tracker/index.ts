@@ -81,19 +81,20 @@ serve(async (req) => {
     ).toISOString();
     const today = new Date().toISOString().split("T")[0];
 
-    // ── Get contacts ──
+    // ── Get contacts (all — don't filter by created_at, deals filter handles timeframe) ──
     const { data: contacts } = await supabase
       .from("contacts")
       .select(
-        "email, hubspot_contact_id, owner_name, lifecycle_stage, created_at",
-      )
-      .gte("created_at", cutoff);
+        "id, email, hubspot_contact_id, owner_name, lifecycle_stage, created_at",
+      );
 
-    // ── Get all deals for these contacts ──
+    // ── Get all deals updated in the lookback window ──
+    // Bug fix: was using created_at which missed deals created months ago
+    // but with recent stage updates (e.g. moved to qualifiedtobuy today)
     const { data: allDeals } = await supabase
       .from("deals")
-      .select("hubspot_contact_id, stage, deal_value, created_at, status")
-      .gte("created_at", cutoff);
+      .select("contact_id, stage, deal_value, created_at, updated_at, status")
+      .gte("updated_at", cutoff);
 
     // ── Get attribution for creative dimension ──
     const { data: attributions } = await supabase
@@ -101,10 +102,22 @@ serve(async (req) => {
       .select("email, fb_ad_id, campaign")
       .gte("event_time", cutoff);
 
+    // ── Get ad spend for CPL/CPO computation ──
+    const cutoffDate = cutoff.split("T")[0];
+    const { data: adSpendData } = await supabase
+      .from("facebook_ads_insights")
+      .select("spend")
+      .gte("date", cutoffDate);
+
+    const totalAdSpend = (adSpendData || []).reduce(
+      (sum: number, row: { spend: number | null }) => sum + (row.spend || 0), 0
+    );
+
     // Build contact-to-deal mapping
-    const contactDeals: Record<string, string> = {}; // hubspot_contact_id → highest stage
+    // Bug fix: deals.contact_id (UUID FK) → contacts.id, NOT hubspot_contact_id
+    const contactDeals: Record<string, string> = {}; // contacts.id (UUID) → highest stage
     for (const d of (allDeals || []) as Array<Record<string, unknown>>) {
-      const cId = String(d.hubspot_contact_id || "");
+      const cId = String(d.contact_id || "");
       const stage = String(d.stage || "");
       const currentMax = contactDeals[cId];
       if (
@@ -178,7 +191,7 @@ serve(async (req) => {
       let onHold = 0;
 
       for (const c of filteredContacts) {
-        const contactId = String(c.hubspot_contact_id || "");
+        const contactId = String(c.id || "");
         const highestStage = contactDeals[contactId];
         if (!highestStage) continue;
 
@@ -206,6 +219,14 @@ serve(async (req) => {
         paymentsPending > 0 ? (closedWon / paymentsPending) * 100 : 0;
       const overallRate =
         leadsCreated > 0 ? (closedWon / leadsCreated) * 100 : 0;
+
+      // CPL/CPO — only for overall dimension (ad spend is not per-coach or per-creative)
+      const cpl = dim.type === "overall" && totalAdSpend > 0 && leadsCreated > 0
+        ? Math.round((totalAdSpend / leadsCreated) * 100) / 100
+        : null;
+      const cpo = dim.type === "overall" && totalAdSpend > 0 && dealsCreated > 0
+        ? Math.round((totalAdSpend / dealsCreated) * 100) / 100
+        : null;
 
       // Health verdicts based on benchmarks
       const marketingHealth =
@@ -252,6 +273,8 @@ serve(async (req) => {
         deal_to_payment_pct: Math.round(dealToPayment * 100) / 100,
         payment_to_won_pct: Math.round(paymentToWon * 100) / 100,
         overall_lead_to_customer_pct: Math.round(overallRate * 100) / 100,
+        cpl: cpl,
+        cpo: cpo,
         marketing_health: marketingHealth,
         sales_health: salesHealth,
         coach_health: coachHealth,
@@ -299,6 +322,11 @@ serve(async (req) => {
               held_to_deal: `${overall.held_to_deal_pct}%`,
               deal_to_payment: `${overall.deal_to_payment_pct}%`,
               overall: `${overall.overall_lead_to_customer_pct}%`,
+            },
+            unit_economics: {
+              ad_spend: totalAdSpend,
+              cpl: overall.cpl,
+              cpo: overall.cpo,
             },
             health: {
               marketing: overall.marketing_health,

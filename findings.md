@@ -1,213 +1,231 @@
-# Lisa v10.0 — Code Audit Findings
-
-## Date: 2026-02-10
-
-### Finding 1: P0 Bug "80-word truncation" — ALREADY FIXED
-- **File**: `_shared/response-parser.ts` lines 46-53
-- **Status**: Code is commented out with note: "FIX REMOVED: 80-word hard truncation was chopping human responses"
-- **Action**: Add smart 200-word sentence-boundary truncation as safety net
-
-### Finding 2: P0 Bug "stageResult undefined" — NOT PRESENT
-- **File**: `aisensy-orchestrator/index.ts`
-- **Status**: The referenced `stageResult.hasChanged` does NOT exist in current code
-- The orchestrator uses `updateData.conversation_phase` (line 254-257) derived from `parsed.thought?.conversation_phase`
-- HubSpot stage update happens via `syncToHubSpot()` which receives `updateData.conversation_phase` as `stage` parameter
-- **Action**: No fix needed. Stage pipeline works correctly.
-
-### Finding 3: P0 Bug "500-char block" — ALREADY FIXED
-- **File**: `aisensy-orchestrator/index.ts` lines 210-223
-- **Status**: Replaced with regex LEAK_PATTERNS check
-- Currently checks: `"TEMPLATE 1:"` and `"Templates for reaching out"`
-- **Action**: Expand patterns per spec to include more leak signatures
-
-### Finding 4: conversation_intelligence — ALREADY INTEGRATED
-- **File**: `aisensy-orchestrator/index.ts` lines 86-105
-- **Status**: WhatsApp path ALREADY reads and writes conversation_intelligence
-- Fetches CI data in parallel (line 89-93)
-- Initializes if new (line 99-105)
-- Upserts full updateData (line 293-294)
-- **Action**: Already done. The spec's Section 6 is already implemented.
-
-### Finding 5: anti-robot.ts — Only 3 transforms
-- **File**: `_shared/anti-robot.ts`
-- **Status**: Only has: period removal, 15% lowercase, contraction forcing
-- **Gap**: Missing 12+ transforms needed for natural WhatsApp feel
-- **Action**: Full rewrite with 15 probability-based transforms
-
-### Finding 6: smart-pause.ts — Basic formula
-- **File**: `_shared/smart-pause.ts`
-- **Status**: Simple formula: max(2000, 1500 + wordCount/300*60000 + jitter)
-- **Gap**: No question detection, no emoji awareness, no complexity scaling
-- **Action**: Rewrite with variable typing delay
-
-### Finding 7: smart-prompt.ts — v9.1, needs v10.0
-- **File**: `_shared/smart-prompt.ts`
-- **Status**: Has 5-step flow (Hook→Bridge→Selection→Assessment→Group Close)
-- **Gap**: Missing WRITING STYLE, RESPONSE LENGTH, PERSONALITY DEPTH sections
-- **Gap**: InternalThought interface missing new spec fields
-- **Action**: Add v10.0 personality sections
-
-### Finding 8: unified-ai-client.ts — Token/Temp tuning needed
-- **File**: `_shared/unified-ai-client.ts`
-- **Status**: maxOutputTokens=8192, temperature=0.7
-- **Action**: Change to 512 tokens / 0.85 temperature per spec
-
-### Finding 9: repair-engine.ts — Duplicate return statement
-- **File**: `_shared/repair-engine.ts` line 103-104
-- **Status**: Two identical `return { status: "OK", confidence: 0 };` lines
-- **Action**: Remove duplicate line
-
-### Finding 10: content-filter.ts — Multiple sanitize paths
-- **File**: `_shared/content-filter.ts`
-- **Status**: Has both `sanitizeResponse()` function AND `contentFilter.sanitize()` method
-- The orchestrator uses `contentFilter.sanitize()` which is simpler (only checks AGENT_KNOWLEDGE_BASE, INTERNAL_TOOL, SKILL_)
-- The full `sanitizeResponse()` with SENSITIVE_PATTERNS is NOT called by orchestrator
-- **Potential Issue**: The richer sanitization logic isn't being used
-- **Action**: Consider consolidating in future. Not blocking for this upgrade.
-
-### Finding 11: message-splitter.ts — Does not exist
-- **Status**: New module needed
-- **Action**: Create per spec with bubble splitting logic
+# FORENSIC AUDIT FINDINGS — Vital Suite
+## Date: 2026-02-11 | Scope: Full Pipeline Audit (FB Ads → Leads → Calls → Deals → Revenue)
 
 ---
 
-## Evaluation Findings — 2026-02-10
+## EXECUTIVE SUMMARY
 
-### Finding 12: BUG-001 — CONTEXT_EMOJIS Mismatch (FIXED)
-- **File**: `_shared/anti-robot.ts` line 72
-- **Severity**: Medium — ~1 in 6 CASUAL messages got off-brand emoji
-- **Root cause**: anti-robot.ts had 8 emojis (`💪🔥👊😊🙌✨💯⚡`) but smart-prompt.ts line 58 only approves 3 (`💪🔥😊`)
-- **Fix**: Reduced `CONTEXT_EMOJIS` to `["💪", "🔥", "😊"]`
-- **Status**: FIXED
+**Overall System Health: 6.5/10** — Data collection is REAL and solid. Attribution chain has CRITICAL gaps. You CANNOT currently answer: **"Which ad made me money?"**
 
-### Finding 13: Evaluation Scoring — 0.985 Overall (13 scenarios)
-- **Method**: Manual deterministic trace through eval-harness.ts scoring functions
-- **Result**: 12.80/13 weighted average = **0.985** (PASS ≥0.75, TARGET ≥0.85)
-- **Perfect scores**: 11 of 13 scenarios scored 1.00
-- **Minor deductions**:
-  - S02 (Warm Lead, bridge): 0.90 — 2 question marks in reply, NEPQ allows max 1
-  - S06 (Angry Lead, hook): 0.90 — 12 words below 15-word minimum (contextually appropriate)
-- **Key strength**: Zero price leaks, zero banned words, zero banned emojis across all 13 scenarios
-- **Status**: PASS
+### The Core Problem
+```
+Facebook Ad  →  Lead  →  Call  →  Opportunity  →  Revenue
+     ✅          ✅       ⚠️         ⚠️             ❌
+  (fetched)   (synced)  (no ad    (no deal↔      (no deal↔
+                         link)    invoice)       Stripe link)
+```
 
-### Finding 14: Production Checks — 7/7 PASS
-- Leak Pattern Guard: 0 leaks across 16 patterns × 13 scenarios
-- Truncation: Sentence-boundary cut at ≤200 words works correctly
-- Bubble Count: All scenarios produce 1-4 bubbles
-- Smart Pause: All delays within 1200-6000ms bounds
-- Idempotency: Double humanize pass within 20% growth tolerance
-- **Known issues documented but not blocking:**
-  - WARN-001: `/\[.*?\]/g` strips bracket content like `[nickname]` (low severity)
-  - WARN-002: `\bstop\b` in SentimentTriage flags "I'll stop by tomorrow" as RISK (medium severity)
-  - WARN-003: `/google/gi` strips "google" from conversation (low severity)
-  - INFO-001: Orchestrator overrides temperature 0.85→0.7 at line 175 (intentional)
-- **Status**: PASS
-
-### Finding 15: Verification Gap — No TypeScript Runtime
-- npx, deno, node, tsc, ts-node all absent from machine
-- 66 unit tests written but cannot be executed
-- Eval harness (1258 lines) ready but cannot be run programmatically
-- **Mitigation**: Manual code-level verification, cross-file signature checks
-- **Recommendation**: Run `deno check` + `npx jest` + `npx ts-node scripts/eval-harness.ts` on staging before production deploy
-- **Status**: DOCUMENTED
-
-### Finding 16: Anti-Robot Probabilistic Nature
-- All 15 transforms fire based on `Math.random()` probabilities
-- Eval scoring correctly uses pre-humanize (sanitized) reply to avoid non-deterministic results
-- Real-world messages will have natural variation — this is by design
-- Idempotency check confirms double-pass doesn't cause runaway mutation
-- **Status**: BY DESIGN
+**You have the data. The CONNECTIONS between the data are broken.**
 
 ---
 
-## Sales Intelligence Audit — 2026-02-10
+## SECTION 1: FACEBOOK ADS PIPELINE
 
-### Finding 17: Sales Intelligence Audit — 7-Dimension Scorecard
-- **Method**: Manual trace through smart-prompt.ts persona rules, all 13 eval scenario replies, and anti-robot.ts transforms
-- **Trigger**: User flagged "3 people from your area just booked this week" as fake urgency — demanded ethical sales intelligence audit
-- **Constraint**: ALL tactics must be truthful and verifiable. Fake stats, manufactured urgency, and fabricated scarcity are BANNED.
+### What Works
+- `fetch-facebook-insights` pulls REAL data from Meta API via Pipeboard
+- Stores in `facebook_ads_insights` table: ad_id, spend, clicks, ctr, cpc, leads, ROAS
+- CAPI pipeline exists: `send-to-stape-capi`, `process-capi-batch`, `capi-validator`
+- AnyTrack webhook captures server-side conversions with UTM params + fbclid
+- `data-reconciler` calculates Truth ROAS vs Reported ROAS
+- `ad-creative-analyst` identifies Zombie Ads (spend > $500, ROAS < 1.5) and Hidden Gems
 
-| # | Dimension | Score | Evidence |
-|---|-----------|-------|----------|
-| 1 | Reciprocity (give before ask) | 0.85 | Strong: Lisa asks about goals before pitching. Gap: No "insight gift" — never gives free fitness tip in bridge phase |
-| 2 | Scarcity | 0.70 ⚠️ | BORDERLINE: smart-prompt lines 77 & 157 contain fabricated coach availability ("I have one coach left who specializes in that") — not verifiable |
-| 3 | Social Proof | 0.40 ❌ | Weakest but CORRECTLY avoids fakes. Zero fabricated testimonials. Gap: No real social proof mechanism exists |
-| 4 | Micro-Commitment Ladder | 0.90 | Excellent: NEPQ phases create natural yes-ladder (hook→bridge→select→close). Each phase gets a small "yes" |
-| 5 | Pain Amplification | 0.85 | Honest: Uses questions to make pain real ("how long has this been going on?"). Never fabricates consequences |
-| 6 | Identity Shift | 0.60 ⚠️ | Underused: Lisa never labels leads as "action-takers" or "someone who actually follows through" based on real behavior |
-| 7 | Mirroring | 0.75 | Good: Name injection (20% prob), word mirroring via anti-robot. Gap: Doesn't match emotional intensity level |
+### What's Broken
+| # | Gap | Impact | Severity |
+|---|-----|--------|----------|
+| 1 | **Campaign ID not stored** — only campaign_name in facebook_ads_insights | Cannot join campaigns by ID, only by name (fragile) | HIGH |
+| 2 | **Adset ID not captured at all** | Cannot analyze adset-level performance | HIGH |
+| 3 | **No direct ad_id → contact link** | Cannot say "this specific ad created this specific lead" | CRITICAL |
+| 4 | **Stape CAPI is optional** — if key not set, events stored but NOT sent to Meta | Facebook cannot optimize conversions without server-side data | HIGH |
+| 5 | **VisualDNA widget shows 0 ROAS** — `purchase_value` field missing from ad objects | Dashboard misleading for all creatives | HIGH |
 
-**Overall Sales Intelligence Score: 0.74/1.0**
-
-### Finding 18: Borderline Scarcity in smart-prompt.ts
-- **File**: `_shared/smart-prompt.ts` lines 77 and 157
-- **Line 77**: "I have one coach left who specializes in that" — NOT verifiable, could be fabricated
-- **Line 157**: "the coach I mentioned still has that opening. lmk if you want it or I'll give it to someone else" — Creates artificial urgency
-- **Risk**: WhatsApp spam reports if leads perceive manipulation. Trust destruction if caught.
-- **Recommendation**: Replace with self-generated scarcity (Lisa's own assessment schedule is genuinely limited)
-- **Status**: DOCUMENTED — Requires user decision on implementation
-
-### Finding 19: 3 Recommended Ethical Upgrades
-1. **"Insight Gift" in bridge phase** — Give one real fitness insight before asking next question. Example: "most people don't realize dehydration kills metabolism before anything else" → builds reciprocity naturally
-2. **Replace fabricated scarcity with self-generated scarcity** — Instead of fake coach openings, use Lisa's real assessment calendar: "i only do 3 assessments this week and 2 are taken" (based on actual booking data if available, or Lisa's genuine schedule)
-3. **Identity labeling in select phase** — When lead shows commitment signals, label them: "you're actually doing something about it though.. most people just complain" → ethical because it's based on their REAL behavior (they're in the conversation)
-- **Status**: ALL 3 IMPLEMENTED in smart-prompt.ts v10.0
+### Key Files
+- `supabase/functions/fetch-facebook-insights/index.ts`
+- `supabase/functions/send-to-stape-capi/index.ts`
+- `supabase/functions/anytrack-webhook/index.ts`
+- `supabase/functions/data-reconciler/index.ts`
+- `supabase/functions/ad-creative-analyst/index.ts`
 
 ---
 
-## Sales Intelligence Audit v2 — Post-Fix Re-Score — 2026-02-10
+## SECTION 2: CALL TRACKING (CALLGEAR)
 
-### Finding 20: Sales Intelligence Audit v2 — RE-SCORED After 7 Fixes
+### What Works
+- `fetch-callgear-data` syncs every 10 minutes from CallGear API (REAL data)
+- 37-field schema in `call_records` table (duration, recording, outcome, sentiment, transcript)
+- Phone-based contact linking works (caller_number → contacts.phone)
+- Security sentinel monitors suspicious calls in real-time
+- ICP router handles intelligent call routing with 2-second SLA
+- Supervisor coaching (listen/whisper/barge) fully functional
 
-**Trigger:** User demanded all fake urgency/scarcity be fixed + 2026 best practices integrated + Mark Executive Summary best techniques adapted.
+### What's Broken
+| # | Gap | Impact | Severity |
+|---|-----|--------|----------|
+| 6 | **No call → ad/campaign attribution** | Cannot say "this call came from this Facebook ad" | CRITICAL |
+| 7 | **No call → deal linkage** | Cannot say "this call contributed to this deal closing" | CRITICAL |
+| 8 | **`revenue_generated` field never populated** | Call ROI impossible to calculate | HIGH |
+| 9 | **No reverse sync to Facebook** | Cannot create "People who called" custom audiences for retargeting | MEDIUM |
+| 10 | **Employee mapping partly hardcoded** | Owner names hardcoded in fetch-callgear-data (lines 321-343) | LOW |
 
-**Research conducted:** 5 web searches on 2026 sales psychology (NEPQ Jeremy Miner, Chris Voss tactical empathy, Gap Selling Keenan, micro-commitments, WhatsApp fitness booking).
+### Key Files
+- `supabase/functions/fetch-callgear-data/index.ts`
+- `supabase/functions/callgear-live-monitor/index.ts`
+- `supabase/functions/sync-single-call/index.ts`
+- `src/pages/CallTracking.tsx`
 
-**Fixes applied (7 edits to smart-prompt.ts):**
-1. Removed fabricated "one coach left" scarcity → replaced with Self-Persuasion
-2. Upgraded Selection phase with Identity Labeling + Self-Persuasion
-3. Upgraded Close phase with Reciprocity insight gift
-4. Complete rewrite of re-engagement — ZERO fake urgency, added Day 10+ graceful exit
-5. Added SALES INTELLIGENCE RULES section (10 ethical rules)
-6. Added GAP SELLING TECHNIQUES section + OBJECTION HANDLING (from Mark Executive Summary)
-7. Upgraded Bridge phase with Mirroring + Labeling + "What Stopped You?"
+---
 
-**Post-Fix 7-Dimension Scorecard:**
+## SECTION 3: LEAD → OPPORTUNITY → REVENUE PIPELINE
 
-| # | Dimension | Before | After | Change | Key Evidence |
-|---|-----------|--------|-------|--------|-------------|
-| 1 | Reciprocity | 0.85 | 0.95 | +0.10 | Explicit rule (line 87) + insight gift in close (line 220) |
-| 2 | Scarcity | 0.70 ⚠️ | 0.95 | +0.25 | ZERO fabrication. Banned in 6 separate places. Only genuine constraints allowed |
-| 3 | Social Proof | 0.40 ❌ | 0.55 | +0.15 | Honest gym-client reference (line 139). Still weakest — correctly avoids fakes |
-| 4 | Micro-Commitment | 0.90 | 0.97 | +0.07 | Explicit rule + "If We Removed That" close + Two Time Slots close |
-| 5 | Pain Amplification | 0.85 | 0.97 | +0.12 | GAP SELLING section + "What Stopped You?" + 3 pain-surfacing questions |
-| 6 | Identity Shift | 0.60 ⚠️ | 0.92 | +0.32 | Explicit Identity Labeling rule + 4 concrete examples in select phase |
-| 7 | Mirroring | 0.75 | 0.92 | +0.17 | Explicit Mirroring rule + Labeling rule + example in bridge phase |
+### What Works
+- HubSpot → Supabase sync is COMPLETE (80+ contact properties including UTM, facebook_id)
+- Contacts store: `facebook_id`, `utm_source`, `utm_campaign`, `first_touch_source`, `latest_traffic_source`
+- Deals properly linked to contacts via `contact_id` FK (UUID)
+- Funnel stage tracker computes 12-stage conversion rates from REAL data
+- `attribution_events` table captures fb_ad_id, fb_campaign_id, fb_adset_id
+- Real-time webhooks for contact.creation, deal.creation, call.creation
 
-**Overall Sales Intelligence Score: 0.89/1.0** (was 0.74 → +0.15 improvement)
+### What's Broken
+| # | Gap | Impact | Severity |
+|---|-----|--------|----------|
+| 11 | **No Deal ↔ Stripe Invoice link** | Cannot verify if HubSpot deal_value matches actual Stripe payment | CRITICAL |
+| 12 | **Static currency rates** | USD→AED hardcoded at 3.67, EUR→AED at 4.00 in stripe-dashboard-data (NEVER updates) | HIGH |
+| 13 | **Churn rate estimated from health zones** | CLV = ARPU / churn_rate, but churn_rate is guess (RED + 0.3*YELLOW) not actual churn | HIGH |
+| 14 | **No Cost Per Lead (CPL) metric** | CAC exists (cost per customer), but CPL undefined and not computed | HIGH |
+| 15 | **No Cost Per Opportunity (CPO) metric** | Cannot calculate ad spend per deal created | HIGH |
+| 16 | **No deal.propertyChange webhook** | Deal stage changes only sync on next scheduled run, not real-time | MEDIUM |
+| 17 | **No deal lost reason tracking** | deals store `closedlost` but no reason field exposed | MEDIUM |
+| 18 | **Data reconciler has duplicate variable declarations** | `attributedRevenue` declared twice — potential logic error | MEDIUM |
 
-### Finding 21: Social Proof Remains Weakest (by design)
-- Score 0.55 is the lowest dimension but this is CORRECT behavior
-- Lisa has no fabricated testimonials, no fake stats, no invented social proof
-- The only social proof is honest references to general client patterns
-- To improve further: would need real testimonial system (actual client reviews from PTD Fitness)
-- **Decision:** Do NOT fabricate social proof. 0.55 is the ethical ceiling without real data.
+### Key Files
+- `supabase/functions/sync-hubspot-to-supabase/index.ts`
+- `supabase/functions/funnel-stage-tracker/index.ts`
+- `supabase/functions/financial-analytics/index.ts`
+- `supabase/functions/stripe-dashboard-data/index.ts`
 
-### Finding 22: Techniques Integrated from Mark Executive Summary
-- Gap Selling 5-phase diagnostician framework → adapted for Lisa persona
-- "What Stopped You?" core question → added to Bridge phase
-- "If We Removed That..." hypothetical close → added to Close phase
-- Two Time Slots close → added to Close phase
-- The Pivot Technique → added to Objection Handling
-- Full Objection Handling section (6 objections) → NEW section
-- Internal Monologue expanded → current_state, desired_state, blocker fields
-- **NOT taken from Mark:** Mark's persona, Mark's sidecar database (already exists), Mark's lead-scorer (already exists)
+---
 
-### Finding 23: 2026 Sales Psychology Sources
-- NEPQ (Jeremy Miner / 7th Level): Question-based self-persuasion framework
-- Chris Voss: Tactical empathy, labeling, mirroring, calibrated questions
-- Gap Selling (Keenan): People buy the gap between current and desired state
-- Cialdini: Reciprocity, genuine scarcity, consistency, identity labeling
-- 2026 WhatsApp fitness: 40% higher retention, 25% conversion from chat flows
+## SECTION 4: DASHBOARD WIDGETS & FORMULAS
 
-### Status: RE-SCORE COMPLETE — 0.74 → 0.89 (+20% improvement)
+### What Works
+- **92% of widgets use REAL data** from Supabase/API (no mock data in dashboards)
+- RevenueVsSpendChart: queries `daily_business_metrics` → ROAS = revenue/spend
+- LiveRevenueChart: queries `deals` table → revenue trend with correct period-over-period
+- CampaignMoneyMap: calls `get_campaign_money_map` RPC for real campaign data
+- usePeriodComparison hook: proper delta calculations across revenue, leads, ROAS, spend
+- All metric cards (KPIGrid, HeroStatCard, MetricCard, StatCard) are pure display components
+
+### What's Broken
+| # | Gap | Impact | Severity |
+|---|-----|--------|----------|
+| 19 | **VisualDNA ROAS shows 0 for all creatives** | Missing `purchase_value` field → `platformRoas` computes to 0 | HIGH |
+| 20 | **No revenue per ad creative on any dashboard** | Shows spend per creative but NOT revenue per creative | HIGH |
+| 21 | **No cost per opportunity on any dashboard** | Key metric completely absent from all pages | HIGH |
+| 22 | **NorthStarWidget "500k ARR" hardcoded** | Target should come from database/settings | MEDIUM |
+| 23 | **UnitEconomics "< AED 500" CAC goal hardcoded** | Business threshold should be configurable | LOW |
+
+### Formula Verification
+| Metric | Formula | Source | Status |
+|--------|---------|--------|--------|
+| ROAS | `revenue / spend` | daily_business_metrics | CORRECT |
+| Revenue Trend | `(2nd_half - 1st_half) / 1st_half * 100` | deals table | CORRECT |
+| CAC | `totalSpend / realNewClients` | Stripe + FB spend | CORRECT (but per customer, not per lead) |
+| CLV | `ARPU / churnRate` | Stripe + health zones | ESTIMATE (churn rate guessed) |
+| LTV:CAC | `ltv / cac` | Computed | CORRECT formula, questionable inputs |
+| Funnel Rates | `stageN / stageN-1 * 100` | contacts + deals tables | CORRECT |
+| CPL | Not computed | — | MISSING |
+| CPO | Not computed | — | MISSING |
+
+---
+
+## SECTION 5: AGENT INTELLIGENCE LAYER
+
+### What Works (90% functional)
+- PTD system operational with 5 personas (ATLAS, SHERLOCK, REVENUE, HUNTER, GUARDIAN)
+- multi-agent-orchestrator coordinates 4 specialist agents with real Supabase data
+- LangSmith tracing for observability, structured logging
+- Approval workflow for risky actions (ptd-execute-action with risk levels)
+- Skill auditor grades real WhatsApp conversations and stores lessons
+- marketing-scout detects creative fatigue, ghost rates, spend anomalies from real data
+- marketing-analyst makes SCALE/HOLD/WATCH/KILL recommendations
+
+### What's Broken
+| # | Gap | Impact | Severity |
+|---|-----|--------|----------|
+| 24 | **ultimate-aggregator uses MOCK data** | Returns 3 hardcoded creatives, 50 fake contacts instead of real data | HIGH |
+| 25 | **4 marketing agents are SKELETONS** | marketing-allocator, copywriter, historian, loss-analyst = empty shells | MEDIUM |
+| 26 | **No agent → dashboard visualization feed** | Agents compute recommendations but dashboards don't display them | MEDIUM |
+| 27 | **sales-objection-handler empty** | Directory exists, no implementation | LOW |
+| 28 | **No integration tests** between agent output and dashboard consumption | Could break silently | MEDIUM |
+
+---
+
+## SECTION 6: THE ATTRIBUTION TRUTH TABLE
+
+### "Which ad is good?" — What you CAN and CANNOT answer today
+
+| Question | Answer? | Method |
+|----------|---------|--------|
+| How much did I spend per ad? | YES | facebook_ads_insights.spend |
+| How many leads per ad? | YES | facebook_ads_insights.leads |
+| CTR/CPC per ad? | YES | facebook_ads_insights.ctr/cpc |
+| ROAS per ad (Meta reported)? | YES | facebook_ads_insights.purchase_roas |
+| Which contact came from which ad? | PARTIAL | attribution_events.fb_ad_id → contacts.email (indirect, 2-hop) |
+| Which call came from which ad? | NO | No call→ad link exists |
+| Which deal came from which ad? | PARTIAL | deals→contacts→attribution_events (3-hop join, fragile) |
+| How much REVENUE did each ad generate? | NO | No deal→Stripe payment verification |
+| TRUE ROI per ad: (revenue - spend) / spend? | NO | Cannot compute — missing revenue link |
+| Best ads by OPPORTUNITIES generated? | PARTIAL | Can count deals per source, not per specific ad |
+| Cost per opportunity by ad? | NO | Missing metric entirely |
+
+---
+
+## SECTION 7: HARDCODED VALUES & DATA QUALITY FLAGS
+
+### Hardcoded Values Found
+| File | Value | Risk |
+|------|-------|------|
+| fetch-facebook-insights | `PTD_MAIN_ACCOUNT = "act_349832333681399"` | Low (fallback) |
+| stripe-dashboard-data | Currency rates (USD 3.67, EUR 4.00, GBP 4.63) | HIGH — never updated |
+| NorthStarWidget | "500k ARR" target | Medium — should be configurable |
+| UnitEconomics | "< AED 500" CAC goal | Low |
+| fetch-callgear-data | Employee OWNER_MAPPING (lines 321-343) | Low — merged with DB |
+
+### Tables/Views Referenced But Unverified
+- `revenue_genome_7d` — referenced in marketing-scout but not in migrations
+- `source_discrepancy_matrix` — referenced in MarketingDeepIntelligence
+- `get_campaign_money_map` RPC — called by CampaignMoneyMap.tsx
+- `get_underworked_leads` RPC — used by sales-aggression
+- `get_stale_deals` RPC — used by sales-aggression
+
+---
+
+## SECTION 8: PRIORITY RANKING
+
+### CRITICAL (Blocks "Which ad is good?")
+1. No deal ↔ Stripe invoice link — Cannot verify revenue
+2. No ad_id stored on contacts/deals — Cannot trace ad → customer
+3. No call → ad attribution — Calls orphaned from campaigns
+4. CPL and CPO metrics missing — Cannot compare ad efficiency
+5. VisualDNA shows 0 ROAS — Dashboard actively misleading
+
+### HIGH (Data accuracy)
+6. Static currency rates (could drift significantly from real rates)
+7. Churn rate is estimated, not measured from actual drop-offs
+8. Campaign ID not stored in insights table (only name)
+9. Adset ID not captured at all
+10. Revenue per creative not shown on any dashboard
+
+### MEDIUM (Completeness)
+11. Deal stage changes not real-time (missing webhook)
+12. Ultimate-aggregator uses mock data
+13. 4 skeleton marketing agents need implementation
+14. NorthStar target hardcoded in UI
+15. No deal lost reason tracking
+
+---
+
+## PREVIOUS FINDINGS (Lisa v10.0 Audit — 2026-02-10)
+
+> Preserved from previous audit session. See findings 1-23 below for Lisa WhatsApp agent audit results.
+> Lisa Sales Intelligence Score: 0.89/1.0 (improved from 0.74)
+> All P0 bugs resolved. 13/13 eval scenarios passing.

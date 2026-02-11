@@ -23,6 +23,8 @@ interface KPIData {
   criticalAlerts: number;
   adSpend?: number;
   roas?: number;
+  cpl?: number;
+  cpo?: number;
 }
 
 interface KPIGridProps {
@@ -147,7 +149,29 @@ export function KPIGrid({ data, isLoading = false, onMetricClick }: KPIGridProps
           isLoading={isLoading}
           onClick={() => onMetricClick?.("appointments")}
         />
+        <MetricCard
+          label="CPL"
+          value={data.cpl ? formatCurrency(data.cpl) : "—"}
+          icon={Target}
+          variant={data.cpl && data.cpl < 500 ? "success" : "warning"}
+          isLoading={isLoading}
+          subtitle="Cost Per Lead"
+        />
       </div>
+
+      {/* Row 4: Unit Economics */}
+      {(data.cpo !== undefined) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            label="CPO"
+            value={data.cpo ? formatCurrency(data.cpo) : "—"}
+            icon={DollarSign}
+            variant={data.cpo && data.cpo < 2000 ? "success" : "warning"}
+            isLoading={isLoading}
+            subtitle="Cost Per Opportunity"
+          />
+        </div>
+      )}
     </div>
   );
 }

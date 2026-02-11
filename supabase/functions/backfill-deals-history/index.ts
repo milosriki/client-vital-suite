@@ -134,11 +134,14 @@ serve(async (req) => {
           status = "cancelled";
         }
 
+        const dealOwnerId = props.hubspot_owner_id || null;
+        const dealOwnerName = dealOwnerId ? ownerMap[dealOwnerId] || null : null;
+
         return {
           hubspot_deal_id: d.id,
           deal_name: props.dealname,
           deal_value: val,
-          value_aed: val, // Assuming AED for now, or use currency code conversion logic if needed
+          value_aed: val,
           stage: props.dealstage,
           pipeline: props.pipeline,
           status: status,
@@ -149,6 +152,8 @@ serve(async (req) => {
             ? new Date(props.createdate).toISOString()
             : new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          owner_id: dealOwnerId,
+          owner_name: dealOwnerName,
         };
       });
 

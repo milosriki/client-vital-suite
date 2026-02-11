@@ -115,15 +115,21 @@ serve(async (req) => {
       date: ad.date_start || recordDate, // Use API date if available
       ad_id: ad.ad_id,
       ad_name: ad.ad_name,
+      campaign_id: ad.campaign_id || null,
       campaign_name: ad.campaign_name,
+      adset_id: ad.adset_id || null,
+      adset_name: ad.adset_name || null,
       spend: parseFloat(ad.spend) || 0,
       impressions: parseInt(ad.impressions) || 0,
       clicks: parseInt(ad.clicks) || 0,
       ctr: parseFloat(ad.ctr) || 0,
       cpc: parseFloat(ad.cpc) || 0,
-      // Fix: Map Leads and ROAS directly
+      cpm: parseFloat(ad.cpm) || null,
+      reach: parseInt(ad.reach) || null,
       leads: parseInt(ad.leads) || 0,
       roas: parseFloat(ad.purchase_roas?.[0]?.value) || 0,
+      purchase_value: parseFloat(ad.action_values?.find((a: { action_type: string; value: string }) => a.action_type === "omni_purchase")?.value) ||
+        parseFloat(ad.purchase_roas?.[0]?.value || 0) * (parseFloat(ad.spend) || 0) || 0,
     }));
 
     if (dbRecords.length > 0) {

@@ -103,7 +103,7 @@ serve(async (req) => {
     const { data: lostDeals } = await supabase
       .from("deals")
       .select(
-        "id, hubspot_contact_id, stage, deal_value, created_at, updated_at, status",
+        "id, contact_id, stage, deal_value, created_at, updated_at, status",
       )
       .in("stage", ["1063991961", "1064059180"]) // Closed Lost or On Hold
       .gte("updated_at", cutoff);
@@ -141,15 +141,15 @@ serve(async (req) => {
 
     // ── Analyze each lost deal ──
     for (const deal of lostDeals as Array<Record<string, unknown>>) {
-      const contactId = String(deal.hubspot_contact_id || "");
+      const contactId = String(deal.contact_id || "");
 
-      // Get contact details
+      // Get contact details — deals.contact_id is a UUID FK to contacts.id
       const { data: contact } = await supabase
         .from("contacts")
         .select(
-          "email, first_name, last_name, owner_name, lifecycle_stage, source, created_at, area, phone",
+          "email, first_name, last_name, owner_name, lifecycle_stage, source, created_at, area, phone, hubspot_contact_id",
         )
-        .eq("hubspot_contact_id", contactId)
+        .eq("id", contactId)
         .single();
 
       if (!contact) continue;
@@ -191,7 +191,7 @@ serve(async (req) => {
       const { data: assessmentDeals } = await supabase
         .from("deals")
         .select("stage")
-        .eq("hubspot_contact_id", contactId)
+        .eq("contact_id", contactId)
         .in("stage", ["122237276", "closedwon"]); // Completed or beyond
 
       const assessmentHeld = (assessmentDeals || []).length > 0;
@@ -309,7 +309,7 @@ serve(async (req) => {
 
       losses.push({
         contact_email: email,
-        hubspot_contact_id: contactId || null,
+        hubspot_contact_id: contact?.hubspot_contact_id || contactId || null,
         deal_id: String(deal.id || ""),
         last_stage_reached: STAGE_NAMES[dealStage] || dealStage,
         last_stage_number: STAGE_NUMBERS[dealStage] || 0,

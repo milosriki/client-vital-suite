@@ -32,6 +32,23 @@ serve(async (req) => {
 
     console.log(`[Sync-Single-Deal] Processing Deal ID: ${dealId}`);
 
+    // Fetch owners map for name resolution
+    const ownerMap: Record<string, string> = {};
+    try {
+      const ownersRes = await fetch("https://api.hubapi.com/crm/v3/owners", {
+        headers: { Authorization: `Bearer ${HUBSPOT_API_KEY}` },
+      });
+      if (ownersRes.ok) {
+        const data = await ownersRes.json();
+        data.results.forEach(
+          (o: { id: string; firstName: string; lastName: string }) =>
+            (ownerMap[o.id] = `${o.firstName} ${o.lastName}`),
+        );
+      }
+    } catch (e) {
+      console.warn("[Sync-Single-Deal] Owner fetch failed, continuing", e);
+    }
+
     // 1. Fetch Deal Details from HubSpot
     const dealResponse = await fetch(
       `https://api.hubapi.com/crm/v3/objects/deals/${dealId}?properties=dealname,dealstage,amount,pipeline,closedate,hubspot_owner_id,createdate,lastmodifieddate,description,failure_reason`,
@@ -86,6 +103,9 @@ serve(async (req) => {
     }
 
     // 3. Upsert to Supabase
+    const dealOwnerId = props.hubspot_owner_id || null;
+    const dealOwnerName = dealOwnerId ? ownerMap[dealOwnerId] || null : null;
+
     const dealData = {
       hubspot_deal_id: deal.id,
       deal_name: props.dealname,
@@ -104,7 +124,8 @@ serve(async (req) => {
         ? new Date(props.lastmodifieddate).toISOString()
         : new Date().toISOString(),
       contact_id: contactId,
-      // Sync extra fields if schema supports them
+      owner_id: dealOwnerId,
+      owner_name: dealOwnerName,
       description: props.description,
       lost_reason: props.failure_reason,
     };

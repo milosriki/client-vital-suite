@@ -21,7 +21,10 @@ ON whatsapp_interactions(phone_number, created_at DESC);
 ALTER TABLE whatsapp_interactions ENABLE ROW LEVEL SECURITY;
 
 -- Allow service role to do everything
-CREATE POLICY "Service role can manage all" 
-ON whatsapp_interactions 
-FOR ALL 
-USING (auth.role() = 'service_role');
+DO $$ BEGIN
+  CREATE POLICY "Service role can manage all"
+  ON whatsapp_interactions
+  FOR ALL
+  USING (auth.role() = 'service_role');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

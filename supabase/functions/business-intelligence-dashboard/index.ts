@@ -13,10 +13,17 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Default to "today" if not specified, but for "Real Data" dashboard usually we want a specific range
-    // or just "today" for the Pulse.
-    const url = new URL(req.url);
-    const range = url.searchParams.get("range") || "today"; // today, week, month
+    // Read range from POST body (frontend sends via supabase.functions.invoke body)
+    // Fallback to URL search params, then default to "month" for meaningful data
+    let range = "month";
+    try {
+      const body = await req.json();
+      if (body?.range) range = body.range;
+    } catch {
+      // No body — try URL params
+      const url = new URL(req.url);
+      range = url.searchParams.get("range") || "month";
+    }
 
     // Determine start date
     const now = new Date();
@@ -112,7 +119,7 @@ serve(async (req) => {
     // --- ZONE B: GROWTH ENGINE (Trends) ---
     const { data: recentDeals } = await supabase
       .from("deals")
-      .select("deal_name, amount, stage, created_at")
+      .select("deal_name, deal_value, stage, created_at")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -154,7 +161,12 @@ serve(async (req) => {
       },
       zone_b: {
         title: "Growth Engine",
-        recent_activity: recentDeals || [],
+        recent_activity: (recentDeals || []).map((d: Record<string, unknown>) => ({
+          deal_name: d.deal_name,
+          amount: d.deal_value || 0,
+          stage: d.stage,
+          created_at: d.created_at,
+        })),
       },
       zone_c: {
         title: "Funnel Truth",

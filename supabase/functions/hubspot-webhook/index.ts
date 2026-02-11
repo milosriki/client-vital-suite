@@ -144,6 +144,25 @@ async function handleDealUpdate(
   const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY");
   if (!HUBSPOT_API_KEY) throw new Error("Missing HubSpot API Key");
 
+  // Fetch owner names for mapping
+  let ownerMap: Record<string, string> = {};
+  try {
+    const ownersRes = await fetch("https://api.hubapi.com/crm/v3/owners", {
+      headers: { Authorization: `Bearer ${HUBSPOT_API_KEY}` },
+    });
+    if (ownersRes.ok) {
+      const data = await ownersRes.json();
+      ownerMap = Object.fromEntries(
+        data.results.map((o: { id: string; firstName: string; lastName: string }) => [
+          o.id,
+          `${o.firstName} ${o.lastName}`,
+        ]),
+      );
+    }
+  } catch (e) {
+    console.warn("Owner fetch failed in webhook, continuing", e);
+  }
+
   const url = `https://api.hubapi.com/crm/v3/objects/deals/${dealId}?properties=dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id,createdate`;
 
   const res = await fetch(url, {
@@ -158,15 +177,18 @@ async function handleDealUpdate(
   const json = await res.json();
   const props = json.properties;
 
+  const dealOwnerId = props.hubspot_owner_id || null;
+  const dealOwnerName = dealOwnerId ? ownerMap[dealOwnerId] || null : null;
+
   const dealPayload = {
-    id: dealId, // Keep HubSpot ID as generic ID or use specialized column
+    id: dealId,
     deal_name: props.dealname,
     deal_value: props.amount ? parseFloat(props.amount) : 0,
     stage: props.dealstage,
     close_date: props.closedate,
     created_at: props.createdate,
-    owner_id: props.hubspot_owner_id,
-    // Map owner name if possible, or leave for join
+    owner_id: dealOwnerId,
+    owner_name: dealOwnerName,
     last_updated: new Date().toISOString(),
   };
 
