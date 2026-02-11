@@ -41,7 +41,15 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    // 2. Behavioral Segmentation (heuristic + AI)
+    // 2. Behavioral Segmentation (Dynamic Percentile-Based)
+    // Use actual revenue distribution instead of fixed threshold
+    const revenues = (contacts || [])
+      .map((c) => c.total_revenue || 0)
+      .sort((a, b) => b - a);
+    const p75Index = Math.floor(revenues.length * 0.25);
+    const highValueThreshold = revenues[p75Index] || 5000; // Top 25% = high-value, fallback to 5000
+    const medianRevenue = revenues[Math.floor(revenues.length / 2)] || 0;
+
     const segments = {
       champions: [] as any[], // High revenue, recent contact
       at_risk: [] as any[], // High revenue, no contact > 30 days
@@ -57,7 +65,7 @@ serve(async (req) => {
         : new Date(0);
       const daysSinceContact =
         (now.getTime() - lastContact.getTime()) / (1000 * 3600 * 24);
-      const isHighValue = (c.total_revenue || 0) > 5000;
+      const isHighValue = (c.total_revenue || 0) > highValueThreshold;
 
       if (isHighValue && daysSinceContact < 30) segments.champions.push(c);
       else if (isHighValue && daysSinceContact > 30) segments.at_risk.push(c);
@@ -71,6 +79,9 @@ serve(async (req) => {
       sleeping: segments.sleeping.length,
       new_potential: segments.new_potential.length,
       total_analyzed: contacts?.length,
+      high_value_threshold: `$${highValueThreshold.toFixed(0)} (P75 dynamic)`,
+      median_revenue: `$${medianRevenue.toFixed(0)}`,
+      total_portfolio_revenue: `$${revenues.reduce((a, b) => a + b, 0).toFixed(0)}`,
     };
 
     console.log("📊 Segmentation:", segmentationSummary);

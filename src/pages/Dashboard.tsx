@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorDetective } from "@/lib/error-detective";
+import { XRayTooltip } from "@/components/ui/x-ray-tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -564,39 +565,67 @@ export default function Dashboard() {
           >
             <LiveRevenueChart />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <RevenueStatCard
-                title="Monthly Revenue"
-                value={`AED ${(dashboardStats?.revenue_this_month || 0).toLocaleString()}`}
-                trend={dashboardStats?.revenue_trend}
-                isPositive={dashboardStats?.is_positive_trend}
-              />
-              <RevenueStatCard
-                title="Pipeline Value"
-                value={`AED ${(dashboardStats?.pipeline_value || 0).toLocaleString()}`}
-                subtitle={`${dashboardStats?.pipeline_count || 0} active deals`}
-              />
-              <RevenueStatCard
-                title="At-Risk Revenue"
-                value={`AED ${(clients || [])
-                  .filter(
-                    (c) =>
-                      c.health_zone === "RED" || c.health_zone === "YELLOW",
-                  )
-                  .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
-                  .toLocaleString()}`}
-                variant="warning"
-              />
-              <RevenueStatCard
-                title="Healthy Revenue"
-                value={`AED ${(clients || [])
-                  .filter(
-                    (c) =>
-                      c.health_zone === "GREEN" || c.health_zone === "PURPLE",
-                  )
-                  .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
-                  .toLocaleString()}`}
-                variant="success"
-              />
+              <XRayTooltip
+                metric="Monthly Revenue"
+                formula="SUM(daily_business_metrics.total_revenue_booked) for current calendar month"
+                source="daily_business_metrics → get_dashboard_stats RPC"
+                actionableInsight="Compare against last month trend to spot growth or decline early."
+              >
+                <RevenueStatCard
+                  title="Monthly Revenue"
+                  value={`AED ${(dashboardStats?.revenue_this_month || 0).toLocaleString()}`}
+                  trend={dashboardStats?.revenue_trend}
+                  isPositive={dashboardStats?.is_positive_trend}
+                />
+              </XRayTooltip>
+              <XRayTooltip
+                metric="Pipeline Value"
+                formula="SUM(deal_value) WHERE deal_stage NOT IN ('closed_won','closed_lost')"
+                source="HubSpot deals → get_dashboard_stats RPC"
+                actionableInsight="Pipeline should be 3x your monthly revenue target. If below, increase top-of-funnel."
+              >
+                <RevenueStatCard
+                  title="Pipeline Value"
+                  value={`AED ${(dashboardStats?.pipeline_value || 0).toLocaleString()}`}
+                  subtitle={`${dashboardStats?.pipeline_count || 0} active deals`}
+                />
+              </XRayTooltip>
+              <XRayTooltip
+                metric="At-Risk Revenue"
+                formula="SUM(package_value_aed) WHERE health_zone IN ('RED','YELLOW')"
+                source="client_health_scores (latest snapshot)"
+                actionableInsight="This revenue could churn. Prioritize intervention calls for RED zone clients first."
+              >
+                <RevenueStatCard
+                  title="At-Risk Revenue"
+                  value={`AED ${(clients || [])
+                    .filter(
+                      (c) =>
+                        c.health_zone === "RED" || c.health_zone === "YELLOW",
+                    )
+                    .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
+                    .toLocaleString()}`}
+                  variant="warning"
+                />
+              </XRayTooltip>
+              <XRayTooltip
+                metric="Healthy Revenue"
+                formula="SUM(package_value_aed) WHERE health_zone IN ('GREEN','PURPLE')"
+                source="client_health_scores (latest snapshot)"
+                actionableInsight="Stable recurring base. Focus on upselling these engaged clients."
+              >
+                <RevenueStatCard
+                  title="Healthy Revenue"
+                  value={`AED ${(clients || [])
+                    .filter(
+                      (c) =>
+                        c.health_zone === "GREEN" || c.health_zone === "PURPLE",
+                    )
+                    .reduce((sum, c) => sum + (c.package_value_aed || 0), 0)
+                    .toLocaleString()}`}
+                  variant="success"
+                />
+              </XRayTooltip>
             </div>
           </TabsContent>
         </Tabs>

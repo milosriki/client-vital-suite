@@ -28,7 +28,9 @@ serve(async (req) => {
 
     const { data: metrics, error } = await supabase
       .from("daily_business_metrics")
-      .select("date, total_revenue_booked, total_leads_new, ad_spend_facebook")
+      .select(
+        "date, total_revenue_booked, total_leads_new, ad_spend_facebook, total_sessions_conducted, total_active_clients, new_client_conversion_rate, churn_rate",
+      )
       .order("date", { ascending: false })
       .limit(90); // 90 days for quarterly OKR tracking
 
@@ -106,7 +108,16 @@ serve(async (req) => {
       const yesterday = validMetrics[0];
       const history = validMetrics.slice(1, 31);
 
-      ["total_revenue_booked", "total_leads_new"].forEach((key) => {
+      // Expanded: monitor 7 key metrics instead of just 2
+      [
+        "total_revenue_booked",
+        "total_leads_new",
+        "ad_spend_facebook",
+        "total_sessions_conducted",
+        "total_active_clients",
+        "new_client_conversion_rate",
+        "churn_rate",
+      ].forEach((key) => {
         const values = history.map((m) => m[key] || 0);
         const mean = values.reduce((a, b) => a + b, 0) / values.length;
         const stdDev = Math.sqrt(
@@ -122,8 +133,9 @@ serve(async (req) => {
           anomalies.push({
             metric: key,
             value: currentVal,
-            mean: Math.round(mean),
+            mean: Math.round(mean * 100) / 100,
             deviation: zScore.toFixed(2),
+            direction: zScore > 0 ? "SPIKE" : "DROP",
             severity: Math.abs(zScore) > 3 ? "CRITICAL" : "WARNING",
           });
         }

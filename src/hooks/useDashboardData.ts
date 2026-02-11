@@ -1,7 +1,7 @@
-import { supabase } from '@/integrations/supabase/client';
-import { QUERY_INTERVALS } from '@/config/queryConfig';
-import { QUERY_KEYS } from '@/config/queryKeys';
-import { useDedupedQuery } from '@/hooks/useDedupedQuery';
+import { supabase } from "@/integrations/supabase/client";
+import { QUERY_INTERVALS } from "@/config/queryConfig";
+import { QUERY_KEYS } from "@/config/queryKeys";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 /**
  * Batch dashboard queries hook
@@ -20,7 +20,7 @@ import { useDedupedQuery } from '@/hooks/useDedupedQuery';
  */
 
 interface DashboardFilters {
-  filterMode?: 'all' | 'test' | 'live';
+  filterMode?: "all" | "test" | "live";
   selectedCoach?: string;
   selectedZone?: string;
   [key: string]: unknown;
@@ -38,61 +38,95 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         summaryResult,
         patternsResult,
         clientsResult,
+        revenueByCoachResult,
+        clvResult,
+        retentionResult,
       ] = await Promise.all([
         // Query 1: Coaches
         supabase
-          .from('coach_performance')
-          .select('*')
-          .order('avg_health_score', { ascending: false }),
+          .from("coach_performance")
+          .select("*")
+          .order("avg_health_score", { ascending: false }),
 
         // Query 2: Interventions
         supabase
-          .from('intervention_log')
-          .select('*')
-          .order('created_at', { ascending: false })
+          .from("intervention_log")
+          .select("*")
+          .order("created_at", { ascending: false })
           .limit(10),
 
         // Query 3: Daily Summary
         supabase
-          .from('daily_summary')
-          .select('*')
-          .order('summary_date', { ascending: false })
+          .from("daily_summary")
+          .select("*")
+          .order("summary_date", { ascending: false })
           .limit(1)
           .single(),
 
         // Query 4: Weekly Patterns
         supabase
-          .from('weekly_patterns')
-          .select('*')
-          .order('week_start_date', { ascending: false })
+          .from("weekly_patterns")
+          .select("*")
+          .order("week_start_date", { ascending: false })
           .limit(4),
 
         // Query 5: Health Scores (with filters)
         (async () => {
           let query = supabase
-            .from('client_health_scores')
-            .select('*')
-            .order('health_score', { ascending: true });
+            .from("client_health_scores")
+            .select("*")
+            .order("health_score", { ascending: true });
 
           // Apply filters
-          if (filters.selectedCoach && filters.selectedCoach !== 'all') {
-            query = query.eq('assigned_coach', filters.selectedCoach);
+          if (filters.selectedCoach && filters.selectedCoach !== "all") {
+            query = query.eq("assigned_coach", filters.selectedCoach);
           }
 
-          if (filters.selectedZone && filters.selectedZone !== 'all') {
-            query = query.eq('health_zone', filters.selectedZone);
+          if (filters.selectedZone && filters.selectedZone !== "all") {
+            query = query.eq("health_zone", filters.selectedZone);
           }
 
           return query;
         })(),
+
+        // Query 6: Revenue by Coach (previously unused Supabase view)
+        supabase.from("revenue_by_coach" as any).select("*"),
+
+        // Query 7: Client Lifetime Value (previously unused Supabase view)
+        supabase
+          .from("client_lifetime_value" as any)
+          .select("*")
+          .order("total_revenue", { ascending: false })
+          .limit(50),
+
+        // Query 8: Retention Cohorts (previously unused Supabase view)
+        supabase
+          .from("retention_cohorts" as any)
+          .select("*")
+          .order("cohort_month", { ascending: false })
+          .limit(12),
       ]);
 
       // Handle errors
       if (coachesResult.error) throw coachesResult.error;
       if (interventionsResult.error) throw interventionsResult.error;
-      if (summaryResult.error) console.warn('Summary error:', summaryResult.error);
+      if (summaryResult.error)
+        console.warn("Summary error:", summaryResult.error);
       if (patternsResult.error) throw patternsResult.error;
       if (clientsResult.error) throw clientsResult.error;
+      // New view queries: warn but don't throw (views may not exist in all envs)
+      if (revenueByCoachResult.error)
+        console.warn(
+          "Revenue by coach view not available:",
+          revenueByCoachResult.error?.message,
+        );
+      if (clvResult.error)
+        console.warn("CLV view not available:", clvResult.error?.message);
+      if (retentionResult.error)
+        console.warn(
+          "Retention view not available:",
+          retentionResult.error?.message,
+        );
 
       // Return consolidated data
       return {
@@ -101,6 +135,9 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         summary: summaryResult.data || null,
         patterns: patternsResult.data || [],
         clients: clientsResult.data || [],
+        revenueByCoach: revenueByCoachResult.data || [],
+        clientLifetimeValue: clvResult.data || [],
+        retentionCohorts: retentionResult.data || [],
       };
     },
     staleTime: Infinity, // Real-time updates via useVitalState
