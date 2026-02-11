@@ -1,11 +1,16 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Client as PostgresClient } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+import { getRDSConfig } from "../_shared/rds-client.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 /**
@@ -19,7 +24,11 @@ import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
  */
 
 Deno.serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -29,19 +38,8 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // RDS Configuration (Hardcoded for this specific backoffice link as requested/discovered)
-    const DB_CONFIG = {
-      hostname:
-        "en-saas-shared-prod-replica1.c8r6miwj9nkr.me-central-1.rds.amazonaws.com",
-      port: 5432,
-      user: "ptd-milos",
-      database: "ptd",
-      password: Deno.env.get("RDS_BACKOFFICE_PASSWORD") || "tiM6s1uzuspOsipr", // Discovered credential
-      tls: {
-        enabled: true,
-        enforce: false, // RDS replica often needs relaxed SSL
-      },
-    };
+    // RDS Configuration — uses centralized config from _shared/rds-client.ts
+    const DB_CONFIG = getRDSConfig("backoffice");
 
     console.log(`[aws-sync] Connecting to RDS: ${DB_CONFIG.hostname}`);
     const rdsClient = new PostgresClient(DB_CONFIG);
@@ -149,6 +147,10 @@ Deno.serve(async (req) => {
     }
   } catch (error: unknown) {
     console.error(`[aws-sync] Error: ${error.message}`);
-    return apiError("INTERNAL_ERROR", JSON.stringify({ error: error.message }), 500);
+    return apiError(
+      "INTERNAL_ERROR",
+      JSON.stringify({ error: error.message }),
+      500,
+    );
   }
 });
