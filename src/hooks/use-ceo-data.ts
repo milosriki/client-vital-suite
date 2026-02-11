@@ -275,7 +275,7 @@ export function useCEOData() {
 
   const sendCommand = useMutation({
     mutationFn: async (userCommand: string) => {
-      const { data, error } = await supabase.functions.invoke("ceo-agent", {
+      const { data, error } = await supabase.functions.invoke("ai-ceo-master", {
         body: { command: userCommand, mode: "fast_action" },
       });
       if (error) throw error;
@@ -299,9 +299,19 @@ export function useCEOData() {
         .update({ status: "executing", executed_at: new Date().toISOString() })
         .eq("id", actionId);
 
-      // 2. Call execution agent
-      const { error } = await supabase.functions.invoke("action-executor", {
-        body: { actionId },
+      // 2. Call execution agent (rewired: action-executor → ptd-execute-action)
+      const { data: actionData } = await supabase
+        .from("prepared_actions" as any)
+        .select("action_type, prepared_payload")
+        .eq("id", actionId)
+        .single();
+
+      const typedAction = actionData as any;
+      const { error } = await supabase.functions.invoke("ptd-execute-action", {
+        body: {
+          action: typedAction?.action_type || "generic",
+          params: { actionId, ...(typedAction?.prepared_payload || {}) },
+        },
       });
 
       if (error) throw error;
@@ -335,10 +345,15 @@ export function useCEOData() {
 
       if (error) throw error;
 
-      // Optional: Send feedback to feedback-loop agent
-      await supabase.functions.invoke("feedback-loop", {
-        body: { type: "action_rejection", actionId, reason },
+      // Record feedback and trigger learning loop (rewired: feedback-loop → ai-learning-loop)
+      await supabase.from("ai_feedback_learning" as any).insert({
+        feedback_score: 1,
+        user_correction: reason,
+        context_data: { type: "action_rejection", actionId },
+        original_recommendation: `Action ${actionId} was rejected`,
+        applied_to_model: false,
       });
+      await supabase.functions.invoke("ai-learning-loop", {}).catch(() => {});
     },
     onSuccess: () => {
       toast.success("Action rejected");
@@ -362,8 +377,8 @@ export function useCEOData() {
 
   const runMonitor = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("ceo-agent", {
-        body: { mode: "monitor" },
+      const { data, error } = await supabase.functions.invoke("ai-ceo-master", {
+        body: { command: "Run full system monitor", mode: "monitor" },
       });
       if (error) throw error;
       return data;
