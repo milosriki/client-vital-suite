@@ -62,26 +62,22 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
 
   try {
-    const { date_preset = "today" } = await req.json().catch(() => ({}));
+    const { date_preset = "today", ad_account_id } = await req
+      .json()
+      .catch(() => ({}));
 
     if (!PB_TOKEN) {
       throw new Error("Missing PIPEBOARD_API_KEY");
     }
 
-    // 1. Get Ad Account
-    console.log("🔍 Fetching Ad Accounts...");
-    const accounts = await callPipeboard("get_ad_accounts", { limit: 1 });
-
-    const accountList = Array.isArray(accounts)
-      ? accounts
-      : accounts.data || [];
-
-    if (accountList.length === 0) {
-      throw new Error("No Ad Accounts found connected to Pipeboard.");
-    }
-
-    const adAccountId = accountList[0].id;
-    const currency = accountList[0].currency || "USD";
+    // 1. Resolve Ad Account — default to PTD Main Account (AED, Dubai)
+    // Previously used get_ad_accounts limit:1 which returned the wrong personal USD account.
+    // PTD Main Account = act_349832333681399 (AED 638K+ lifetime, 17K+ leads)
+    // PTD 2025 Account = act_1512094040229431 (AED 22K, newer campaigns)
+    const PTD_MAIN_ACCOUNT = "act_349832333681399";
+    const adAccountId =
+      ad_account_id || Deno.env.get("META_AD_ACCOUNT_ID") || PTD_MAIN_ACCOUNT;
+    const currency = "AED"; // PTD Main is AED
 
     console.log(`✅ Using Account: ${adAccountId} (${currency})`);
 
