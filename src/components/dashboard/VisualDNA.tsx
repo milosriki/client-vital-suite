@@ -78,7 +78,7 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
                 {ad.ad_name}
               </h3>
 
-              <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-white/5">
+              <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/5">
                 <div className="space-y-1">
                   <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest">
                     Spend
@@ -107,6 +107,14 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
                     title="Platform Reported ROAS"
                   >
                     {platformRoas.toFixed(2)}x
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest">
+                    Leads
+                  </p>
+                  <p className="text-sm font-bold font-mono text-indigo-400">
+                    {ad.leads || 0}
                   </p>
                 </div>
               </div>

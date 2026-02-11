@@ -133,7 +133,7 @@ serve(async (req) => {
     const { data: topAds } = await supabase
       .from("facebook_ads_insights")
       .select(
-        "ad_id, ad_name, spend, impressions, clicks, ctr, cpc, purchase_value",
+        "ad_id, ad_name, spend, impressions, clicks, ctr, cpc, purchase_value, leads, roas",
       )
       .gte("date", startDateStr)
       .order("spend", { ascending: false })

@@ -121,6 +121,9 @@ serve(async (req) => {
       clicks: parseInt(ad.clicks) || 0,
       ctr: parseFloat(ad.ctr) || 0,
       cpc: parseFloat(ad.cpc) || 0,
+      // Fix: Map Leads and ROAS directly
+      leads: parseInt(ad.leads) || 0,
+      roas: parseFloat(ad.purchase_roas?.[0]?.value) || 0,
     }));
 
     if (dbRecords.length > 0) {

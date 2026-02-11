@@ -39,7 +39,9 @@ export interface MarketingDashboardData {
       clicks: number;
       ctr: number;
       cpc: number;
-      purchase_value?: number; // [NEW] For True ROI
+      purchase_value?: number;
+      leads?: number; // [NEW] From fetch-facebook-insights patch
+      roas?: number; // [NEW] From fetch-facebook-insights patch
     }[];
   };
   truth?: {
