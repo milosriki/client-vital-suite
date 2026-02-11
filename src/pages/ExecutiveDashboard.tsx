@@ -27,6 +27,7 @@ import { useTimeMachine } from "@/contexts/TimeMachineContext";
 import { format } from "date-fns";
 import { LiveRevenueChart } from "@/components/dashboard/LiveRevenueChart";
 import { useAdvancedBI } from "@/hooks/use-advanced-bi";
+import { usePeriodComparison } from "@/hooks/usePeriodComparison";
 import { FinancialScenarioWidget } from "@/components/dashboard/bi/FinancialScenarioWidget";
 import { CustomerVoiceWidget } from "@/components/dashboard/bi/CustomerVoiceWidget";
 import { NorthStarWidget } from "@/components/dashboard/bi/NorthStarWidget";
@@ -91,6 +92,9 @@ export default function ExecutiveDashboard() {
 
   // 4. Advanced BI Suite (New)
   const { data: advancedBI } = useAdvancedBI();
+
+  // 4b. Period-over-period deltas (replaces hardcoded change%)
+  const { data: deltas } = usePeriodComparison();
 
   // 5. AWS Ground Truth (Cache) + Health Score
   const { data: awsTruth } = useQuery({
@@ -203,8 +207,8 @@ export default function ExecutiveDashboard() {
             <MetricCard
               title="Net Revenue"
               value={`AED ${(stripeData?.netRevenue ? stripeData.netRevenue / 100 : 0).toLocaleString()}`}
-              change="+12.5%"
-              trend="up"
+              change={deltas?.revenue.label || "—"}
+              trend={deltas?.revenue.trend || "neutral"}
               icon={DollarSign}
               color="text-emerald-500"
             />
@@ -233,8 +237,8 @@ export default function ExecutiveDashboard() {
             <MetricCard
               title="Active Members"
               value={(stripeData?.activeSubscriptions || 0).toString()}
-              change="+4.2%"
-              trend="up"
+              change={deltas?.members.label || "—"}
+              trend={deltas?.members.trend || "neutral"}
               icon={Users}
               color="text-indigo-500"
             />
@@ -292,8 +296,8 @@ export default function ExecutiveDashboard() {
             <MetricCard
               title="New Leads"
               value={(leadsCount || 0).toString()}
-              change="+18"
-              trend="up"
+              change={deltas?.leads.label || "—"}
+              trend={deltas?.leads.trend || "neutral"}
               icon={TrendingUp}
               color="text-amber-500"
             />

@@ -47,9 +47,11 @@ import { PulseIndicator } from "@/components/dashboard/PulseIndicator";
 import { MarketingIntelligenceGhost } from "@/components/dashboard/MarketingIntelligenceGhost";
 import { XRayTooltip } from "@/components/ui/x-ray-tooltip";
 import { VisualDNA } from "@/components/dashboard/VisualDNA";
+import { usePeriodComparison } from "@/hooks/usePeriodComparison";
 
 export default function MarketingIntelligence() {
   const [range, setRange] = useState<"today" | "week" | "month">("today");
+  const { data: deltas } = usePeriodComparison();
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["marketing-intelligence", range],
@@ -185,7 +187,12 @@ export default function MarketingIntelligence() {
                   value={`${data?.zone_a.metrics.true_roas.toFixed(2)}x`}
                   subtext="Revenue / Ad Spend"
                   icon={Target}
-                  trend="up"
+                  trend={
+                    deltas?.roas?.trend ||
+                    (data?.zone_a?.metrics?.true_roas ?? 0) > 3
+                      ? "up"
+                      : "down"
+                  }
                   color="text-emerald-500"
                   pulsing
                 />
