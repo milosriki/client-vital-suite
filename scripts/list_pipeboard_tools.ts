@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 
 const BASE_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
-const PIPEBOARD_TOKEN = "pk_5f94902b81e24b1bb5bdf85e51bd7226";
+const PIPEBOARD_TOKEN = process.env.PIPEBOARD_API_KEY || "";
 
 async function run() {
   console.log("🔍 Fetching Pipeboard Tools...");

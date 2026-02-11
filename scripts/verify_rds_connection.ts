@@ -1,8 +1,7 @@
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 const DB_CONFIG = {
-  hostname:
-    "en-saas-shared-prod-replica1.c8r6miwj9nkr.me-central-1.rds.amazonaws.com",
+  hostname: "ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com",
   port: 5432,
   user: "ptd-milos",
   database: "ptd",

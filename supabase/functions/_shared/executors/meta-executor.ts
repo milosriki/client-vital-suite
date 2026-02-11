@@ -5,7 +5,7 @@ export async function executeMetaTools(
   toolName: string,
   input: any,
 ): Promise<string> {
-  const PB_TOKEN = "pk_5f94902b81e24b1bb5bdf85e51bd7226"; // TODO: Move to Env
+  const PB_TOKEN = Deno.env.get("PIPEBOARD_API_KEY") || ""; // Set in Supabase secrets
   const PB_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
 
   switch (toolName) {

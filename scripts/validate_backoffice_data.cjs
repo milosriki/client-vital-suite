@@ -3,7 +3,9 @@ const { createClient } = require("@supabase/supabase-js");
 
 // RDS Configuration
 const RDS_CONFIG = {
-  host: "en-saas-shared-prod-replica1.c8r6miwj9nkr.me-central-1.rds.amazonaws.com",
+  host:
+    process.env.RDS_HOST ||
+    "ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com",
   port: 5432,
   user: "ptd-milos",
   database: "ptd",

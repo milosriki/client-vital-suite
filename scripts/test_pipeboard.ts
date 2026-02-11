@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 
-const PIPEBOARD_TOKEN = "pk_5f94902b81e24b1bb5bdf85e51bd7226"; // Provided by user
+const PIPEBOARD_TOKEN = process.env.PIPEBOARD_API_KEY || "";
 const BASE_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
 
 async function testConnection() {

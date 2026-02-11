@@ -1,5 +1,5 @@
 // Node.js Version of the Edge Function Logic
-const PB_TOKEN = "pk_5f94902b81e24b1bb5bdf85e51bd7226";
+const PB_TOKEN = process.env.PIPEBOARD_API_KEY || "";
 const PB_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
 
 async function callPipeboard(tool: string, args: any) {
