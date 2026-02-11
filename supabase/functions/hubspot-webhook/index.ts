@@ -254,6 +254,27 @@ async function handleContactUpdate(
     .upsert(leadPayload, { onConflict: "hubspot_id" })
     .select();
 
+  // 3. BIDIRECTIONAL SYNC: Update 'conversation_intelligence' Brain
+  // If human changes status in HubSpot, Lisa must know immediately.
+  const newPhase = mapHubSpotToLisaPhase(
+    props.lifecyclestage,
+    props.hs_lead_status,
+  );
+
+  if (newPhase && props.phone) {
+    console.log(
+      `🧠 [Sync] Updating Brain for ${props.phone}: Phase -> ${newPhase}`,
+    );
+    await supabase
+      .from("conversation_intelligence")
+      .update({
+        conversation_phase: newPhase,
+        last_updated_by: "hubspot_webhook",
+        last_updated_at: new Date().toISOString(),
+      })
+      .eq("phone", props.phone);
+  }
+
   if (error) {
     console.error(
       "❌ Supabase Upsert Error (Contact):",
@@ -277,6 +298,20 @@ async function handleContactUpdate(
     );
     return true;
   }
+}
+
+// Helper to map HubSpot Lifecycle/Status to Lisa's Conversation Phases
+function mapHubSpotToLisaPhase(
+  lifecycle: string,
+  status: string,
+): string | null {
+  const s = status?.toLowerCase() || "";
+  const l = lifecycle?.toLowerCase() || "";
+
+  if (s === "cal_booked" || s === "consultation_booked") return "booking";
+  if (l === "customer") return "post_close";
+  if (s === "unqualified" || s === "bad_timing") return "nurture";
+  return null; // Don't override if unsure
 }
 
 async function handleMeetingUpdate(

@@ -4,6 +4,8 @@ import { HubSpotManager, HubSpotContact } from "../_shared/hubspot-manager.ts";
 import { buildSmartPrompt, InternalThought } from "../_shared/smart-prompt.ts";
 import { parseAIResponse } from "../_shared/response-parser.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { executeSharedTool } from "../_shared/tool-executor.ts";
+import { tools, LISA_SAFE_TOOLS } from "../_shared/tool-definitions.ts";
 import { contentFilter } from "../_shared/content-filter.ts";
 import { AntiRobot } from "../_shared/anti-robot.ts";
 import { calculateSmartPause } from "../_shared/smart-pause.ts";
@@ -92,7 +94,6 @@ Deno.serve(async (req) => {
         .from("conversation_intelligence")
         .select("*")
         .eq("phone", phone)
-        .eq("phone", phone)
         .maybeSingle(),
       // 2.1 Social Proof REMOVED per User Instruction ("No Social Proof on New Leads")
       // getSocialProof(supabase, ...) -> Skipped.
@@ -145,7 +146,7 @@ Deno.serve(async (req) => {
       history_summary:
         aiMemory?.conversation_summary ||
         chatHistory
-          .map((h) => `User: ${h.message_text}\nLisa: ${h.response_text}`)
+          .map((h: any) => `User: ${h.message_text}\nLisa: ${h.response_text}`)
           .join("\n"),
       message_count: (aiMemory?.message_count || chatHistory.length) + 1,
       last_message: incomingText,
@@ -174,15 +175,53 @@ Deno.serve(async (req) => {
         "You are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.";
     }
 
-    const aiResponse = await unifiedAI.chat(
+    // Safe Tools for WhatsApp
+    const agentTools = tools.filter((t) => LISA_SAFE_TOOLS.has(t.name));
+
+    let aiResponse = await unifiedAI.chat(
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: incomingText },
       ],
       {
         temperature: 0.7,
+        tools: agentTools,
       },
     );
+
+    // [SKILL: RE-ACT LITE] — Handle Tool Calls (1-Turn Loop for Speed)
+    if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
+      console.log(`🛠️ Tool Call Detected: ${aiResponse.tool_calls[0].name}`);
+      const toolResults = [];
+
+      for (const call of aiResponse.tool_calls) {
+        try {
+          const result = await executeSharedTool(
+            supabase,
+            call.name,
+            call.input,
+          );
+          toolResults.push(`Tool '${call.name}' Output: ${result}`);
+        } catch (e) {
+          toolResults.push(`Tool '${call.name}' Failed: ${e.message}`);
+        }
+      }
+
+      // Re-prompt with tool results
+      console.log("🔄 Re-prompting with tool results...");
+      const toolMsg = `\n\n[TOOL RESULTS]\n${toolResults.join("\n\n")}\n\n(Based on these results, give the final helpful answer to the user)`;
+
+      aiResponse = await unifiedAI.chat(
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: incomingText },
+          { role: "assistant", content: aiResponse.content || "Thinking..." }, // Preserve thought context if needed, though gemini handles history differently usually.
+          // Ideally passing the function call history properly, but simpler to just append results for now as user info.
+          { role: "user", content: toolMsg },
+        ],
+        { temperature: 0.7, tools: agentTools },
+      );
+    }
 
     let finalRawResponse = aiResponse.content;
     const parsed = parseAIResponse(finalRawResponse);
@@ -429,7 +468,7 @@ async function getChatHistory(phone: string) {
     .select("message_text, response_text")
     .eq("phone_number", phone)
     .order("created_at", { ascending: false })
-    .limit(5);
+    .limit(10);
   return data || [];
 }
 

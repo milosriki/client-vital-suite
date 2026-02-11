@@ -217,7 +217,7 @@ OUTPUT FORMAT (JSON):
         {
           max_tokens: 2000, // Increased for deep analysis
           jsonMode: true, // Request JSON output
-          model: "gemini-3-flash-preview", // Use Flash for Low Latency Dashboard
+          model: "gemini-3-flash-preview", // User requested Upgrade to Gemini 3 Flash
         },
       );
 

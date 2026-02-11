@@ -45,11 +45,12 @@ export interface AIOptions {
 // ============================================================================
 
 // Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
+// Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
 const MODEL_CASCADE = [
-  "gemini-3-pro-preview", // Primary: High Reasoning
-  "gemini-3-flash-preview", // Secondary: Low Latency
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-3-flash-preview", // Primary: Latest Flash Model (User Requested)
+  "gemini-2.0-flash", // Fallback: High Speed, Low Cost
+  "gemini-1.5-flash", // Secondary: Ultra Low Cost
+  "gemini-3-pro-preview", // Fallback only for complex tasks
 ] as const;
 
 const MAX_RETRIES = 3;
@@ -300,7 +301,7 @@ export class UnifiedAIClient {
     if (options.tools && options.tools.length > 0) {
       toolsConfig = [
         {
-          functionDeclarations: options.tools.map((t) => ({
+          functionDeclarations: options.tools.map((t: ToolDefinition) => ({
             name: t.name,
             description: t.description,
             parameters: t.input_schema,

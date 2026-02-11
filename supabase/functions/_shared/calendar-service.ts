@@ -7,38 +7,37 @@
  */
 
 export const CalendarService = {
-  // In a real app, this would fetch from HubSpot/Calendly API
+  // SMART MOCK: Generates valid slots for the next 3 days (excluding past times)
   getNextSlots(): string[] {
-    const today = new Date();
-    const slots = [];
+    const slots: string[] = [];
+    const now = new Date();
+    const options = { timeZone: "Asia/Dubai", hour: "numeric", hour12: false };
 
-    // Generate 2 realistic slots for "Tomorrow" and "Day After"
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
+    // Generate for next 3 days
+    for (let i = 1; i <= 3; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + i);
 
-    // Mock logic: Always offer tomorrow Morning and day-after Evening
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+      const isWeekend = dayName === "Sunday" || dayName === "Saturday";
 
-    const dayAfter = new Date(today);
-    dayAfter.setDate(dayAfter.getDate() + 2);
+      // Trainers work weekends too, but maybe different hours?
+      // Let's assume 8am - 8pm daily.
 
-    slots.push(`${days[tomorrow.getDay()]} at 9:00 AM`);
-    slots.push(`${days[dayAfter.getDay()]} at 6:00 PM`);
+      // Morning Slot (08:00 - 10:00)
+      slots.push(`${dayName} at 9:00 AM`);
 
-    return slots;
+      // Evening Slot (17:00 - 19:00)
+      slots.push(`${dayName} at 6:00 PM`);
+    }
+
+    return slots.slice(0, 2); // Return top 2 options ONLY (Scarcity)
   },
 
   checkAvailability(requestedTime: string): boolean {
-    // Simple mock: If they ask for "Sunday", say we are closed.
-    if (requestedTime.toLowerCase().includes("sunday")) {
+    const lower = requestedTime.toLowerCase();
+    // Simulate "booked" for Friday mornings
+    if (lower.includes("friday") && lower.includes("morning")) {
       return false;
     }
     return true;

@@ -23,14 +23,28 @@ import { LearningLayer } from "../_shared/learning-layer.ts";
 import { LocationService } from "../_shared/location-service.ts";
 import { notifyMilos } from "../_shared/notification-service.ts";
 import { logError, ErrorCode } from "../_shared/error-handler.ts";
-import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { checkRateLimit, RATE_LIMITS } from "../_shared/rate-limiter.ts";
+import { saveCheckpoint } from "../_shared/agent-checkpoint.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiValidationError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import {
   ValidationError,
   ExternalServiceError,
   errorToResponse,
 } from "../_shared/app-errors.ts";
 import { tools, LISA_SAFE_TOOLS } from "../_shared/tool-definitions.ts";
+import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { validateOrThrow } from "../_shared/data-contracts.ts";
+import {
+  sanitizeResponse,
+  validateResponseSafety,
+  formatForWhatsApp,
+} from "../_shared/content-filter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -568,27 +582,6 @@ async function executeTool(
   return await executeSharedTool(supabase, toolName, input);
 }
 
-import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
-import {
-  handleError,
-  ErrorCode,
-  corsHeaders as defaultCorsHeaders,
-} from "../_shared/error-handler.ts";
-import {
-  apiSuccess,
-  apiError,
-  apiValidationError,
-  apiCorsPreFlight,
-} from "../_shared/api-response.ts";
-import { checkRateLimit, RATE_LIMITS } from "../_shared/rate-limiter.ts";
-import { validateOrThrow } from "../_shared/data-contracts.ts";
-import {
-  sanitizeResponse,
-  validateResponseSafety,
-  formatForWhatsApp,
-} from "../_shared/content-filter.ts";
-
 async function getClientProfile(
   supabase: any,
   contactId?: string,
@@ -764,12 +757,33 @@ Booking Signal: ${isBooking ? "YES" : "No"}
   }
 }
 
+// ============= DECISION LOGGING =============
+async function logDecision(
+  supabase: any,
+  contactId: string | null,
+  decisionType: "tool_selection" | "response" | "escalation",
+  outcome: string,
+  reasoning: string,
+  metadata: any,
+) {
+  try {
+    await supabase.from("agent_decisions").insert({
+      client_email: contactId || "unknown", // Using contactId as proxy for now
+      decision_type: decisionType,
+      outcome: outcome,
+      reasoning: reasoning,
+      metadata: metadata,
+    });
+  } catch (e) {
+    console.error("Failed to log decision:", e);
+  }
+}
+
 // ============= MAIN AGENT WITH UNIFIED AI (RESILIENT) =============
 async function runAgent(
   supabase: any,
   userMessage: string,
   chatHistory: any[] = [],
-  threadId: string = "default",
   threadId: string = "default",
   context?: any,
   thinkingLevel?: "low" | "high",
@@ -778,6 +792,19 @@ async function runAgent(
   // Detect if this is a WhatsApp conversation
   const isWhatsApp =
     context?.source === "whatsapp" || context?.platform === "whatsapp";
+
+  // CHECKPOINT: Start
+  await saveCheckpoint(supabase, {
+    conversation_id: threadId,
+    function_name: "runAgent",
+    step_index: 0,
+    step_name: "Start",
+    state: { userMessage, context },
+    status: "running",
+  });
+
+  // 1. SELECT PERSONA & TOOLS
+  const activeSkillPrompt = await loadActiveSkill(supabase, userMessage);
 
   // Load memory + RAG + patterns + DYNAMIC KNOWLEDGE + KNOWLEDGE BASE + CLIENT PROFILE
   const [
@@ -959,8 +986,35 @@ ${activeLearnings}
       `🔄 Agent loop ${loopCount}/${MAX_LOOPS}: ${currentResponse.tool_calls.length} tool(s) requested`,
     );
 
+    await saveCheckpoint(supabase, {
+      conversation_id: threadId,
+      function_name: "runAgent",
+      step_index: loopCount,
+      step_name: `Tool Call Loop ${loopCount}`,
+      state: {
+        tool_calls: currentResponse.tool_calls,
+        messages_length: messages.length,
+      },
+      status: "tool_calling",
+    });
+
     let toolCallCount = 0;
     const toolResults: string[] = [];
+
+    // DECISION LOG: Tool Selection
+    if (currentResponse.tool_calls.length > 0) {
+      await logDecision(
+        supabase,
+        context?.contactId || null,
+        "tool_selection",
+        "tools_triggered",
+        currentResponse.thought || "No internal thought provided",
+        {
+          tools: currentResponse.tool_calls.map((t: any) => t.name),
+          loop: loopCount,
+        },
+      );
+    }
 
     for (const toolCall of currentResponse.tool_calls) {
       toolCallCount++;
@@ -1107,6 +1161,28 @@ ${activeLearnings}
     `✅ Agent completed in ${loopCount} loop(s), ${messages.length} messages total`,
   );
 
+  await saveCheckpoint(supabase, {
+    conversation_id: threadId,
+    function_name: "runAgent",
+    step_index: loopCount + 1,
+    step_name: "Final Response",
+    state: { finalResponse, thoughtSignature: currentThoughtSignature },
+    status: "completed",
+  });
+
+  // DECISION LOG: Final Response
+  await logDecision(
+    supabase,
+    context?.contactId || null,
+    "response",
+    "responded_to_user",
+    currentThoughtSignature || "Direct response",
+    {
+      response_length: finalResponse.length,
+      loops: loopCount,
+    },
+  );
+
   return {
     response: finalResponse,
     thoughtSignature: currentThoughtSignature,
@@ -1116,7 +1192,23 @@ ${activeLearnings}
 // ============= MAIN SERVER HANDLER =============
 serve(async (req: Request) => {
   // CORS preflight — per api-patterns skill
-  if (req.method === "OPTIONS") return apiCorsPreFlight();
+  if (req.method === "OPTIONS") {
+    return apiCorsPreFlight();
+  }
+
+  // 1. RATE LIMITING (Phase 4 Fix)
+  const rateLimitResult = checkRateLimit(req);
+  if (!rateLimitResult.allowed) {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    console.warn(`[RateLimit] Blocked request from ${ip}`);
+    return new Response(
+      JSON.stringify({
+        error: "Too Many Requests",
+        message: "Please slow down.",
+      }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   const startTime = Date.now();
 

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { CalendarService } from "../calendar-service.ts";
 
 // Basic sanitizer from original tool-executor
 function sanitizeString(input: string, maxLength: number = 255): string {
@@ -194,6 +195,14 @@ export async function executeSalesTools(
           null,
           2,
         );
+      }
+      if (action === "get_availability") {
+        const slots = CalendarService.getNextSlots();
+        return JSON.stringify({
+          status: "success",
+          available_slots: slots,
+          note: "These are the next available assessment windows.",
+        });
       }
       return "Unknown action";
     }

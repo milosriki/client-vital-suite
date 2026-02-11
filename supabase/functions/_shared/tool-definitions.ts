@@ -85,9 +85,10 @@ export const tools: ToolDefinition[] = [
             "get_recent_closes",
             "get_assessment_report",
             "get_conversion_metrics",
+            "get_availability",
           ],
           description:
-            "Action to perform. 'get_assessment_report' returns daily assessment count broken down by Setter.",
+            "Action to perform. 'get_assessment_report' returns daily assessment count, 'get_availability' returns open coaching slots.",
         },
         stage: {
           type: "string",
@@ -375,4 +376,7 @@ export const LISA_SAFE_TOOLS = new Set([
   "location_control",
   "hubspot_control",
   "client_control", // Maybe too dangerous? Masking needed.
+  "sales_flow_control", // Essential for calendar checks
+  "lead_control", // Essential for checking her own score of the lead
+  "get_success_stories", // Social Proof
 ]);
