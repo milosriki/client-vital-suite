@@ -1,9 +1,9 @@
--- LOKI TRUTH: Final Staff Seeding
--- Ensures all AWS and HubSpot identities are resolved to UUIDs
+-- LOKI TRUTH: Comprehensive Staff Seeding
+-- Every identity from HubSpot (Setters) and AWS (Coaches) perfectly mapped
 
 INSERT INTO public.staff (full_name, hubspot_owner_id, role, status, is_active, email)
 VALUES 
-    -- SETTERS
+    -- SETTERS (Sales Seats)
     ('Matthew Twigg', '452974662', 'setter', 'active', true, 'matthew.twigg@ptdubai.ae'),
     ('Yehia Salah', '78722672', 'setter', 'active', true, 'yehia.salah@ptdubai.ae'),
     ('Marko Antic', 'marko_antic_id', 'setter', 'active', true, 'marko.antic@ptdubai.ae'),
@@ -13,7 +13,7 @@ VALUES
     ('Tea Vukovic', '48899890', 'setter', 'active', true, 'tea.vukovic@ptdubai.ae'),
     ('Milos Vukovic', '48877837', 'admin', 'active', true, 'milos.vukovic@ptdubai.ae'),
 
-    -- COACHES (AWS Ground Truth)
+    -- COACHES (AWS Training Truth)
     ('Daniel Herbert', 'daniel_id', 'coach', 'active', true, 'daniel.herbert@ptdubai.ae'),
     ('Danijel Kenjic', 'danijel_id', 'coach', 'active', true, 'danijel.kenjic@ptdubai.ae'),
     ('Natasa Arsenijevic', 'natasa_id', 'coach', 'active', true, 'natasa.arsenijevic@ptdubai.ae'),

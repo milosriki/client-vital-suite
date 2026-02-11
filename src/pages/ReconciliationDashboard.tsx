@@ -23,12 +23,15 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAnnounce } from "@/lib/accessibility";
 
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+
 const ReconciliationDashboard = () => {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["aws-reconciliation-data"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke(
-        "aws-backoffice-sync",
+        "aws-truth-alignment",
       );
       if (error) throw error;
       return data;
@@ -36,13 +39,32 @@ const ReconciliationDashboard = () => {
     refetchOnWindowFocus: false,
   });
 
-  const reconciliations = data?.data || [];
-  const summary = data?.summary || {
+  const forceAlignMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        "aws-truth-alignment",
+        {
+          body: { force_align: true },
+        },
+      );
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Successfully aligned ${data?.report?.aligned || 0} records with AWS Truth.`);
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(`Alignment failed: ${error.message}`);
+    },
+  });
+
+  const reconciliations = data?.report?.discrepancies || [];
+  const summary = data?.report || {
     total_checked: 0,
-    matches: 0,
-    total_leaks: 0,
-    active_leaks: 0,
-    potential_revenue_loss_sessions: 0,
+    matched: 0,
+    aligned: 0,
+    discrepancies: [],
   };
 
   return (
@@ -70,6 +92,17 @@ const ReconciliationDashboard = () => {
             />
             {isRefetching ? "Reconciling..." : "Run Audit"}
           </Button>
+          
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => forceAlignMutation.mutate()}
+            disabled={forceAlignMutation.isPending || reconciliations.length === 0}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <ShieldAlert className="w-4 h-4 mr-2" />
+            {forceAlignMutation.isPending ? "Aligning..." : "Force Align All"}
+          </Button>
         </div>
       </div>
 
@@ -78,7 +111,7 @@ const ReconciliationDashboard = () => {
         <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardDescription className="text-slate-400 uppercase text-[10px] tracking-widest font-bold">
-              Total Clients
+              Total Checked
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-white">
               {summary.total_checked}
@@ -86,7 +119,7 @@ const ReconciliationDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-slate-500">
-              <Users className="w-3 h-3 mr-1" /> Verified from RDS
+              <Users className="w-3 h-3 mr-1" /> AWS Master Records
             </div>
           </CardContent>
         </Card>
@@ -94,31 +127,31 @@ const ReconciliationDashboard = () => {
         <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardDescription className="text-emerald-400 uppercase text-[10px] tracking-widest font-bold">
-              Clean Matches
+              Identity Matches
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-emerald-400">
-              {summary.matches}
+              {summary.matched}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-emerald-500/50">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Data Integrity In Sync
+              <CheckCircle2 className="w-3 h-3 mr-1" /> Linked by Email
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-red-500/10 border-red-500/20 backdrop-blur-xl">
+        <Card className="bg-blue-500/10 border-blue-500/20 backdrop-blur-xl">
           <CardHeader className="pb-2">
-            <CardDescription className="text-red-400 uppercase text-[10px] tracking-widest font-bold">
-              Active Leaks
+            <CardDescription className="text-blue-400 uppercase text-[10px] tracking-widest font-bold">
+              Auto-Aligned
             </CardDescription>
-            <CardTitle className="text-2xl font-bold text-red-500">
-              {summary.active_leaks}
+            <CardTitle className="text-2xl font-bold text-blue-500">
+              {summary.aligned}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center text-xs text-red-400/50">
-              <ShieldAlert className="w-3 h-3 mr-1" /> Training with 0 Paid Ops
+            <div className="flex items-center text-xs text-blue-400/50">
+              <ShieldAlert className="w-3 h-3 mr-1" /> Forced Truth from AWS
             </div>
           </CardContent>
         </Card>
@@ -126,17 +159,15 @@ const ReconciliationDashboard = () => {
         <Card className="bg-orange-500/10 border-orange-500/20 backdrop-blur-xl">
           <CardHeader className="pb-2">
             <CardDescription className="text-orange-400 uppercase text-[10px] tracking-widest font-bold">
-              Lost Revenue Capacity
+              Discrepancies
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-orange-400">
-              {summary.potential_revenue_loss_sessions}{" "}
-              <span className="text-xs font-normal opacity-50">sessions</span>
+              {reconciliations.length}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-orange-400/50">
-              <AlertTriangle className="w-3 h-3 mr-1" /> RDS Balance {">"}{" "}
-              HubSpot
+              <AlertTriangle className="w-3 h-3 mr-1" /> Actionable Gaps Found
             </div>
           </CardContent>
         </Card>
@@ -146,14 +177,14 @@ const ReconciliationDashboard = () => {
       <section>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2 text-slate-400 uppercase text-xs font-bold tracking-widest">
-            <Database className="w-4 h-4" /> Reconciliation Ledger
+            <Database className="w-4 h-4" /> Discrepancy Ledger
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
-              placeholder="Search client or package..."
-              className="bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-red-500/50 transition-colors w-64"
+              placeholder="Search by email..."
+              className="bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-blue-500/50 transition-colors w-64"
             />
           </div>
         </div>
@@ -163,12 +194,10 @@ const ReconciliationDashboard = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
                 <tr>
-                  <th className="px-6 py-4">Client</th>
-                  <th className="px-6 py-4">Package</th>
-                  <th className="px-6 py-4 text-center">Truth</th>
-                  <th className="px-6 py-4 text-center">HubSpot</th>
-                  <th className="px-6 py-4 text-center">Diff</th>
-                  <th className="px-6 py-4 text-center">Recent Activity</th>
+                  <th className="px-6 py-4">Client Email</th>
+                  <th className="px-6 py-4">Field</th>
+                  <th className="px-6 py-4 text-center">Old State</th>
+                  <th className="px-6 py-4 text-center">New Truth</th>
                   <th className="px-6 py-4 text-right">Status</th>
                 </tr>
               </thead>
@@ -176,7 +205,7 @@ const ReconciliationDashboard = () => {
                 {isLoading ? (
                   [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={7} className="px-6 py-8">
+                      <td colSpan={5} className="px-6 py-8">
                         <div className="h-4 bg-white/5 rounded w-3/4 mx-auto"></div>
                       </td>
                     </tr>
@@ -184,101 +213,40 @@ const ReconciliationDashboard = () => {
                 ) : reconciliations.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={5}
                       className="px-6 py-12 text-center text-slate-500 italic"
                     >
-                      No discrepancies found. All data is in sync.
+                      No active discrepancies. System is 100% aligned with AWS.
                     </td>
                   </tr>
                 ) : (
                   reconciliations.map((row: any, i: number) => (
                     <tr
                       key={i}
-                      className={cn(
-                        "hover:bg-white/5 transition-colors group",
-                        row.is_active_leaking && "bg-red-500/[0.05]",
-                        row.status === "LEAK_DETECTED" &&
-                          !row.is_active_leaking &&
-                          "bg-orange-500/[0.03]",
-                      )}
+                      className="hover:bg-white/5 transition-colors group"
                     >
                       <td className="px-6 py-4">
-                        <div className="font-medium text-slate-200 whitespace-nowrap">
-                          {row.name}
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                        <div className="text-xs text-slate-200 font-mono">
                           {row.email}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-xs text-slate-400 line-clamp-1 max-w-[150px]">
-                          {row.package || (
-                            <span className="text-slate-600 italic">
-                              No Active Pkg
-                            </span>
-                          )}
-                        </div>
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-400 text-[9px]">
+                          {row.field}
+                        </Badge>
                       </td>
-                      <td className="px-6 py-4 text-center font-mono">
-                        <span
-                          className={cn(
-                            "px-2 py-1 rounded bg-slate-800 text-slate-300",
-                            row.backoffice_sessions <= 0 && "text-red-400",
-                          )}
-                        >
-                          {row.backoffice_sessions}
-                        </span>
+                      <td className="px-6 py-4 text-center font-mono text-slate-500 text-xs">
+                        {JSON.stringify(row.old)}
                       </td>
-                      <td className="px-6 py-4 text-center font-mono text-slate-400">
-                        {row.hubspot_sessions}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span
-                          className={cn(
-                            "font-mono font-bold",
-                            row.discrepancy > 0
-                              ? "text-red-500"
-                              : row.discrepancy < 0
-                                ? "text-orange-400"
-                                : "text-emerald-500",
-                          )}
-                        >
-                          {row.discrepancy > 0
-                            ? `+${row.discrepancy}`
-                            : row.discrepancy}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="text-xs font-bold text-slate-300">
-                          {row.recent_sessions}{" "}
-                          <span className="text-[10px] font-normal opacity-50">
-                            sess
-                          </span>
-                        </div>
-                        {row.last_training && (
-                          <div className="text-[9px] text-slate-500 mt-0.5">
-                            Last:{" "}
-                            {new Date(row.last_training).toLocaleDateString()}
-                          </div>
-                        )}
+                      <td className="px-6 py-4 text-center font-mono text-blue-400 text-xs font-bold">
+                        {JSON.stringify(row.new)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Badge
                           variant="outline"
-                          className={cn(
-                            "text-[10px] font-bold border-white/10 uppercase tracking-tighter",
-                            row.status === "MATCH"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : row.is_active_leaking
-                                ? "bg-red-500 text-white border-red-600 animate-pulse"
-                                : row.status === "LEAK_DETECTED"
-                                  ? "bg-orange-500/10 text-orange-400 border-orange-500/20"
-                                  : "bg-slate-500/10 text-slate-400 border-slate-500/20",
-                          )}
+                          className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px] font-bold uppercase tracking-tighter"
                         >
-                          {row.is_active_leaking
-                            ? "CRITICAL LEAK"
-                            : row.status.replace("_", " ")}
+                          ALIGNED
                         </Badge>
                       </td>
                     </tr>

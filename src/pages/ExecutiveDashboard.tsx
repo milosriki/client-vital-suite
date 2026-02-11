@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MobileNavBar } from "@/components/mobile/MobileNavBar";
 import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
+import { XRayTooltip } from "@/components/ui/x-ray-tooltip";
 import {
   ArrowUpRight,
   TrendingUp,
@@ -91,6 +92,44 @@ export default function ExecutiveDashboard() {
   // 4. Advanced BI Suite (New)
   const { data: advancedBI } = useAdvancedBI();
 
+  // 5. AWS Ground Truth (Cache) + Health Score
+  const { data: awsTruth } = useQuery({
+    queryKey: ["aws-truth-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("aws_truth_cache")
+        .select("outstanding_sessions, lifetime_revenue, updated_at");
+
+      if (error) throw error;
+
+      const totalSessions = data.reduce(
+        (sum, row) => sum + (row.outstanding_sessions || 0),
+        0,
+      );
+      const totalLifetimeRevenue = data.reduce(
+        (sum, row) => sum + (row.lifetime_revenue || 0),
+        0,
+      );
+      const lastSync = data.length > 0 ? new Date(data[0].updated_at) : null;
+
+      // Health Score = f(active clients, revenue density, session utilization)
+      // Simple V1: (clients with sessions > 0) / total clients * 100
+      const activeClients = data.filter(
+        (r) => (r.outstanding_sessions || 0) > 0,
+      ).length;
+      const healthScore =
+        data.length > 0 ? Math.round((activeClients / data.length) * 100) : 0;
+
+      return {
+        totalSessions,
+        totalLifetimeRevenue,
+        lastSync,
+        count: data.length,
+        healthScore,
+      };
+    },
+  });
+
   const isLoading = stripeLoading;
 
   return (
@@ -134,44 +173,168 @@ export default function ExecutiveDashboard() {
         </div>
 
         {/* TOP ROW: High Density Metrics (4 Cols) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Revenue Card */}
-          <MetricCard
+          <XRayTooltip
             title="Net Revenue"
-            value={`AED ${(stripeData?.netRevenue ? stripeData.netRevenue / 100 : 0).toLocaleString()}`}
-            change="+12.5%"
-            trend="up"
-            icon={DollarSign}
-            color="text-emerald-500"
-          />
+            insights={[
+              {
+                label: "Gross Volume",
+                value: `AED ${((stripeData?.totalVolume || 0) / 100).toLocaleString()}`,
+                color: "text-emerald-400",
+              },
+              {
+                label: "Refunds",
+                value: `AED ${((stripeData?.totalRefunded || 0) / 100).toLocaleString()}`,
+                color: "text-rose-400",
+              },
+              {
+                label: "Active Subs",
+                value: (stripeData?.activeSubscriptions || 0).toString(),
+              },
+              {
+                label: "Success Rate",
+                value: `${stripeData?.successRate || 100}%`,
+                color: "text-emerald-400",
+              },
+            ]}
+            summary="Net = Gross Volume − Refunds. Driven by subscription renewals and new sign-ups."
+          >
+            <MetricCard
+              title="Net Revenue"
+              value={`AED ${(stripeData?.netRevenue ? stripeData.netRevenue / 100 : 0).toLocaleString()}`}
+              change="+12.5%"
+              trend="up"
+              icon={DollarSign}
+              color="text-emerald-500"
+            />
+          </XRayTooltip>
           {/* Active Users */}
-          <MetricCard
+          <XRayTooltip
             title="Active Members"
-            value={(stripeData?.activeSubscriptions || 0).toString()}
-            change="+4.2%"
-            trend="up"
-            icon={Users}
-            color="text-indigo-500"
-          />
-          {/* Churn Risk */}
-          <MetricCard
-            title="Churn Risk"
-            value="3.2%"
-            change="-0.5%"
-            trend="down"
-            icon={ShieldAlert}
-            color="text-rose-500"
-            alert
-          />
+            insights={[
+              {
+                label: "Active Subscriptions",
+                value: (stripeData?.activeSubscriptions || 0).toString(),
+                color: "text-indigo-400",
+              },
+              {
+                label: "MRR",
+                value: `AED ${((stripeData?.mrr || 0) / 100).toLocaleString()}`,
+                color: "text-emerald-400",
+              },
+              {
+                label: "Paying Customers",
+                value: (stripeData?.payingCustomerCount || 0).toString(),
+              },
+            ]}
+            summary="Members with active Stripe subscriptions. MRR = Monthly Recurring Revenue from these subs."
+          >
+            <MetricCard
+              title="Active Members"
+              value={(stripeData?.activeSubscriptions || 0).toString()}
+              change="+4.2%"
+              trend="up"
+              icon={Users}
+              color="text-indigo-500"
+            />
+          </XRayTooltip>
+          {/* Truth Alignment */}
+          <XRayTooltip
+            title="AWS Truth Pulse"
+            insights={[
+              {
+                label: "Outstanding Sessions",
+                value: (awsTruth?.totalSessions || 0).toString(),
+                color: "text-amber-400",
+              },
+              {
+                label: "Clients Tracked",
+                value: (awsTruth?.count || 0).toString(),
+              },
+              {
+                label: "Last Sync",
+                value: awsTruth?.lastSync
+                  ? format(awsTruth.lastSync, "HH:mm MMM d")
+                  : "Never",
+              },
+            ]}
+            summary="Cross-validated against AWS RDS ground truth. Outstanding sessions = booked but not yet completed."
+          >
+            <MetricCard
+              title="AWS Truth Pulse"
+              value={awsTruth?.totalSessions?.toString() || "0"}
+              change={`From ${awsTruth?.count || 0} clients`}
+              trend="up"
+              icon={ShieldAlert}
+              color="text-emerald-500"
+              subtext={
+                awsTruth?.lastSync
+                  ? `Synced ${format(awsTruth.lastSync, "HH:mm")}`
+                  : "Calibration Required"
+              }
+            />
+          </XRayTooltip>
           {/* Pipeline */}
-          <MetricCard
+          <XRayTooltip
             title="New Leads"
-            value={(leadsCount || 0).toString()}
-            change="+18"
-            trend="up"
-            icon={TrendingUp}
-            color="text-amber-500"
-          />
+            insights={[
+              {
+                label: "Leads This Period",
+                value: (leadsCount || 0).toString(),
+                color: "text-amber-400",
+              },
+              { label: "Source", value: "HubSpot → Supabase" },
+              { label: "Lifecycle Stage", value: "Lead (pre-qualified)" },
+            ]}
+            summary="Contacts with lifecycle_stage='lead' created within the selected date range. Synced from HubSpot."
+          >
+            <MetricCard
+              title="New Leads"
+              value={(leadsCount || 0).toString()}
+              change="+18"
+              trend="up"
+              icon={TrendingUp}
+              color="text-amber-500"
+            />
+          </XRayTooltip>
+          {/* Health Score */}
+          <XRayTooltip
+            title="Health Score"
+            insights={[
+              {
+                label: "Active Clients",
+                value: `${awsTruth?.healthScore || 0}% with sessions`,
+                color:
+                  (awsTruth?.healthScore || 0) > 70
+                    ? "text-emerald-400"
+                    : "text-amber-400",
+              },
+              {
+                label: "Lifetime Revenue",
+                value: `AED ${(awsTruth?.totalLifetimeRevenue || 0).toLocaleString()}`,
+                color: "text-emerald-400",
+              },
+              {
+                label: "Source",
+                value: "AWS RDS (PowerBI Replica)",
+              },
+            ]}
+            summary="Health Score = % of tracked clients with active session packages. Powered by dual-replica AWS Truth."
+          >
+            <MetricCard
+              title="Health Score"
+              value={`${awsTruth?.healthScore || 0}%`}
+              change={`AED ${((awsTruth?.totalLifetimeRevenue || 0) / 1000).toFixed(0)}k LTV`}
+              trend={(awsTruth?.healthScore || 0) > 60 ? "up" : "down"}
+              icon={Activity}
+              color={
+                (awsTruth?.healthScore || 0) > 70
+                  ? "text-emerald-500"
+                  : "text-amber-500"
+              }
+            />
+          </XRayTooltip>
         </div>
 
         {/* MIDDLE ROW: Analytics & AI (12 Cols) */}
@@ -308,6 +471,7 @@ function MetricCard({
   icon: Icon,
   color,
   alert,
+  subtext,
 }: any) {
   return (
     <Card
@@ -329,15 +493,20 @@ function MetricCard({
             {title}
           </p>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold tracking-tight text-foreground">
+            <h3 className="text-2xl font-bold tracking-tight text-white font-mono">
               {value}
             </h3>
             <span
-              className={`text-xs font-medium ${trend === "up" ? "text-emerald-500" : "text-rose-500"}`}
+              className={`text-[10px] font-bold uppercase ${trend === "up" ? "text-emerald-500" : "text-rose-500"}`}
             >
               {change}
             </span>
           </div>
+          {subtext && (
+            <p className="text-[10px] text-muted-foreground font-mono mt-1 opacity-60">
+              {subtext}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

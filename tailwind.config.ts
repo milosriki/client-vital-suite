@@ -19,8 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["JetBrains Mono", "SF Mono", "monospace"],
+        sans: ["Fira Sans", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["Fira Code", "JetBrains Mono", "SF Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -29,8 +29,8 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "#F59E0B", // Amber - Loki Gold
+          foreground: "#0F172A",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -45,8 +45,8 @@ export default {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "#8B5CF6", // Violet - Supreme CTA
+          foreground: "#F8FAFC",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -66,12 +66,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Enterprise Pro specific colors
+        // High-Status Enterprise Colors
         enterprise: {
-          dark: "#0A0A0A",
-          card: "#111111",
-          border: "#262626",
-          indigo: "#6366f1",
+          dark: "#000000", // Pure OLED Black
+          card: "#0A0A0A", // Deep Gray
+          border: "#1F2937", // Visible contrast
+          amber: "#F59E0B",
+          violet: "#8B5CF6",
           emerald: "#10b981",
         },
         health: {

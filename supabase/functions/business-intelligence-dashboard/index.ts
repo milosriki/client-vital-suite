@@ -20,7 +20,7 @@ serve(async (req) => {
 
     // Determine start date
     const now = new Date();
-    let startDate = new Date();
+    const startDate = new Date();
     if (range === "today") {
       startDate.setHours(0, 0, 0, 0);
     } else if (range === "week") {
@@ -79,8 +79,37 @@ serve(async (req) => {
     const cpl =
       newLeads && newLeads > 0 ? (adSpend / newLeads).toFixed(2) : "0.00";
 
+    // --- ZONE E: TRUTH AUDIT (The Leak) ---
+    // Fetch Verified Truth from AWS Cache
+    const { data: truthData } = await supabase
+      .from("aws_truth_cache")
+      .select("lifetime_revenue");
+
+    // Calculate Verified Revenue (Lifetime)
+    const verifiedLifetimeRevenue =
+      truthData?.reduce((sum, row) => sum + (row.lifetime_revenue || 0), 0) ||
+      0;
+
+    // 3b. Facebook Reported Revenue (for Integrity Score)
+    // We try to fetch purchase_value. If column missing in older schema, this might fail or return null.
+    // Assuming schema has been updated or standard fields used.
+    const { data: fbRevData } = await supabase
+      .from("facebook_ads_insights")
+      .select("purchase_value") // Standard Meta API field
+      .gte("date", startDateStr);
+
+    const fbReportedRevenue =
+      fbRevData?.reduce((sum, row) => sum + (row.purchase_value || 0), 0) || 0;
+
+    // Integrity Score (Stripe Cash / FB Claims)
+    // If FB says $10k and Stripe says $8k, Score = 0.8.
+    // If FB says $0 (no tracking), Score = 1.0 (default to trust cash).
+    const integrityScore =
+      fbReportedRevenue > 0
+        ? Math.min(cashCollected / fbReportedRevenue, 1.2)
+        : 1.0;
+
     // --- ZONE B: GROWTH ENGINE (Trends) ---
-    // For now, simpler implementation: Get last 5 deals to show "velocity"
     const { data: recentDeals } = await supabase
       .from("deals")
       .select("deal_name, amount, stage, created_at")
@@ -97,20 +126,18 @@ serve(async (req) => {
       .from("deals")
       .select("*", { count: "exact", head: true })
       .gte("created_at", startIso)
-      .eq("stage", "closedwon"); // Assuming closedwon stage
+      .eq("stage", "closedwon");
 
-    // --- ZONE D: CREATIVE (Top Ads) ---
-    // Aggregate by ad_name from fetched fbData
-    // We can re-use 'fbData' if it has ad_name? Wait, I didn't select it.
-    // Let's do a separate query slightly more expensive or optimize above.
-    // Optimization: Select ad_name above.
-    // Let's patch the above query? Or just query top 5 by spend.
+    // --- ZONE D: CREATIVE (Visual DNA) ---
+    // Fetch top ads with purchase_value for True ROI calc
     const { data: topAds } = await supabase
       .from("facebook_ads_insights")
-      .select("ad_name, spend, impressions, clicks, ctr, cpc")
+      .select(
+        "ad_id, ad_name, spend, impressions, clicks, ctr, cpc, purchase_value",
+      )
       .gte("date", startDateStr)
       .order("spend", { ascending: false })
-      .limit(5);
+      .limit(6);
 
     // Construct Response
     const dashboardData = {
@@ -122,6 +149,7 @@ serve(async (req) => {
           ad_spend: adSpend,
           new_leads: newLeads || 0,
           cpl: parseFloat(cpl as string),
+          integrity_score: integrityScore, // [NEW]
         },
       },
       zone_b: {
@@ -141,6 +169,10 @@ serve(async (req) => {
       zone_d: {
         title: "Creative Brain",
         top_performers: topAds || [],
+      },
+      truth: {
+        verified_lifetime_revenue: verifiedLifetimeRevenue, // [NEW]
+        integrity_score: integrityScore, // [NEW]
       },
       meta: {
         range,

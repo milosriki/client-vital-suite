@@ -7,6 +7,7 @@ export interface MarketingDashboardData {
       ad_spend: number;
       new_leads: number;
       cpl: number;
+      integrity_score?: number; // [NEW] 0.0 to 1.x
     };
   };
   zone_b: {
@@ -31,13 +32,19 @@ export interface MarketingDashboardData {
   zone_d: {
     title: string;
     top_performers: {
+      ad_id: string;
       ad_name: string;
       spend: number;
       impressions: number;
       clicks: number;
       ctr: number;
       cpc: number;
+      purchase_value?: number; // [NEW] For True ROI
     }[];
+  };
+  truth?: {
+    verified_lifetime_revenue: number;
+    integrity_score: number;
   };
   meta: {
     range: string;

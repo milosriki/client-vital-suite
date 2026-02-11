@@ -11,6 +11,8 @@ import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
+import { createRDSClient } from "../_shared/rds-client.ts"; // Shared RDS Logic
+
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS")
@@ -74,7 +76,6 @@ serve(async (req) => {
       total_deals_closed > 0 ? total_revenue_booked / total_deals_closed : 0;
 
     // 4. Marketing Performance (Facebook)
-    // Exclude campaigns with 'Test' in the name to match user's active spend view
     const { data: fbStats } = await supabase
       .from("facebook_ads_insights")
       .select("spend, impressions, clicks, campaign_name")
@@ -88,7 +89,25 @@ serve(async (req) => {
     const ad_clicks =
       fbStats?.reduce((sum, s) => sum + (s.clicks || 0), 0) || 0;
 
-    // 5. Calculate KPIs
+    // 5. AWS Ground Truth (Completed Assessments)
+    let total_assessments_completed = 0;
+    try {
+      const rdsClient = await createRDSClient("backoffice");
+      const assessmentResult = await rdsClient.queryObject(`
+        SELECT COUNT(*) as count
+        FROM enhancesch.vw_schedulers
+        WHERE training_date_utc::date = $1
+        AND status IN ('Completed', 'Attended')
+        AND name_packet ILIKE '%Assessment%';
+      `, [dateStr]);
+      
+      total_assessments_completed = Number((assessmentResult.rows[0] as any).count) || 0;
+      await rdsClient.end();
+    } catch (e) {
+      console.warn("[snapshot] Failed to fetch AWS assessment counts:", e);
+    }
+
+    // 6. Calculate KPIs
     const roas_daily =
       ad_spend_facebook > 0 ? total_revenue_booked / ad_spend_facebook : 0;
     const conversion_rate_daily =
@@ -97,8 +116,13 @@ serve(async (req) => {
         : 0;
     const cost_per_lead =
       (total_leads_new || 0) > 0 ? ad_spend_facebook / total_leads_new! : 0;
+    
+    // True CPA: Spend / Completed Assessments
+    const true_cpa = total_assessments_completed > 0 
+      ? ad_spend_facebook / total_assessments_completed 
+      : 0;
 
-    // 6. Upsert Daily Metric Record
+    // 7. Upsert Daily Metric Record
     const metricRecord = {
       date: dateStr,
       total_leads_new: total_leads_new || 0,
@@ -114,6 +138,8 @@ serve(async (req) => {
       roas_daily,
       conversion_rate_daily,
       cost_per_lead,
+      total_assessments_completed,
+      true_cpa,
       updated_at: new Date().toISOString(),
     };
 

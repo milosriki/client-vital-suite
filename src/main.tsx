@@ -21,6 +21,7 @@ import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import { testAllFunctions } from "@/utils/testFunctions";
 import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
 import { Fishbird } from "@/lib/fishbird-analytics"; // Import Fishbird
+import { SidebarProvider } from "@/hooks/use-sidebar";
 
 Fishbird.init(); // Initialize Fishbird "Truth Layer"
 import Operations from "./pages/Operations";
@@ -181,8 +182,10 @@ createRoot(root).render(
         <AuthProvider>
           <TimeMachineProvider>
             <TooltipProvider>
-              <RouterProvider router={router} />
-              <VercelAnalytics />
+              <SidebarProvider>
+                <RouterProvider router={router} />
+                <VercelAnalytics />
+              </SidebarProvider>
             </TooltipProvider>
           </TimeMachineProvider>
         </AuthProvider>

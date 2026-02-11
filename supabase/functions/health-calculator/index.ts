@@ -23,9 +23,9 @@ const corsHeaders = {
 };
 
 // Validate required environment variables
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+// const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ============================================
 // DATA STRUCTURES
@@ -245,36 +245,36 @@ function calculateEngagement(client: ClientData): DimensionScore {
   const s30d = safe(client.of_conducted_sessions__last_30_days_);
   const daysInactive = daysSince(client.last_paid_session_date);
 
-  // Inactivity Penalty
+  // v4 Inactivity Penalty (Increased Sensitivity)
   if (daysInactive !== null && daysInactive >= 0) {
     if (daysInactive > 21) {
-      score -= 45;
+      score -= 60; // Up from 45
       signals.push(`${daysInactive}d inactive (CRITICAL)`);
     } else if (daysInactive > 14) {
-      score -= 30;
+      score -= 40; // Up from 30
       signals.push(`${daysInactive}d inactive`);
     } else if (daysInactive > 7) {
-      score -= 15;
+      score -= 20; // Up from 15
       signals.push(`${daysInactive}d inactive`);
     }
   } else if (s7d === 0 && s30d === 0) {
-    score -= 40;
+    score -= 50; // Up from 40
     signals.push("No recent activity detected");
   }
 
-  // Frequency Drop
+  // v4 Frequency Drop (7d vs 30d)
   if (s30d > 0) {
     const expectedWeekly = s30d / 4.3;
     if (expectedWeekly > 0) {
       const drop = (expectedWeekly - s7d) / expectedWeekly;
       if (drop >= 0.5) {
-        score -= 20;
-        signals.push("50%+ frequency drop");
+        score -= 30; // Up from 20
+        signals.push("50%+ weekly frequency drop");
       }
     }
   }
 
-  return { score: clamp(score, 0, 100), weight: 0.3, confidence: 1, signals };
+  return { score: clamp(score, 0, 100), weight: 0.35, confidence: 1, signals }; // Weight up from 0.3
 }
 
 // 2. MOMENTUM PHYSICS ENGINE
@@ -297,14 +297,16 @@ export function analyzeMomentum(client: ClientData): MomentumAnalysis {
   const w30 = s30d / 4.3;
   const w90 = s90d / 13;
 
-  const velocity = w30 > 0 ? ((w7 - w30) / w30) * 100 : 0;
+  // v4 Physics: Velocity is 7d vs 90d (long-term anchor)
+  const velocity = w90 > 0 ? ((w7 - w90) / w90) * 100 : 0;
+  // Acceleration is 30d vs 90d
   const accel = w90 > 0 ? ((w30 - w90) / w90) * 100 : 0;
-  const jerk = 0; // Simplified for MVP
+  const jerk = 0; 
 
   let status = "STABLE";
-  if (w7 === 0 && w30 > 1) status = "CLIFF_FALL";
-  else if (velocity < -20) status = "DECLINING";
-  else if (velocity > 20) status = "ACCELERATING";
+  if (w7 === 0 && w90 > 0.5) status = "CLIFF_FALL"; // Fall from long-term baseline
+  else if (velocity < -30) status = "DECLINING";
+  else if (velocity > 30) status = "ACCELERATING";
   else if (velocity > 10 && w90 > w30) status = "RECOVERING";
 
   return {
@@ -312,7 +314,7 @@ export function analyzeMomentum(client: ClientData): MomentumAnalysis {
     acceleration: accel,
     jerk,
     status,
-    description: `${status}: ${w7.toFixed(1)}/wk vs ${w30.toFixed(1)} avg`,
+    description: `${status}: ${w7.toFixed(1)}/wk vs ${w90.toFixed(1)} baseline`,
   };
 }
 
@@ -337,7 +339,7 @@ function calculateMomentumScore(
     signals.push("Ramadan adjustment");
   }
 
-  return { score: clamp(score, 0, 100), weight: 0.25, confidence: 1, signals };
+  return { score: clamp(score, 0, 100), weight: 0.3, confidence: 1, signals }; // Weight up from 0.25
 }
 
 // 3. PACKAGE HEALTH
@@ -500,12 +502,17 @@ export function calculateHealthScoreV3(
 // HANDLER
 // ============================================
 
-serve(async (req) => {
+export async function handleRequest(req: Request) {
   if (req.method === "OPTIONS")
     return apiCorsPreFlight();
   try {
     verifyAuth(req);
     const { client_emails = [] } = await req.json().catch(() => ({}));
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     // 1. Fetch Candidates (Supabase)
     const BATCH_SIZE = 100;
@@ -594,7 +601,7 @@ serve(async (req) => {
         churn_risk_score: res.churnPrediction.probability30d,
         health_trend: res.momentumAnalysis.status,
         calculated_at: new Date().toISOString(),
-        calculation_version: "v3.0-SuperIntelligence",
+        calculation_version: "v4.0-Calibration",
         audit_source: res.dataConfidence.source,
         last_paid_session_date: clientData.last_paid_session_date, // Sync truth back
         sessions_last_7d: Number(
@@ -619,4 +626,9 @@ serve(async (req) => {
     console.error(e);
     return apiError("INTERNAL_ERROR", JSON.stringify({ error: String(e) }), 500);
   }
-});
+}
+
+// Start server if main entry point
+if (import.meta.main) {
+  serve(handleRequest);
+}

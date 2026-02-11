@@ -243,6 +243,15 @@ Deno.serve(async (req) => {
     // Connect to RDS
     const config = getRDSConfig(replica);
     console.log(`[rds-analyst] Connecting to ${replica}: ${config.hostname}`);
+    
+    // Log network info for IP allowlisting diagnostics
+    try {
+      const interfaces = Deno.networkInterfaces();
+      console.log(`[rds-analyst] Network Interfaces: ${JSON.stringify(interfaces)}`);
+    } catch (e) {
+      console.log(`[rds-analyst] Could not fetch network interfaces: ${e.message}`);
+    }
+
     rdsClient = new PostgresClient(config);
     await rdsClient.connect();
     console.log(`[rds-analyst] Connected to ${replica}`);

@@ -11,6 +11,8 @@ import { SkipNavigation } from "@/components/ui/skip-navigation";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthProvider";
+import { useSidebar } from "@/hooks/use-sidebar";
+import { cn } from "@/lib/utils";
 
 export const Layout = () => {
   // Enable global keyboard shortcuts
@@ -18,6 +20,7 @@ export const Layout = () => {
 
   // Initialize global real-time subscriptions for the "Living Being" architecture
   const { systemHealth } = useVitalState();
+  const { isCollapsed } = useSidebar();
 
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -40,7 +43,10 @@ export const Layout = () => {
             id="main-content"
             role="main"
             aria-label="Main content"
-            className="flex-1 overflow-x-hidden pt-16 lg:pt-0 lg:pl-[72px] transition-all duration-300 ease-in-out"
+            className={cn(
+              "flex-1 overflow-x-hidden pt-16 lg:pt-0 transition-all duration-300 ease-in-out",
+              isCollapsed ? "lg:pl-[72px]" : "lg:pl-64"
+            )}
           >
             <Outlet />
           </main>

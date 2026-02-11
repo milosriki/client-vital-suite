@@ -3,7 +3,7 @@
 
 const LANGSMITH_ENDPOINT = "https://api.smith.langchain.com";
 
-interface TraceConfig {
+export interface TraceConfig {
   name: string;
   runType?: "chain" | "llm" | "tool" | "retriever" | "embedding";
   projectName?: string;
@@ -12,14 +12,14 @@ interface TraceConfig {
   tags?: string[];
 }
 
-interface TraceRun {
+export interface TraceRun {
   runId: string;
   startTime: string;
   name: string;
   projectName: string;
 }
 
-interface LangSmithStatus {
+export interface LangSmithStatus {
   configured: boolean;
   connected: boolean;
   projectName: string | null;
@@ -289,7 +289,6 @@ const MODEL_PROVIDER_MAP: Record<string, AIProvider> = {
   "claude-3-haiku": "anthropic",
   "claude-4-5-sonnet": "anthropic",
   "claude-3-5-haiku": "anthropic",
-  "claude-4-5-sonnet": "anthropic",
   "claude-2": "anthropic",
   "gpt-4": "openai",
   "gpt-4o": "openai",
@@ -298,8 +297,6 @@ const MODEL_PROVIDER_MAP: Record<string, AIProvider> = {
   "gemini-pro": "google",
   "gemini-3.0-flash": "google",
   "gemini-1.5-flash": "google",
-  "gemini-3.0-flash": "google",
-  "gemini-3.0-flash": "google",
 };
 
 /**
@@ -409,6 +406,3 @@ export function createAITraceConfig(
     parentRunId: options?.parentRunId,
   };
 }
-
-// Export types for use in other modules
-export type { TraceConfig, TraceRun, LangSmithStatus, ProviderMetadata, AIProvider };

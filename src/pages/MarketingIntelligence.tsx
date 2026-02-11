@@ -45,6 +45,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { PulseIndicator } from "@/components/dashboard/PulseIndicator";
 import { MarketingIntelligenceGhost } from "@/components/dashboard/MarketingIntelligenceGhost";
+import { XRayTooltip } from "@/components/ui/x-ray-tooltip";
+import { VisualDNA } from "@/components/dashboard/VisualDNA";
 
 export default function MarketingIntelligence() {
   const [range, setRange] = useState<"today" | "week" | "month">("today");
@@ -161,61 +163,182 @@ export default function MarketingIntelligence() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <PulseCard
+              <XRayTooltip
                 title="True ROAS"
-                value={`${data?.zone_a.metrics.true_roas.toFixed(2)}x`}
-                subtext="Revenue / Ad Spend"
-                icon={Target}
-                trend="up"
-                color="text-emerald-500"
-                pulsing
-              />
-              <PulseCard
+                insights={[
+                  {
+                    label: "Cash Collected",
+                    value: `AED ${data?.zone_a.metrics.cash_collected.toLocaleString()}`,
+                    color: "text-emerald-400",
+                  },
+                  {
+                    label: "Ad Spend",
+                    value: `AED ${data?.zone_a.metrics.ad_spend.toLocaleString()}`,
+                    color: "text-rose-400",
+                  },
+                  { label: "Formula", value: "Cash / Ad Spend" },
+                ]}
+                summary="True ROAS = total Stripe cash collected ÷ total Meta ad spend. Target: > 3.0x for profitable scaling."
+              >
+                <PulseCard
+                  title="True ROAS"
+                  value={`${data?.zone_a.metrics.true_roas.toFixed(2)}x`}
+                  subtext="Revenue / Ad Spend"
+                  icon={Target}
+                  trend="up"
+                  color="text-emerald-500"
+                  pulsing
+                />
+              </XRayTooltip>
+              <XRayTooltip
                 title="Cash Collected"
-                value={`AED ${data?.zone_a.metrics.cash_collected.toLocaleString()}`}
-                subtext="Stripe Succeeded"
-                icon={DollarSign}
-                color="text-green-500"
-                pulsing
-              />
+                insights={[
+                  { label: "Source", value: "Stripe (Succeeded)" },
+                  {
+                    label: "Period",
+                    value:
+                      range === "today"
+                        ? "Today"
+                        : range === "week"
+                          ? "Last 7 Days"
+                          : "Last 30 Days",
+                  },
+                ]}
+                summary="Total payment volume from Stripe with status 'succeeded' in the selected period."
+              >
+                <PulseCard
+                  title="Cash Collected"
+                  value={`AED ${data?.zone_a.metrics.cash_collected.toLocaleString()}`}
+                  subtext="Stripe Succeeded"
+                  icon={DollarSign}
+                  color="text-green-500"
+                  pulsing
+                />
+              </XRayTooltip>
               <Link
                 to="/campaign-money-map"
                 className="block transition-transform hover:scale-105"
               >
-                <PulseCard
+                <XRayTooltip
                   title="Ad Spend"
-                  value={`AED ${data?.zone_a.metrics.ad_spend.toLocaleString()}`}
-                  subtext="Meta Ads"
-                  icon={Zap}
-                  color="text-blue-500"
-                  pulsing
-                />
+                  insights={[
+                    { label: "Platform", value: "Meta Ads" },
+                    {
+                      label: "Period",
+                      value:
+                        range === "today"
+                          ? "Today"
+                          : range === "week"
+                            ? "Last 7 Days"
+                            : "Last 30 Days",
+                    },
+                  ]}
+                  summary="Total spend synced from Meta Business API via fetch-facebook-insights → facebook_ads_insights table."
+                >
+                  <PulseCard
+                    title="Ad Spend"
+                    value={`AED ${data?.zone_a.metrics.ad_spend.toLocaleString()}`}
+                    subtext="Meta Ads"
+                    icon={Zap}
+                    color="text-blue-500"
+                    pulsing
+                  />
+                </XRayTooltip>
               </Link>
               <Link
                 to="/sales-pipeline"
                 className="block transition-transform hover:scale-105"
               >
-                <PulseCard
+                <XRayTooltip
                   title="New Leads"
-                  value={data?.zone_a.metrics.new_leads.toString() || "0"}
-                  subtext="HubSpot + Organic"
-                  icon={Users}
-                  color="text-indigo-500"
+                  insights={[
+                    { label: "Source", value: "HubSpot + Organic" },
+                    { label: "Synced Via", value: "hubspot-webhook" },
+                  ]}
+                  summary="Lead contacts synced from HubSpot into Supabase contacts table with lifecycle_stage='lead'."
+                >
+                  <PulseCard
+                    title="New Leads"
+                    value={data?.zone_a.metrics.new_leads.toString() || "0"}
+                    subtext="HubSpot + Organic"
+                    icon={Users}
+                    color="text-indigo-500"
+                    pulsing
+                  />
+                </XRayTooltip>
+              </Link>
+              <XRayTooltip
+                title="Cost Per Lead"
+                insights={[
+                  {
+                    label: "Total Spend",
+                    value: `AED ${data?.zone_a.metrics.ad_spend.toLocaleString()}`,
+                    color: "text-rose-400",
+                  },
+                  {
+                    label: "Total Leads",
+                    value: (data?.zone_a.metrics.new_leads || 0).toString(),
+                    color: "text-amber-400",
+                  },
+                  { label: "Formula", value: "Spend ÷ Leads" },
+                  {
+                    label: "Target CPL",
+                    value: "< AED 30",
+                    color:
+                      (data?.zone_a.metrics.cpl || 0) > 30
+                        ? "text-rose-400"
+                        : "text-emerald-400",
+                  },
+                ]}
+                summary={`CPL = Ad Spend ÷ New Leads. ${(data?.zone_a.metrics.cpl || 0) > 50 ? "⚠️ Above $50 threshold — review campaign targeting." : "Within acceptable range."}`}
+              >
+                <PulseCard
+                  title="Cost Per Lead"
+                  value={`AED ${data?.zone_a.metrics.cpl.toFixed(2)}`}
+                  subtext="Target: < AED 30"
+                  icon={ShoppingCart}
+                  color={
+                    data?.zone_a.metrics.cpl && data.zone_a.metrics.cpl > 50
+                      ? "text-red-500"
+                      : "text-purple-500"
+                  }
                   pulsing
                 />
-              </Link>
-              <PulseCard
-                title="Cost Per Lead"
-                value={`AED ${data?.zone_a.metrics.cpl.toFixed(2)}`}
-                subtext="Target: < AED 30"
-                icon={ShoppingCart}
-                color={
-                  data?.zone_a.metrics.cpl && data.zone_a.metrics.cpl > 50
-                    ? "text-red-500"
-                    : "text-purple-500"
-                }
-                pulsing
-              />
+              </XRayTooltip>
+              <XRayTooltip
+                title="Integrity Score"
+                insights={[
+                  {
+                    label: "Verified Rev",
+                    value: `AED ${data?.zone_a.metrics.cash_collected.toLocaleString()}`,
+                    color: "text-emerald-400",
+                  },
+                  {
+                    label: "Claimed Rev",
+                    value: "Dependent on Ad Source",
+                    color: "text-amber-400",
+                  },
+                  {
+                    label: "Leak Score",
+                    value: `${((1 - (data?.zone_a.metrics.integrity_score || 1)) * 100).toFixed(1)}%`,
+                    color: "text-rose-400",
+                  },
+                ]}
+                summary="The measure of truth. 100% means platform attribution matches bank deposits perfectly."
+              >
+                <PulseCard
+                  title="Integrity Score"
+                  value={`${((data?.zone_a.metrics.integrity_score || 1) * 100).toFixed(0)}%`}
+                  subtext="Platform Truth Match"
+                  icon={Zap}
+                  color={
+                    (data?.zone_a.metrics.integrity_score || 1) < 0.8
+                      ? "text-red-500"
+                      : "text-emerald-500"
+                  }
+                  pulsing
+                />
+              </XRayTooltip>
             </div>
           </section>
 
@@ -341,49 +464,26 @@ export default function MarketingIntelligence() {
 
           {/* ZONE D: CREATIVE BRAIN */}
           <section className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Brain className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">Zone D: Creative Brain</h2>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">
+                  Zone D: Creative Brain
+                </h2>
+              </div>
+              <Badge
+                variant="outline"
+                className="font-mono text-[10px] uppercase tracking-tighter"
+              >
+                Visual DNA Active
+              </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data?.zone_d.top_performers.map((ad, i) => (
-                <Card
-                  key={i}
-                  className="overflow-hidden border-l-4 border-l-primary/50"
-                >
-                  <CardContent className="pt-6">
-                    <h3
-                      className="font-semibold truncate mb-2"
-                      title={ad.ad_name}
-                    >
-                      {ad.ad_name}
-                    </h3>
-                    <div className="grid grid-cols-3 gap-2 text-sm mt-4">
-                      <div>
-                        <p className="text-muted-foreground text-xs">Spend</p>
-                        <p className="font-medium">AED {ad.spend}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">CTR</p>
-                        <p className="font-medium text-emerald-500">
-                          {ad.ctr.toFixed(2)}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">CPC</p>
-                        <p className="font-medium">AED {ad.cpc.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {(!data?.zone_d.top_performers ||
-                data.zone_d.top_performers.length === 0) && (
-                <div className="col-span-full text-center py-10 bg-muted/20 rounded-lg border border-dashed">
-                  No active creative data found for this period.
-                </div>
-              )}
+            <div className="mt-4">
+              <VisualDNA
+                ads={data?.zone_d.top_performers || []}
+                integrityScore={data?.zone_a.metrics.integrity_score || 1.0}
+              />
             </div>
           </section>
         </>

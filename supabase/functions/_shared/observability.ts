@@ -2,6 +2,7 @@
 // Combines LangSmith tracing with correlation IDs, cost tracking, and structured logging
 
 import { traceStart, traceEnd, isTracingEnabled, getLangSmithConfig } from "./langsmith-tracing.ts";
+import type { TraceRun } from "./langsmith-tracing.ts";
 
 // ============================================================================
 // TYPES
@@ -124,12 +125,12 @@ export function withTracing<T extends Request>(
   return async (req: T): Promise<Response> => {
     const correlationId = getCorrelationId(req);
     const startTime = Date.now();
-    let runId: string | null = null;
+    let runTrace: TraceRun | null = null;
 
     // Start trace if enabled
     if (isTracingEnabled()) {
       try {
-        const traceResult = await traceStart(
+        runTrace = await traceStart(
           {
             name: options.functionName,
             runType: options.runType || "chain",
@@ -142,7 +143,6 @@ export function withTracing<T extends Request>(
           },
           { correlationId, url: req.url, method: req.method }
         );
-        runId = traceResult?.runId || null;
       } catch (e) {
         structuredLog("warn", "Failed to start trace", { 
           functionName: options.functionName, 
@@ -164,9 +164,9 @@ export function withTracing<T extends Request>(
       const latencyMs = Date.now() - startTime;
 
       // End trace on success
-      if (runId) {
+      if (runTrace) {
         try {
-          await traceEnd(runId, { 
+          await traceEnd(runTrace, { 
             success: true, 
             status: response.status,
             latencyMs,
@@ -197,9 +197,9 @@ export function withTracing<T extends Request>(
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
       // End trace on error
-      if (runId) {
+      if (runTrace) {
         try {
-          await traceEnd(runId, { success: false, latencyMs }, errorMessage);
+          await traceEnd(runTrace, { success: false, latencyMs }, errorMessage);
         } catch (e) {
           // Don't fail on trace end error
         }

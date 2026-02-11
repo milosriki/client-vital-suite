@@ -59,12 +59,13 @@ import { useSyncLock, SYNC_OPERATIONS } from "@/hooks/useSyncLock";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { QUERY_KEYS } from "@/config/queryKeys";
 import { GlobalDateRangePicker } from "@/components/GlobalDateRangePicker";
+import { useSidebar } from "@/hooks/use-sidebar";
 
 export const Navigation = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const { isCollapsed, setIsCollapsed } = useSidebar();
   const isMobile = useIsMobile();
 
   // Use sync lock to prevent concurrent syncs
@@ -220,17 +221,28 @@ export const Navigation = () => {
               to={item.path}
               onClick={onClick}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/link relative",
                 isActive
                   ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  : "text-muted-foreground hover:bg-white/5 hover:text-white",
                 collapsed && "justify-center px-2",
               )}
             >
               <Icon
-                className={cn("h-4 w-4 shrink-0", isActive && "text-primary")}
+                className={cn(
+                  "h-4 w-4 shrink-0 transition-transform duration-200", 
+                  isActive ? "text-primary scale-110" : "group-hover/link:scale-110"
+                )}
               />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && (
+                <span className="font-mono text-[11px] font-bold uppercase tracking-widest">
+                  {item.label}
+                </span>
+              )}
+              
+              {isActive && !collapsed && (
+                <div className="absolute right-2 h-1 w-1 rounded-full bg-primary shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+              )}
             </Link>
           </TooltipTrigger>
           {collapsed && (
@@ -314,34 +326,42 @@ export const Navigation = () => {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-300 flex flex-col",
+        "fixed left-0 top-0 z-40 h-screen border-r border-white/5 bg-black transition-all duration-300 flex flex-col font-sans",
         isCollapsed ? "w-[72px]" : "w-64",
       )}
     >
-      {/* HUD Header */}
-      <div className="h-16 flex items-center justify-center border-b shrink-0 relative">
+      {/* HUD Header - Global Intelligence Bar */}
+      <div className="h-16 flex items-center px-4 border-b border-white/5 shrink-0 relative overflow-hidden group">
         <div
-          className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center shadow-glow-sm cursor-pointer"
+          className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-glow-sm cursor-pointer shrink-0 transition-transform active:scale-95"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
-          <span className="text-white font-bold text-lg">P</span>
+          <Crown className="text-black h-6 w-6" />
         </div>
         {!isCollapsed && (
-          <span
-            className="ml-3 font-bold text-lg tracking-tight animate-in fade-in cursor-pointer"
-            onClick={() => setIsCollapsed(true)}
-          >
-            IV-OS
-          </span>
+          <div className="ml-3 flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
+            <span className="font-bold text-sm tracking-widest text-white uppercase font-mono">
+              Supreme
+            </span>
+            <div className="flex items-center gap-1.5">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-tighter font-mono">
+                Truth: Aligned
+              </span>
+            </div>
+          </div>
         )}
+        
+        {/* Glow Background */}
+        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+      <div className="flex-1 overflow-y-auto py-6 px-3 space-y-8 scrollbar-thin">
         {Object.entries(NAV_GROUPS).map(([group, items]) => (
-          <div key={group}>
+          <div key={group} className="space-y-2">
             {!isCollapsed && (
-              <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider mb-2 px-2 animate-in fade-in">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3 px-3 animate-in fade-in slide-in-from-left-1">
                 {group}
               </p>
             )}
@@ -350,7 +370,7 @@ export const Navigation = () => {
                 <NavLink key={item.path} item={item} collapsed={isCollapsed} />
               ))}
             </div>
-            {isCollapsed && <div className="h-px bg-border/50 my-2 mx-2" />}
+            {isCollapsed && <div className="h-px bg-white/5 my-4 mx-2" />}
           </div>
         ))}
       </div>

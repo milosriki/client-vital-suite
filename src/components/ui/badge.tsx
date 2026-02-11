@@ -17,6 +17,12 @@ const badgeVariants = cva(
         outline: "text-foreground",
         glass:
           "border-transparent bg-background/30 backdrop-blur-md border border-white/10 text-foreground hover:bg-white/10",
+        truth: 
+          "border-emerald-500/20 bg-emerald-500/10 text-emerald-500 font-mono tracking-tighter",
+        discrepancy:
+          "border-amber-500/20 bg-amber-500/10 text-amber-500 font-mono tracking-tighter",
+        ghost:
+          "border-red-500/20 bg-red-500/10 text-red-500 font-mono tracking-tighter animate-pulse",
       },
     },
     defaultVariants: {
