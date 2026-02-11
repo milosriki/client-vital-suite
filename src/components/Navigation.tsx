@@ -101,6 +101,11 @@ export const Navigation = () => {
         label: "Marketing",
         icon: BarChart3,
       },
+      {
+        path: "/deep-intel",
+        label: "Deep Intel",
+        icon: TrendingUp,
+      },
       { path: "/sales-pipeline", label: "Pipeline", icon: TrendingUp },
       { path: "/money-map", label: "Money Map", icon: Wallet },
       { path: "/stripe", label: "Stripe", icon: CreditCard },
@@ -230,8 +235,10 @@ export const Navigation = () => {
             >
               <Icon
                 className={cn(
-                  "h-4 w-4 shrink-0 transition-transform duration-200", 
-                  isActive ? "text-primary scale-110" : "group-hover/link:scale-110"
+                  "h-4 w-4 shrink-0 transition-transform duration-200",
+                  isActive
+                    ? "text-primary scale-110"
+                    : "group-hover/link:scale-110",
                 )}
               />
               {!collapsed && (
@@ -239,7 +246,7 @@ export const Navigation = () => {
                   {item.label}
                 </span>
               )}
-              
+
               {isActive && !collapsed && (
                 <div className="absolute right-2 h-1 w-1 rounded-full bg-primary shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
               )}
@@ -351,7 +358,7 @@ export const Navigation = () => {
             </div>
           </div>
         )}
-        
+
         {/* Glow Background */}
         <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       </div>

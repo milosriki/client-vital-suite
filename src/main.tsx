@@ -61,6 +61,7 @@ import SkillCommandCenter from "./pages/SkillCommandCenter";
 import { ProtectedRoute } from "@/components/ProtectedRoute"; // Auth Guard
 import ReconciliationDashboard from "./pages/ReconciliationDashboard";
 import MarketingIntelligence from "./pages/MarketingIntelligence";
+import MarketingDeepIntelligence from "./pages/MarketingDeepIntelligence";
 import "./index.css";
 
 // Initialize Sentry
@@ -131,6 +132,7 @@ const router = createBrowserRouter([
       { path: "/attribution", element: <AttributionWarRoom /> },
       { path: "/reconciliation", element: <ReconciliationDashboard /> },
       { path: "/marketing-intelligence", element: <MarketingIntelligence /> },
+      { path: "/deep-intel", element: <MarketingDeepIntelligence /> },
       { path: "/skills-matrix", element: <SkillCommandCenter /> },
       { path: "*", element: <NotFound /> },
     ],
