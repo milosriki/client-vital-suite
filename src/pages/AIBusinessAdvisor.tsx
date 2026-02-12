@@ -58,8 +58,8 @@ export default function AIBusinessAdvisor() {
         "ptd-agent-gemini",
         {
           body: {
-            message: `As a high-end fitness business advisor, create a 3-step intervention script for our client ${client.firstname}. 
-          DATA: Health Score ${client.health_score}, Days since last session: ${client.days_since_last_session}, Last Coach Note: ${client.coach_notes || "None"}.
+            message: `As a high-end fitness business advisor, create a 3-step intervention script for our client ${client.firstname}.
+          DATA: Health Score ${client.health_score}, Days since last session: ${client.days_since_last_session}, Zone: ${client.health_zone}, Coach: ${client.assigned_coach || "Unknown"}.
           STAKE: They have ${client.outstanding_sessions} sessions left.
           GOAL: Re-engage them today. Provide a text script, an email script, and one specific advisor tip.`,
           },

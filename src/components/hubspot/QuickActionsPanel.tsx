@@ -95,6 +95,29 @@ export function QuickActionsPanel() {
     },
   });
 
+  // Bulk reassign (SLA breach)
+  const bulkReassignMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('auto-reassign-leads');
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Bulk reassignment failed');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Bulk Reassignment Complete',
+        description: data?.message || `${data?.proposals_created || 0} reassignments queued for approval.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Bulk Reassignment Failed',
+        description: error.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Search contacts
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -253,8 +276,12 @@ export function QuickActionsPanel() {
                 <div className="text-sm text-muted-foreground">
                   This will automatically reassign contacts that haven't been contacted within the SLA timeframe.
                 </div>
-                <Button className="w-full">
-                  Run Bulk Reassign
+                <Button
+                  className="w-full"
+                  onClick={() => bulkReassignMutation.mutate()}
+                  disabled={bulkReassignMutation.isPending}
+                >
+                  {bulkReassignMutation.isPending ? 'Reassigning...' : 'Run Bulk Reassign'}
                 </Button>
               </div>
             </DialogContent>

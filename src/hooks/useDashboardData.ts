@@ -1,7 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
-import { QUERY_INTERVALS } from "@/config/queryConfig";
 import { QUERY_KEYS } from "@/config/queryKeys";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import type {
+  WeeklyHealthSummary,
+  RevenueByCoach,
+  ClientLifetimeValue,
+  RetentionCohort,
+} from "@/types/dashboard-views";
 
 /**
  * Batch dashboard queries hook
@@ -46,7 +51,7 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         supabase
           .from("coach_performance")
           .select("*")
-          .order("avg_health_score", { ascending: false }),
+          .order("avg_client_health", { ascending: false }),
 
         // Query 2: Interventions
         supabase
@@ -63,11 +68,11 @@ export function useDashboardData(filters: DashboardFilters = {}) {
           .limit(1)
           .single(),
 
-        // Query 4: Weekly Patterns
+        // Query 4: Weekly Health Summary
         supabase
-          .from("weekly_patterns")
+          .from("weekly_health_summary") // Type verified in types.ts
           .select("*")
-          .order("week_start_date", { ascending: false })
+          .order("week_start", { ascending: false })
           .limit(4),
 
         // Query 5: Health Scores (with filters)
@@ -89,19 +94,21 @@ export function useDashboardData(filters: DashboardFilters = {}) {
           return query;
         })(),
 
-        // Query 6: Revenue by Coach (previously unused Supabase view)
-        supabase.from("revenue_by_coach" as any).select("*"),
-
-        // Query 7: Client Lifetime Value (previously unused Supabase view)
+        // Query 6: Revenue by Coach
         supabase
-          .from("client_lifetime_value" as any)
+          .from("revenue_by_coach" as any) // Temporary: Manual View View needed in Supabase Gen
+          .select("*"),
+
+        // Query 7: Client Lifetime Value
+        supabase
+          .from("client_lifetime_value" as any) // Temporary: Manual View needed in Supabase Gen
           .select("*")
           .order("total_revenue", { ascending: false })
           .limit(50),
 
-        // Query 8: Retention Cohorts (previously unused Supabase view)
+        // Query 8: Retention Cohorts
         supabase
-          .from("retention_cohorts" as any)
+          .from("retention_cohorts" as any) // Temporary: Manual View needed in Supabase Gen
           .select("*")
           .order("cohort_month", { ascending: false })
           .limit(12),
@@ -135,9 +142,12 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         summary: summaryResult.data || null,
         patterns: patternsResult.data || [],
         clients: clientsResult.data || [],
-        revenueByCoach: revenueByCoachResult.data || [],
-        clientLifetimeValue: clvResult.data || [],
-        retentionCohorts: retentionResult.data || [],
+        revenueByCoach: (revenueByCoachResult.data ||
+          []) as unknown as RevenueByCoach[],
+        clientLifetimeValue: (clvResult.data ||
+          []) as unknown as ClientLifetimeValue[],
+        retentionCohorts: (retentionResult.data ||
+          []) as unknown as RetentionCohort[],
       };
     },
     staleTime: Infinity, // Real-time updates via useVitalState

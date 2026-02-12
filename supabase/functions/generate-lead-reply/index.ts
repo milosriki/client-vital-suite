@@ -31,6 +31,7 @@ import {
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 serve(async (req: Request) => {
   try {
@@ -92,7 +93,9 @@ serve(async (req: Request) => {
         let suggestedReply = "";
 
         try {
-          const systemPrompt = `You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
+          const constitutionalPrefix = getConstitutionalSystemMessage();
+          const systemPrompt = `${constitutionalPrefix}
+You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
 
 ROLE: Generate high-converting SMS responses for new fitness leads.
 

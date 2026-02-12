@@ -171,19 +171,36 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // 4. Insert recommendations
-    if (recommendations.length > 0) {
+    // 4. Validate + upsert recommendations
+    const validRecs = recommendations.filter((r) => {
+      if (!r.action || !["SCALE", "HOLD", "WATCH", "KILL", "REFRESH"].includes(r.action)) {
+        console.warn("[Analyst] Dropping rec: invalid action", r.action);
+        return false;
+      }
+      if (typeof r.confidence !== "number" || r.confidence < 0 || r.confidence > 100) {
+        console.warn("[Analyst] Dropping rec: invalid confidence", r.confidence);
+        return false;
+      }
+      if (!r.ad_id) {
+        console.warn("[Analyst] Dropping rec: missing ad_id");
+        return false;
+      }
+      return true;
+    });
+
+    if (validRecs.length > 0) {
       const { error: insertErr } = await supabase
         .from("marketing_recommendations")
-        .insert(
-          recommendations.map((r) => ({
+        .upsert(
+          validRecs.map((r) => ({
             ...r,
             status: "pending",
           })),
+          { onConflict: "ad_id, action" },
         );
 
       if (insertErr) {
-        console.error("[analyst] Failed to insert recommendations:", insertErr);
+        console.error("[analyst] Failed to upsert recommendations:", insertErr);
       }
     }
 

@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ErrorDetective } from "@/lib/error-detective";
 import { XRayTooltip } from "@/components/ui/x-ray-tooltip";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ import { EnhancedInterventionTracker } from "@/components/dashboard/EnhancedInte
 import { TickerFeed } from "@/components/hubspot/TickerFeed";
 import { TrafficLightBadge } from "@/components/ui/traffic-light-badge";
 import { KanbanBoard } from "@/components/sales/KanbanBoard";
+import { dealsApi, DealStage } from "@/features/sales-operations/api/dealsApi";
 import { useRealtimeHealthScores } from "@/hooks/useRealtimeHealthScores";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "@/hooks/use-toast";
@@ -50,10 +52,43 @@ import { cn } from "@/lib/utils";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { useAnnounce } from "@/lib/accessibility";
 
+// Static map from KanbanBoard column IDs to DealStage values
+const COLUMN_TO_DEAL_STAGE: Record<string, DealStage> = {
+  new: "new",
+  follow_up: "qualified",
+  appointment_set: "proposal",
+  pitch_given: "negotiation",
+  closed: "closedwon",
+};
+
 export default function Dashboard() {
   useRealtimeHealthScores();
   useNotifications();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Mutation: move a card on the KanbanBoard → update deal stage in Supabase
+  const moveDealMutation = useMutation({
+    mutationFn: dealsApi.updateDealStage,
+    onError: () => {
+      toast({ title: "Failed to move deal", variant: "destructive" });
+    },
+    onSuccess: () => {
+      toast({ title: "Deal moved", description: "Stage updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["client-health-scores-dashboard"] });
+    },
+  });
+
+  const handleMoveCard = useCallback(
+    (leadId: string, newStatus: string) => {
+      const stage = COLUMN_TO_DEAL_STAGE[newStatus];
+      if (stage) {
+        moveDealMutation.mutate({ dealId: leadId, stage });
+      }
+    },
+    [moveDealMutation],
+  );
+
   const [activeTab, setActiveTab] = useState("today");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(
     getBusinessDate(),
@@ -223,7 +258,11 @@ export default function Dashboard() {
     return { totalClients: allClients.length, atRiskClients: atRisk };
   }, [clients]);
 
-  // KPI Data
+  // KPI Data — with CPL/CPO computed from ad spend and lead/deal counts
+  const todayLeads = todayMetrics?.total_leads_new || leadsToday || 0;
+  const todayAdSpend = todayMetrics?.ad_spend_facebook || 0;
+  const todayDeals = dashboardStats?.pipeline_count || 0;
+
   const kpiData = {
     revenue: {
       value: dashboardStats?.revenue_this_month || 0,
@@ -234,17 +273,19 @@ export default function Dashboard() {
     clients: { total: stats.totalClients, atRisk: stats.atRiskClients },
     pipeline: {
       value: dashboardStats?.pipeline_value || 0,
-      count: dashboardStats?.pipeline_count || 0,
+      count: todayDeals,
     },
-    leads: todayMetrics?.total_leads_new || leadsToday || 0,
+    leads: todayLeads,
     calls: todayMetrics?.total_calls_made || callsToday || 0,
     appointments:
       todayMetrics?.total_appointments_set ||
       dailySummary?.interventions_recommended ||
       0,
     criticalAlerts: dailySummary?.critical_interventions || 0,
-    adSpend: todayMetrics?.ad_spend_facebook || 0,
+    adSpend: todayAdSpend,
     roas: todayMetrics?.roas_daily || 0,
+    cpl: todayLeads > 0 && todayAdSpend > 0 ? Math.round(todayAdSpend / todayLeads) : undefined,
+    cpo: todayDeals > 0 && todayAdSpend > 0 ? Math.round(todayAdSpend / todayDeals) : undefined,
   };
 
   // Executive summary
@@ -441,6 +482,7 @@ export default function Dashboard() {
                 deal_value: c.package_value_aed,
                 owner_name: c.assigned_coach || "Unassigned Coach",
               }))}
+              onMoveCard={handleMoveCard}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <QuickStatCard

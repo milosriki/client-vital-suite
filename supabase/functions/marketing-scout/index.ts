@@ -186,14 +186,30 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // 4. Insert signals
-    if (signals.length > 0) {
+    // 4. Validate + upsert signals
+    const validSignals = signals.filter((s) => {
+      if (!s.signal_type || !["fatigue", "ghost_spike", "new_winner", "spend_anomaly"].includes(s.signal_type)) {
+        console.warn("[Scout] Dropping invalid signal: missing/invalid signal_type");
+        return false;
+      }
+      if (!s.ad_id) {
+        console.warn("[Scout] Dropping signal: missing ad_id");
+        return false;
+      }
+      if (!s.severity || !["info", "warning", "critical", "opportunity"].includes(s.severity)) {
+        console.warn("[Scout] Dropping signal: invalid severity");
+        return false;
+      }
+      return true;
+    });
+
+    if (validSignals.length > 0) {
       const { error: insertErr } = await supabase
         .from("marketing_agent_signals")
-        .insert(signals);
+        .upsert(validSignals, { onConflict: "ad_id, signal_type" });
 
       if (insertErr) {
-        console.error("[scout] Failed to insert signals:", insertErr);
+        console.error("[scout] Failed to upsert signals:", insertErr);
       }
     }
 

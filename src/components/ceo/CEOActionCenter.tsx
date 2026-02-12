@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PreparedAction, BusinessGoal } from "@/types/ceo";
 import { getRiskBorder, getRiskColor, getActionIcon } from "@/lib/ceo-utils";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { UseMutationResult } from "@tanstack/react-query";
 
 interface CEOActionCenterProps {
@@ -37,12 +38,7 @@ export function CEOActionCenter({
       {/* Pending Actions List */}
       <div className="lg:col-span-2 space-y-4">
         {loadingActions ? (
-          <Card className="bg-white/5 border-white/10 p-8">
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="text-white/60">Loading actions...</span>
-            </div>
-          </Card>
+          <PageSkeleton variant="cards" count={3} />
         ) : pendingActions?.length === 0 ? (
           <Card className="bg-white/5 border-white/10 p-8">
             <div className="text-center">

@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
 import { format } from "date-fns";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface HubSpotTabsProps {
   kpis: any;
@@ -99,9 +100,7 @@ export const HubSpotTabs = ({
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading...
-              </div>
+              <PageSkeleton variant="table" />
             ) : allLeads.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
@@ -179,9 +178,7 @@ export const HubSpotTabs = ({
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading...
-              </div>
+              <PageSkeleton variant="table" />
             ) : (callsData || []).length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
@@ -277,9 +274,7 @@ export const HubSpotTabs = ({
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading...
-              </div>
+              <PageSkeleton variant="table" />
             ) : (dealsData || []).length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>

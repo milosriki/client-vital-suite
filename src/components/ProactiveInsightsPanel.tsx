@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -222,7 +223,7 @@ export default function ProactiveInsightsPanel() {
       <CardContent>
         <ScrollArea className="h-[400px] pr-4">
           {isLoading ? (
-            <div className="text-muted-foreground text-center py-8">Loading insights...</div>
+            <PageSkeleton variant="cards" count={3} />
           ) : !sortedInsights?.length ? (
             <div className="text-center py-8">
               <Lightbulb className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

@@ -356,73 +356,30 @@ serve(async (req) => {
         `[calculate-health-scores] Processing batch of ${contacts.length} contacts`,
       );
 
-      // Calculate health scores for batch via Cloud Run (with local fallback)
+      // Calculate health scores locally (Cloud Run dependency removed — identical math)
       const healthResults: HealthScoreResult[] = [];
-      const CLOUD_RUN_URL =
-        "https://scoring-engine-489769736562.europe-west1.run.app/score";
-
-      try {
-        console.log(
-          `[calculate-health-scores] Calling Cloud Run for batch of ${contacts.length}`,
-        );
-        const cloudResponse = await fetch(CLOUD_RUN_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contacts, dry_run }),
-        });
-
-        if (cloudResponse.ok) {
-          const results: HealthScoreResult[] = await cloudResponse.json();
-          healthResults.push(...results);
-
-          // Update zone counts from Cloud Run results
-          results.forEach((result) => {
-            switch (result.healthZone) {
-              case "PURPLE":
-                summary.zones.purple++;
-                break;
-              case "GREEN":
-                summary.zones.green++;
-                break;
-              case "YELLOW":
-                summary.zones.yellow++;
-                break;
-              case "RED":
-                summary.zones.red++;
-                break;
-            }
-          });
-        } else {
-          throw new Error(`Cloud Run returned ${cloudResponse.status}`);
-        }
-      } catch (err: unknown) {
-        console.error(
-          `[calculate-health-scores] Cloud Run failed, falling back to local: ${err}`,
-        );
-        // LOCAL FALLBACK
-        for (const contact of contacts) {
-          try {
-            const result = calculateHealthScore(contact);
-            healthResults.push(result);
-            switch (result.healthZone) {
-              case "PURPLE":
-                summary.zones.purple++;
-                break;
-              case "GREEN":
-                summary.zones.green++;
-                break;
-              case "YELLOW":
-                summary.zones.yellow++;
-                break;
-              case "RED":
-                summary.zones.red++;
-                break;
-            }
-          } catch (innerErr) {
-            summary.errors.push(
-              `Local fallback failed for ${contact.id}: ${innerErr}`,
-            );
+      for (const contact of contacts) {
+        try {
+          const result = calculateHealthScore(contact);
+          healthResults.push(result);
+          switch (result.healthZone) {
+            case "PURPLE":
+              summary.zones.purple++;
+              break;
+            case "GREEN":
+              summary.zones.green++;
+              break;
+            case "YELLOW":
+              summary.zones.yellow++;
+              break;
+            case "RED":
+              summary.zones.red++;
+              break;
           }
+        } catch (innerErr) {
+          summary.errors.push(
+            `Health score calculation failed for ${contact.id}: ${innerErr}`,
+          );
         }
       }
 

@@ -16,6 +16,7 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
 serve(async (req) => {
   try {
@@ -180,22 +181,15 @@ async function handleDealUpdate(
   const dealOwnerId = props.hubspot_owner_id || null;
   const dealOwnerName = dealOwnerId ? ownerMap[dealOwnerId] || null : null;
 
-  const dealPayload = {
-    id: dealId,
-    deal_name: props.dealname,
-    deal_value: props.amount ? parseFloat(props.amount) : 0,
-    stage: props.dealstage,
-    close_date: props.closedate,
-    created_at: props.createdate,
-    owner_id: dealOwnerId,
-    owner_name: dealOwnerName,
-    last_updated: new Date().toISOString(),
-  };
+  // Use shared mapping for consistent field names across all sync paths
+  const dealBase = HubSpotManager.mapDealFields(
+    { id: String(dealId), properties: props },
+    null,
+    dealOwnerName,
+  );
 
-  // Note: Schema might require UUID for 'id' and 'hubspot_id' separately.
-  // Checking typical setup: usually we upsert on 'hubspot_id' column.
-  // Ideally we should query if deal exists by hubspot_id, but here assuming dealPayload.id isn't the UUID.
-  // Let's safe-guard:
+  // hubspot-webhook uses onConflict: "hubspot_id" (NOT hubspot_deal_id)
+  // This is a known discrepancy — do not change the conflict key.
   const { data: existingDeal } = await supabase
     .from("deals")
     .select("id")
@@ -203,7 +197,7 @@ async function handleDealUpdate(
     .maybeSingle();
 
   const finalPayload = {
-    ...dealPayload,
+    ...dealBase,
     id: existingDeal?.id || undefined, // Let DB gen UUID if new
     hubspot_id: dealId.toString(),
   };

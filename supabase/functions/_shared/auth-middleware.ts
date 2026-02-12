@@ -1,4 +1,5 @@
 import { corsHeaders } from "./error-handler.ts";
+import { RateLimitError, UnauthorizedError } from "./app-errors.ts";
 
 const RATE_LIMIT = {
   windowMs: 60 * 1000, // 1 minute
@@ -22,7 +23,7 @@ export function verifyAuth(req: Request) {
     data.count++;
     if (data.count > RATE_LIMIT.maxRequests) {
       console.warn(`🛑 Rate Limit Exceeded for IP: ${ip}`);
-      throw new Error("Too Many Requests"); // Becomes 500 or caught by try/catch as 429 ideally
+      throw new RateLimitError(60);
     }
   }
 
@@ -35,6 +36,6 @@ export function verifyAuth(req: Request) {
     console.error(
       `❌ Blocking request: No Authorization or X-Auth-Token header found. IP: ${ip}`,
     );
-    throw new Error("Unauthorized: Missing Authentication Credentials");
+    throw new UnauthorizedError("Missing authentication credentials");
   }
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, TrendingUp, TrendingDown, Brain, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface CoachReviewsTabProps {
   mode: "test" | "live";
@@ -248,7 +249,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading reviews...</div>
+            <PageSkeleton variant="table" rows={5} />
           ) : reviews && reviews.length > 0 ? (
             <div className="space-y-4">
               {reviews.map((review: any) => (

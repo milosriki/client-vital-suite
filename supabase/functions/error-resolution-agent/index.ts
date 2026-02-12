@@ -11,6 +11,7 @@ import {
 import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const FUNCTION_NAME = "error-resolution-agent";
 
@@ -44,7 +45,9 @@ serve(async (req) => {
 
       if (errorBatch.length > 0) {
         // AI Deep Reasoning Step
-        const systemPrompt = `You are an Expert Systems Engineer.
+        const constitutionalPrefix = getConstitutionalSystemMessage();
+        const systemPrompt = `${constitutionalPrefix}
+You are an Expert Systems Engineer.
         TASK: Analyze these sync errors.
         OUTPUT: JSON with 'thought_process' (analysis, hypothesis, strategy) and 'triage_results' array.
         `;
@@ -130,13 +133,14 @@ serve(async (req) => {
 
         if (critical) {
           try {
+            const patternSystemPrompt = `${getConstitutionalSystemMessage()}
+You are an expert system nurse. Summarize this error pattern for the CEO.`;
             const response =
               await import("../_shared/unified-ai-client.ts").then((m) =>
                 m.unifiedAI.chat([
                   {
                     role: "system",
-                    content:
-                      "You are an expert system nurse. Summarize this error pattern for the CEO.",
+                    content: patternSystemPrompt,
                   },
                   { role: "user", content: JSON.stringify(critical) },
                 ]),

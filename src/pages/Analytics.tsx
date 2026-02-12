@@ -12,11 +12,11 @@ const Analytics = () => {
   const { data: weeklyData, isLoading: weeklyLoading, refetch } = useDedupedQuery({
     queryKey: ['weekly-analytics'],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from('weekly_patterns')
+      const { data, error } = await supabase
+        .from('weekly_health_summary' as any)
         .select('*')
         .order('week_start', { ascending: true })
-        .limit(12) as any);
+        .limit(12);
       
       if (error) throw error;
       return (data || []) as any[];
@@ -55,7 +55,7 @@ const Analytics = () => {
 
   // Prepare data for charts
   const trendData = weeklyData?.map((week: any) => ({
-    week: new Date(week.week_start_date || week.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    week: new Date(week.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     avgScore: week.avg_health_score || 0,
     red: week.red_clients || 0,
     yellow: week.yellow_clients || 0,

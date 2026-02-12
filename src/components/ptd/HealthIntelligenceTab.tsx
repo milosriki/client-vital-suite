@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface HealthIntelligenceTabProps {
   mode: "test" | "live";
@@ -278,7 +279,7 @@ export default function HealthIntelligenceTab({ mode }: HealthIntelligenceTabPro
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+            <PageSkeleton variant="table" rows={8} />
           ) : healthScores && healthScores.length > 0 ? (
             <div className="rounded-md border">
               <Table>

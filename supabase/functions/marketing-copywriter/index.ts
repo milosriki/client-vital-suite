@@ -180,10 +180,10 @@ ${
         // Validate output (per ai-product skill: "Always validate output")
         const validCopy = validateCopyOutput(rawText);
 
-        // Save to creative_library
+        // Save to creative_library (upsert by source_ad_id + prompt_version)
         const { error: insertErr } = await supabase
           .from("creative_library")
-          .insert({
+          .upsert({
             source_ad_id: winner.ad_id,
             source_ad_name: winner.ad_name,
             prompt_version: PROMPT_VERSION,
@@ -191,8 +191,8 @@ ${
             bodies: validCopy.bodies,
             reasoning: validCopy.reasoning,
             winning_dna: winner.metrics,
-            status: "pending_approval", // GUARDRAIL: Always pending
-          });
+            status: "pending_approval",
+          }, { onConflict: "source_ad_id, prompt_version" });
 
         if (insertErr) {
           throw new Error(`DB insert error: ${insertErr.message}`);

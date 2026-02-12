@@ -23,6 +23,7 @@ import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { calculateLeadScore } from "../_shared/lead-scorer.ts";
 import { SentimentTriage } from "../_shared/sentiment.ts";
 import { getSocialProof, formatSocialProof } from "../_shared/social-proof.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -134,6 +135,7 @@ Deno.serve(async (req) => {
     // [BRAIN TRANSPLANT] Sentiment Analysis
     const sentiment = SentimentTriage.analyze(incomingText);
 
+    const constitutionalPrefix = getConstitutionalSystemMessage();
     let systemPrompt = buildSmartPrompt({
       name: hubspotContext?.properties?.firstname || "Friend",
       phone: phone,
@@ -167,12 +169,15 @@ Deno.serve(async (req) => {
       // social_proof: ... REMOVED
     });
 
+    // Prepend constitutional framing to system prompt
+    systemPrompt = `${constitutionalPrefix}\n\n${systemPrompt}`;
+
     if (sentiment.sentiment === "RISK") {
       console.log(
         "⚠️ Sentiment RISK detected. Switching to De-escalation Prompt.",
       );
       systemPrompt =
-        "You are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.";
+        `${constitutionalPrefix}\n\nYou are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.`;
     }
 
     // Safe Tools for WhatsApp

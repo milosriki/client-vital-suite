@@ -31,6 +31,32 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
   const [selectedIntervention, setSelectedIntervention] = useState<any>(null);
   const [notes, setNotes] = useState("");
 
+  const handlePhoneClick = async (intervention: any) => {
+    const email = intervention.email || intervention.client_email;
+    if (!email) {
+      toast({ title: "No phone number available", description: "No email on record to look up phone number." });
+      return;
+    }
+
+    const { data: contact, error } = await supabase
+      .from("contacts")
+      .select("phone")
+      .eq("email", email)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !contact?.phone) {
+      toast({ title: "No phone number available", description: "Could not find a phone number for this contact." });
+      return;
+    }
+
+    window.open(`tel:${contact.phone}`, "_self");
+  };
+
+  const handleCalendarClick = (intervention: any) => {
+    toast({ title: "No calendar link available", description: "No booking URL is configured for this contact." });
+  };
+
   const logAiFeedback = async (intervention: any, feedbackNotes?: string) => {
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -256,10 +282,20 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
                               Complete
                             </Button>
                             <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => handlePhoneClick(intervention)}
+                              >
                                 <Phone className="h-4 w-4" />
                               </Button>
-                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => handleCalendarClick(intervention)}
+                              >
                                 <Calendar className="h-4 w-4" />
                               </Button>
                               <Dialog>

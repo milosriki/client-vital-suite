@@ -28,6 +28,7 @@ import {
   Cpu,
   Wallet,
   Award,
+  Crosshair,
   BrainCircuit,
   ShieldAlert,
   ChevronRight,
@@ -95,7 +96,8 @@ export const Navigation = () => {
 
   const NAV_GROUPS = {
     COMMERCIAL: [
-      { path: "/executive-dashboard", label: "Command", icon: LayoutDashboard },
+      { path: "/command-center", label: "Command Center", icon: Crosshair },
+      { path: "/executive-dashboard", label: "Executive", icon: LayoutDashboard },
       {
         path: "/marketing-intelligence",
         label: "Marketing",

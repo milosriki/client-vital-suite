@@ -2,7 +2,8 @@
 -- Rule: If score > 60, re-engage after 4 hours of silence. 
 -- Otherwise, stick to the 24-hour default to avoid being spammy.
 
-CREATE OR REPLACE VIEW v_followup_queue AS
+DROP VIEW IF EXISTS v_followup_queue;
+CREATE VIEW v_followup_queue AS
 SELECT
   ci.phone,
   ci.lead_score,

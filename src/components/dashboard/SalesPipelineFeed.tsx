@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatStatus, getStatusColor } from "@/utils/formatters";
 import { Phone, Mail, Building, User } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface SalesContact {
   id: string;
@@ -63,7 +64,7 @@ export function SalesPipelineFeed() {
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Loading pipeline data...</div>;
+    return <div className="p-4"><PageSkeleton variant="cards" count={3} /></div>;
   }
 
   return (

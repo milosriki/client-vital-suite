@@ -22,13 +22,13 @@ export function useCEOData() {
     queryKey: ["pending-actions"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("prepared_actions" as any)
+        .from("prepared_actions")
         .select("*")
         .in("status", ["prepared", "executing"])
         .order("priority", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data || []) as unknown as PreparedAction[];
+      return (data || []) as PreparedAction[];
     },
     staleTime: Infinity,
   });
@@ -37,13 +37,13 @@ export function useCEOData() {
     queryKey: ["executed-actions"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("prepared_actions" as any)
+        .from("prepared_actions")
         .select("*")
         .in("status", ["executed", "failed"])
         .order("executed_at", { ascending: false })
         .limit(20);
       if (error) throw error;
-      return (data || []) as unknown as PreparedAction[];
+      return (data || []) as PreparedAction[];
     },
     staleTime: Infinity,
   });
@@ -52,11 +52,11 @@ export function useCEOData() {
     queryKey: ["business-goals"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("business_goals" as any)
+        .from("business_goals")
         .select("*")
         .eq("status", "active");
       if (error) throw error;
-      return (data || []) as unknown as BusinessGoal[];
+      return (data || []) as BusinessGoal[];
     },
   });
 
@@ -64,12 +64,12 @@ export function useCEOData() {
     queryKey: ["business-calibration"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("business_calibration" as any)
+        .from("business_calibration")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
-      return (data || []) as unknown as CalibrationExample[];
+      return (data || []) as CalibrationExample[];
     },
   });
 
@@ -82,7 +82,7 @@ export function useCEOData() {
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
-      return (data || []).map((item: any) => ({
+      return (data || []).map((item) => ({
         ...item,
         title: item.insight_type || "Insight",
         description: "",
@@ -121,12 +121,11 @@ export function useCEOData() {
       );
 
       if (!error && stats) {
-        const typedStats = stats as any;
         return {
-          totalRevenue: typedStats.revenue_this_month || 0,
-          avgDealValue: typedStats.avg_deal_value || 0,
-          dealsCount: typedStats.closed_deals_count || 0,
-          pipelineValue: typedStats.pipeline_value || 0,
+          totalRevenue: stats.revenue_this_month || 0,
+          avgDealValue: stats.avg_deal_value || 0,
+          dealsCount: stats.closed_deals_count || 0,
+          pipelineValue: stats.pipeline_value || 0,
         };
       }
 
@@ -239,12 +238,12 @@ export function useCEOData() {
       const status: IntegrationStatus = {};
 
       platforms.forEach((p) => {
-        const logs = syncLogs?.filter((l: any) => l.platform === p) || [];
-        const errors = syncErrors?.filter((e: any) => e.source === p) || [];
-        const lastLog = logs[0] as any;
+        const logs = syncLogs?.filter((l) => l.platform === p) || [];
+        const errors = syncErrors?.filter((e) => e.source === p) || [];
+        const lastLog = logs[0];
 
         status[p] = {
-          connected: logs.some((l: any) => l.status === "success"),
+          connected: logs.some((l) => l.status === "success"),
           lastSync: lastLog?.started_at || null,
           errors: errors.length,
         };
@@ -295,22 +294,24 @@ export function useCEOData() {
     mutationFn: async (actionId: string) => {
       // 1. Mark as executing
       await supabase
-        .from("prepared_actions" as any)
+        .from("prepared_actions")
         .update({ status: "executing", executed_at: new Date().toISOString() })
         .eq("id", actionId);
 
       // 2. Call execution agent (rewired: action-executor → ptd-execute-action)
       const { data: actionData } = await supabase
-        .from("prepared_actions" as any)
+        .from("prepared_actions")
         .select("action_type, prepared_payload")
         .eq("id", actionId)
         .single();
 
-      const typedAction = actionData as any;
       const { error } = await supabase.functions.invoke("ptd-execute-action", {
         body: {
-          action: typedAction?.action_type || "generic",
-          params: { actionId, ...(typedAction?.prepared_payload || {}) },
+          action: actionData?.action_type || "generic",
+          params: {
+            actionId,
+            ...((actionData?.prepared_payload as object) || {}),
+          },
         },
       });
 
@@ -336,7 +337,7 @@ export function useCEOData() {
       reason: string;
     }) => {
       const { error } = await supabase
-        .from("prepared_actions" as any)
+        .from("prepared_actions")
         .update({
           status: "rejected",
           rejection_reason: reason,
@@ -346,7 +347,7 @@ export function useCEOData() {
       if (error) throw error;
 
       // Record feedback and trigger learning loop (rewired: feedback-loop → ai-learning-loop)
-      await supabase.from("ai_feedback_learning" as any).insert({
+      await supabase.from("ai_feedback_learning").insert({
         feedback_score: 1,
         user_correction: reason,
         context_data: { type: "action_rejection", actionId },

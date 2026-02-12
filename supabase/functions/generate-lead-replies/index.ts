@@ -6,6 +6,7 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -100,7 +101,9 @@ serve(async (req) => {
 
         for (const lead of newLeads) {
             try {
-                const systemPrompt = `You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
+                const constitutionalPrefix = getConstitutionalSystemMessage();
+                const systemPrompt = `${constitutionalPrefix}
+You are an expert sales consultant at PTD Fitness Dubai - a premium mobile personal training service.
 
 ROLE: Generate personalized first-contact replies for new fitness leads.
 

@@ -10,6 +10,7 @@ import { executeLocationTools } from "./executors/location-executor.ts";
 import { executeMetaTools } from "./executors/meta-executor.ts";
 import { executeAwsTools } from "./executors/aws-executor.ts";
 import { executeErrorTools } from "./executors/error-executor.ts";
+import { executeCommandCenterTools } from "./executors/command-center-executor.ts";
 
 export async function executeSharedTool(
   supabase: any,
@@ -123,7 +124,12 @@ export async function executeSharedTool(
       return await executeErrorTools(supabase, toolName, input);
     }
 
-    // 13. The Truth Engine
+    // 13. Command Center Tools
+    if (["command_center_control"].includes(toolName)) {
+      return await executeCommandCenterTools(supabase, toolName, input);
+    }
+
+    // 14. The Truth Engine
     if (toolName === "marketing_truth_engine") {
       // Call the data-reconciler edge function
       const { date_range } = input;

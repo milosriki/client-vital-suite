@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AutomationTabProps {
   mode: "test" | "live";
@@ -261,18 +262,39 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => toast({ title: "Preflight", description: `CSV: ${csvUrl}` })}>
-              <Eye className="h-4 w-4 mr-2" />
-              Preflight
-            </Button>
-            <Button variant="outline" onClick={() => toast({ title: "Simulate", description: "Simulation complete" })}>
-              <Play className="h-4 w-4 mr-2" />
-              Simulate
-            </Button>
-            <Button>
-              <Upload className="h-4 w-4 mr-2" />
-              Run
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>
+                  <Button variant="outline" disabled>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preflight
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Coming soon</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>
+                  <Button variant="outline" disabled>
+                    <Play className="h-4 w-4 mr-2" />
+                    Simulate
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Coming soon</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>
+                  <Button disabled>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Run
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Coming soon</TooltipContent>
+            </Tooltip>
           </div>
         </CardContent>
       </Card>

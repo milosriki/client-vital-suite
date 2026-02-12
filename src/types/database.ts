@@ -5,7 +5,6 @@ export interface ClientHealthScore {
   firstname: string | null;
   lastname: string | null;
   email: string | null;
-  client_email?: string | null; // Alias for compatibility
   health_score: number;
   health_zone: 'RED' | 'YELLOW' | 'GREEN' | 'PURPLE';
   engagement_score: number | null;
@@ -40,34 +39,28 @@ export interface CoachPerformance {
   id: string;
   coach_name: string;
   report_date: string;
-  total_clients: number;
-  avg_client_health: number;
-  red_clients: number;
-  yellow_clients: number;
-  green_clients: number;
-  purple_clients: number;
-  clients_improving: number;
-  clients_declining: number;
-  trend: 'improving' | 'declining' | 'stable' | null;
-  created_at: string;
-  updated_at: string;
+  total_clients: number | null;
+  avg_client_health: number | null;
+  clients_red: number | null;
+  clients_yellow: number | null;
+  clients_green: number | null;
+  clients_purple: number | null;
+  clients_improving: number | null;
+  clients_declining: number | null;
+  health_trend: string | null;
+  created_at: string | null;
 }
 
 export interface DailySummary {
-  id: string;
+  id: number;
   summary_date: string;
-  total_active_clients: number;
-  avg_health_score: number;
-  critical_interventions: number;
-  at_risk_revenue: number;
-  red_clients: number;
-  yellow_clients: number;
-  green_clients: number;
-  purple_clients: number;
-  red_percentage: number;
-  yellow_percentage: number;
-  green_percentage: number;
-  purple_percentage: number;
-  created_at: string;
-  updated_at: string;
+  total_clients: number | null;
+  avg_health_score: number | null;
+  critical_interventions: number | null;
+  at_risk_revenue_aed: number | null;
+  clients_red: number | null;
+  clients_yellow: number | null;
+  clients_green: number | null;
+  clients_purple: number | null;
+  created_at: string | null;
 }

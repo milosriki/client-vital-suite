@@ -7,6 +7,7 @@ import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -143,8 +144,10 @@ serve(async (req: Request) => {
     let aiBriefing = "No AI Analysis Key";
 
     try {
+      const constitutionalPrefix = getConstitutionalSystemMessage();
+      const auditorSystemPrompt = `${constitutionalPrefix}\n\nYou are the PTD Forensic Auditor. Analyze these discrepancies and renewal risks. Be blunt about manual marks-as-paid.`;
       const response = await unifiedAI.chat([
-        { role: "system", content: "You are the PTD Forensic Auditor. Analyze these discrepancies and renewal risks. Be blunt about manual marks-as-paid." },
+        { role: "system", content: auditorSystemPrompt },
         { role: "user", content: `Audit Data:\n${JSON.stringify({ auditResults, renewalsNeeded }, null, 2)}` }
       ], {
         max_tokens: 1500,

@@ -174,6 +174,64 @@ export const tools: ToolDefinition[] = [
       required: ["period"],
     },
   },
+  // COMMAND CENTER — Full-chain intelligence
+  {
+    name: "command_center_control",
+    description:
+      "COMMAND CENTER INTELLIGENCE - Full-chain analytics: campaign/adset/creative funnels with verdict (SCALE/WINNER/FIX_COACH/BAD_LEADS), lead journey drill-down (ad→call→book→close), setter funnels, cold leads, no-shows, upcoming assessments, money chain.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [
+            "get_campaign_funnel",
+            "get_adset_funnel",
+            "get_creative_funnel",
+            "get_lead_journey",
+            "get_setter_funnel",
+            "get_cold_leads",
+            "get_no_shows",
+            "get_upcoming_assessments",
+            "get_money_chain",
+            "diagnose_campaign",
+          ],
+          description: "Action to perform.",
+        },
+        campaign: {
+          type: "string",
+          description: "Campaign name filter (for funnel actions, diagnose_campaign)",
+        },
+        adset: {
+          type: "string",
+          description: "Adset name filter (for get_adset_funnel, get_creative_funnel)",
+        },
+        ad: {
+          type: "string",
+          description: "Ad name filter (for get_creative_funnel)",
+        },
+        email: {
+          type: "string",
+          description: "Email filter (for get_lead_journey)",
+        },
+        name: {
+          type: "string",
+          description: "Name search (for get_lead_journey)",
+        },
+        phone: {
+          type: "string",
+          description: "Phone search (for get_lead_journey)",
+        },
+        setter: {
+          type: "string",
+          description: "Setter name filter (for get_setter_funnel)",
+        },
+        days: { type: "number", description: "Days back (default 30)" },
+      },
+      required: ["action"],
+    },
+  },
+
   {
     name: "stripe_forensics",
     description:

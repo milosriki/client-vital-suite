@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   apiSuccess,
@@ -83,8 +84,12 @@ serve(async (req) => {
         `;
 
         try {
+          const constitutionalPrefix = getConstitutionalSystemMessage();
           const aiResponse = await unifiedAI.chat(
-            [{ role: "user", content: prompt }],
+            [
+              { role: "system", content: constitutionalPrefix },
+              { role: "user", content: prompt },
+            ],
             { jsonMode: true },
           );
 

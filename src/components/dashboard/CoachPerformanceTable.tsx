@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import { TrendingUp, TrendingDown, Minus, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/ui/page-skeleton';
 
 interface CoachPerformanceTableProps {
   coaches: any[];
@@ -49,7 +50,7 @@ export function CoachPerformanceTable({ coaches, isLoading }: CoachPerformanceTa
           <CardTitle>Coach Performance</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-muted-foreground">Loading coach data...</div>
+          <PageSkeleton variant="table" />
         </CardContent>
       </Card>
     );

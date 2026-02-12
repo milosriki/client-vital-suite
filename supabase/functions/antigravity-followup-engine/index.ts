@@ -9,6 +9,7 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 import {
   handleError,
   corsHeaders,
@@ -97,7 +98,8 @@ Deno.serve(async (req) => {
         referral_source: null,
       };
 
-      const prompt = buildSmartPrompt(context);
+      const constitutionalPrefix = getConstitutionalSystemMessage();
+      const prompt = `${constitutionalPrefix}\n\n${buildSmartPrompt(context)}`;
       const aiResponse = await unifiedAI.chat([
         { role: "system", content: prompt },
         {

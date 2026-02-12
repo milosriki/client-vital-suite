@@ -13,6 +13,7 @@ import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 /**
  * RDS Data Analyst Agent
@@ -179,12 +180,10 @@ async function naturalLanguageToSQL(
   question: string,
   schemaContext: string,
 ): Promise<string> {
-  const response = await unifiedAI.chat(
-    [
-      {
-        role: "system",
-        content: `You are a PostgreSQL expert. Convert natural language questions into safe, read-only SQL queries.
-        
+  const constitutionalPrefix = getConstitutionalSystemMessage();
+  const nlToSqlSystemPrompt = `${constitutionalPrefix}
+You are a PostgreSQL expert. Convert natural language questions into safe, read-only SQL queries.
+
 DATABASE SCHEMA:
 ${schemaContext}
 
@@ -195,7 +194,12 @@ RULES:
 - Return ONLY the SQL query, no explanation
 - For trainer performance: use vw_schedulers + vw_client_master
 - For packages: use vw_client_packages
-- Wrap column names with spaces in double quotes`,
+- Wrap column names with spaces in double quotes`;
+  const response = await unifiedAI.chat(
+    [
+      {
+        role: "system",
+        content: nlToSqlSystemPrompt,
       },
       {
         role: "user",

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { STATUS_CONFIG, CALL_STATUS_CONFIG } from "./constants";
+import { DealsKanban } from "./DealsKanban";
 
 interface SalesTabsProps {
   funnelData: any;
@@ -339,77 +340,7 @@ export const SalesTabs = ({
 
       {/* Deals Tab */}
       <TabsContent value="deals">
-        <Card>
-          <CardHeader>
-            <CardTitle>All Deals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Deal Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Pipeline</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Value</TableHead>
-                    <TableHead className="text-right">Collected</TableHead>
-                    <TableHead>Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dealsData?.deals?.map((deal: any) => (
-                    <TableRow
-                      key={deal.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => onDealClick && onDealClick(deal)}
-                    >
-                      <TableCell className="font-medium">
-                        {deal.deal_name ||
-                          `Deal ${(deal.id || "").slice(0, 8)}`}
-                      </TableCell>
-                      <TableCell>{deal.deal_type || "-"}</TableCell>
-                      <TableCell>{deal.pipeline || "-"}</TableCell>
-                      <TableCell>{deal.stage || "-"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            deal.status === "closed" ? "default" : "secondary"
-                          }
-                        >
-                          {deal.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {deal.deal_value?.toLocaleString("en-AE", {
-                          style: "currency",
-                          currency: "AED",
-                          maximumFractionDigits: 0,
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {(deal.cash_collected || 0).toLocaleString("en-AE", {
-                          style: "currency",
-                          currency: "AED",
-                          maximumFractionDigits: 0,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(deal.created_at!), "MMM d, yyyy")}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {!dealsData?.deals?.length && (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No deals found
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <DealsKanban deals={dealsData?.deals || []} />
       </TabsContent>
 
       {/* Calls Tab */}

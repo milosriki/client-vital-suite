@@ -28,6 +28,8 @@ export interface AIResponse {
   }[];
   provider: "gemini" | "anthropic" | "openai";
   model: string;
+  tokens_used?: number;
+  cost_usd?: number;
 }
 
 export interface AIOptions {
@@ -38,6 +40,8 @@ export interface AIOptions {
   thinkingLevel?: "low" | "high"; // Gemini 3: Control reasoning depth
   thoughtSignature?: string; // Gemini 3: Pass back for context
   model?: string; // Override default model cascade
+  functionName?: string; // For token usage tracking
+  correlationId?: string; // For token usage tracking
 }
 
 // ============================================================================
@@ -323,6 +327,40 @@ export class UnifiedAIClient {
     const response = await result.response;
     const text = response.text();
 
+    // Token budget tracking
+    const usageMeta = response.usageMetadata;
+    let tokensUsed: number | undefined;
+    let costUsd: number | undefined;
+
+    if (usageMeta) {
+      const promptTokens = usageMeta.promptTokenCount || 0;
+      const completionTokens = usageMeta.candidatesTokenCount || 0;
+      const totalTokens = promptTokens + completionTokens;
+      tokensUsed = totalTokens;
+
+      this.tokenBudget.totalTokens += totalTokens;
+
+      const inputCostPer1M = modelName.includes("flash") ? 0.10 : 3.00;
+      const outputCostPer1M = modelName.includes("flash") ? 0.40 : 15.00;
+      const cost = (promptTokens * inputCostPer1M + completionTokens * outputCostPer1M) / 1_000_000;
+      costUsd = cost;
+      this.tokenBudget.totalCost += cost;
+
+      // Fire-and-forget token logging
+      try {
+        const sb = createClient(this.supabaseUrl, this.supabaseKey);
+        sb.from("token_usage_metrics").insert({
+          function_name: options?.functionName || "unknown",
+          model_used: modelName,
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens,
+          estimated_cost_usd: cost,
+          correlation_id: options?.correlationId,
+        }).then(() => {}).catch(() => {});
+      } catch { /* telemetry must never break agents */ }
+    }
+
     // Gemini 3: Extract Thought Signature
     // @ts-ignore
     const thoughtSignature = response.candidates?.[0]?.content?.parts?.find(
@@ -359,6 +397,8 @@ export class UnifiedAIClient {
       tool_calls: toolCalls,
       provider: "gemini",
       model: modelName,
+      tokens_used: tokensUsed,
+      cost_usd: costUsd,
     };
   }
 }

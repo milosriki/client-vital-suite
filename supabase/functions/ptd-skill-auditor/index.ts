@@ -3,12 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { apiSuccess, apiError } from "../_shared/api-response.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const AUDIT_PROMPT = `
+const constitutionalPrefix = getConstitutionalSystemMessage();
+const AUDIT_PROMPT = `${constitutionalPrefix}
 You are ATLAS, the Executive Brain of PTD Fitness.
 Your job is to AUDIT the performance of LISA, our Frontline Booking Agent.
 

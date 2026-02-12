@@ -232,14 +232,30 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // 4. Insert alerts
-    if (alerts.length > 0) {
+    // 4. Validate + upsert alerts
+    const validAlerts = alerts.filter((a) => {
+      if (typeof a.projected_roas_30d !== "number") {
+        console.warn("[Predictor] Dropping alert: missing projected_roas_30d");
+        return false;
+      }
+      if (!a.alert_type || !["fatigue", "opportunity", "trend_reversal"].includes(a.alert_type)) {
+        console.warn("[Predictor] Dropping alert: invalid alert_type", a.alert_type);
+        return false;
+      }
+      if (!a.ad_id) {
+        console.warn("[Predictor] Dropping alert: missing ad_id");
+        return false;
+      }
+      return true;
+    });
+
+    if (validAlerts.length > 0) {
       const { error: insertErr } = await supabase
         .from("marketing_fatigue_alerts")
-        .insert(alerts);
+        .upsert(validAlerts, { onConflict: "ad_id, alert_type" });
 
       if (insertErr) {
-        console.error("[predictor] Failed to insert alerts:", insertErr);
+        console.error("[predictor] Failed to upsert alerts:", insertErr);
       }
     }
 

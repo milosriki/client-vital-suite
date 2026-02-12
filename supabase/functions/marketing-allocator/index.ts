@@ -153,14 +153,26 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // 4. Insert proposals
-    if (proposals.length > 0) {
+    // 4. Validate + upsert proposals
+    const validProposals = proposals.filter((p) => {
+      if (typeof p.proposed_daily_budget !== "number" || p.proposed_daily_budget < 0) {
+        console.warn("[Allocator] Dropping proposal: invalid budget", p.proposed_daily_budget);
+        return false;
+      }
+      if (!p.action || !["increase", "decrease", "pause", "maintain"].includes(p.action)) {
+        console.warn("[Allocator] Dropping proposal: invalid action", p.action);
+        return false;
+      }
+      return true;
+    });
+
+    if (validProposals.length > 0) {
       const { error: insertErr } = await supabase
         .from("marketing_budget_proposals")
-        .insert(proposals);
+        .upsert(validProposals, { onConflict: "recommendation_id, ad_id" });
 
       if (insertErr) {
-        console.error("[allocator] Failed to insert proposals:", insertErr);
+        console.error("[allocator] Failed to upsert proposals:", insertErr);
       }
     }
 

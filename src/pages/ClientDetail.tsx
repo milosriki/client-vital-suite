@@ -7,23 +7,40 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HealthScoreBadge } from "@/components/HealthScoreBadge";
 import { TrendIndicator } from "@/components/TrendIndicator";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Calendar, Clock } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import {
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
+  Calendar,
+  Clock,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { format } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
 export default function ClientDetail() {
   const { email } = useParams<{ email: string }>();
   const navigate = useNavigate();
-  
+
   // Decode email parameter in case it has special characters
-  const decodedEmail = email ? decodeURIComponent(email) : '';
+  const decodedEmail = email ? decodeURIComponent(email) : "";
 
   const { data: client, isLoading: clientLoading } = useDedupedQuery({
     queryKey: ["client", decodedEmail],
     queryFn: async () => {
       if (!decodedEmail) return null;
-      
+
       const { data, error } = await supabase
         .from("client_health_scores")
         .select("*")
@@ -33,7 +50,7 @@ export default function ClientDetail() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching client:', error);
+        console.error("Error fetching client:", error);
         throw error;
       }
       return data;
@@ -41,26 +58,27 @@ export default function ClientDetail() {
     enabled: !!decodedEmail,
   });
 
-  const { data: interventions, isLoading: interventionsLoading } = useDedupedQuery({
-    queryKey: ["interventions", decodedEmail],
-    queryFn: async () => {
-      if (!decodedEmail) return [];
-      
-      const { data, error } = await supabase
-        .from("intervention_log")
-        .select("*")
-        .or(`client_email.eq.${decodedEmail},email.eq.${decodedEmail}`)
-        .order("triggered_at", { ascending: false })
-        .limit(5);
+  const { data: interventions, isLoading: interventionsLoading } =
+    useDedupedQuery({
+      queryKey: ["interventions", decodedEmail],
+      queryFn: async () => {
+        if (!decodedEmail) return [];
 
-      if (error) {
-        console.error('Error fetching interventions:', error);
-        throw error;
-      }
-      return data || [];
-    },
-    enabled: !!decodedEmail,
-  });
+        const { data, error } = await supabase
+          .from("intervention_log")
+          .select("*")
+          .or(`client_email.eq.${decodedEmail},email.eq.${decodedEmail}`)
+          .order("triggered_at", { ascending: false })
+          .limit(5);
+
+        if (error) {
+          console.error("Error fetching interventions:", error);
+          throw error;
+        }
+        return data || [];
+      },
+      enabled: !!decodedEmail,
+    });
 
   if (clientLoading) {
     return (
@@ -97,9 +115,10 @@ export default function ClientDetail() {
     );
   }
 
-  const fullName = `${client.firstname || ''} ${client.lastname || ''}`.trim() || decodedEmail;
+  const fullName =
+    `${client.firstname || ""} ${client.lastname || ""}`.trim() || decodedEmail;
   const displayEmail = (client as any).email || decodedEmail;
-  
+
   const sessionData = [
     { period: "Last 7 Days", sessions: client.sessions_last_7d || 0 },
     { period: "Last 30 Days", sessions: client.sessions_last_30d || 0 },
@@ -114,8 +133,10 @@ export default function ClientDetail() {
   };
 
   const getTrendIcon = () => {
-    if (client.health_trend === 'IMPROVING') return <TrendingUp className="text-green-500" size={20} />;
-    if (client.health_trend === 'DECLINING') return <TrendingDown className="text-red-500" size={20} />;
+    if (client.health_trend === "IMPROVING")
+      return <TrendingUp className="text-green-500" size={20} />;
+    if (client.health_trend === "DECLINING")
+      return <TrendingDown className="text-red-500" size={20} />;
     return <Minus className="text-gray-500" size={20} />;
   };
 
@@ -166,25 +187,34 @@ export default function ClientDetail() {
               <h1 className="text-3xl font-bold mb-2">{fullName}</h1>
               <p className="text-slate-400 mb-4">{displayEmail}</p>
               <div className="flex items-center gap-2">
-                <Badge className={`${
-                  client.health_zone === 'RED' ? 'bg-red-500' :
-                  client.health_zone === 'YELLOW' ? 'bg-yellow-500' :
-                  client.health_zone === 'GREEN' ? 'bg-green-500' :
-                  'bg-purple-500'
-                }`}>
+                <Badge
+                  className={`${
+                    client.health_zone === "RED"
+                      ? "bg-red-500"
+                      : client.health_zone === "YELLOW"
+                        ? "bg-yellow-500"
+                        : client.health_zone === "GREEN"
+                          ? "bg-green-500"
+                          : "bg-purple-500"
+                  }`}
+                >
                   {client.health_zone}
                 </Badge>
                 <TrendIndicator trend={client.health_trend} />
               </div>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <HealthScoreBadge 
-                score={client.health_score || 0} 
+              <HealthScoreBadge
+                score={client.health_score || 0}
                 zone={client.health_zone as any}
                 size="lg"
               />
               <p className="text-xs text-slate-400">
-                Updated {format(new Date(client.calculated_at), "MMM d, yyyy 'at' h:mm a")}
+                Updated{" "}
+                {format(
+                  new Date(client.calculated_at),
+                  "MMM d, yyyy 'at' h:mm a",
+                )}
               </p>
             </div>
           </div>
@@ -200,10 +230,12 @@ export default function ClientDetail() {
               {getTrendIcon()}
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-3xl font-bold">{client.health_score?.toFixed(0) || 0}</p>
+              <p className="text-3xl font-bold">
+                {client.health_score?.toFixed(0) || 0}
+              </p>
             </div>
             <p className="text-sm text-slate-400 mt-1">
-              {client.health_trend || 'STABLE'}
+              {client.health_trend || "STABLE"}
             </p>
           </CardContent>
         </Card>
@@ -214,7 +246,9 @@ export default function ClientDetail() {
               <p className="text-sm text-slate-400">Churn Risk</p>
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
             </div>
-            <p className="text-3xl font-bold">{client.churn_risk_score?.toFixed(0) || 0}%</p>
+            <p className="text-3xl font-bold">
+              {client.churn_risk_score?.toFixed(0) || 0}%
+            </p>
             <p className="text-sm text-slate-400 mt-1">
               {getChurnRiskLevel(client.churn_risk_score)}
             </p>
@@ -227,8 +261,12 @@ export default function ClientDetail() {
               <p className="text-sm text-slate-400">Sessions Remaining</p>
               <Calendar className="h-4 w-4 text-blue-500" />
             </div>
-            <p className="text-3xl font-bold">{client.outstanding_sessions || 0}</p>
-            <p className="text-sm text-slate-400 mt-1">{client.package_type || 'N/A'}</p>
+            <p className="text-3xl font-bold">
+              {client.outstanding_sessions || 0}
+            </p>
+            <p className="text-sm text-slate-400 mt-1">
+              {client.package_type || "N/A"}
+            </p>
           </CardContent>
         </Card>
 
@@ -238,11 +276,19 @@ export default function ClientDetail() {
               <p className="text-sm text-slate-400">Days Since Last Session</p>
               <Clock className="h-4 w-4 text-purple-500" />
             </div>
-            <p className="text-3xl font-bold">{client.days_since_last_session !== null ? client.days_since_last_session : 'N/A'}</p>
+            <p className="text-3xl font-bold">
+              {client.days_since_last_session !== null
+                ? client.days_since_last_session
+                : "N/A"}
+            </p>
             <p className="text-sm text-slate-400 mt-1">
-              {client.days_since_last_session === null ? '' : 
-               client.days_since_last_session > 30 ? 'Inactive' : 
-               client.days_since_last_session > 14 ? 'At Risk' : 'Active'}
+              {client.days_since_last_session === null
+                ? ""
+                : client.days_since_last_session > 30
+                  ? "Inactive"
+                  : client.days_since_last_session > 14
+                    ? "At Risk"
+                    : "Active"}
             </p>
           </CardContent>
         </Card>
@@ -257,14 +303,16 @@ export default function ClientDetail() {
           <div>
             <div className="flex justify-between mb-2">
               <span className="text-sm text-slate-400">Engagement Score</span>
-              <span className="text-sm font-semibold">{client.engagement_score?.toFixed(0) || 0}</span>
+              <span className="text-sm font-semibold">
+                {client.engagement_score?.toFixed(0) || 0}
+              </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3">
               <div
                 className="h-3 rounded-full transition-all"
                 style={{
                   width: `${Math.min(100, client.engagement_score || 0)}%`,
-                  backgroundColor: getScoreColor(client.engagement_score)
+                  backgroundColor: getScoreColor(client.engagement_score),
                 }}
               />
             </div>
@@ -273,14 +321,16 @@ export default function ClientDetail() {
           <div>
             <div className="flex justify-between mb-2">
               <span className="text-sm text-slate-400">Momentum Score</span>
-              <span className="text-sm font-semibold">{client.momentum_score?.toFixed(0) || 0}</span>
+              <span className="text-sm font-semibold">
+                {client.momentum_score?.toFixed(0) || 0}
+              </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3">
               <div
                 className="h-3 rounded-full transition-all"
                 style={{
                   width: `${Math.min(100, client.momentum_score || 0)}%`,
-                  backgroundColor: getScoreColor(client.momentum_score)
+                  backgroundColor: getScoreColor(client.momentum_score),
                 }}
               />
             </div>
@@ -288,15 +338,19 @@ export default function ClientDetail() {
 
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-400">Package Health Score</span>
-              <span className="text-sm font-semibold">{client.package_health_score?.toFixed(0) || 0}</span>
+              <span className="text-sm text-slate-400">
+                Package Health Score
+              </span>
+              <span className="text-sm font-semibold">
+                {client.package_health_score?.toFixed(0) || 0}
+              </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3">
               <div
                 className="h-3 rounded-full transition-all"
                 style={{
                   width: `${Math.min(100, client.package_health_score || 0)}%`,
-                  backgroundColor: getScoreColor(client.package_health_score)
+                  backgroundColor: getScoreColor(client.package_health_score),
                 }}
               />
             </div>
@@ -305,14 +359,16 @@ export default function ClientDetail() {
           <div>
             <div className="flex justify-between mb-2">
               <span className="text-sm text-slate-400">Relationship Score</span>
-              <span className="text-sm font-semibold">{client.relationship_score?.toFixed(0) || 0}</span>
+              <span className="text-sm font-semibold">
+                {client.relationship_score?.toFixed(0) || 0}
+              </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3">
               <div
                 className="h-3 rounded-full transition-all"
                 style={{
                   width: `${Math.min(100, client.relationship_score || 0)}%`,
-                  backgroundColor: getScoreColor(client.relationship_score)
+                  backgroundColor: getScoreColor(client.relationship_score),
                 }}
               />
             </div>
@@ -321,14 +377,16 @@ export default function ClientDetail() {
           <div>
             <div className="flex justify-between mb-2">
               <span className="text-sm text-slate-400">Financial Score</span>
-              <span className="text-sm font-semibold">{client.financial_score?.toFixed(0) || 0}</span>
+              <span className="text-sm font-semibold">
+                {client.financial_score?.toFixed(0) || 0}
+              </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3">
               <div
                 className="h-3 rounded-full transition-all"
                 style={{
                   width: `${Math.min(100, client.financial_score || 0)}%`,
-                  backgroundColor: getScoreColor(client.financial_score)
+                  backgroundColor: getScoreColor(client.financial_score),
                 }}
               />
             </div>
@@ -347,12 +405,12 @@ export default function ClientDetail() {
               <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
               <XAxis dataKey="period" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1e293b', 
-                  border: '1px solid #475569',
-                  borderRadius: '8px',
-                  color: '#fff'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1e293b",
+                  border: "1px solid #475569",
+                  borderRadius: "8px",
+                  color: "#fff",
                 }}
               />
               <Bar dataKey="sessions" radius={[8, 8, 0, 0]}>
@@ -374,41 +432,59 @@ export default function ClientDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-slate-400 mb-1">Assigned Coach</p>
-              <p className="font-semibold">{client.assigned_coach || 'Not assigned'}</p>
+              <p className="font-semibold">
+                {client.assigned_coach || "Not assigned"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">Package Type</p>
-              <p className="font-semibold">{client.package_type || 'N/A'}</p>
+              <p className="font-semibold">{client.package_type || "N/A"}</p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">Package Value</p>
               <p className="font-semibold">
-                {client.package_value_aed ? `AED ${client.package_value_aed.toLocaleString()}` : 'N/A'}
+                {client.package_value_aed
+                  ? `AED ${client.package_value_aed.toLocaleString()}`
+                  : "N/A"}
               </p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">Client Segment</p>
-              <p className="font-semibold">{client.client_segment || 'N/A'}</p>
+              <p className="font-semibold">{client.client_segment || "N/A"}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Intervention Priority</p>
-              <p className="font-semibold">{client.intervention_priority || 'N/A'}</p>
+              <p className="text-sm text-slate-400 mb-1">
+                Intervention Priority
+              </p>
+              <p className="font-semibold">
+                {client.intervention_priority || "N/A"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">Days Until Renewal</p>
-              <p className="font-semibold">{client.days_until_renewal !== null ? client.days_until_renewal : 'N/A'}</p>
+              <p className="font-semibold">
+                {client.days_until_renewal !== null
+                  ? client.days_until_renewal
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">Sessions Purchased</p>
-              <p className="font-semibold">{client.sessions_purchased || 'N/A'}</p>
+              <p className="font-semibold">
+                {client.sessions_purchased || "N/A"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">HubSpot Contact ID</p>
-              <p className="font-semibold text-xs">{client.hubspot_contact_id || 'N/A'}</p>
+              <p className="font-semibold text-xs">
+                {client.hubspot_contact_id || "N/A"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-slate-400 mb-1">Calculation Version</p>
-              <p className="font-semibold">{client.calculation_version || 'N/A'}</p>
+              <p className="font-semibold">
+                {client.calculation_version || "N/A"}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -428,42 +504,62 @@ export default function ClientDetail() {
           ) : interventions && interventions.length > 0 ? (
             <div className="space-y-4">
               {interventions.map((intervention) => (
-                <div 
-                  key={intervention.id} 
+                <div
+                  key={intervention.id}
                   className="border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors"
                 >
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 mb-3">
                     <div className="flex-1">
-                      <p className="font-semibold text-lg">{intervention.intervention_type}</p>
+                      <p className="font-semibold text-lg">
+                        {intervention.intervention_type}
+                      </p>
                       <p className="text-sm text-slate-400">
-                        {intervention.intervention_date 
-                          ? format(new Date(intervention.intervention_date), "MMM d, yyyy 'at' h:mm a")
-                          : format(new Date(intervention.triggered_at), "MMM d, yyyy 'at' h:mm a")}
+                        {intervention.intervention_date
+                          ? format(
+                              new Date(intervention.intervention_date),
+                              "MMM d, yyyy 'at' h:mm a",
+                            )
+                          : format(
+                              new Date(intervention.triggered_at),
+                              "MMM d, yyyy 'at' h:mm a",
+                            )}
                       </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      <Badge className={getStatusColor(intervention.status || 'PENDING')}>
-                        {intervention.status || 'PENDING'}
+                      <Badge
+                        className={getStatusColor(
+                          intervention.status || "PENDING",
+                        )}
+                      >
+                        {intervention.status || "PENDING"}
                       </Badge>
                       {intervention.priority && (
-                        <Badge className={getPriorityColor(intervention.priority)}>
+                        <Badge
+                          className={getPriorityColor(intervention.priority)}
+                        >
                           {intervention.priority}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  
+
                   {intervention.ai_recommendation && (
                     <div className="mb-2 p-3 bg-slate-900/50 rounded">
-                      <p className="text-xs text-slate-400 mb-1">AI Recommendation:</p>
-                      <p className="text-sm text-slate-300">{intervention.ai_recommendation}</p>
+                      <p className="text-xs text-slate-400 mb-1">
+                        AI Recommendation:
+                      </p>
+                      <p className="text-sm text-slate-300">
+                        {intervention.ai_recommendation}
+                      </p>
                     </div>
                   )}
-                  
+
                   {intervention.outcome && (
                     <div className="mb-2 p-3 bg-slate-900/50 rounded">
                       <p className="text-xs text-slate-400 mb-1">Outcome:</p>
-                      <p className="text-sm text-slate-300">{intervention.outcome}</p>
+                      <p className="text-sm text-slate-300">
+                        {intervention.outcome}
+                      </p>
                     </div>
                   )}
 
@@ -471,32 +567,48 @@ export default function ClientDetail() {
                     {intervention.assigned_to && (
                       <div>
                         <p className="text-xs text-slate-400">Assigned To:</p>
-                        <p className="text-slate-300">{intervention.assigned_to}</p>
+                        <p className="text-slate-300">
+                          {intervention.assigned_to}
+                        </p>
                       </div>
                     )}
                     {intervention.health_score_at_trigger !== null && (
                       <div>
-                        <p className="text-xs text-slate-400">Score at Trigger:</p>
-                        <p className="text-slate-300">{intervention.health_score_at_trigger.toFixed(0)}</p>
+                        <p className="text-xs text-slate-400">
+                          Score at Trigger:
+                        </p>
+                        <p className="text-slate-300">
+                          {intervention.health_score_at_trigger.toFixed(0)}
+                        </p>
                       </div>
                     )}
                     {intervention.health_zone_at_trigger && (
                       <div>
-                        <p className="text-xs text-slate-400">Zone at Trigger:</p>
-                        <Badge className={`text-xs ${
-                          intervention.health_zone_at_trigger === 'RED' ? 'bg-red-500' :
-                          intervention.health_zone_at_trigger === 'YELLOW' ? 'bg-yellow-500' :
-                          intervention.health_zone_at_trigger === 'GREEN' ? 'bg-green-500' :
-                          'bg-purple-500'
-                        }`}>
+                        <p className="text-xs text-slate-400">
+                          Zone at Trigger:
+                        </p>
+                        <Badge
+                          className={`text-xs ${
+                            intervention.health_zone_at_trigger === "RED"
+                              ? "bg-red-500"
+                              : intervention.health_zone_at_trigger === "YELLOW"
+                                ? "bg-yellow-500"
+                                : intervention.health_zone_at_trigger ===
+                                    "GREEN"
+                                  ? "bg-green-500"
+                                  : "bg-purple-500"
+                          }`}
+                        >
                           {intervention.health_zone_at_trigger}
                         </Badge>
                       </div>
                     )}
-                    {intervention.trigger_reason && (
+                    {intervention.intervention_type && (
                       <div className="col-span-2 md:col-span-1">
                         <p className="text-xs text-slate-400">Trigger:</p>
-                        <p className="text-slate-300 text-xs">{intervention.trigger_reason}</p>
+                        <p className="text-slate-300 text-xs">
+                          {intervention.intervention_type}
+                        </p>
                       </div>
                     )}
                   </div>

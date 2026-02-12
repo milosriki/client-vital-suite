@@ -472,7 +472,8 @@ You are Lisa, the elite "Virtual GM" for PTD Fitness in Dubai.
 `;
 
 export function buildUnifiedPromptForEdgeFunction(options: any): string {
-  return `
+  return `${getConstitutionalSystemMessage()}
+
 MISSION: PTD CEO Control.
 PERSONA: ${LISA_PERSONA}
 RULES: Use LIVE data. anytrack > hubspot > facebook.

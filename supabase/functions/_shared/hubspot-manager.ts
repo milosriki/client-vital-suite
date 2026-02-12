@@ -140,6 +140,46 @@ export class HubSpotManager {
     return null; // Should not reach here
   }
 
+  /**
+   * Shared deal field mapping — single source of truth for HubSpot → Supabase deals.
+   * Used by sync-single-deal, backfill-deals, and hubspot-webhook.
+   * VERIFIED column names against src/integrations/supabase/types.ts:
+   *   stage (NOT deal_stage), created_at (NOT create_date),
+   *   updated_at (NOT last_modified), NO sync_source column.
+   */
+  static mapDealFields(
+    hubspotDeal: { id: string; properties: Record<string, any> },
+    contactId: string | null,
+    ownerName: string | null,
+  ): Record<string, any> {
+    const props = hubspotDeal.properties;
+    const val = parseFloat(props.amount) || 0;
+
+    return {
+      hubspot_deal_id: hubspotDeal.id,
+      deal_name: props.dealname || null,
+      deal_value: val,
+      value_aed: val,
+      stage: props.dealstage || null,
+      pipeline: props.pipeline || null,
+      close_date: props.closedate ? new Date(props.closedate).toISOString() : null,
+      status: HubSpotManager.mapDealStageToStatus(props.dealstage),
+      created_at: props.createdate ? new Date(props.createdate).toISOString() : new Date().toISOString(),
+      updated_at: props.lastmodifieddate ? new Date(props.lastmodifieddate).toISOString() : new Date().toISOString(),
+      contact_id: contactId,
+      owner_id: props.hubspot_owner_id || null,
+      owner_name: ownerName,
+    };
+  }
+
+  static mapDealStageToStatus(stage: string | null): string {
+    if (!stage) return "pending";
+    const s = stage.toLowerCase();
+    if (s.includes("won") || s.includes("signed") || s.includes("paid")) return "closed";
+    if (s.includes("lost") || s.includes("bad")) return "cancelled";
+    return "pending";
+  }
+
   async fetchContacts(
     limit = 100,
     after?: string,

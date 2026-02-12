@@ -168,15 +168,15 @@ const Overview = () => {
     staleTime: Infinity, // Real-time updates via useRealtimeHealthScores
   });
 
-  // Fetch weekly patterns
+  // Fetch weekly health summary (aggregated from daily_summary)
   const { data: weeklyPatterns = [], refetch: refetchWeekly } = useDedupedQuery(
     {
       queryKey: QUERY_KEYS.patterns.weekly,
       queryFn: async () => {
-        const { data, error } = await supabase
-          .from("weekly_patterns")
+        const { data, error } = await (supabase as any)
+          .from("weekly_health_summary")
           .select("*")
-          .order("week_start_date", { ascending: false })
+          .order("week_start", { ascending: false })
           .limit(4);
 
         if (error) throw error;
@@ -286,19 +286,19 @@ const Overview = () => {
     const reportData = {
       generatedAt: format(new Date(), "PPpp"),
       summary: {
-        totalActiveClients: summary.total_active_clients,
+        totalActiveClients: summary.total_clients,
         avgHealthScore: summary.avg_health_score?.toFixed(1),
         criticalInterventions: summary.critical_interventions,
-        atRiskRevenue: summary.at_risk_revenue,
-        redClients: summary.red_clients,
-        yellowClients: summary.yellow_clients,
-        greenClients: summary.green_clients,
-        purpleClients: summary.purple_clients,
+        atRiskRevenue: summary.at_risk_revenue_aed,
+        redClients: summary.clients_red,
+        yellowClients: summary.clients_yellow,
+        greenClients: summary.clients_green,
+        purpleClients: summary.clients_purple,
       },
       criticalClients:
         criticalClients?.map((c) => ({
           name: `${c.firstname || ""} ${c.lastname || ""}`.trim(),
-          email: c.client_email,
+          email: c.email,
           healthScore: c.health_score,
           healthZone: c.health_zone,
           daysSinceLastSession: c.days_since_last_session,
@@ -308,10 +308,10 @@ const Overview = () => {
           coachName: c.coach_name,
           totalClients: c.total_clients,
           avgHealth: c.avg_client_health?.toFixed(1),
-          redClients: c.red_clients,
-          yellowClients: c.yellow_clients,
-          greenClients: c.green_clients,
-          purpleClients: c.purple_clients,
+          redClients: c.clients_red,
+          yellowClients: c.clients_yellow,
+          greenClients: c.clients_green,
+          purpleClients: c.clients_purple,
         })) || [],
     };
 
@@ -564,7 +564,7 @@ const Overview = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Active Clients"
-            value={summary?.total_active_clients ?? 0}
+            value={summary?.total_clients ?? 0}
             icon={Users}
             iconColor="text-blue-600"
             iconBg="bg-blue-100"
@@ -597,7 +597,7 @@ const Overview = () => {
           />
           <MetricCard
             title="At-Risk Revenue"
-            value={`AED ${(summary?.at_risk_revenue ?? 0).toLocaleString()}`}
+            value={`AED ${(summary?.at_risk_revenue_aed ?? 0).toLocaleString()}`}
             icon={DollarSign}
             iconColor="text-orange-600"
             iconBg="bg-orange-100"
@@ -610,12 +610,12 @@ const Overview = () => {
           <div className="lg:col-span-3">
             <ZoneDistributionBar
               data={{
-                RED: summary?.red_clients ?? 0,
-                YELLOW: summary?.yellow_clients ?? 0,
-                GREEN: summary?.green_clients ?? 0,
-                PURPLE: summary?.purple_clients ?? 0,
+                RED: summary?.clients_red ?? 0,
+                YELLOW: summary?.clients_yellow ?? 0,
+                GREEN: summary?.clients_green ?? 0,
+                PURPLE: summary?.clients_purple ?? 0,
               }}
-              total={summary?.total_active_clients ?? 0}
+              total={summary?.total_clients ?? 0}
               onZoneClick={(zone) => {
                 setZoneFilter(zone);
                 navigate("/clients");
@@ -643,7 +643,7 @@ const Overview = () => {
                               "Unknown Client"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {client.client_email}
+                            {client.email}
                           </p>
                         </div>
                         <Badge className={getHealthColor(client.health_zone)}>
@@ -713,25 +713,25 @@ const Overview = () => {
                         {coach.total_clients}
                       </td>
                       <td
-                        className={`text-center py-3 px-4 font-semibold ${getScoreColor(coach.avg_client_health)}`}
+                        className={`text-center py-3 px-4 font-semibold ${getScoreColor(coach.avg_client_health ?? 0)}`}
                       >
                         {coach.avg_client_health?.toFixed(1)}
                       </td>
                       <td className="text-center py-3 px-4 text-red-500 font-semibold">
-                        {coach.red_clients}
+                        {coach.clients_red}
                       </td>
                       <td className="text-center py-3 px-4 text-yellow-500 font-semibold">
-                        {coach.yellow_clients}
+                        {coach.clients_yellow}
                       </td>
                       <td className="text-center py-3 px-4 text-green-500 font-semibold">
-                        {coach.green_clients}
+                        {coach.clients_green}
                       </td>
                       <td className="text-center py-3 px-4 text-purple-500 font-semibold">
-                        {coach.purple_clients}
+                        {coach.clients_purple}
                       </td>
                       <td className="text-center py-3 px-4">
                         <div className="flex justify-center">
-                          {getTrendIcon(coach.trend)}
+                          {getTrendIcon(coach.health_trend)}
                         </div>
                       </td>
                     </tr>

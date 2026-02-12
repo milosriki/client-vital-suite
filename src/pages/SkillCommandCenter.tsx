@@ -45,6 +45,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 // The 7 Core Skills for Booking Agent (Lisa) — static definitions
 const SKILL_DEFS = [
@@ -479,10 +480,10 @@ export default function SkillCommandCenter() {
                 )}
                 {SKILLS.filter((s) => s.level !== null && s.level < 70)
                   .length === 0 && (
-                  <div className="col-span-2 text-center text-muted-foreground py-8">
+                  <div className="col-span-2 py-8">
                     {isLoading
-                      ? "Loading..."
-                      : "No critical skills detected. All skills are above threshold or have no data yet."}
+                      ? <PageSkeleton variant="cards" count={2} />
+                      : <p className="text-center text-muted-foreground">No critical skills detected. All skills are above threshold or have no data yet.</p>}
                   </div>
                 )}
               </div>

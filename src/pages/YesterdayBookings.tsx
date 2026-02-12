@@ -83,7 +83,14 @@ const YesterdayBookings = () => {
           status: i.status,
           intervention_type: i.intervention_type,
           created_at: i.created_at,
-          health_zone: i.health_zone_after || i.health_zone,
+          health_zone:
+            i.health_score_after != null
+              ? i.health_score_after >= 80
+                ? "GREEN"
+                : i.health_score_after >= 50
+                  ? "YELLOW"
+                  : "RED"
+              : i.health_zone || "UNKNOWN",
           notes: i.notes,
           location: undefined,
         })),

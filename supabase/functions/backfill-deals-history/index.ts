@@ -8,6 +8,7 @@ import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,43 +119,9 @@ serve(async (req) => {
 
       // 3. Upsert to Supabase
       const dealsToUpsert = deals.map((d: any) => {
-        const props = d.properties;
-        const val = parseFloat(props.amount) || 0;
-
-        let status = "pending";
-        // Logic: Try to capture ALL "won" variations
-        const stage = (props.dealstage || "").toLowerCase();
-        if (
-          stage.includes("won") ||
-          stage.includes("signed") ||
-          stage.includes("paid")
-        ) {
-          status = "closed";
-        } else if (stage.includes("lost") || stage.includes("bad")) {
-          status = "cancelled";
-        }
-
-        const dealOwnerId = props.hubspot_owner_id || null;
+        const dealOwnerId = d.properties.hubspot_owner_id || null;
         const dealOwnerName = dealOwnerId ? ownerMap[dealOwnerId] || null : null;
-
-        return {
-          hubspot_deal_id: d.id,
-          deal_name: props.dealname,
-          deal_value: val,
-          value_aed: val,
-          stage: props.dealstage,
-          pipeline: props.pipeline,
-          status: status,
-          close_date: props.closedate
-            ? new Date(props.closedate).toISOString()
-            : null,
-          created_at: props.createdate
-            ? new Date(props.createdate).toISOString()
-            : new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          owner_id: dealOwnerId,
-          owner_name: dealOwnerName,
-        };
+        return HubSpotManager.mapDealFields(d, null, dealOwnerName);
       });
 
       const { error } = await supabase.from("deals").upsert(dealsToUpsert, {

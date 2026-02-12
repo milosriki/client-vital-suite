@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { AlertTriangle } from "lucide-react";
 
+// API
+import { dealsApi } from "@/features/sales-operations/api/dealsApi";
+
 // Components
 import { SalesFilters } from "@/components/sales-pipeline/SalesFilters";
 import { SalesMetrics } from "@/components/sales-pipeline/SalesMetrics";
@@ -67,6 +70,40 @@ export default function SalesPipeline() {
     },
     onError: (error: any) => {
       toast.error("Sync failed: " + error.message);
+    },
+  });
+
+  // Update deal stage mutation (Mark Won / Mark Lost)
+  const updateDealMutation = useMutation({
+    mutationFn: dealsApi.updateDealStage,
+    onMutate: async (newDeal) => {
+      await queryClient.cancelQueries({ queryKey: ["deals-summary"] });
+      const previousDeals = queryClient.getQueryData(["deals-summary"]);
+
+      queryClient.setQueryData(["deals-summary"], (old: typeof dealsData) => {
+        if (!old || !old.deals) return old;
+        return {
+          ...old,
+          deals: old.deals.map((d) =>
+            d.id === newDeal.dealId ? { ...d, stage: newDeal.stage } : d,
+          ),
+        };
+      });
+
+      return { previousDeals };
+    },
+    onError: (err, newDeal, context) => {
+      toast.error("Failed to update deal stage");
+      if (context?.previousDeals) {
+        queryClient.setQueryData(["deals-summary"], context.previousDeals);
+      }
+    },
+    onSuccess: (data) => {
+      const stageName = data.stage === "closedwon" ? "Won" : "Lost";
+      toast.success(`Deal marked as ${stageName}!`);
+      queryClient.invalidateQueries({ queryKey: ["deals-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["lead-funnel"] });
+      setSelectedDeal(null);
     },
   });
 
@@ -519,10 +556,10 @@ export default function SalesPipeline() {
                     variant="success"
                     confirmText="Confirm Won"
                     onConfirm={() => {
-                      toast.success(
-                        `Deal ${selectedDeal.deal_name} marked as Won!`,
-                      );
-                      // In a real app, you would call a mutation here
+                      updateDealMutation.mutate({
+                        dealId: selectedDeal.id,
+                        stage: "closedwon",
+                      });
                     }}
                   />
 

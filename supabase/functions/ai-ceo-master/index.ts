@@ -8,13 +8,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RunTree } from "https://esm.sh/langsmith";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import {
   handleError,
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { tools } from "../_shared/tool-definitions.ts";
+import { executeSharedTool } from "../_shared/tool-executor.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const GEMINI_API_KEY =
   Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
@@ -100,9 +108,12 @@ function selectPersona(query: string): keyof typeof PERSONAS {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
-  if (req.method === "OPTIONS")
-    return apiCorsPreFlight();
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
+  if (req.method === "OPTIONS") return apiCorsPreFlight();
 
   try {
     const { command, session_id } = await req.json();
@@ -117,6 +128,7 @@ serve(async (req) => {
         session_id,
         role: "user",
         content: command,
+        expires_at: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
       });
     }
 
@@ -170,6 +182,7 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
         persona,
         parentRun,
         isCodeRequest,
+        supabase,
       );
       await parentRun.end({ outputs: { response } });
       await parentRun.patchRun();
@@ -210,15 +223,15 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
     if (insertError) throw insertError;
 
     return apiSuccess({
-        success: true,
-        status: "awaiting_approval",
-        action_id: action.id,
-        preview: {
-          title: response.title,
-          persona: persona.name,
-          emoji: persona.emoji,
-        },
-      });
+      success: true,
+      status: "awaiting_approval",
+      action_id: action.id,
+      preview: {
+        title: response.title,
+        persona: persona.name,
+        emoji: persona.emoji,
+      },
+    });
   } catch (error: unknown) {
     return handleError(error, "ai-ceo-master", {
       errorCode: ErrorCode.INTERNAL_ERROR,
@@ -233,12 +246,16 @@ async function generateWithGemini(
   persona: any,
   parentRun: any,
   isCodeRequest: boolean = false,
+  supabase?: any,
 ) {
   const actionType = isCodeRequest ? "code_deploy" : "analysis";
   const payloadType = isCodeRequest ? '{ "files": [] }' : '{ "findings": [] }';
 
-  const systemPrompt = `${persona.systemPrompt}
-    
+  const constitutionalPrefix = getConstitutionalSystemMessage();
+  const systemPrompt = `${constitutionalPrefix}
+
+${persona.systemPrompt}
+
 ${context}
 
 You are generating a JSON ${isCodeRequest ? "action plan" : "analysis/action"}.
@@ -255,35 +272,72 @@ RESPOND WITH VALID JSON ONLY:
 }`;
 
   const childRun = await parentRun.createChild({
-    name: "gemini_call",
+    name: "unified_ai_call",
     run_type: "llm",
     inputs: { command, model: "gemini-3.0-flash" },
   });
   await childRun.postRun();
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            { parts: [{ text: `${systemPrompt}\n\nQUERY: ${command}` }] },
-          ],
-        }),
-      },
+    const ceoTools = tools.filter((t) =>
+      ["intelligence_control", "revenue_intelligence", "stripe_forensics",
+       "command_center_control", "universal_search"].includes(t.name)
     );
-    const result = await response.json();
-    const text = result.candidates[0].content.parts[0].text;
 
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `QUERY: ${command}` },
+    ];
+
+    const MAX_LOOPS = 3;
+    const MAX_TOOL_RESULT_CHARS = 3000;
+
+    let currentResponse = await unifiedAI.chat(messages, {
+      model: "gemini-2.0-flash",
+      temperature: 0.2,
+      jsonMode: true,
+      tools: ceoTools,
+    });
+
+    let loopCount = 0;
+    while (currentResponse.tool_calls?.length && loopCount < MAX_LOOPS && supabase) {
+      loopCount++;
+      const toolResults: string[] = [];
+
+      for (const tc of currentResponse.tool_calls) {
+        try {
+          const raw = await executeSharedTool(supabase, tc.name, tc.input);
+          const result = typeof raw === "string"
+            ? (raw.length > MAX_TOOL_RESULT_CHARS
+                ? raw.slice(0, MAX_TOOL_RESULT_CHARS) + "\n... [truncated]"
+                : raw)
+            : JSON.stringify(raw).slice(0, MAX_TOOL_RESULT_CHARS);
+          toolResults.push(`Tool '${tc.name}':\n${result}`);
+        } catch (e: unknown) {
+          toolResults.push(`Tool '${tc.name}' failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+
+      messages.push({ role: "assistant", content: currentResponse.content || "(Calling tools...)" });
+      messages.push({ role: "user", content: `Tool results:\n\n${toolResults.join("\n\n---\n\n")}` });
+
+      currentResponse = await unifiedAI.chat(messages, {
+        model: "gemini-2.0-flash",
+        temperature: 0.2,
+        jsonMode: true,
+        tools: ceoTools,
+      });
+    }
+
+    const text = currentResponse.content;
     await childRun.end({ outputs: { response: text } });
     await childRun.patchRun();
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    if (!jsonMatch) throw new Error("No JSON found in response");
+    return JSON.parse(jsonMatch[0]);
   } catch (error: unknown) {
-    await childRun.end({ error: error.message });
+    await childRun.end({ error: error instanceof Error ? error.message : String(error) });
     await childRun.patchRun();
     throw error;
   }

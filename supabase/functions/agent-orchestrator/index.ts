@@ -15,6 +15,7 @@ import {
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 // LangGraph-style state machine for agent orchestration
 // Implements a simplified StateGraph pattern compatible with Deno Edge Functions
@@ -318,12 +319,14 @@ const synthesizerNode: NodeFunction = async (state, supabase) => {
   try {
     console.log("🤖 Synthesizer using UnifiedAIClient");
 
+    const constitutionalPrefix = getConstitutionalSystemMessage();
+    const synthesizerSystemPrompt = `${constitutionalPrefix}\n\nYou are an AI orchestration summarizer. Create a brief executive summary of the agent run results. Be concise - max 3 sentences.`;
+
     const response = await unifiedAI.chat(
       [
         {
           role: "system",
-          content:
-            "You are an AI orchestration summarizer. Create a brief executive summary of the agent run results. Be concise - max 3 sentences.",
+          content: synthesizerSystemPrompt,
         },
         { role: "user", content: synthesisContext },
       ],

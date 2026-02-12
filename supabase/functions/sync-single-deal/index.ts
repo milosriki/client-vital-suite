@@ -5,6 +5,7 @@ import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,25 +108,7 @@ serve(async (req) => {
     const dealOwnerName = dealOwnerId ? ownerMap[dealOwnerId] || null : null;
 
     const dealData = {
-      hubspot_deal_id: deal.id,
-      deal_name: props.dealname,
-      deal_value: parseFloat(props.amount) || 0,
-      value_aed: parseFloat(props.amount) || 0,
-      stage: props.dealstage,
-      pipeline: props.pipeline,
-      close_date: props.closedate
-        ? new Date(props.closedate).toISOString()
-        : null,
-      status: mapDealStageToStatus(props.dealstage),
-      created_at: props.createdate
-        ? new Date(props.createdate).toISOString()
-        : new Date().toISOString(),
-      updated_at: props.lastmodifieddate
-        ? new Date(props.lastmodifieddate).toISOString()
-        : new Date().toISOString(),
-      contact_id: contactId,
-      owner_id: dealOwnerId,
-      owner_name: dealOwnerName,
+      ...HubSpotManager.mapDealFields(deal, contactId, dealOwnerName),
       description: props.description,
       lost_reason: props.failure_reason,
     };
@@ -145,10 +128,4 @@ serve(async (req) => {
   }
 });
 
-function mapDealStageToStatus(stage: string): string {
-  if (!stage) return "open";
-  const s = stage.toLowerCase();
-  if (s === "closedwon" || s === "closed_won") return "won";
-  if (s === "closedlost" || s === "closed_lost") return "lost";
-  return "open";
-}
+// mapDealStageToStatus is now HubSpotManager.mapDealStageToStatus()

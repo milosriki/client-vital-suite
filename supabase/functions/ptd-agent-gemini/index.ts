@@ -470,6 +470,8 @@ async function saveToMemory(
     const embedding = await getEmbeddings(`${query}\n${response}`);
 
     await supabase.from("agent_memory").insert({
+      agent_name: "ptd-agent-gemini",
+      expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
       thread_id: threadId,
       query,
       response: response.slice(0, 10000),
@@ -842,7 +844,7 @@ async function runAgent(
     isWhatsApp
       ? getClientProfile(supabase, context?.contactId)
       : Promise.resolve(""),
-    new LearningLayer(supabase).getActiveLearnings(),
+    new LearningLayer(supabase).getActiveLearnings(5, "ptd-agent-gemini"),
   ]);
 
   // Calculate conversation age for re-entry logic

@@ -6,6 +6,7 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
@@ -113,8 +114,12 @@ serve(async (req) => {
       JSON object with keys: "churn_analysis", "retention_strategy", "churn_signals" (array).
     `;
 
+    const constitutionalPrefix = getConstitutionalSystemMessage();
     const aiResponse = await unifiedAI.chat(
-      [{ role: "user", content: prompt }],
+      [
+        { role: "system", content: constitutionalPrefix },
+        { role: "user", content: prompt },
+      ],
       {
         max_tokens: thinkingLevel === "high" ? 4000 : 1000,
         jsonMode: true,

@@ -7,6 +7,7 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2022-11-15",
@@ -191,8 +192,12 @@ serve(async (req) => {
       Add a "unit_economics_health" field with verdict: "EXCELLENT" / "HEALTHY" / "WARNING" / "CRITICAL" and why.
     `;
 
+    const constitutionalPrefix = getConstitutionalSystemMessage();
     const aiResponse = await unifiedAI.chat(
-      [{ role: "user", content: prompt }],
+      [
+        { role: "system", content: constitutionalPrefix },
+        { role: "user", content: prompt },
+      ],
       {
         max_tokens: 1500,
         jsonMode: true,

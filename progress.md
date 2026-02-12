@@ -410,3 +410,466 @@ User pasted full "Marketing Intelligence Agent: Full Capability Audit" (Feb 9, 2
 | 23 | marketing-stress-test contact_id | `supabase/functions/marketing-stress-test/index.ts` | Fixed 3 join locations: uses contact_id UUID instead of hubspot_contact_id |
 
 ### Grand Total: 23 fixes across 14 files + 4 migrations
+
+---
+
+## Session: 2026-02-11 (Continued — Full Forensic Audit + Attribution Pipeline Finalization)
+
+### Trigger
+User: "reverse engineer so can connect dots, every page have some formula, not sure how agents are smart, I need super smart"
+Followed by: Full brainstorm alignment audit comparing original planning docs vs reality.
+
+### 8-Agent Deep Research (Parallel)
+- Agent 1: FB ad attribution pipeline audit
+- Agent 2: CallGear call tracking audit
+- Agent 3: Lead/opportunity/revenue pipeline audit
+- Agent 4: Dashboard widgets & formulas audit
+- Agent 5: Agent intelligence layer audit
+- Agent 6: Database schema & relationships map
+- Agent 7: Frontend-backend data alignment check
+- Agent 8: End-to-end data flow trace
+
+### Fixes Finalized This Session
+
+| # | Fix | File | Impact |
+|---|-----|------|--------|
+| 24 | Max Meta data capture (20+ columns) | `migrations/20260212000005_expand_facebook_ads_insights.sql` | Captures frequency, unique_clicks, actions JSONB, video metrics, quality rankings |
+| 25 | fetch-facebook-insights 30+ fields | `supabase/functions/fetch-facebook-insights/index.ts` | Requests ALL available Pipeboard fields, MetaAction type helpers |
+| 26 | meta-executor agent upgrade | `supabase/functions/_shared/executors/meta-executor.ts` | 3 new tools: meta_ads_db_query, meta_creative_analysis, enhanced meta_ads_analytics |
+| 27 | source_discrepancy_matrix fix | `migrations/20260212000006_fix_source_discrepancy_matrix.sql` | Fixed broken column refs, added fb_cpl, trust verdict |
+| 28 | setter_funnel_matrix VIEW | `migrations/20260212000006_fix_source_discrepancy_matrix.sql` | NEW: Lead→Book→Held→Close by hubspot_owner_id with ghost_rate |
+| 29 | Dashboard CPL/CPO wiring | `src/pages/Dashboard.tsx` | Was always "—", now computed from ad spend + lead/deal counts |
+| 30 | SetterActivityToday rewrite | `src/pages/SetterActivityToday.tsx` | Was using wrong tables, now uses call_records + deals |
+| 31 | CampaignMoneyMap CPL/CPO | `src/pages/CampaignMoneyMap.tsx` | CPL/CPO per campaign + hero cards |
+| 32 | Funnel tracker CPL/CPO | `supabase/functions/funnel-stage-tracker/index.ts` | Queries ad spend, computes unit economics |
+| 33 | AnyTrack fb_ad_id wiring | `supabase/functions/anytrack-webhook/index.ts` | Populates 6 fb_* fields in attribution_events |
+| 34 | Data reconciler fix | `supabase/functions/data-reconciler/index.ts` | Removed duplicate variable declarations |
+| 35 | VisualDNA ROAS fix | `src/components/dashboard/VisualDNA.tsx` | Uses ad.roas directly |
+| 36 | INTELLIGENCE_VISION.md | `docs/INTELLIGENCE_VISION.md` | Complete architecture + formula reference |
+
+### Brainstorm vs Reality Audit
+
+| Area | Grade | Notes |
+|------|-------|-------|
+| Health Score | A+ | Exceeded brainstorm — v3/v4 physics-based momentum |
+| Lead Scoring | C | Basic only — corrected JBR/Business Bay formula NOT implemented |
+| Smart Agent | B- | Functional but basic, advanced RAG/learning not built |
+| Coach Analytics | B+ | Strong code, needs deployment verification |
+| Self-Learning/RAG | D | Infrastructure only, nothing populated |
+
+### Grand Total: 36 fixes across 18 files + 6 migrations
+
+---
+
+## Session: 2026-02-12 — Dashboard Column Alignment + Weekly Analytics Fix
+
+### Trigger
+Deep verification audit revealed frontend dashboard pages reference column names that don't exist in production Supabase. Root cause: **schema drift** — production DB was modified via Supabase Studio, causing column names to differ from migration files.
+
+### Key Discovery: types.ts Is the Source of Truth
+`src/integrations/supabase/types.ts` (auto-generated from production) is the REAL schema reference. Migration files don't reflect actual production state.
+
+### Production Column Drift Found
+
+| Table | Code Referenced | Production Actual |
+|-------|----------------|-------------------|
+| coach_performance | avg_health_score | avg_client_health |
+| coach_performance | red_clients | clients_red |
+| coach_performance | trend | health_trend |
+| daily_summary | total_active_clients | total_clients |
+| daily_summary | at_risk_revenue | at_risk_revenue_aed |
+| daily_summary | red_clients | clients_red |
+| client_health_scores | client_email | email |
+| weekly_patterns | aggregate columns | per-client schema (completely different) |
+
+### Fixes Applied (15 total this session)
+
+| # | Fix | File |
+|---|-----|------|
+| 37-42 | Overview.tsx: 15 column renames | `src/pages/Overview.tsx` |
+| 43-45 | database.ts: CoachPerformance + DailySummary types | `src/types/database.ts` |
+| 46 | AIBusinessAdvisor: coach_notes → health_zone | `src/pages/AIBusinessAdvisor.tsx` |
+| 47 | NEW: weekly_health_summary VIEW | `migrations/20260213000003_weekly_health_summary.sql` |
+| 48 | Analytics.tsx: weekly_patterns → weekly_health_summary | `src/pages/Analytics.tsx` |
+| 49 | useDashboardData: avg_health_score → avg_client_health | `src/hooks/useDashboardData.ts` |
+| 50 | useDashboardData: weekly_patterns → weekly_health_summary | `src/hooks/useDashboardData.ts` |
+| 51 | Overview.tsx: weekly_patterns → weekly_health_summary | `src/pages/Overview.tsx` |
+
+### Build Verification
+- `npm run build`: 4661 modules, 0 errors, 3.49s
+
+### Grand Total: 51 fixes across 22 files + 7 migrations
+
+### Undeployed Migrations
+1. `20260212000005_expand_facebook_ads_insights.sql`
+2. `20260212000006_fix_source_discrepancy_matrix.sql`
+3. `20260213000001_command_center_views.sql`
+4. `20260213000002_attribution_deep_views.sql`
+5. `20260213000003_weekly_health_summary.sql`
+
+---
+
+## Session: 2026-02-12 (Continued — Full 6-Skill Audit + Intelligence Cross-Reference)
+
+### Trigger
+User requested comprehensive audit across 6 skills + cross-reference against previous intelligence findings (53/100 overall score, 3/17 AI agents claim, etc.)
+
+### Execution
+5 parallel audit agents launched:
+
+| Agent | Skill | Status | Key Finding |
+|-------|-------|--------|-------------|
+| ae7118d | Production Code Audit | COMPLETE | 337 files, 6 dead pages, 13 god files, 0 secrets |
+| a308bf6 | Security Scan | PARTIAL | Sandbox blocked most Bash; completed via Grep from main context |
+| aba1fc6 | AI Engineer | COMPLETE | Gemini 42/100, Memory 55/100, Cost 35/100 |
+| a85660c | Agent Contracts | COMPLETE | Idempotency C+ (6/13 INSERT not UPSERT), Coupling D |
+| acf0c5d | Architect Review | COMPLETE | 4 contact tables (FAIL), 5 HubSpot sync functions (CRITICAL) |
+
+### Build Verification (Fresh)
+- `npm run build`: **4661 modules, 0 errors, 3.36s**
+
+### Security Checks (Completed from Main Context)
+- dangerouslySetInnerHTML: 1 (shadcn chart.tsx — safe)
+- eval(): 0 in frontend
+- service_role: All via Deno.env.get() — correct
+- exec_sql RPC: 1 dangerous usage in ai-trigger-deploy
+
+### CRITICAL CORRECTION: AI Agent Count
+- **Previous claim: 3/17 agents truly AI-powered (18%)**
+- **Actual: 32 agents make real Gemini AI calls** (25 via UnifiedAI + 7 direct)
+- Previous audit only checked for direct `fetch()` to Gemini REST API, missed 25+ agents using `unifiedAI.chat()`
+
+### Consolidated Score: **58.5/100** (up from 53/100)
+- Production Code: 72/100
+- Security: 78/100
+- Architecture: 48/100
+- AI Engineering: 44/100
+- Evaluation: 85/100
+- Agent Contracts: 52/100
+
+### Full audit details written to findings.md Section 10
+
+---
+
+## Session: 2026-02-12 (Deep Intelligence Verification — Multi-Agent Patterns)
+
+### Trigger
+User requested deep (not first layer) verification of 3 Intelligence Measurement skills + expanded architecture data (142 EFs, 9 infrastructure layers, updated scoring). Invoked multi-agent-patterns skill for cross-reference.
+
+### 3 Parallel Deep-Dive Agents
+| Agent | Task | Findings |
+|-------|------|----------|
+| a4fbf39 | Infrastructure layers | All 9 verified, 95/100 integrity, line counts exact |
+| afed5be | Multi-agent architecture | NOT true multi-agent — 1 tool agent + orchestration + personas |
+| ad8e3cf | Intelligence metrics | 39 AI agents (not 32), JSON.parse ALL wrapped, 8/9 marketing INSERT |
+
+### KEY CORRECTIONS (Second Layer)
+- AI agents: 32 → **39** (3 archive + 4 direct callers missed)
+- JSON.parse: "2 bare" → **All wrapped** (both in outer try-catch)
+- Marketing idempotency: "6/13" → **8/9** (worse than thought)
+- Contacts reads: 35 → **70 occurrences across 44 files**
+- Context Efficiency: 70 → **42** (tokenBudget completely broken)
+- Learning Loop: 70 → **38** (4 write, 1 read, 0 decay)
+
+### REVISED SCORECARD
+| Metric | Previous | Deep Verified |
+|--------|----------|--------------|
+| Intelligence Type | 35 | **55** (+20) |
+| Error Handling | 65 | **78** (+13) |
+| Architecture | 65 | **52** (-13) |
+| Context Efficiency | 70 | **42** (-28) |
+| Learning Loop | 70 | **38** (-32) |
+| Output Validation | 20 | **15** (-5) |
+| **6-Metric Average** | **53** | **46.7** |
+| **Weighted (incl infra)** | **58.5** | **63.8** |
+
+### PROJECTED IMPROVEMENTS
+- After Top 3 Fixes: 63.8 → **~72/100**
+- After All 10 Fixes: 63.8 → **~82/100**
+
+### Full deep verification written to findings.md Section 11
+
+---
+
+## Session: 2026-02-12 (Intelligence Upgrade Plan — All 10 Fixes)
+
+### Trigger
+User: "i need plans for all" + "u must cover writing for all this" — requesting comprehensive implementation plans for all 10 intelligence fixes identified in deep verification, cross-referenced against 6-skill audit checklist.
+
+### Research Phase (2 Parallel Agents)
+| Agent | Task | Key Findings |
+|-------|------|-------------|
+| a39fb9a | Token budget + tools + memory | tokenBudget never incremented (line 63), agentic loop pattern at ptd-agent-gemini:953-1112, learning-layer only 52 lines |
+| a85f45d | Marketing UPSERT + auth + constitutional | 8/9 INSERT-only, auth-middleware uses generic Error, constitutional only in unified-prompts.ts |
+
+### Plan Created
+- **File:** `docs/plans/2026-02-12-intelligence-upgrade-plan.md`
+- **Scope:** 10 fixes across ~27h of work, 4-week schedule
+- **Target:** Agent intelligence score 46.7/100 → 82/100
+
+### Task Plan Updated
+- Added Phase 14 (Intelligence Upgrade) to `task_plan.md`
+- Updated execution order (5 phases DONE, Phase 14 NEXT)
+- Updated pending migrations (5 existing + 5 new = 10 total)
+- 6-skill audit coverage: 12/12 major intelligence findings mapped to fixes
+- 6 items deferred to separate phases (cleanup, security, bundle size)
+
+### 6-Skill Audit Coverage — ALL Intelligence Findings Covered
+
+| Skill | Finding | Fix |
+|-------|---------|-----|
+| AI Engineer | tokenBudget BROKEN | 14.1 |
+| AI Engineer | Memory UNBOUNDED + no decay | 14.3 |
+| AI Engineer | 4 missing maxOutputTokens | 14.2 (UnifiedAI handles) |
+| Agent Contracts | 8/9 INSERT not UPSERT | 14.6 |
+| Agent Contracts | 1/39 validates output | 14.4 |
+| Architect | 5 HubSpot sync functions | 14.5 |
+| Architect | 4 overlapping contact tables | 14.10 |
+| Security | auth-middleware generic Error | 14.9 |
+| Multi-Agent | Zero context isolation | 14.8 |
+| Multi-Agent | Only 1 tool-using agent | 14.2 |
+| Multi-Agent | Constitutional in 1 agent only | 14.7 |
+| Architect | contacts: 70 readers coupling | 14.10 |
+
+### Status: PLAN COMPLETE — Ready for implementation
+
+---
+
+## Session: 2026-02-12 (Supabase Infrastructure Audit — Deep Evaluation)
+
+### Trigger
+User provided full Supabase Audit Report (Remote vs Local) with 13 claims. Requested "in depth evaluation."
+
+### Method
+3 parallel deep-dive agents verified every claim against actual codebase:
+
+| Agent | Task | Files Read |
+|-------|------|-----------|
+| aebb563 | Constitutional + auth + raw fetch | 50+ files, imports traced through unified-prompts.ts |
+| af7bf96 | Index + schema + EF deploy + cron | Migration files, shared modules, deployed_functions.txt |
+| a6f0d09 | Destructive migrations + schema + health table | 166 migrations, types.ts (158 tables), health-calculator cron |
+
+### Audit Accuracy: 6/13 correct, 3 wrong, 4 overstated
+
+**3 WRONG claims corrected:**
+- Constitutional framing: Audit said 0/142 → Reality: 17/144 (via unified-prompts.ts)
+- Deployed EFs: Audit said 26 → Reality: **216** deployed
+- ai-ceo-master raw fetch: Audit said yes → Reality: uses UnifiedAI
+
+**4 OVERSTATED claims:**
+- Raw fetch "9 EFs" → Only 3 actual AI callers
+- Destructive ops "19" → Actually 14
+- Tables "90+" → Actually 158
+- TRANFERS schema → Already fixed in existing migration
+
+### NEW Findings Not in Any Plan
+| # | Finding | Severity | Proposed Phase |
+|---|---------|----------|---------------|
+| N1 | 323 unused indexes | HIGH | Phase 15: DB Optimization |
+| N2 | 7 EFs without auth-middleware | HIGH | Phase 15: Security |
+| N3 | marketing-copywriter raw fetch | MEDIUM | Extend Phase 14.2 |
+| N4 | stripe-enterprise-intelligence raw fetch | MEDIUM | Extend Phase 14.2 |
+| N5 | client_health_scores autovacuum | MEDIUM | Phase 15: DB Optimization |
+| N6 | Cron consolidation (44 schedules) | LOW | Phase 15: Operations |
+
+### Full evaluation written to findings.md Section 12
+
+---
+
+## Session: 2026-02-12 (Advanced Plan Evaluation — All Plans)
+
+### Trigger
+User: `/advanced-evaluation` then "all plan evaluate"
+
+### Method
+Advanced-evaluation skill. Direct Scoring, 7 dimensions, 1-5 scale. 3 parallel evaluation agents verified every code snippet, file path, line number, and column name against actual codebase. 200+ files read across agents.
+
+### Results
+
+**Overall Plan Quality: 55/100 (2.75/5 weighted)**
+
+| Dimension | Score |
+|-----------|-------|
+| Code Correctness | 2.7/5 (20 HIGH issues) |
+| Completeness | 3.5/5 |
+| Feasibility | 2.8/5 (5 blockers) |
+| Risk Coverage | 2.4/5 (zero rollback plans) |
+| Effort Accuracy | 2.5/5 (plan: 27h, reality: 43-57h) |
+| Priority Logic | 3.5/5 |
+| Verification Quality | 2.0/5 (build-only) |
+
+### Key Findings
+
+- **Task 9 (Typed Errors)**: Only task scoring 5/5 — ready as-is
+- **Task 2 (Tool Adoption)**: Worst at 1/5 — `getToolDefinitions()` doesn't exist, ai-ceo-master already uses UnifiedAI
+- **Task 10 (Contacts)**: CRITICAL risk — 16+ frontend files need updating, plan says "no frontend changes"
+- **Task 5 (HubSpot Sync)**: 6/10 column names wrong in `syncDeal()` mapping
+- **Effort underestimate**: 60-110% (27h claimed vs 43-57h evaluated)
+- **5 cross-document contradictions** found between intelligence plan, findings.md, and task_plan.md
+
+### Attribution Deep Views: 4.5/5
+Best-quality deliverable — fully implemented, verified, and building clean.
+
+### Full evaluation written to findings.md Section 13
+
+---
+
+## Session: 2026-02-12 (Corrected Execution Plan — Phase 14 Intelligence Upgrade)
+
+### Trigger
+User: `/planning-with-files` → "write full plan for execution" (with Section 13 evaluation selected)
+
+### Method
+Re-read all source files via 3 Explore agents. Verified every import, function signature, column name, and code pattern against actual codebase. Cross-referenced types.ts for schema truth.
+
+### Deliverable
+`docs/plans/2026-02-12-intelligence-upgrade-corrected.md`
+
+### Key Corrections Applied
+
+| # | Original Issue | Correction |
+|---|---------------|-----------|
+| 1 | `getToolDefinitions()` doesn't exist | Changed to `import { tools }` from tool-definitions.ts |
+| 2 | `this.supabase` doesn't exist on UnifiedAIClient | Create SupabaseClient from stored URL/key strings |
+| 3 | ai-ceo-master "uses raw fetch" | FALSE — already uses `unifiedAI.chat()`. Just needs tool injection |
+| 4 | `generateWithGemini()` wrong signature | Corrected: `(command, context, persona, parentRun, isCodeRequest)` |
+| 5 | `agent_patterns.last_confirmed_at` | Fixed to `last_used_at` |
+| 6 | `JSON.parse(raw)` validators | Changed to object validators (agents build data programmatically) |
+| 7 | 6/10 deals column names wrong | Verified against types.ts: `stage`, `created_at`, `updated_at`, no `sync_source` |
+| 8 | UNIQUE INDEX on tables with dupes | Added dedup DELETE before CREATE UNIQUE INDEX |
+| 9 | "25+ agents" need constitutional | Precisely 20 active agents missing (9 already covered via buildAgentPrompt) |
+| 10 | Task 10: "no frontend changes" | DEFERRED — 16+ frontend files would break. Moved to Phase 15 |
+| 11 | Zero rollback SQL | Added rollback SQL for every migration |
+| 12 | Tasks 3+8 merged | Both modify learning-layer.ts — single migration prevents conflicts |
+| 13 | Tasks 4+6 merged | Both modify marketing agents — single commit prevents conflicts |
+| 14 | Effort 27h | Recalibrated to 27-34h active (excludes deferred Task 10) |
+
+### Batch Execution Order
+
+| Batch | Tasks | Effort | Risk |
+|-------|-------|--------|------|
+| 1 | 9 (typed errors) + 7 (constitutional) | 3-4h | LOW |
+| 2 | 1 (token budget) + 3+8 (retention+namespacing) | 6h | LOW-MED |
+| 3 | 2 (tool adoption) + 4+6 (validation+upsert) | 12-16h | MED |
+| 4 | 5 (HubSpot consolidation) | 6-8h | MED |
+| DEFERRED | 10 (contacts consolidation) | 16-24h | CRITICAL |
+
+---
+
+## Session: 2026-02-12 (5-Agent Deep Dive — Full Stack Master Plan)
+
+### Trigger
+User: "DO 4 RESEARCH AGENT DEEP DIVE WHAT PLAN IN WHICH ORDER NEEDS TO BE DONE API AND SUPABASE FRONTEND WHAT FULL PLAN"
+Followed by: "CHECK ALSO WHICH API WE CHANGED SERVICES FROM CLOUD" and "WE REMOVED GPT CLAUDE ACTUALLY WE HAVE TO TURN OFF GOOGLE CLOUD DID U COVER THESE ALL FINDINGS WHICH AI AND AGENTS WHAT WHICH GOOGLE SERVICES WE DONT USE ANYMORE"
+
+### 5 Parallel Research Agents Launched
+
+| Agent | Scope | Status | Key Findings |
+|-------|-------|--------|-------------|
+| 1: Supabase Backend | 200+ migrations, 100+ EFs, shared modules, crons | COMPLETE | 26 undeployed migrations, 5-layer dependency graph, 14 active crons |
+| 2: API/Edge Functions | 111 functions categorized, data flows, deployment | COMPLETE | 131 total EFs, 39 AI-calling, 7 without auth, 2 raw Gemini |
+| 3: Frontend | 43 pages, 150+ components, bundle, data fetching | COMPLETE | 6 dead pages, 3 god components, 29 `any` types, 2.4MB bundle |
+| 4: Migration & Deploy | Dependency graph, safe order, blockers | COMPLETE | 5-layer safe deployment sequence, 1 possible duplicate migration |
+| 5: Cloud Services/APIs | AI providers, external integrations, env vars | COMPLETE | Anthropic=DEAD (0 calls), OpenAI=embeddings only, LangChain=unused |
+
+### AI Provider Audit Results
+
+| Provider | Status | Action |
+|----------|--------|--------|
+| Google Gemini API | ACTIVE (95%+, 39 agents) | KEEP — primary backbone |
+| Anthropic/Claude | DEAD CODE (0 active calls, 11 files with dead refs) | REMOVE secrets + dead code |
+| OpenAI | EMBEDDINGS ONLY (1 function) | KEEP for now |
+| LangChain (frontend) | UNUSED (3 packages in package.json) | REMOVE packages |
+| Google Maps | ACTIVE (location-service.ts) | KEEP |
+| LangSmith | OPTIONAL (observability.ts) | KEEP if budget allows |
+
+### Master Execution Plan Written
+
+**File:** `task_plan.md` (complete rewrite)
+
+| Batch | Tasks | Effort | When |
+|-------|-------|--------|------|
+| 0: Deploy & Commit | 2 tasks | 45min | NOW |
+| 1: Cloud Cleanup | 5 tasks | 1h | NOW |
+| 2: Intelligence Upgrade (Phase 14) | 9 fixes in 4 sub-batches | 27-34h | Week 1-4 |
+| 3: Quick Wins (Phase 15) | 3 tasks | 2h | Week 1 |
+| 4: Attribution Pipeline | 8 phases | 15-25h | Week 2-5 |
+| 5: Frontend Hardening | 5 tasks | 3-5h | Week 3 |
+| 6: Infra Hardening | 6 tasks | 8-10h | Week 4-5 |
+| 7: Contact Consolidation | 1 mega-task | 16-24h | Week 6+ |
+| **TOTAL** | **39 tasks** | **~73-102h** | **6-8 weeks** |
+
+### Files Updated
+- `task_plan.md` — Complete rewrite with 7 batches, cloud audit, migration inventory
+- `findings.md` — Added Section 14 (5-Agent Deep Dive findings)
+- `progress.md` — This session log
+
+### Scoring Projections
+- Current: 63.8/100
+- After Phase 14: ~83/100
+- After all batches: ~90/100
+
+---
+
+## Session: 2026-02-12 (Verification — Did We Cover Everything?)
+
+### Trigger
+User: "EVALUATION IS THIS ULTIMATE SOLUTION DID U COVER ALL" + "CAN U VERIFY PLAN"
+
+### 4 Verification Agents Launched
+
+| Agent | Task | Result |
+|-------|------|--------|
+| 1: Anthropic Dead Code | Spot-check all 11 files line-by-line | CONFIRMED: 0 active calls. All dead/commented. |
+| 2: Missed Services | Find ANY external APIs not in inventory | Found 3 missed: AnyTrack, Calendly, Vercel Analytics |
+| 3: Numerical Claims | Verify 7 specific count claims | 6/7 exact match. 1 minor: 135 active EFs not 131 |
+| 4: Blind Spots | Find what 9 agents missed entirely | Found 16 blind spots (3 HIGH, 7 MEDIUM, 6 LOW) |
+
+### Evaluation Score: 4.5/5 (90%)
+
+| Criterion | Score | Weight |
+|-----------|-------|--------|
+| Completeness | 4/5 | 0.30 |
+| Accuracy | 5/5 | 0.30 |
+| Anthropic Dead Code | 5/5 | 0.15 |
+| Prioritization | 4/5 | 0.15 |
+| Actionability | 5/5 | 0.10 |
+| **Weighted Total** | **4.5/5** | **1.00** |
+
+### Key Corrections Applied
+- Service count: 16 → 19 (added AnyTrack, Calendly, Vercel Analytics)
+- Active EF count: 131 → 135
+- Added 3 HIGH priority blind spots to task_plan.md (tables without PKs, E2E not in CI, deploys without tests)
+- Added 4 MEDIUM priority blind spots (cron_secret hardcoded, missing FKs, webhook loops, ESLint)
+- Added 4 new dead code files to cleanup list (AIAssistantPanel, observability, langsmith-tracing, generateWithClaude rename)
+
+### Files Updated
+- `findings.md` — Added Section 16 (Evaluation results, blind spots, corrections)
+- `task_plan.md` — Added corrected service inventory, blind spots batch assignments, verification date
+- `progress.md` — This session log
+
+---
+
+## Session: 2026-02-12 (Autonomous Execution Plan Design)
+
+### Trigger
+User: "WRITE PLAN FOR ALL USE MULTI AGENT" — design bulletproof autonomous execution plan for --dangerously-skip-permissions mode.
+
+### Cross-Check Results (Other Session's 14-Item Plan)
+- 1 DANGEROUS error: would delete active openai-embeddings function
+- 4x inflation on JWT count (30 claimed vs 7 verified)
+- 60% of work MISSING from other session's plan
+- 3 valid items merged: RLS audit, Stripe webhook sigs, cron_secret rotation
+
+### Files Created
+- `CLAUDE.md` — Project instructions (auto-loaded every session)
+- `docs/plans/autonomous-execution-plan.md` — 10 batches, ~85-120h total
+- Updated `progress.md`
+
+### Autonomous Execution Status
+All 9 autonomous batches (0-6) written with:
+- Exact file paths and line numbers
+- Verification commands after each batch
+- Multi-agent dispatch guide (parallel subagent opportunities)
+- Session handoff protocol for context overflow
+- Batch 7 marked SKIP (needs manual staging environment)

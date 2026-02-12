@@ -62,6 +62,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"; // Auth Guard
 import ReconciliationDashboard from "./pages/ReconciliationDashboard";
 import MarketingIntelligence from "./pages/MarketingIntelligence";
 import MarketingDeepIntelligence from "./pages/MarketingDeepIntelligence";
+import CommandCenter from "./pages/CommandCenter";
 import "./index.css";
 
 // Initialize Sentry
@@ -134,6 +135,7 @@ const router = createBrowserRouter([
       { path: "/marketing-intelligence", element: <MarketingIntelligence /> },
       { path: "/deep-intel", element: <MarketingDeepIntelligence /> },
       { path: "/skills-matrix", element: <SkillCommandCenter /> },
+      { path: "/command-center", element: <CommandCenter /> },
       { path: "*", element: <NotFound /> },
     ],
   },

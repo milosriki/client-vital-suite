@@ -14,6 +14,7 @@ import {
   corsHeaders,
   ErrorCode,
 } from "../_shared/error-handler.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const FUNCTION_NAME = "ptd-brain-api";
 

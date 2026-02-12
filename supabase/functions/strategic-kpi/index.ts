@@ -6,6 +6,7 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
@@ -163,8 +164,12 @@ serve(async (req) => {
       JSON object with keys: "strategy_pulse", "anomaly_analysis", "north_star_recommendation".
     `;
 
+    const constitutionalPrefix = getConstitutionalSystemMessage();
     const aiResponse = await unifiedAI.chat(
-      [{ role: "user", content: prompt }],
+      [
+        { role: "system", content: constitutionalPrefix },
+        { role: "user", content: prompt },
+      ],
       {
         max_tokens: 1000,
         jsonMode: true,

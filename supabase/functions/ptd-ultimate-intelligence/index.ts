@@ -25,9 +25,16 @@ import {
 } from "../_shared/unified-prompts.ts";
 
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { tools } from "../_shared/tool-definitions.ts";
+import { executeSharedTool } from "../_shared/tool-executor.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 // const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 // const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
@@ -513,7 +520,11 @@ function selectPersona(query: string, context: any): keyof typeof PERSONAS {
 // ============================================
 
 serve(async (req: Request) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers":
@@ -570,6 +581,7 @@ serve(async (req: Request) => {
           persona,
           businessContext,
           parentRun,
+          supabase,
         );
       } else {
         response = await generateWithGemini(
@@ -577,6 +589,7 @@ serve(async (req: Request) => {
           persona,
           businessContext,
           parentRun,
+          supabase,
         );
       }
 
@@ -599,10 +612,10 @@ serve(async (req: Request) => {
     }
 
     return apiSuccess({
-        success: true,
-        persona: selectedPersona,
-        response: response,
-      });
+      success: true,
+      persona: selectedPersona,
+      response: response,
+    });
   } catch (error: unknown) {
     return handleError(error, "ptd-ultimate-intelligence", {
       supabase: createClient(
@@ -623,29 +636,73 @@ async function generateWithClaude(
   persona: any,
   context: any,
   parentRun: any,
+  supabase: any,
 ) {
   const childRun = await parentRun.createChild({
     name: "unified_ai_call",
     run_type: "llm",
-    inputs: { query, model: "gpt-4o" },
+    inputs: { query, model: "gemini-flash" },
   });
   await childRun.postRun();
 
   try {
-    const systemPrompt = `${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`;
+    const constitutionalFraming = getConstitutionalSystemMessage();
+    const systemPrompt = `${constitutionalFraming}\n\n${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`;
 
-    const response = await unifiedAI.chat(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: query },
-      ],
-      {
-        max_tokens: 4000,
-        temperature: 0.7,
-      },
+    // Filter tools appropriate for this intelligence persona
+    const intelligenceTools = tools.filter((t) =>
+      ["intelligence_control", "client_control", "revenue_intelligence",
+       "command_center_control", "universal_search"].includes(t.name)
     );
 
-    const text = response.content || "No response generated.";
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: query },
+    ];
+
+    const MAX_LOOPS = 3;
+    const MAX_TOOL_RESULT_CHARS = 3000;
+
+    let currentResponse = await unifiedAI.chat(messages, {
+      max_tokens: 4000,
+      temperature: 0.7,
+      tools: intelligenceTools,
+    });
+
+    let loopCount = 0;
+    while (
+      currentResponse.tool_calls &&
+      currentResponse.tool_calls.length > 0 &&
+      loopCount < MAX_LOOPS
+    ) {
+      loopCount++;
+      const toolResults: string[] = [];
+
+      for (const toolCall of currentResponse.tool_calls) {
+        try {
+          const rawResult = await executeSharedTool(supabase, toolCall.name, toolCall.input);
+          const toolResult = typeof rawResult === "string"
+            ? (rawResult.length > MAX_TOOL_RESULT_CHARS
+                ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) + `\n... [truncated]`
+                : rawResult)
+            : JSON.stringify(rawResult).slice(0, MAX_TOOL_RESULT_CHARS);
+          toolResults.push(`Tool '${toolCall.name}' Result:\n${toolResult}`);
+        } catch (err: any) {
+          toolResults.push(`Tool '${toolCall.name}' failed: ${err.message}`);
+        }
+      }
+
+      messages.push({ role: "assistant", content: currentResponse.content || "(Calling tools...)" });
+      messages.push({ role: "user", content: `Tool results (Loop ${loopCount}):\n\n${toolResults.join("\n\n---\n\n")}\n\nUse these results for an accurate, data-driven answer.` });
+
+      currentResponse = await unifiedAI.chat(messages, {
+        max_tokens: 4000,
+        temperature: 0.7,
+        tools: intelligenceTools,
+      });
+    }
+
+    const text = currentResponse.content || "No response generated.";
     await childRun.end({ outputs: { response: text } });
     await childRun.patchRun();
     return text;
@@ -661,8 +718,7 @@ async function generateWithGemini(
   persona: any,
   context: any,
   parentRun: any,
+  supabase: any,
 ) {
-  // Redirecting Gemini calls to UnifiedAI (which defaults to OpenAI/Claude fallback)
-  // This ensures consistent behavior and centralized key management
-  return generateWithClaude(query, persona, context, parentRun);
+  return generateWithClaude(query, persona, context, parentRun, supabase);
 }

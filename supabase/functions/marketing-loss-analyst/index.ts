@@ -337,10 +337,28 @@ serve(async (req) => {
       });
     }
 
-    // ── Save to loss_analysis ──
-    if (losses.length > 0) {
-      const { error } = await supabase.from("loss_analysis").insert(losses);
-      if (error) console.error("[Loss Analyst] Insert error:", error);
+    // ── Validate + upsert to loss_analysis ──
+    const validLosses = losses.filter((l) => {
+      if (!l.primary_loss_reason || typeof l.primary_loss_reason !== "string") {
+        console.warn("[Loss Analyst] Dropping loss: missing primary_loss_reason");
+        return false;
+      }
+      if (typeof l.confidence_pct !== "number" || l.confidence_pct < 0 || l.confidence_pct > 100) {
+        console.warn("[Loss Analyst] Dropping loss: invalid confidence_pct", l.confidence_pct);
+        return false;
+      }
+      if (!l.contact_email) {
+        console.warn("[Loss Analyst] Dropping loss: missing contact_email");
+        return false;
+      }
+      return true;
+    });
+
+    if (validLosses.length > 0) {
+      const { error } = await supabase
+        .from("loss_analysis")
+        .upsert(validLosses, { onConflict: "deal_id, contact_email" });
+      if (error) console.error("[Loss Analyst] Upsert error:", error);
     }
 
     // Log

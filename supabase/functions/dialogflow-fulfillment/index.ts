@@ -24,6 +24,7 @@ import {
   ExternalServiceError,
   errorToResponse,
 } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -124,9 +125,13 @@ Deno.serve(async (req: Request) => {
       referral_source: lead?.source || null,
     });
 
+    // Prepend constitutional framing to system prompt
+    const constitutionalPrefix = getConstitutionalSystemMessage();
+    systemPrompt = `${constitutionalPrefix}\n\n${systemPrompt}`;
+
     if (sentiment.sentiment === "RISK") {
       systemPrompt =
-        "You are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.";
+        `${constitutionalPrefix}\n\nYou are Lisa, a helpful support agent. The user is upset. De-escalate. No selling. Be human.`;
     }
 
     // 4. AI Call (With ATLAS Handoff Tool)
