@@ -21,12 +21,9 @@ import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 // Environment variable validation
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-// const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing Supabase configuration");
 }
-// ANTHROPIC_API_KEY is optional - AI insights will be skipped if missing
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

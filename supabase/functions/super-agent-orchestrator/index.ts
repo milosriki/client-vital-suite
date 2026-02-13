@@ -312,10 +312,9 @@ async function checkAllConnections(
     connections.stripe = { status: "no_key" };
   }
 
-  // GEMINI (with Claude fallback)
+  // GEMINI
   const geminiKey =
     Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-  const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
   const aiStart = Date.now();
 
   if (geminiKey) {
@@ -339,12 +338,9 @@ async function checkAllConnections(
     }
   }
 
-  if (claudeKey) {
-    connections.claude = { status: "available", note: "fallback_ai" };
-  }
 
   // At least one AI must be available
-  connections.ai_available = !!(geminiKey || claudeKey);
+  connections.ai_available = !!geminiKey;
 
   // CALLGEAR (optional)
   const callgearKey = Deno.env.get("CALLGEAR_API_KEY");
@@ -780,9 +776,6 @@ async function crossValidate(
 async function synthesize(state: SystemState, supabase: any): Promise<string> {
   const runId = await traceStart("synthesize", {});
   console.log("[Phase 5] Synthesizing report...");
-
-  // const geminiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-  // const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
 
   const prompt = `
 You are a system intelligence synthesizer. Generate a brief (2-3 sentences) executive summary.

@@ -193,7 +193,7 @@ export function AIAssistantPanel() {
         title: "AI Agent Error",
         description:
           error?.message ||
-          "Failed to get response. Make sure the agent is deployed and ANTHROPIC_API_KEY is set.",
+          "Failed to get response. Make sure the agent is deployed and GEMINI_API_KEY is set.",
         variant: "destructive",
       });
     },

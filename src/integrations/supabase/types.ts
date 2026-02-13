@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
+          expires_at: string | null
           id: string
           role: string
           session_id: string
@@ -106,6 +107,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string | null
+          expires_at?: string | null
           id?: string
           role: string
           session_id: string
@@ -114,6 +116,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string | null
+          expires_at?: string | null
           id?: string
           role?: string
           session_id?: string
@@ -129,6 +132,7 @@ export type Database = {
           decision_output: Json | null
           decision_type: string
           executed_at: string | null
+          expires_at: string | null
           id: string
           input_context: Json | null
           outcome: string | null
@@ -141,6 +145,7 @@ export type Database = {
           decision_output?: Json | null
           decision_type: string
           executed_at?: string | null
+          expires_at?: string | null
           id?: string
           input_context?: Json | null
           outcome?: string | null
@@ -153,6 +158,7 @@ export type Database = {
           decision_output?: Json | null
           decision_type?: string
           executed_at?: string | null
+          expires_at?: string | null
           id?: string
           input_context?: Json | null
           outcome?: string | null
@@ -214,13 +220,49 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_learnings: {
+        Row: {
+          agent_name: string | null
+          confidence: number | null
+          content: string | null
+          context: Json | null
+          created_at: string | null
+          id: string
+          learning_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_name?: string | null
+          confidence?: number | null
+          content?: string | null
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          learning_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_name?: string | null
+          confidence?: number | null
+          content?: string | null
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          learning_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       agent_memory: {
         Row: {
+          agent_name: string | null
           agent_type: string | null
+          archived: boolean | null
           content: string | null
           context: Json | null
           created_at: string | null
           embedding: string | null
+          expires_at: string | null
           id: string
           knowledge_extracted: Json | null
           query: string
@@ -232,11 +274,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          agent_name?: string | null
           agent_type?: string | null
+          archived?: boolean | null
           content?: string | null
           context?: Json | null
           created_at?: string | null
           embedding?: string | null
+          expires_at?: string | null
           id?: string
           knowledge_extracted?: Json | null
           query: string
@@ -248,11 +293,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          agent_name?: string | null
           agent_type?: string | null
+          archived?: boolean | null
           content?: string | null
           context?: Json | null
           created_at?: string | null
           embedding?: string | null
+          expires_at?: string | null
           id?: string
           knowledge_extracted?: Json | null
           query?: string
@@ -267,6 +315,7 @@ export type Database = {
       }
       agent_patterns: {
         Row: {
+          agent_name: string | null
           confidence: number | null
           created_at: string | null
           description: string | null
@@ -278,6 +327,7 @@ export type Database = {
           usage_count: number | null
         }
         Insert: {
+          agent_name?: string | null
           confidence?: number | null
           created_at?: string | null
           description?: string | null
@@ -289,6 +339,7 @@ export type Database = {
           usage_count?: number | null
         }
         Update: {
+          agent_name?: string | null
           confidence?: number | null
           created_at?: string | null
           description?: string | null

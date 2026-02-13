@@ -26,7 +26,7 @@ export interface AIResponse {
     name: string;
     input: any;
   }[];
-  provider: "gemini" | "anthropic" | "openai";
+  provider: "gemini" | "openai";
   model: string;
   tokens_used?: number;
   cost_usd?: number;

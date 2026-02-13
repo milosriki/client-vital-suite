@@ -3,12 +3,26 @@
 -- Estimated savings: ~380 fewer unnecessary Edge Function invocations/day
 -- ============================================================================
 
--- 1. Kill duplicate health score crons (keep health-calculator only, reduced)
-SELECT cron.unschedule('daily-health-scoring');
-SELECT cron.unschedule('daily-health-score-calculator');
+-- Safely unschedule crons (ignore errors if they don't exist)
+DO $$
+BEGIN
+  PERFORM cron.unschedule('daily-health-scoring');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- 2. Reduce health-calculator from every 30 min to 4x/day (2AM, 8AM, 2PM, 8PM UTC = 6AM, noon, 6PM, midnight UAE)
-SELECT cron.unschedule('health-calculator');
+DO $$
+BEGIN
+  PERFORM cron.unschedule('daily-health-score-calculator');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- 2. Reduce health-calculator from every 30 min to 4x/day
+DO $$
+BEGIN
+  PERFORM cron.unschedule('health-calculator');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 SELECT cron.schedule('health-calculator', '0 2,8,14,20 * * *', $$
   SELECT net.http_post(
     url := current_setting('app.settings.supabase_url') || '/functions/v1/calculate-health-scores',
@@ -21,7 +35,12 @@ SELECT cron.schedule('health-calculator', '0 2,8,14,20 * * *', $$
 $$);
 
 -- 3. Reduce ptd-24x7-monitor from every 5 min to every 15 min
-SELECT cron.unschedule('ptd-24x7-monitor');
+DO $$
+BEGIN
+  PERFORM cron.unschedule('ptd-24x7-monitor');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 SELECT cron.schedule('ptd-24x7-monitor', '*/15 * * * *', $$
   SELECT net.http_post(
     url := current_setting('app.settings.supabase_url') || '/functions/v1/ptd-24x7-monitor',
@@ -33,20 +52,47 @@ SELECT cron.schedule('ptd-24x7-monitor', '*/15 * * * *', $$
   );
 $$);
 
--- 4. Kill duplicate HubSpot hourly syncs (webhook handles real-time, daily safety net exists)
-SELECT cron.unschedule('hubspot-sync-hourly');
-SELECT cron.unschedule('hourly-hubspot-sync');
+-- 4. Kill duplicate HubSpot hourly syncs
+DO $$
+BEGIN
+  PERFORM cron.unschedule('hubspot-sync-hourly');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- 5. Kill duplicate lead-reply cron (keep lead-reply-generator)
-SELECT cron.unschedule('generate-lead-reply-2h');
+DO $$
+BEGIN
+  PERFORM cron.unschedule('hourly-hubspot-sync');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- 6. Kill duplicate business intelligence cron (keep daily-business-intelligence at 3AM)
-SELECT cron.unschedule('business-intelligence-daily');
+-- 5. Kill duplicate lead-reply cron
+DO $$
+BEGIN
+  PERFORM cron.unschedule('generate-lead-reply-2h');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- 6. Kill duplicate business intelligence cron
+DO $$
+BEGIN
+  PERFORM cron.unschedule('business-intelligence-daily');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 -- 7. Kill dead cron for deleted function
-SELECT cron.unschedule('ptd-self-learn');
+DO $$
+BEGIN
+  PERFORM cron.unschedule('ptd-self-learn');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- 8. Schedule missing cleanup-agent-memory (daily at 3AM UTC = 7AM UAE)
+-- 8. Schedule cleanup-agent-memory (daily at 3AM UTC = 7AM UAE)
+DO $$
+BEGIN
+  PERFORM cron.unschedule('cleanup-agent-memory');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 SELECT cron.schedule('cleanup-agent-memory', '0 3 * * *', $$
   SELECT net.http_post(
     url := current_setting('app.settings.supabase_url') || '/functions/v1/cleanup-agent-memory',

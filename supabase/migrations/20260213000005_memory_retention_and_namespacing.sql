@@ -58,6 +58,18 @@ ALTER TABLE public.agent_memory
 ALTER TABLE public.agent_patterns
   ADD COLUMN IF NOT EXISTS agent_name text DEFAULT 'shared';
 
+-- Create agent_learnings if it doesn't exist (may not be in production)
+CREATE TABLE IF NOT EXISTS public.agent_learnings (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_name text DEFAULT 'shared',
+  learning_type text,
+  content text,
+  context jsonb DEFAULT '{}'::jsonb,
+  confidence numeric DEFAULT 0.5,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
 ALTER TABLE public.agent_learnings
   ADD COLUMN IF NOT EXISTS agent_name text DEFAULT 'shared';
 
