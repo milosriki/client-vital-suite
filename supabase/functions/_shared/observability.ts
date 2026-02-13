@@ -16,7 +16,7 @@ interface TracingOptions {
 }
 
 interface CostConfig {
-  provider: "anthropic" | "google" | "openai";
+  provider: "google" | "openai";
   model: string;
   tokensIn: number;
   tokensOut: number;
@@ -39,10 +39,6 @@ interface ExecutionMetrics {
 
 // Cost per 1M tokens (in USD)
 const COST_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
-  // Anthropic
-  "claude-4-5-sonnet": { input: 3.0, output: 15.0 },
-  "claude-4-5-sonnet-20241022": { input: 3.0, output: 15.0 },
-  "claude-3-haiku-20240307": { input: 0.25, output: 1.25 },
   // Google
   "gemini-3.0-flash": { input: 0.10, output: 0.40 },
   "gemini-3.0-flash-preview-05-20": { input: 0.15, output: 0.60 },

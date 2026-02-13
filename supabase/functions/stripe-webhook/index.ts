@@ -1,9 +1,15 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
-import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import {
   handleError,
   createSuccessResponse,
@@ -12,6 +18,7 @@ import {
   ErrorCode,
   validateEnvVars,
 } from "../_shared/error-handler.ts";
+import { validateRequest, StripeEventSchema } from "../_shared/validators.ts";
 
 interface StripeEvent {
   id: string;
@@ -31,11 +38,11 @@ interface StripeEvent {
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  // Webhook endpoint — Stripe signature verification handles security (verify_jwt=false)
   const FUNCTION_NAME = "stripe-webhook";
 
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return handleCorsPreFlight();
   }
 
@@ -44,25 +51,29 @@ serve(async (req) => {
   try {
     // Validate required environment variables
     const envValidation = validateEnvVars(
-      ["STRIPE_SECRET_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
-      FUNCTION_NAME
+      ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+      FUNCTION_NAME,
     );
 
     if (!envValidation.valid) {
       return handleError(
-        new Error(`Missing required environment variables: ${envValidation.missing.join(", ")}`),
+        new Error(
+          `Missing required environment variables: ${envValidation.missing.join(", ")}`,
+        ),
         FUNCTION_NAME,
         {
           errorCode: ErrorCode.MISSING_API_KEY,
           context: { missingVars: envValidation.missing },
-        }
+        },
       );
     }
 
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
     const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get(
+      "SUPABASE_SERVICE_ROLE_KEY",
+    )!;
 
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -72,99 +83,91 @@ serve(async (req) => {
 
     // Validate body is not empty
     if (!body || body.trim() === "") {
+      return handleError(new Error("Request body is empty"), FUNCTION_NAME, {
+        supabase,
+        errorCode: ErrorCode.VALIDATION_ERROR,
+        context: { requestMethod: req.method },
+      });
+    }
+
+    // Reject requests without Stripe-Signature header
+    if (!signature) {
       return handleError(
-        new Error("Request body is empty"),
+        new Error("Missing Stripe-Signature header"),
         FUNCTION_NAME,
         {
           supabase,
           errorCode: ErrorCode.VALIDATION_ERROR,
-          context: { requestMethod: req.method },
-        }
+          context: { hasSignature: false },
+        },
       );
     }
 
-    // Verify webhook signature if secret is configured
+    // Verify webhook signature (mandatory — STRIPE_WEBHOOK_SECRET validated above)
     let event: StripeEvent;
+    try {
+      const Stripe = (
+        await import("https://esm.sh/stripe@18.5.0?target=deno")
+      ).default;
+      const stripe = new Stripe(STRIPE_SECRET_KEY, {
+        apiVersion: "2024-06-20",
+        httpClient: Stripe.createFetchHttpClient(),
+      });
 
-    if (STRIPE_WEBHOOK_SECRET && signature) {
-      try {
-        // Import Stripe for signature verification
-        const Stripe = (await import("https://esm.sh/stripe@18.5.0?target=deno")).default;
-        const stripe = new Stripe(STRIPE_SECRET_KEY, {
-          apiVersion: "2024-06-20",
-          httpClient: Stripe.createFetchHttpClient(),
-        });
+      event = (await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        STRIPE_WEBHOOK_SECRET!,
+      )) as StripeEvent;
 
-        // Verify the webhook signature (use async version for Edge Runtime compatibility)
-        event = await stripe.webhooks.constructEventAsync(
-          body,
-          signature,
-          STRIPE_WEBHOOK_SECRET
-        ) as StripeEvent;
-
-        console.log("✅ Webhook signature verified");
-      } catch (err: any) {
-        console.error("❌ Webhook signature verification failed:", err.message);
-        // Return 200 to stop Stripe from retrying indefinitely
-        return apiSuccess({ received: true, status: "ignored", reason: "signature_verification_failed" });
-      }
-    } else {
-      if (STRIPE_WEBHOOK_SECRET && !signature) {
-        return handleError(
-          new Error("Missing Stripe-Signature header for verified webhook"),
-          FUNCTION_NAME,
-          {
-            supabase,
-            errorCode: ErrorCode.VALIDATION_ERROR,
-            context: { hasSignature: false, webhookSecretConfigured: true },
-          }
-        );
-      }
-      // Parse without verification (not recommended for production)
-      console.log("⚠️ Webhook signature verification skipped");
-      try {
-        event = JSON.parse(body);
-      } catch (parseError) {
-        console.error("❌ JSON parse failed:", parseError);
-        return apiSuccess({ received: true, status: "ignored", reason: "invalid_json" });
-      }
+      await validateRequest(StripeEventSchema, event);
+      console.log("✅ Webhook signature verified");
+    } catch (err: any) {
+      console.error("❌ Webhook signature verification failed:", err.message);
+      return apiSuccess({
+        received: true,
+        status: "ignored",
+        reason: "signature_verification_failed",
+      });
     }
 
     // Validate event structure
     if (!event.id || !event.type) {
       console.error("❌ Invalid event format");
-      return apiSuccess({ received: true, status: "ignored", reason: "invalid_format" });
+      return apiSuccess({
+        received: true,
+        status: "ignored",
+        reason: "invalid_format",
+      });
     }
 
     console.log(`📨 Received Stripe event: ${event.type} (${event.id})`);
 
     // Store the event in database
-    const { error: insertError } = await supabase
-      .from("stripe_events")
-      .insert({
-        event_id: event.id,
-        event_type: event.type,
-        api_version: event.api_version,
-        livemode: event.livemode,
-        created_at: new Date(event.created * 1000).toISOString(),
-        data: event.data.object,
-        request_id: event.request?.id,
-        idempotency_key: event.request?.idempotency_key,
-        raw_event: event,
-      });
+    const { error: insertError } = await supabase.from("stripe_events").insert({
+      event_id: event.id,
+      event_type: event.type,
+      api_version: event.api_version,
+      livemode: event.livemode,
+      created_at: new Date(event.created * 1000).toISOString(),
+      data: event.data.object,
+      request_id: event.request?.id,
+      idempotency_key: event.request?.idempotency_key,
+      raw_event: event,
+    });
 
     if (insertError) {
       console.error("❌ Error storing event:", insertError);
       // Log to sync_errors but continue processing
-      await handleError(
-        insertError,
-        FUNCTION_NAME,
-        {
-          supabase,
-          errorCode: ErrorCode.DATABASE_ERROR,
-          context: { eventId: event.id, eventType: event.type, operation: "insert_stripe_event" },
-        }
-      );
+      await handleError(insertError, FUNCTION_NAME, {
+        supabase,
+        errorCode: ErrorCode.DATABASE_ERROR,
+        context: {
+          eventId: event.id,
+          eventType: event.type,
+          operation: "insert_stripe_event",
+        },
+      });
       // Continue processing even if storage fails
     }
 
@@ -244,7 +247,9 @@ serve(async (req) => {
     }
     // Default handler
     else {
-      console.log(`ℹ️  Event type ${event.type} received but no specific handler`);
+      console.log(
+        `ℹ️  Event type ${event.type} received but no specific handler`,
+      );
       // Still run general fraud check
       await checkGeneralFraud(supabase, event);
     }
@@ -257,29 +262,27 @@ serve(async (req) => {
     });
 
     return apiSuccess(successResponse);
-
   } catch (error: unknown) {
     // Determine appropriate error code based on error type
     let errorCode = ErrorCode.INTERNAL_ERROR;
 
     if (error.message?.includes("Stripe")) {
       errorCode = ErrorCode.STRIPE_API_ERROR;
-    } else if (error.message?.includes("database") || error.message?.includes("insert")) {
+    } else if (
+      error.message?.includes("database") ||
+      error.message?.includes("insert")
+    ) {
       errorCode = ErrorCode.DATABASE_ERROR;
     }
 
-    return handleError(
-      error as Error,
-      FUNCTION_NAME,
-      {
-        supabase: supabase ?? undefined,
-        errorCode,
-        context: {
-          hasSignature: !!req.headers.get("stripe-signature"),
-          method: req.method,
-        },
-      }
-    );
+    return handleError(error as Error, FUNCTION_NAME, {
+      supabase: supabase ?? undefined,
+      errorCode,
+      context: {
+        hasSignature: !!req.headers.get("stripe-signature"),
+        method: req.method,
+      },
+    });
   }
 });
 
@@ -287,13 +290,14 @@ serve(async (req) => {
 
 async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
   const paymentIntent = event.data.object;
-  
-  console.log(`✅ Payment succeeded: ${paymentIntent.id} - ${paymentIntent.amount / 100} ${paymentIntent.currency}`);
-  
+
+  console.log(
+    `✅ Payment succeeded: ${paymentIntent.id} - ${paymentIntent.amount / 100} ${paymentIntent.currency}`,
+  );
+
   // Update or create transaction record
-  await supabase
-    .from("stripe_transactions")
-    .upsert({
+  await supabase.from("stripe_transactions").upsert(
+    {
       stripe_id: paymentIntent.id,
       customer_id: paymentIntent.customer,
       amount: paymentIntent.amount / 100,
@@ -302,21 +306,22 @@ async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
       payment_method: paymentIntent.payment_method,
       metadata: paymentIntent.metadata,
       created_at: new Date(paymentIntent.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "payment_succeeded" };
 }
 
 async function handlePaymentFailed(supabase: any, event: StripeEvent) {
   const paymentIntent = event.data.object;
-  
+
   console.log(`❌ Payment failed: ${paymentIntent.id}`);
-  
-  await supabase
-    .from("stripe_transactions")
-    .upsert({
+
+  await supabase.from("stripe_transactions").upsert(
+    {
       stripe_id: paymentIntent.id,
       customer_id: paymentIntent.customer,
       amount: paymentIntent.amount / 100,
@@ -325,22 +330,23 @@ async function handlePaymentFailed(supabase: any, event: StripeEvent) {
       failure_reason: paymentIntent.last_payment_error?.message,
       metadata: paymentIntent.metadata,
       created_at: new Date(paymentIntent.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "payment_failed" };
 }
 
 async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
   const charge = event.data.object;
-  
+
   console.log(`💳 Charge succeeded: ${charge.id}`);
-  
+
   // Update transaction with charge details
-  await supabase
-    .from("stripe_transactions")
-    .upsert({
+  await supabase.from("stripe_transactions").upsert(
+    {
       stripe_id: charge.payment_intent || charge.id,
       charge_id: charge.id,
       customer_id: charge.customer,
@@ -350,9 +356,11 @@ async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
       description: charge.description,
       metadata: charge.metadata,
       created_at: new Date(charge.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "charge_succeeded" };
 }
@@ -362,9 +370,8 @@ async function handleChargeFailed(supabase: any, event: StripeEvent) {
 
   console.log(`❌ Charge failed: ${charge.id}`);
 
-  await supabase
-    .from("stripe_transactions")
-    .upsert({
+  await supabase.from("stripe_transactions").upsert(
+    {
       stripe_id: charge.payment_intent || charge.id,
       charge_id: charge.id,
       customer_id: charge.customer,
@@ -374,9 +381,11 @@ async function handleChargeFailed(supabase: any, event: StripeEvent) {
       failure_reason: charge.failure_message,
       metadata: charge.metadata,
       created_at: new Date(charge.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "charge_failed" };
 }
@@ -384,12 +393,13 @@ async function handleChargeFailed(supabase: any, event: StripeEvent) {
 async function handleChargeRefunded(supabase: any, event: StripeEvent) {
   const charge = event.data.object;
 
-  console.log(`💸 Charge refunded: ${charge.id} - Refunded: ${charge.amount_refunded / 100} ${charge.currency}`);
+  console.log(
+    `💸 Charge refunded: ${charge.id} - Refunded: ${charge.amount_refunded / 100} ${charge.currency}`,
+  );
 
   // Update transaction to mark as refunded
-  await supabase
-    .from("stripe_transactions")
-    .upsert({
+  await supabase.from("stripe_transactions").upsert(
+    {
       stripe_id: charge.payment_intent || charge.id,
       charge_id: charge.id,
       customer_id: charge.customer,
@@ -401,9 +411,11 @@ async function handleChargeRefunded(supabase: any, event: StripeEvent) {
       metadata: charge.metadata,
       created_at: new Date(charge.created * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "charge_refunded" };
 }
@@ -411,12 +423,13 @@ async function handleChargeRefunded(supabase: any, event: StripeEvent) {
 async function handleRefundEvent(supabase: any, event: StripeEvent) {
   const refund = event.data.object;
 
-  console.log(`🔄 Refund ${event.type}: ${refund.id} - ${refund.amount / 100} ${refund.currency}`);
+  console.log(
+    `🔄 Refund ${event.type}: ${refund.id} - ${refund.amount / 100} ${refund.currency}`,
+  );
 
   // Store refund details
-  await supabase
-    .from("stripe_refunds")
-    .upsert({
+  await supabase.from("stripe_refunds").upsert(
+    {
       stripe_id: refund.id,
       charge_id: refund.charge,
       payment_intent_id: refund.payment_intent,
@@ -426,9 +439,11 @@ async function handleRefundEvent(supabase: any, event: StripeEvent) {
       reason: refund.reason,
       metadata: refund.metadata,
       created_at: new Date(refund.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   // Update the corresponding transaction
   if (refund.charge || refund.payment_intent) {
@@ -439,7 +454,8 @@ async function handleRefundEvent(supabase: any, event: StripeEvent) {
       .single();
 
     if (transaction) {
-      const newRefundedAmount = (transaction.amount_refunded || 0) + (refund.amount / 100);
+      const newRefundedAmount =
+        (transaction.amount_refunded || 0) + refund.amount / 100;
       const isFullyRefunded = newRefundedAmount >= transaction.amount;
 
       await supabase
@@ -459,35 +475,39 @@ async function handleRefundEvent(supabase: any, event: StripeEvent) {
 
 async function handleSubscriptionChange(supabase: any, event: StripeEvent) {
   const subscription = event.data.object;
-  
+
   console.log(`📅 Subscription ${event.type}: ${subscription.id}`);
-  
-  await supabase
-    .from("stripe_subscriptions")
-    .upsert({
+
+  await supabase.from("stripe_subscriptions").upsert(
+    {
       stripe_id: subscription.id,
       customer_id: subscription.customer,
       status: subscription.status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_start: new Date(
+        subscription.current_period_start * 1000,
+      ).toISOString(),
+      current_period_end: new Date(
+        subscription.current_period_end * 1000,
+      ).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
       metadata: subscription.metadata,
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "subscription_updated" };
 }
 
 async function handleInvoiceEvent(supabase: any, event: StripeEvent) {
   const invoice = event.data.object;
-  
+
   console.log(`📄 Invoice ${event.type}: ${invoice.id}`);
-  
-  await supabase
-    .from("stripe_invoices")
-    .upsert({
+
+  await supabase.from("stripe_invoices").upsert(
+    {
       stripe_id: invoice.id,
       customer_id: invoice.customer,
       subscription_id: invoice.subscription,
@@ -498,21 +518,22 @@ async function handleInvoiceEvent(supabase: any, event: StripeEvent) {
       paid: invoice.paid,
       metadata: invoice.metadata,
       created_at: new Date(invoice.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "invoice_processed" };
 }
 
 async function handlePayoutEvent(supabase: any, event: StripeEvent) {
   const payout = event.data.object;
-  
+
   console.log(`💰 Payout ${event.type}: ${payout.id}`);
-  
-  await supabase
-    .from("stripe_payouts")
-    .upsert({
+
+  await supabase.from("stripe_payouts").upsert(
+    {
       stripe_id: payout.id,
       amount: payout.amount / 100,
       currency: payout.currency,
@@ -521,21 +542,25 @@ async function handlePayoutEvent(supabase: any, event: StripeEvent) {
       destination: payout.destination,
       metadata: payout.metadata,
       created_at: new Date(payout.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "payout_processed" };
 }
 
-async function handleTreasuryOutboundTransferEvent(supabase: any, event: StripeEvent) {
+async function handleTreasuryOutboundTransferEvent(
+  supabase: any,
+  event: StripeEvent,
+) {
   const transfer = event.data.object;
-  
+
   console.log(`💸 Treasury Outbound Transfer ${event.type}: ${transfer.id}`);
-  
-  await supabase
-    .from("stripe_outbound_transfers")
-    .upsert({
+
+  await supabase.from("stripe_outbound_transfers").upsert(
+    {
       stripe_id: transfer.id,
       financial_account_id: transfer.financial_account,
       amount: transfer.amount,
@@ -544,15 +569,20 @@ async function handleTreasuryOutboundTransferEvent(supabase: any, event: StripeE
       description: transfer.description,
       statement_descriptor: transfer.statement_descriptor,
       destination_payment_method_id: transfer.destination_payment_method,
-      destination_payment_method_details: transfer.destination_payment_method_details,
-      expected_arrival_date: transfer.expected_arrival_date ? new Date(transfer.expected_arrival_date * 1000).toISOString() : null,
+      destination_payment_method_details:
+        transfer.destination_payment_method_details,
+      expected_arrival_date: transfer.expected_arrival_date
+        ? new Date(transfer.expected_arrival_date * 1000).toISOString()
+        : null,
       created_at: new Date(transfer.created * 1000).toISOString(),
       updated_at: new Date().toISOString(),
       metadata: transfer.metadata,
       raw_response: transfer,
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "treasury_outbound_transfer_processed" };
 }
@@ -576,7 +606,10 @@ async function checkAccountFraud(supabase: any, event: StripeEvent) {
       .from("stripe_events")
       .select("*", { count: "exact", head: true })
       .eq("event_type", "v2.core.account.created")
-      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte(
+        "created_at",
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      );
 
     if (count && count > 3) {
       fraudSignals.push("Multiple accounts created in 24h");
@@ -586,8 +619,10 @@ async function checkAccountFraud(supabase: any, event: StripeEvent) {
 
   if (event.type.includes("requirements.updated")) {
     // Check if requirements changed suspiciously
-    if (account.requirements?.currently_due?.length === 0 && 
-        account.requirements?.past_due?.length > 0) {
+    if (
+      account.requirements?.currently_due?.length === 0 &&
+      account.requirements?.past_due?.length > 0
+    ) {
       fraudSignals.push("Requirements cleared after being past due");
       riskScore += 25;
     }
@@ -677,7 +712,10 @@ async function checkPaymentFraud(supabase: any, event: StripeEvent) {
       .select("*", { count: "exact", head: true })
       .or(`event_type.ilike.%failed%,event_type.ilike.%payment_failed%`)
       .eq("data->>customer_id", payment.customer)
-      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte(
+        "created_at",
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      );
 
     if (count && count > 3) {
       fraudSignals.push("Multiple payment failures from same customer");
@@ -688,7 +726,7 @@ async function checkPaymentFraud(supabase: any, event: StripeEvent) {
   // Check for test-then-drain pattern
   if (event.type.includes("succeeded")) {
     const amount = payment.amount / 100;
-    
+
     // Check if small payment followed by large payment
     const { data: recentPayments } = await supabase
       .from("stripe_events")
@@ -734,7 +772,8 @@ async function checkPayoutFraud(supabase: any, event: StripeEvent) {
   if (event.type.includes("paid")) {
     const payoutDate = new Date(payout.arrival_date * 1000);
     const createdDate = new Date(payout.created * 1000);
-    const hoursDiff = (payoutDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60);
+    const hoursDiff =
+      (payoutDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60);
 
     if (hoursDiff < 24) {
       fraudSignals.push("Instant payout detected");
@@ -746,7 +785,10 @@ async function checkPayoutFraud(supabase: any, event: StripeEvent) {
       .from("stripe_payouts")
       .select("*", { count: "exact", head: true })
       .eq("destination", payout.destination)
-      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      .gte(
+        "created_at",
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      );
 
     if (count && count > 5) {
       fraudSignals.push("Multiple payouts to same destination");
@@ -791,49 +833,48 @@ async function checkGeneralFraud(supabase: any, event: StripeEvent) {
 }
 
 async function createFraudAlert(supabase: any, alert: any) {
-  console.log(`🚨 FRAUD ALERT: ${alert.event_type} - Risk Score: ${alert.risk_score}`);
-  
-  await supabase
-    .from("stripe_fraud_alerts")
-    .insert({
-      event_id: alert.event_id,
-      event_type: alert.event_type,
-      risk_score: alert.risk_score,
-      signals: alert.signals,
-      account_id: alert.account_id,
-      customer_id: alert.customer_id,
-      transaction_id: alert.transaction_id,
-      payout_id: alert.payout_id,
-      amount: alert.amount,
-      destination: alert.destination,
-      severity: alert.severity,
-      status: "active",
-      created_at: new Date().toISOString(),
-    });
+  console.log(
+    `🚨 FRAUD ALERT: ${alert.event_type} - Risk Score: ${alert.risk_score}`,
+  );
+
+  await supabase.from("stripe_fraud_alerts").insert({
+    event_id: alert.event_id,
+    event_type: alert.event_type,
+    risk_score: alert.risk_score,
+    signals: alert.signals,
+    account_id: alert.account_id,
+    customer_id: alert.customer_id,
+    transaction_id: alert.transaction_id,
+    payout_id: alert.payout_id,
+    amount: alert.amount,
+    destination: alert.destination,
+    severity: alert.severity,
+    status: "active",
+    created_at: new Date().toISOString(),
+  });
 
   // Also create notification
-  await supabase
-    .from("notifications")
-    .insert({
-      type: "fraud_alert",
-      title: `🚨 Fraud Alert: ${alert.severity.toUpperCase()} Risk`,
-      message: `${alert.event_type}: ${alert.signals.join(", ")}`,
-      priority: alert.severity,
-      metadata: alert,
-      created_at: new Date().toISOString(),
-    });
+  await supabase.from("notifications").insert({
+    type: "fraud_alert",
+    title: `🚨 Fraud Alert: ${alert.severity.toUpperCase()} Risk`,
+    message: `${alert.event_type}: ${alert.signals.join(", ")}`,
+    priority: alert.severity,
+    metadata: alert,
+    created_at: new Date().toISOString(),
+  });
 }
 
 // ============= NEW EVENT HANDLERS =============
 
 async function handleAccountEvent(supabase: any, event: StripeEvent) {
   const account = event.data.object;
-  
-  console.log(`🏢 Account event ${event.type}: ${account.id || account.object?.id}`);
-  
-  await supabase
-    .from("stripe_accounts")
-    .upsert({
+
+  console.log(
+    `🏢 Account event ${event.type}: ${account.id || account.object?.id}`,
+  );
+
+  await supabase.from("stripe_accounts").upsert(
+    {
       stripe_id: account.id || account.object?.id,
       type: account.type,
       country: account.country,
@@ -846,21 +887,22 @@ async function handleAccountEvent(supabase: any, event: StripeEvent) {
       metadata: account.metadata,
       created_at: new Date(account.created * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "account_event" };
 }
 
 async function handleAccountPersonEvent(supabase: any, event: StripeEvent) {
   const person = event.data.object;
-  
+
   console.log(`👤 Account person event ${event.type}: ${person.id}`);
-  
-  await supabase
-    .from("stripe_account_persons")
-    .upsert({
+
+  await supabase.from("stripe_account_persons").upsert(
+    {
       stripe_id: person.id,
       account_id: person.account,
       email: person.email,
@@ -871,21 +913,22 @@ async function handleAccountPersonEvent(supabase: any, event: StripeEvent) {
       metadata: person.metadata,
       created_at: new Date(person.created * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "account_person_event" };
 }
 
 async function handleMoneyManagementEvent(supabase: any, event: StripeEvent) {
   const transaction = event.data.object;
-  
+
   console.log(`💰 Money management event ${event.type}: ${transaction.id}`);
-  
-  await supabase
-    .from("stripe_money_management")
-    .upsert({
+
+  await supabase.from("stripe_money_management").upsert(
+    {
       stripe_id: transaction.id,
       type: event.type,
       financial_account: transaction.financial_account,
@@ -897,21 +940,22 @@ async function handleMoneyManagementEvent(supabase: any, event: StripeEvent) {
       metadata: transaction.metadata,
       created_at: new Date(transaction.created * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "money_management_event" };
 }
 
 async function handleFinancialAccountEvent(supabase: any, event: StripeEvent) {
   const account = event.data.object;
-  
+
   console.log(`🏦 Financial account event ${event.type}: ${account.id}`);
-  
-  await supabase
-    .from("stripe_financial_accounts")
-    .upsert({
+
+  await supabase.from("stripe_financial_accounts").upsert(
+    {
       stripe_id: account.id,
       status: account.status,
       supported_payment_method_types: account.supported_payment_method_types,
@@ -919,47 +963,49 @@ async function handleFinancialAccountEvent(supabase: any, event: StripeEvent) {
       metadata: account.metadata,
       created_at: new Date(account.created * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "financial_account_event" };
 }
 
 async function handleBillingMeterEvent(supabase: any, event: StripeEvent) {
   const meter = event.data.object;
-  
+
   console.log(`📊 Billing meter event ${event.type}`);
-  
-  await supabase
-    .from("stripe_billing_meters")
-    .insert({
-      event_type: event.type,
-      meter_id: meter.id || meter.meter_id,
-      error_details: meter.error || meter.details,
-      created_at: new Date().toISOString(),
-    });
+
+  await supabase.from("stripe_billing_meters").insert({
+    event_type: event.type,
+    meter_id: meter.id || meter.meter_id,
+    error_details: meter.error || meter.details,
+    created_at: new Date().toISOString(),
+  });
 
   return { processed: true, action: "billing_meter_event" };
 }
 
 async function handleAccountLinkEvent(supabase: any, event: StripeEvent) {
   const link = event.data.object;
-  
+
   console.log(`🔗 Account link event ${event.type}: ${link.id}`);
-  
-  await supabase
-    .from("stripe_account_links")
-    .upsert({
+
+  await supabase.from("stripe_account_links").upsert(
+    {
       stripe_id: link.id,
       account: link.account,
       return_url: link.return_url,
-      expires_at: link.expires_at ? new Date(link.expires_at * 1000).toISOString() : null,
+      expires_at: link.expires_at
+        ? new Date(link.expires_at * 1000).toISOString()
+        : null,
       created_at: new Date(link.created * 1000).toISOString(),
-    }, {
-      onConflict: "stripe_id"
-    });
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
 
   return { processed: true, action: "account_link_event" };
 }
-

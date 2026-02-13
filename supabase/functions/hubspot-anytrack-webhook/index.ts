@@ -1,9 +1,7 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
-import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import {
   handleError,
   createSuccessResponse,
@@ -17,7 +15,7 @@ import {
 // HubSpot Native AnyTrack Webhook Receiver
 // HubSpot sends webhooks when AnyTrack events occur (when AnyTrack is connected natively in HubSpot)
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  // Webhook endpoint — external service, no JWT auth (verify_jwt=false in config.toml)
   const FUNCTION_NAME = "hubspot-anytrack-webhook";
 
   if (req.method === "OPTIONS") {

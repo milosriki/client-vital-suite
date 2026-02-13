@@ -5,6 +5,8 @@ import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError } from "../_shared/app-errors.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 /**
  * Marketing Copywriter Agent ✍️
@@ -144,37 +146,25 @@ ${
     : "This creative is a WINNER. Generate variants that amplify what's working."
 }`;
 
-        // Call Gemini API
-        const geminiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        // Call UnifiedAI
+        const response = await unifiedAI.chat(
+          [
+            { role: "system", content: `${getConstitutionalSystemMessage()}\n\n${SYSTEM_PROMPT}` },
+            { role: "user", content: userPrompt },
+          ],
           {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: SYSTEM_PROMPT + "\n\n" + userPrompt }],
-                },
-              ],
-              generationConfig: {
-                temperature: 0.8,
-                maxOutputTokens: 1024,
-                responseMimeType: "application/json",
-              },
-            }),
+            model: "gemini-1.5-flash",
+            temperature: 0.8,
+            max_tokens: 1024,
+            jsonMode: true,
+            functionName: "marketing-copywriter",
           },
         );
 
-        if (!geminiResponse.ok) {
-          throw new Error(`Gemini API error: ${geminiResponse.status}`);
-        }
-
-        const geminiData = await geminiResponse.json();
-        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        const rawText = response.content;
 
         if (!rawText) {
-          throw new Error("Empty response from Gemini");
+          throw new Error("Empty response from UnifiedAI");
         }
 
         // Validate output (per ai-product skill: "Always validate output")
@@ -183,16 +173,19 @@ ${
         // Save to creative_library (upsert by source_ad_id + prompt_version)
         const { error: insertErr } = await supabase
           .from("creative_library")
-          .upsert({
-            source_ad_id: winner.ad_id,
-            source_ad_name: winner.ad_name,
-            prompt_version: PROMPT_VERSION,
-            headlines: validCopy.headlines,
-            bodies: validCopy.bodies,
-            reasoning: validCopy.reasoning,
-            winning_dna: winner.metrics,
-            status: "pending_approval",
-          }, { onConflict: "source_ad_id, prompt_version" });
+          .upsert(
+            {
+              source_ad_id: winner.ad_id,
+              source_ad_name: winner.ad_name,
+              prompt_version: PROMPT_VERSION,
+              headlines: validCopy.headlines,
+              bodies: validCopy.bodies,
+              reasoning: validCopy.reasoning,
+              winning_dna: winner.metrics,
+              status: "pending_approval",
+            },
+            { onConflict: "source_ad_id, prompt_version" },
+          );
 
         if (insertErr) {
           throw new Error(`DB insert error: ${insertErr.message}`);

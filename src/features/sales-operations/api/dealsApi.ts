@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { DEAL_STAGES } from "@/constants/dealStages";
 
 export type DealStage =
   | "new"
@@ -44,13 +45,13 @@ export const dealsApi = {
     stage,
   }: UpdateDealStagePayload): Promise<Deal> => {
     const status =
-      stage === "closedwon"
+      stage === DEAL_STAGES.CLOSED_WON
         ? "closed"
-        : stage === "closedlost"
+        : stage === DEAL_STAGES.CLOSED_LOST
           ? "closed"
           : "open";
     const close_date =
-      stage === "closedwon" || stage === "closedlost"
+      stage === DEAL_STAGES.CLOSED_WON || stage === DEAL_STAGES.CLOSED_LOST
         ? new Date().toISOString()
         : null;
 

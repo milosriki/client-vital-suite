@@ -1,6 +1,7 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { DEAL_STAGES } from "@/constants/dealStages";
 import { subDays } from "date-fns";
 import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
@@ -99,7 +100,7 @@ export default function SalesPipeline() {
       }
     },
     onSuccess: (data) => {
-      const stageName = data.stage === "closedwon" ? "Won" : "Lost";
+      const stageName = data.stage === DEAL_STAGES.CLOSED_WON ? "Won" : "Lost";
       toast.success(`Deal marked as ${stageName}!`);
       queryClient.invalidateQueries({ queryKey: ["deals-summary"] });
       queryClient.invalidateQueries({ queryKey: ["lead-funnel"] });
@@ -558,7 +559,7 @@ export default function SalesPipeline() {
                     onConfirm={() => {
                       updateDealMutation.mutate({
                         dealId: selectedDeal.id,
-                        stage: "closedwon",
+                        stage: DEAL_STAGES.CLOSED_WON,
                       });
                     }}
                   />

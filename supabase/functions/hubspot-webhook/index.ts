@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import {
   handleError,
@@ -15,15 +14,11 @@ import {
   apiError,
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
-import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { HubSpotManager } from "../_shared/hubspot-manager.ts";
+import { validateRequest, HubSpotDealSchema } from "../_shared/validators.ts";
 
 serve(async (req) => {
-  try {
-    verifyAuth(req);
-  } catch {
-    throw new UnauthorizedError();
-  } // Security Hardening
+  // Webhook endpoint — HubSpot HMAC signature verification handles security (verify_jwt=false)
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -44,11 +39,19 @@ serve(async (req) => {
     let payload;
     try {
       payload = JSON.parse(bodyText);
+      // Phase 2.1: Zod Validation — reject malformed HubSpot payloads
+      if (Array.isArray(payload)) {
+        for (const item of payload) {
+          await validateRequest(HubSpotDealSchema, item);
+        }
+      } else {
+        await validateRequest(HubSpotDealSchema, payload);
+      }
     } catch (e) {
       return handleError(e, "hubspot-webhook", {
         errorCode: ErrorCode.INVALID_PARAMETER,
         supabase,
-        context: { stage: "json_parse" },
+        context: { stage: "validation" },
       });
     }
 
@@ -154,10 +157,12 @@ async function handleDealUpdate(
     if (ownersRes.ok) {
       const data = await ownersRes.json();
       ownerMap = Object.fromEntries(
-        data.results.map((o: { id: string; firstName: string; lastName: string }) => [
-          o.id,
-          `${o.firstName} ${o.lastName}`,
-        ]),
+        data.results.map(
+          (o: { id: string; firstName: string; lastName: string }) => [
+            o.id,
+            `${o.firstName} ${o.lastName}`,
+          ],
+        ),
       );
     }
   } catch (e) {

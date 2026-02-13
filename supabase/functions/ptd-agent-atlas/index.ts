@@ -456,6 +456,8 @@ async function saveToMemory(
     const embedding = await getEmbeddings(`${query}\n${response}`);
 
     await supabase.from("agent_memory").insert({
+      agent_name: "ptd-agent-atlas",
+      expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
       thread_id: threadId,
       query,
       response: response.slice(0, 10000),
@@ -1050,6 +1052,8 @@ ${activeLearnings}
 
 // ============= MAIN SERVER HANDLER =============
 serve(async (req: Request) => {
+  verifyAuth(req);
+
   // CORS preflight — per api-patterns skill
   if (req.method === "OPTIONS") return apiCorsPreFlight();
 

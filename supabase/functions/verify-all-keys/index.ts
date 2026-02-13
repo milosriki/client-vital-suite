@@ -1,4 +1,8 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 // API Key Verification Function
 // Verifies all API keys in Supabase and Vercel, checks which functions use them
 
@@ -6,12 +10,17 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 // Required keys mapping: key_name -> functions that use it
@@ -20,44 +29,76 @@ const corsHeaders = {
 const REQUIRED_KEYS = {
   // Supabase Secrets
   SUPABASE: {
-    'ANTHROPIC_API_KEY': ['ptd-agent-claude', 'ptd-agent', 'churn-predictor', 'intervention-recommender', 'ptd-ultimate-intelligence'],
-    'OPENAI_API_KEY': ['ptd-agent-claude', 'generate-embeddings', 'openai-embeddings'],
-    'GEMINI_API_KEY': ['ptd-agent-gemini', 'ptd-watcher', 'smart-agent', 'stripe-payouts-ai', 'ptd-ultimate-intelligence (preferred, falls back to GOOGLE_API_KEY)'],
-    'GOOGLE_API_KEY': ['ptd-agent-gemini', 'ptd-watcher', 'smart-agent', 'stripe-payouts-ai', 'ptd-ultimate-intelligence (fallback if GEMINI_API_KEY not set)'],
-    'GOOGLE_GEMINI_API_KEY': ['ptd-agent-gemini (legacy, use GEMINI_API_KEY instead)'],
-    'HUBSPOT_API_KEY': ['sync-hubspot-to-supabase', 'sync-hubspot-to-capi', 'fetch-hubspot-live', 'reassign-owner', 'auto-reassign-leads'],
-    'STRIPE_SECRET_KEY': ['stripe-dashboard-data', 'stripe-forensics', 'stripe-payouts-ai', 'enrich-with-stripe', 'stripe-webhook'],
-    'STAPE_CAPIG_API_KEY': ['send-to-stape-capi', 'process-capi-batch'],
-    'STAPE_CAPIG_ID': ['send-to-stape-capi', 'process-capi-batch'],
-    'FB_PIXEL_ID': ['send-to-stape-capi', 'process-capi-batch'],
-    'FB_ACCESS_TOKEN': ['send-to-stape-capi', 'process-capi-batch'],
-    'META_ACCESS_TOKEN': ['send-to-stape-capi', 'process-capi-batch'],
-    'CALLGEAR_API_KEY': ['call-tracking functions'],
+    GEMINI_API_KEY: [
+      "ptd-agent-gemini",
+      "ptd-watcher",
+      "smart-agent",
+      "stripe-payouts-ai",
+      "ptd-ultimate-intelligence",
+    ],
+    GOOGLE_API_KEY: [
+      "ptd-agent-gemini",
+      "ptd-watcher",
+      "smart-agent",
+      "stripe-payouts-ai",
+      "ptd-ultimate-intelligence (fallback if GEMINI_API_KEY not set)",
+    ],
+    GOOGLE_GEMINI_API_KEY: [
+      "ptd-agent-gemini (legacy, use GEMINI_API_KEY instead)",
+    ],
+    HUBSPOT_API_KEY: [
+      "sync-hubspot-to-supabase",
+      "sync-hubspot-to-capi",
+      "fetch-hubspot-live",
+      "reassign-owner",
+      "auto-reassign-leads",
+    ],
+    STRIPE_SECRET_KEY: [
+      "stripe-dashboard-data",
+      "stripe-forensics",
+      "stripe-payouts-ai",
+      "enrich-with-stripe",
+      "stripe-webhook",
+    ],
+    STAPE_CAPIG_API_KEY: ["send-to-stape-capi", "process-capi-batch"],
+    STAPE_CAPIG_ID: ["send-to-stape-capi", "process-capi-batch"],
+    FB_PIXEL_ID: ["send-to-stape-capi", "process-capi-batch"],
+    FB_ACCESS_TOKEN: ["send-to-stape-capi", "process-capi-batch"],
+    META_ACCESS_TOKEN: ["send-to-stape-capi", "process-capi-batch"],
+    CALLGEAR_API_KEY: ["call-tracking functions"],
   },
   // Optional keys - nice to have but not required
   OPTIONAL: {
-    'LOVABLE_API_KEY': ['smart-agent (fallback)', 'stripe-payouts-ai (fallback)', 'ptd-agent-gemini (fallback)'],
+    LOVABLE_API_KEY: [
+      "smart-agent (fallback)",
+      "stripe-payouts-ai (fallback)",
+      "ptd-agent-gemini (fallback)",
+    ],
   },
   // Vercel Environment Variables
   VERCEL: {
-    'VITE_SUPABASE_URL': ['Frontend build'],
-    'VITE_SUPABASE_PUBLISHABLE_KEY': ['Frontend build'],
-    'VITE_GEMINI_API_KEY': ['Frontend build'],
-    'FB_PIXEL_ID': ['API routes'],
-    'FB_ACCESS_TOKEN': ['API routes'],
-    'EVENT_SOURCE_URL': ['API routes'],
+    VITE_SUPABASE_URL: ["Frontend build"],
+    VITE_SUPABASE_PUBLISHABLE_KEY: ["Frontend build"],
+    VITE_GEMINI_API_KEY: ["Frontend build"],
+    FB_PIXEL_ID: ["API routes"],
+    FB_ACCESS_TOKEN: ["API routes"],
+    EVENT_SOURCE_URL: ["API routes"],
   },
 };
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
-  if (req.method === 'OPTIONS') {
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
+  if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const report: any = {
@@ -71,8 +112,8 @@ serve(async (req) => {
     };
 
     // Check Supabase Secrets (we can't list them directly, but we can check if functions can access them)
-    console.log('[Key Verification] Checking Supabase secrets...');
-    
+    console.log("[Key Verification] Checking Supabase secrets...");
+
     const supabaseSecretChecks: any = {};
     for (const [keyName, functions] of Object.entries(REQUIRED_KEYS.SUPABASE)) {
       // Try to access the secret (will be undefined if not set, but won't throw)
@@ -81,16 +122,16 @@ serve(async (req) => {
         set: !!value,
         set_length: value ? value.length : 0,
         used_by: functions,
-        status: value ? '✅ SET' : '❌ MISSING',
+        status: value ? "✅ SET" : "❌ MISSING",
         required: true,
       };
 
       if (!value) {
         report.missing_keys.push({
-          platform: 'Supabase',
+          platform: "Supabase",
           key: keyName,
           used_by: functions,
-          severity: 'critical',
+          severity: "critical",
           required: true,
         });
       }
@@ -102,8 +143,8 @@ serve(async (req) => {
         }
         report.key_usage_map[func].push({
           key: keyName,
-          platform: 'Supabase',
-          status: value ? 'set' : 'missing',
+          platform: "Supabase",
+          status: value ? "set" : "missing",
           required: true,
         });
       }
@@ -112,8 +153,8 @@ serve(async (req) => {
     report.supabase_secrets = supabaseSecretChecks;
 
     // Check Optional Secrets
-    console.log('[Key Verification] Checking optional secrets...');
-    
+    console.log("[Key Verification] Checking optional secrets...");
+
     const optionalSecretChecks: any = {};
     for (const [keyName, functions] of Object.entries(REQUIRED_KEYS.OPTIONAL)) {
       const value = Deno.env.get(keyName);
@@ -121,7 +162,7 @@ serve(async (req) => {
         set: !!value,
         set_length: value ? value.length : 0,
         used_by: functions,
-        status: value ? '✅ SET' : '⚠️ NOT SET (optional)',
+        status: value ? "✅ SET" : "⚠️ NOT SET (optional)",
         required: false,
       };
 
@@ -132,8 +173,8 @@ serve(async (req) => {
         }
         report.key_usage_map[func].push({
           key: keyName,
-          platform: 'Supabase',
-          status: value ? 'set' : 'not-set',
+          platform: "Supabase",
+          status: value ? "set" : "not-set",
           required: false,
         });
       }
@@ -142,15 +183,15 @@ serve(async (req) => {
     report.optional_secrets = optionalSecretChecks;
 
     // Check Vercel Environment Variables (we can't access them from Edge Function, but document expected)
-    console.log('[Key Verification] Documenting Vercel env vars...');
-    
+    console.log("[Key Verification] Documenting Vercel env vars...");
+
     const vercelEnvChecks: any = {};
     for (const [keyName, functions] of Object.entries(REQUIRED_KEYS.VERCEL)) {
       vercelEnvChecks[keyName] = {
         expected: true,
         used_by: functions,
-        note: 'Cannot verify from Edge Function - check Vercel dashboard',
-        status: '⚠️ CHECK MANUALLY',
+        note: "Cannot verify from Edge Function - check Vercel dashboard",
+        status: "⚠️ CHECK MANUALLY",
       };
     }
 
@@ -158,56 +199,80 @@ serve(async (req) => {
 
     // Summary
     const totalSupabaseKeys = Object.keys(REQUIRED_KEYS.SUPABASE).length;
-    const setSupabaseKeys = Object.values(supabaseSecretChecks).filter((k: any) => k.set).length;
+    const setSupabaseKeys = Object.values(supabaseSecretChecks).filter(
+      (k: any) => k.set,
+    ).length;
     const totalOptionalKeys = Object.keys(REQUIRED_KEYS.OPTIONAL).length;
-    const setOptionalKeys = Object.values(optionalSecretChecks).filter((k: any) => k.set).length;
+    const setOptionalKeys = Object.values(optionalSecretChecks).filter(
+      (k: any) => k.set,
+    ).length;
     const totalVercelKeys = Object.keys(REQUIRED_KEYS.VERCEL).length;
 
     report.summary = {
       supabase_required_total: totalSupabaseKeys,
       supabase_required_set: setSupabaseKeys,
       supabase_required_missing: totalSupabaseKeys - setSupabaseKeys,
-      supabase_required_percentage: totalSupabaseKeys > 0 ? Math.round((setSupabaseKeys / totalSupabaseKeys) * 100) : 0,
+      supabase_required_percentage:
+        totalSupabaseKeys > 0
+          ? Math.round((setSupabaseKeys / totalSupabaseKeys) * 100)
+          : 0,
       supabase_optional_total: totalOptionalKeys,
       supabase_optional_set: setOptionalKeys,
       vercel_total: totalVercelKeys,
-      vercel_note: 'Cannot verify from Edge Function',
+      vercel_note: "Cannot verify from Edge Function",
       missing_keys_count: report.missing_keys.length,
-      overall_status: report.missing_keys.length === 0 ? '✅ ALL REQUIRED KEYS SET' : '⚠️ SOME REQUIRED KEYS MISSING',
+      overall_status:
+        report.missing_keys.length === 0
+          ? "✅ ALL REQUIRED KEYS SET"
+          : "⚠️ SOME REQUIRED KEYS MISSING",
     };
 
     // Generate recommendations
     const recommendations: string[] = [];
-    
+
     if (report.missing_keys.length > 0) {
-      const keyWord = report.missing_keys.length === 1 ? 'key' : 'keys';
-      recommendations.push(`❌ ${report.missing_keys.length} required ${keyWord} missing in Supabase`);
+      const keyWord = report.missing_keys.length === 1 ? "key" : "keys";
+      recommendations.push(
+        `❌ ${report.missing_keys.length} required ${keyWord} missing in Supabase`,
+      );
       for (const missing of report.missing_keys) {
-        recommendations.push(`  - ${missing.key} (used by: ${missing.used_by.join(', ')})`);
+        recommendations.push(
+          `  - ${missing.key} (used by: ${missing.used_by.join(", ")})`,
+        );
       }
     } else {
-      recommendations.push('✅ All required Supabase secrets are set');
+      recommendations.push("✅ All required Supabase secrets are set");
     }
 
     if (setOptionalKeys < totalOptionalKeys) {
-      const keyWord = (totalOptionalKeys - setOptionalKeys) === 1 ? 'key' : 'keys';
-      recommendations.push(`ℹ️ ${totalOptionalKeys - setOptionalKeys} optional ${keyWord} not set (Lovable fallback)`);
+      const keyWord =
+        totalOptionalKeys - setOptionalKeys === 1 ? "key" : "keys";
+      recommendations.push(
+        `ℹ️ ${totalOptionalKeys - setOptionalKeys} optional ${keyWord} not set (Lovable fallback)`,
+      );
     } else {
-      recommendations.push('✅ All optional keys are set');
+      recommendations.push("✅ All optional keys are set");
     }
 
-    recommendations.push('⚠️ Verify Vercel env vars manually in Vercel dashboard');
-    recommendations.push('📋 Check key_usage_map to see which functions need which keys');
+    recommendations.push(
+      "⚠️ Verify Vercel env vars manually in Vercel dashboard",
+    );
+    recommendations.push(
+      "📋 Check key_usage_map to see which functions need which keys",
+    );
 
     report.recommendations = recommendations;
 
     return apiSuccess(report, null, 2);
-
   } catch (error: unknown) {
-    console.error('[Key Verification] Error:', error);
-    return apiError("INTERNAL_ERROR", JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        success: false 
-      }), 500);
+    console.error("[Key Verification] Error:", error);
+    return apiError(
+      "INTERNAL_ERROR",
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+      }),
+      500,
+    );
   }
 });

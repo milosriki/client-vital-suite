@@ -16,6 +16,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  verifyAuth(req);
+
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }

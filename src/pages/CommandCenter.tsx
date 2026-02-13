@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DEAL_STAGES, HUBSPOT_STAGE_IDS, ACTIVE_PIPELINE_STAGES } from "@/constants/dealStages";
 import {
   Dialog,
   DialogContent,
@@ -101,16 +102,13 @@ export default function CommandCenter() {
         .select("stage, deal_value")
         .gte("updated_at", cutoff);
       if (error) throw error;
-      const bookingStages = new Set([
-        "122237508", "122237276", "122221229", "qualifiedtobuy",
-        "decisionmakerboughtin", "2900542", "987633705", "closedwon",
-      ]);
+      const bookingStages = new Set<string>(ACTIVE_PIPELINE_STAGES);
       let bookings = 0;
       let closedWon = 0;
       let revenue = 0;
       (data || []).forEach((d) => {
         if (bookingStages.has(d.stage || "")) bookings++;
-        if (d.stage === "closedwon") {
+        if (d.stage === DEAL_STAGES.CLOSED_WON) {
           closedWon++;
           revenue += d.deal_value || 0;
         }
@@ -664,7 +662,7 @@ export default function CommandCenter() {
                             </p>
                             <p className="text-sm text-muted-foreground">{String(l.email || "")} | {String(l.phone || "")}</p>
                           </div>
-                          <Badge variant={l.deal_stage === "closedwon" ? "default" : "secondary"}>
+                          <Badge variant={l.deal_stage === DEAL_STAGES.CLOSED_WON ? "default" : "secondary"}>
                             {String(l.deal_stage_label || "No Deal")}
                           </Badge>
                         </div>

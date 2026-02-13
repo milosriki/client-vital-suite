@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { DEAL_STAGES } from "@/constants/dealStages";
 import { ErrorDetective } from "@/lib/error-detective";
 import { XRayTooltip } from "@/components/ui/x-ray-tooltip";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,7 +59,7 @@ const COLUMN_TO_DEAL_STAGE: Record<string, DealStage> = {
   follow_up: "qualified",
   appointment_set: "proposal",
   pitch_given: "negotiation",
-  closed: "closedwon",
+  closed: DEAL_STAGES.CLOSED_WON,
 };
 
 export default function Dashboard() {

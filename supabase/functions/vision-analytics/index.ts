@@ -7,11 +7,15 @@ import {
 } from "../_shared/api-response.ts";
 // We import the Google Generative AI SDK directly for multimodal support if unified-client is text-only
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
 
   try {
+    verifyAuth(req);
+
     const { imageUrl, prompt, type } = await req.json();
 
     if (!imageUrl) throw new Error("Image URL is required");
@@ -66,7 +70,8 @@ serve(async (req) => {
         prompt || "Describe this image in detail and extract key insights.";
     }
 
-    const result = await model.generateContent([systemPrompt, imagePart]);
+    const guardedPrompt = `${getConstitutionalSystemMessage()}\n\n${systemPrompt}`;
+    const result = await model.generateContent([guardedPrompt, imagePart]);
 
     const response = result.response;
     const text = response.text();

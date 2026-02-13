@@ -2,6 +2,7 @@ import {
   createClient,
   SupabaseClient,
 } from "https://esm.sh/@supabase/supabase-js@2";
+import { captureException } from "./sentry.ts";
 
 /**
  * Standard error response format
@@ -77,12 +78,8 @@ const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
 /**
  * CORS headers to include in all responses
  */
-export const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, stripe-signature, x-hubspot-signature",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
-};
+import { corsHeaders } from "./cors.ts";
+export { corsHeaders };
 
 /**
  * Map error codes to sync_errors error_type
@@ -219,6 +216,12 @@ export async function handleError(
   if (context && Object.keys(context).length > 0) {
     console.error("Context:", context);
   }
+
+  // Send to Sentry (fire-and-forget — must never break error response)
+  captureException(error, {
+    functionName,
+    extra: { errorCode, ...context },
+  }).catch(() => {});
 
   // Log to database
   await logError(supabase, functionName, error, errorCode, context);

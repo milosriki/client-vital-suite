@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const ATLAS_FUNCTION_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/ptd-agent-atlas`;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -7,6 +8,8 @@ console.log("🚀 Atlas Trigger Service Started");
 
 serve(async (req) => {
   try {
+    verifyAuth(req);
+
     const payload = await req.json();
 
     // 1. Validate Webhook Payload (INSERT on agent_tasks)

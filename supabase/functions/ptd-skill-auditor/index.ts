@@ -4,6 +4,7 @@ import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { apiSuccess, apiError } from "../_shared/api-response.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -43,6 +44,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
+    verifyAuth(req);
     const { limit = 5 } = await req.json();
 
     // 1. Fetch recent interactions (ungraded)

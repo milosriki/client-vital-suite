@@ -9,7 +9,6 @@ import { RepairEngine } from "../_shared/repair-engine.ts";
 import { AntiRobot } from "../_shared/anti-robot.ts";
 import { DubaiContext, AvatarLogic } from "../_shared/avatar-logic.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   handleError,
   ErrorCode,
@@ -37,13 +36,7 @@ const hubspot = new HubSpotManager(hubspotKey, supabaseUrl, supabaseKey);
 Deno.serve(async (req: Request) => {
   const startTime = Date.now();
   try {
-    // Auth — per auth-implementation-patterns skill
-    try {
-      verifyAuth(req);
-    } catch {
-      throw new UnauthorizedError();
-    }
-
+    // Webhook endpoint — Dialogflow sends fulfillment requests (verify_jwt=false)
     // Rate limit — per api-patterns/rate-limiting.md
     const ip = req.headers.get("x-forwarded-for") || "unknown";
     const rateCheck = checkRateLimit(req, RATE_LIMITS.chat);

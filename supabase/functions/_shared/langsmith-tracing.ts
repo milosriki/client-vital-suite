@@ -271,7 +271,7 @@ export function createStripeTraceMetadata(action: string, additionalMeta?: Recor
 // PROVIDER METADATA - For LangSmith cost tracking
 // ═══════════════════════════════════════════════════════════════
 
-export type AIProvider = "anthropic" | "openai" | "google" | "unknown";
+export type AIProvider = "google" | "openai" | "unknown";
 
 export interface ProviderMetadata {
   ls_provider: AIProvider;
@@ -283,13 +283,6 @@ export interface ProviderMetadata {
 
 // Model to provider mapping
 const MODEL_PROVIDER_MAP: Record<string, AIProvider> = {
-  // Anthropic
-  "claude-3-opus": "anthropic",
-  "claude-3-sonnet": "anthropic", 
-  "claude-3-haiku": "anthropic",
-  "claude-4-5-sonnet": "anthropic",
-  "claude-3-5-haiku": "anthropic",
-  "claude-2": "anthropic",
   "gpt-4": "openai",
   "gpt-4o": "openai",
   "gpt-4o-mini": "openai",
@@ -312,7 +305,6 @@ export function getProviderFromModel(model: string): AIProvider {
   }
   
   // Fallback detection
-  if (normalizedModel.includes("claude")) return "anthropic";
   if (normalizedModel.includes("gpt") || normalizedModel.includes("o1")) return "openai";
   if (normalizedModel.includes("gemini")) return "google";
   

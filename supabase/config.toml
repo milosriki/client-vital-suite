@@ -1,7 +1,7 @@
 project_id = "ztjndilxurtsfqdsvfds"
 
 [functions.stripe-deep-agent]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ptd-agent-gemini]
 verify_jwt = true
@@ -13,7 +13,7 @@ verify_jwt = true
 
 # AI Configuration Status Endpoint (LangSmith/Provider Health Check)
 [functions.ai-config-status]
-verify_jwt = false
+verify_jwt = true
 
 # Health & Intelligence Agents
 [functions.health-calculator]
@@ -78,7 +78,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.stripe-forensics]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stripe-payouts-ai]
 verify_jwt = true
@@ -87,7 +87,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.stripe-issuing-tokens]
-verify_jwt = false
+verify_jwt = true
 
 # Stripe Advanced Features
 [functions.stripe-checkout]
@@ -281,10 +281,13 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.setup-db]
-verify_jwt = false
+verify_jwt = true
 
 [functions.antigravity-followup-engine]
 verify_jwt = false
+
+[functions.cleanup-agent-memory]
+verify_jwt = true
 
 [functions.schema-fixer]
 enabled = true

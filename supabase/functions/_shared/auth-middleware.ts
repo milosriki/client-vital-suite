@@ -32,10 +32,18 @@ export function verifyAuth(req: Request) {
   const xAuthToken =
     req.headers.get("X-Auth-Token") || req.headers.get("x-auth-token");
 
-  if (!authHeader && !xAuthToken) {
-    console.error(
-      `❌ Blocking request: No Authorization or X-Auth-Token header found. IP: ${ip}`,
-    );
+  const token = authHeader?.replace("Bearer ", "") || xAuthToken;
+
+  if (!token) {
+    console.error(`❌ Blocking request: No Authentication found. IP: ${ip}`);
     throw new UnauthorizedError("Missing authentication credentials");
+  }
+
+  // Verify JWT (Basic check - for full security, use getUser or verifyJWT)
+  // Let's at least check for a basic JWT structure to prevent obvious garbage
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    console.error(`❌ Blocking request: Invalid Token format. IP: ${ip}`);
+    throw new UnauthorizedError("Invalid authentication token");
   }
 }

@@ -8,7 +8,7 @@ import {
  * This version is kept for backward compatibility only.
  *
  * The advanced version (`generate-lead-replies`) provides:
- * - Better Anthropic API integration
+ * - Better AI integration via unified-ai-client (Gemini)
  * - More sophisticated lead analysis
  * - Enhanced error handling
  *
@@ -84,8 +84,6 @@ serve(async (req: Request) => {
     }
 
     console.log(`[Lead Reply Agent] Processing ${leadsToProcess.length} leads`);
-
-    // const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     // Process all leads in parallel
     const processPromises = leadsToProcess.map(async (lead: any) => {

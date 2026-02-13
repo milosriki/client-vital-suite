@@ -8,6 +8,7 @@ import {
 } from "../_shared/api-response.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2022-11-15",
@@ -18,6 +19,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
 
   try {
+    verifyAuth(req);
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

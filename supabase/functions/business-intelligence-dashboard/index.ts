@@ -1,11 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/error-handler.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  verifyAuth(req);
 
   try {
     const supabase = createClient(
@@ -161,12 +164,14 @@ serve(async (req) => {
       },
       zone_b: {
         title: "Growth Engine",
-        recent_activity: (recentDeals || []).map((d: Record<string, unknown>) => ({
-          deal_name: d.deal_name,
-          amount: d.deal_value || 0,
-          stage: d.stage,
-          created_at: d.created_at,
-        })),
+        recent_activity: (recentDeals || []).map(
+          (d: Record<string, unknown>) => ({
+            deal_name: d.deal_name,
+            amount: d.deal_value || 0,
+            stage: d.stage,
+            created_at: d.created_at,
+          }),
+        ),
       },
       zone_c: {
         title: "Funnel Truth",

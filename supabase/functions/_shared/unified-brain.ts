@@ -2,26 +2,30 @@
  * ============================================================================
  * PTD UNIFIED BRAIN - SHARED MEMORY FOR ALL AGENTS
  * ============================================================================
- * 
+ *
  * ONE memory system that ALL agents read/write to.
  * RAG-powered retrieval across ALL historical data.
  * Smarter than HubSpot - learns from every interaction.
- * 
+ *
  * Usage in ANY agent:
  *   import { brain } from "../_shared/unified-brain.ts";
- *   
+ *
  *   // Get relevant context before answering
  *   const context = await brain.recall("client retention strategies");
- *   
+ *
  *   // Store new knowledge after every interaction
  *   await brain.learn({ query, response, source: "ptd-agent" });
- *   
+ *
  *   // Store facts that persist forever
  *   await brain.storeFact("coach_ahmed_specialty", "weight loss for executives");
  * ============================================================================
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createClient,
+  SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2";
+import { unifiedAI } from "./unified-ai-client.ts";
 
 // ============================================================================
 // TYPES
@@ -40,18 +44,18 @@ interface Memory {
 interface LearnInput {
   query: string;
   response: string;
-  source?: string;           // Which agent created this
-  thread_id?: string;        // Conversation thread
-  knowledge?: Record<string, any>;  // Extracted facts
-  embedding?: number[];      // Pre-computed embedding
+  source?: string; // Which agent created this
+  thread_id?: string; // Conversation thread
+  knowledge?: Record<string, any>; // Extracted facts
+  embedding?: number[]; // Pre-computed embedding
 }
 
 interface RecallOptions {
   limit?: number;
-  threshold?: number;        // Similarity threshold (0-1)
-  source?: string;           // Filter by agent source
-  since?: Date;              // Only memories after this date
-  thread_id?: string;        // Only from specific conversation
+  threshold?: number; // Similarity threshold (0-1)
+  source?: string; // Filter by agent source
+  since?: Date; // Only memories after this date
+  thread_id?: string; // Only from specific conversation
 }
 
 interface Fact {
@@ -67,48 +71,31 @@ interface Fact {
 
 class UnifiedBrain {
   private supabase: SupabaseClient;
-  private openaiKey: string;
+  // private openaiKey: string; // Removed
   private initialized = false;
 
   constructor() {
     const url = Deno.env.get("SUPABASE_URL")!;
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    this.openaiKey = Deno.env.get("OPENAI_API_KEY") || "";
+    // this.openaiKey = Deno.env.get("OPENAI_API_KEY") || ""; // Removed
     this.supabase = createClient(url, key);
   }
 
   // ==========================================================================
   // EMBEDDING GENERATION
   // ==========================================================================
-  
+
+  // ==========================================================================
+  // EMBEDDING GENERATION
+  // ==========================================================================
+
   private async getEmbedding(text: string): Promise<number[]> {
-    if (!this.openaiKey) {
-      console.warn("[BRAIN] No OpenAI key - using zero embedding");
-      return new Array(1536).fill(0);
-    }
-
     try {
-      const response = await fetch("https://api.openai.com/v1/embeddings", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${this.openaiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "text-embedding-3-small",
-          input: text.slice(0, 8000),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`OpenAI error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.data[0].embedding;
+      // Use UnifiedAI (Gemini) for embeddings
+      return await unifiedAI.embed(text);
     } catch (error) {
       console.error("[BRAIN] Embedding error:", error);
-      return new Array(1536).fill(0);
+      return new Array(1536).fill(0); // Fallback to zero vector
     }
   }
 
@@ -121,13 +108,7 @@ class UnifiedBrain {
    * Call this BEFORE generating any response to get context
    */
   async recall(query: string, options: RecallOptions = {}): Promise<Memory[]> {
-    const {
-      limit = 5,
-      threshold = 0.75,
-      source,
-      since,
-      thread_id,
-    } = options;
+    const { limit = 5, threshold = 0.75, source, since, thread_id } = options;
 
     try {
       // Generate embedding for the query
@@ -150,15 +131,13 @@ class UnifiedBrain {
 
       // Additional filters
       if (source) {
-        memories = memories.filter((m: any) => 
-          m.knowledge_extracted?.source === source
+        memories = memories.filter(
+          (m: any) => m.knowledge_extracted?.source === source,
         );
       }
 
       if (since) {
-        memories = memories.filter((m: any) => 
-          new Date(m.created_at) >= since
-        );
+        memories = memories.filter((m: any) => new Date(m.created_at) >= since);
       }
 
       return memories;
@@ -212,12 +191,15 @@ class UnifiedBrain {
 
     try {
       // Generate embedding if not provided
-      const vector = embedding || await this.getEmbedding(`${query}\n${response}`);
+      const vector =
+        embedding || (await this.getEmbedding(`${query}\n${response}`));
 
       // Store in agent_memory
       const { data, error } = await this.supabase
         .from("agent_memory")
         .insert({
+          agent_name: source,
+          expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
           thread_id,
           query,
           response,
@@ -233,15 +215,16 @@ class UnifiedBrain {
       }
 
       // Also store in permanent user_memory for cross-device access
-      await this.supabase
-        .from("user_memory")
-        .upsert({
+      await this.supabase.from("user_memory").upsert(
+        {
           user_key: "ptd_brain",
           memory_key: `interaction_${data.id}`,
           memory_value: { query, response, source, thread_id },
           memory_type: "conversation",
           updated_at: new Date().toISOString(),
-        }, { onConflict: "user_key,memory_key" });
+        },
+        { onConflict: "user_key,memory_key" },
+      );
 
       return data.id;
     } catch (error) {
@@ -257,17 +240,23 @@ class UnifiedBrain {
   /**
    * Store a permanent fact (never expires)
    */
-  async storeFact(key: string, value: any, confidence = 1.0, source?: string): Promise<void> {
+  async storeFact(
+    key: string,
+    value: any,
+    confidence = 1.0,
+    source?: string,
+  ): Promise<void> {
     try {
-      await this.supabase
-        .from("user_memory")
-        .upsert({
+      await this.supabase.from("user_memory").upsert(
+        {
           user_key: "ptd_brain",
           memory_key: `fact_${key}`,
           memory_value: { value, confidence, source },
           memory_type: "knowledge",
           updated_at: new Date().toISOString(),
-        }, { onConflict: "user_key,memory_key" });
+        },
+        { onConflict: "user_key,memory_key" },
+      );
     } catch (error) {
       console.error("[BRAIN] storeFact error:", error);
     }
@@ -324,7 +313,7 @@ class UnifiedBrain {
     name: string,
     description: string,
     example: any,
-    confidence = 0.5
+    confidence = 0.5,
   ): Promise<void> {
     try {
       // Check if pattern exists
@@ -351,16 +340,14 @@ class UnifiedBrain {
           .eq("id", existing.id);
       } else {
         // Create new pattern
-        await this.supabase
-          .from("agent_patterns")
-          .insert({
-            pattern_name: name,
-            description,
-            examples: [example],
-            confidence,
-            usage_count: 1,
-            last_used_at: new Date().toISOString(),
-          });
+        await this.supabase.from("agent_patterns").insert({
+          pattern_name: name,
+          description,
+          examples: [example],
+          confidence,
+          usage_count: 1,
+          last_used_at: new Date().toISOString(),
+        });
       }
     } catch (error) {
       console.error("[BRAIN] recordPattern error:", error);
@@ -409,12 +396,15 @@ class UnifiedBrain {
    * Build full context for an agent prompt
    * Combines: RAG memories + facts + patterns
    */
-  async buildContext(query: string, options: {
-    includeMemories?: boolean;
-    includeFacts?: boolean;
-    includePatterns?: boolean;
-    memoryLimit?: number;
-  } = {}): Promise<string> {
+  async buildContext(
+    query: string,
+    options: {
+      includeMemories?: boolean;
+      includeFacts?: boolean;
+      includePatterns?: boolean;
+      memoryLimit?: number;
+    } = {},
+  ): Promise<string> {
     const {
       includeMemories = true,
       includeFacts = true,
@@ -455,7 +445,9 @@ class UnifiedBrain {
       if (patterns.length > 0) {
         parts.push("\n## Learned Patterns:");
         for (const p of patterns) {
-          parts.push(`- ${p.pattern_name} (confidence: ${p.confidence}): ${p.description}`);
+          parts.push(
+            `- ${p.pattern_name} (confidence: ${p.confidence}): ${p.description}`,
+          );
         }
       }
     }
@@ -470,10 +462,16 @@ class UnifiedBrain {
   async getStats(): Promise<Record<string, number>> {
     try {
       const [memories, facts, patterns] = await Promise.all([
-        this.supabase.from("agent_memory").select("id", { count: "exact", head: true }),
-        this.supabase.from("user_memory").select("id", { count: "exact", head: true })
+        this.supabase
+          .from("agent_memory")
+          .select("id", { count: "exact", head: true }),
+        this.supabase
+          .from("user_memory")
+          .select("id", { count: "exact", head: true })
           .eq("user_key", "ptd_brain"),
-        this.supabase.from("agent_patterns").select("id", { count: "exact", head: true }),
+        this.supabase
+          .from("agent_patterns")
+          .select("id", { count: "exact", head: true }),
       ]);
 
       return {

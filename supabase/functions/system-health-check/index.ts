@@ -1,10 +1,8 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
-import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,8 +34,7 @@ interface SystemHealthReport {
 
 // All edge functions to check
 const EDGE_FUNCTIONS = [
-  { name: "ptd-agent-claude", secrets: ["ANTHROPIC_API_KEY"], critical: true },
-  { name: "business-intelligence", secrets: ["ANTHROPIC_API_KEY"], critical: true },
+  { name: "business-intelligence", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: true },
   { name: "stripe-dashboard-data", secrets: ["STRIPE_SECRET_KEY"], critical: true },
   { name: "stripe-forensics", secrets: ["STRIPE_SECRET_KEY"], critical: true },
   { name: "stripe-payouts-ai", secrets: ["STRIPE_SECRET_KEY", "GOOGLE_GEMINI_API_KEY"], critical: false },
@@ -48,19 +45,18 @@ const EDGE_FUNCTIONS = [
   { name: "meta-capi", secrets: ["FB_ACCESS_TOKEN", "FB_PIXEL_ID"], critical: false },
   { name: "daily-summary-briefing", secrets: [], critical: false },
   { name: "ptd-24x7-monitor", secrets: [], critical: true },
-  { name: "generate-lead-replies", secrets: ["ANTHROPIC_API_KEY"], critical: false },
-  { name: "run-intelligence-suite", secrets: ["ANTHROPIC_API_KEY"], critical: false },
+  { name: "generate-lead-replies", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
+  { name: "run-intelligence-suite", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
   { name: "client-health-calculator", secrets: [], critical: true },
   { name: "coach-performance-report", secrets: [], critical: false },
-  { name: "proactive-insights-generator", secrets: ["ANTHROPIC_API_KEY"], critical: false },
-  { name: "smart-agent", secrets: ["ANTHROPIC_API_KEY"], critical: false },
-  { name: "agent-orchestrator", secrets: ["ANTHROPIC_API_KEY"], critical: false },
+  { name: "proactive-insights-generator", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
+  { name: "smart-agent", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
+  { name: "agent-orchestrator", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
 ];
 
 // Required secrets for full functionality
 const ALL_REQUIRED_SECRETS = [
-  "ANTHROPIC_API_KEY",
-  "STRIPE_SECRET_KEY", 
+  "STRIPE_SECRET_KEY",
   "HUBSPOT_API_KEY",
   "GOOGLE_GEMINI_API_KEY",
   "FB_ACCESS_TOKEN",
@@ -152,7 +148,7 @@ async function checkDatabase(supabaseUrl: string, serviceKey: string): Promise<{
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  // Health check endpoint — public access for monitoring (verify_jwt=false)
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }

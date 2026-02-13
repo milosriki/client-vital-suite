@@ -1193,6 +1193,8 @@ ${activeLearnings}
 
 // ============= MAIN SERVER HANDLER =============
 serve(async (req: Request) => {
+  verifyAuth(req);
+
   // CORS preflight — per api-patterns skill
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();

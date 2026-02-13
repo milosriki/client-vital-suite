@@ -27,5 +27,7 @@ import {
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 Deno.serve(async (req) => {
+  verifyAuth(req);
+
   return apiSuccess({ status: "ok", message: "OK with ALL imports" });
 });

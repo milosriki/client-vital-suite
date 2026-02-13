@@ -6,6 +6,8 @@
  * { success: boolean, data?: T, error?: { code, message, requestId } }
  */
 
+import { corsHeaders } from "./cors.ts";
+
 export interface ApiSuccessResponse<T = unknown> {
   success: true;
   data: T;
@@ -38,6 +40,7 @@ export function apiSuccess<T>(
   data: T,
   meta?: ApiSuccessResponse<T>["meta"],
   status = 200,
+  headers: Record<string, string> = {},
 ): Response {
   const body: ApiSuccessResponse<T> = { success: true, data };
   if (meta) body.meta = meta;
@@ -45,10 +48,9 @@ export function apiSuccess<T>(
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...corsHeaders,
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers":
-        "authorization, x-client-info, apikey, content-type",
+      ...headers,
     },
   });
 }

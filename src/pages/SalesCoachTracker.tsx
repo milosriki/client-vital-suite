@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { DEAL_STAGES } from "@/constants/dealStages";
 import {
   Card,
   CardContent,
@@ -46,7 +47,7 @@ const SalesCoachTracker = () => {
       const { data, error } = await supabase
         .from("deals")
         .select("id, deal_name, deal_value, stage, updated_at, contact_id")
-        .eq("stage", "closedwon")
+        .eq("stage", DEAL_STAGES.CLOSED_WON)
         .gte("updated_at", currentMonthStart.toISOString())
         .lte("updated_at", currentMonthEnd.toISOString())
         .order("deal_value", { ascending: false });
@@ -62,7 +63,7 @@ const SalesCoachTracker = () => {
       const { data, error } = await supabase
         .from("deals")
         .select("id, deal_name, deal_value, stage, updated_at")
-        .eq("stage", "closedwon")
+        .eq("stage", DEAL_STAGES.CLOSED_WON)
         .gte("updated_at", previousMonthStart.toISOString())
         .lte("updated_at", previousMonthEnd.toISOString())
         .order("deal_value", { ascending: false });

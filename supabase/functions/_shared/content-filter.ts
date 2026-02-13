@@ -14,7 +14,6 @@ const SENSITIVE_PATTERNS = [
   /as an AI/gi,
   /language model/gi,
   /openai/gi,
-  /anthropic/gi,
   /google/gi,
   /gemini/gi,
   /dialogflow/gi,

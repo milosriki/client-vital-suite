@@ -311,6 +311,8 @@ async function executeAction(
 
     // Log execution for learning
     await supabase.from('agent_memory').insert({
+      agent_name: 'ptd-execute-action',
+      expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
       thread_id: 'executions',
       query: `Executed: ${action}`,
       response: JSON.stringify(result),

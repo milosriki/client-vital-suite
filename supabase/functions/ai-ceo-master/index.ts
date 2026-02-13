@@ -23,6 +23,14 @@ import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { tools } from "../_shared/tool-definitions.ts";
 import { executeSharedTool } from "../_shared/tool-executor.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { validateRequest } from "../_shared/validators.ts";
+
+// Phase 2.1: Zod schema for ai-ceo-master requests
+const AiCeoRequestSchema = z.object({
+  command: z.string().min(1, "Command is required"),
+  session_id: z.string().uuid().optional(),
+});
 
 const GEMINI_API_KEY =
   Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
@@ -116,7 +124,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
 
   try {
-    const { command, session_id } = await req.json();
+    const rawBody = await req.json();
+    // Phase 2.1: Zod Validation — reject malformed requests
+    const { command, session_id } = await validateRequest(
+      AiCeoRequestSchema,
+      rawBody,
+    );
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -128,7 +141,9 @@ serve(async (req) => {
         session_id,
         role: "user",
         content: command,
-        expires_at: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: new Date(
+          Date.now() + 180 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
       });
     }
 
@@ -280,11 +295,19 @@ RESPOND WITH VALID JSON ONLY:
 
   try {
     const ceoTools = tools.filter((t) =>
-      ["intelligence_control", "revenue_intelligence", "stripe_forensics",
-       "command_center_control", "universal_search"].includes(t.name)
+      [
+        "intelligence_control",
+        "revenue_intelligence",
+        "stripe_forensics",
+        "command_center_control",
+        "universal_search",
+      ].includes(t.name),
     );
 
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    const messages: {
+      role: "system" | "user" | "assistant";
+      content: string;
+    }[] = [
       { role: "system", content: systemPrompt },
       { role: "user", content: `QUERY: ${command}` },
     ];
@@ -300,26 +323,39 @@ RESPOND WITH VALID JSON ONLY:
     });
 
     let loopCount = 0;
-    while (currentResponse.tool_calls?.length && loopCount < MAX_LOOPS && supabase) {
+    while (
+      currentResponse.tool_calls?.length &&
+      loopCount < MAX_LOOPS &&
+      supabase
+    ) {
       loopCount++;
       const toolResults: string[] = [];
 
       for (const tc of currentResponse.tool_calls) {
         try {
           const raw = await executeSharedTool(supabase, tc.name, tc.input);
-          const result = typeof raw === "string"
-            ? (raw.length > MAX_TOOL_RESULT_CHARS
+          const result =
+            typeof raw === "string"
+              ? raw.length > MAX_TOOL_RESULT_CHARS
                 ? raw.slice(0, MAX_TOOL_RESULT_CHARS) + "\n... [truncated]"
-                : raw)
-            : JSON.stringify(raw).slice(0, MAX_TOOL_RESULT_CHARS);
+                : raw
+              : JSON.stringify(raw).slice(0, MAX_TOOL_RESULT_CHARS);
           toolResults.push(`Tool '${tc.name}':\n${result}`);
         } catch (e: unknown) {
-          toolResults.push(`Tool '${tc.name}' failed: ${e instanceof Error ? e.message : String(e)}`);
+          toolResults.push(
+            `Tool '${tc.name}' failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
         }
       }
 
-      messages.push({ role: "assistant", content: currentResponse.content || "(Calling tools...)" });
-      messages.push({ role: "user", content: `Tool results:\n\n${toolResults.join("\n\n---\n\n")}` });
+      messages.push({
+        role: "assistant",
+        content: currentResponse.content || "(Calling tools...)",
+      });
+      messages.push({
+        role: "user",
+        content: `Tool results:\n\n${toolResults.join("\n\n---\n\n")}`,
+      });
 
       currentResponse = await unifiedAI.chat(messages, {
         model: "gemini-2.0-flash",
@@ -337,7 +373,9 @@ RESPOND WITH VALID JSON ONLY:
     if (!jsonMatch) throw new Error("No JSON found in response");
     return JSON.parse(jsonMatch[0]);
   } catch (error: unknown) {
-    await childRun.end({ error: error instanceof Error ? error.message : String(error) });
+    await childRun.end({
+      error: error instanceof Error ? error.message : String(error),
+    });
     await childRun.patchRun();
     throw error;
   }

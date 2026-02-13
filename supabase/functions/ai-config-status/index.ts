@@ -1,20 +1,33 @@
-import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
+import {
+  withTracing,
+  structuredLog,
+  getCorrelationId,
+} from "../_shared/observability.ts";
 // AI Configuration Status Endpoint
 // Verifies the status of LangSmith, provider keys, and Stripe connectivity
 // Enables operators to quickly check configuration before running forensic or agent tasks
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkLangSmithStatus, getLangSmithConfig, isTracingEnabled } from "../_shared/langsmith-tracing.ts";
+import {
+  checkLangSmithStatus,
+  getLangSmithConfig,
+  isTracingEnabled,
+} from "../_shared/langsmith-tracing.ts";
 import { getCacheStats, getTelemetry } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
-import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import {
+  apiSuccess,
+  apiError,
+  apiCorsPreFlight,
+} from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface ProviderStatus {
@@ -39,8 +52,6 @@ interface ConfigStatus {
   };
   providers: {
     gemini: ProviderStatus;
-    anthropic: ProviderStatus;
-    openai: ProviderStatus;
   };
   stripe: ProviderStatus;
   supabase: ProviderStatus;
@@ -56,8 +67,9 @@ interface ConfigStatus {
 
 // Check Gemini API connectivity
 async function checkGeminiStatus(): Promise<ProviderStatus> {
-  const apiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-  
+  const apiKey =
+    Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+
   if (!apiKey) {
     return {
       name: "Gemini",
@@ -74,7 +86,7 @@ async function checkGeminiStatus(): Promise<ProviderStatus> {
       {
         headers: { "x-goog-api-key": apiKey },
         signal: AbortSignal.timeout(5000),
-      }
+      },
     );
 
     const latencyMs = Date.now() - startTime;
@@ -110,143 +122,10 @@ async function checkGeminiStatus(): Promise<ProviderStatus> {
   }
 }
 
-// Check Anthropic API connectivity
-async function checkAnthropicStatus(): Promise<ProviderStatus> {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  
-  if (!apiKey) {
-    return {
-      name: "Anthropic",
-      configured: false,
-      connected: false,
-      error: "ANTHROPIC_API_KEY not configured",
-    };
-  }
-
-  const startTime = Date.now();
-  try {
-    // Use a minimal request to check connectivity
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-4-5-sonnet",
-        max_tokens: 1,
-        messages: [{ role: "user", content: "hi" }],
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    const latencyMs = Date.now() - startTime;
-
-    // Even a 400 error means the API is reachable and key is valid format
-    if (response.ok || response.status === 400) {
-      return {
-        name: "Anthropic",
-        configured: true,
-        connected: true,
-        latencyMs,
-        details: {
-          status: response.status,
-        },
-      };
-    } else if (response.status === 401) {
-      return {
-        name: "Anthropic",
-        configured: true,
-        connected: false,
-        latencyMs,
-        error: "Invalid API key",
-      };
-    } else {
-      return {
-        name: "Anthropic",
-        configured: true,
-        connected: false,
-        latencyMs,
-        error: `API returned ${response.status}`,
-      };
-    }
-  } catch (error: unknown) {
-    return {
-      name: "Anthropic",
-      configured: true,
-      connected: false,
-      latencyMs: Date.now() - startTime,
-      error: error instanceof Error ? error.message : "Connection failed",
-    };
-  }
-}
-
-// Check OpenAI API connectivity
-async function checkOpenAIStatus(): Promise<ProviderStatus> {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  
-  if (!apiKey) {
-    return {
-      name: "OpenAI",
-      configured: false,
-      connected: false,
-      error: "OPENAI_API_KEY not configured",
-    };
-  }
-
-  const startTime = Date.now();
-  try {
-    const response = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    const latencyMs = Date.now() - startTime;
-
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        name: "OpenAI",
-        configured: true,
-        connected: true,
-        latencyMs,
-        details: {
-          modelsAvailable: data.data?.length || 0,
-        },
-      };
-    } else if (response.status === 401) {
-      return {
-        name: "OpenAI",
-        configured: true,
-        connected: false,
-        latencyMs,
-        error: "Invalid API key",
-      };
-    } else {
-      return {
-        name: "OpenAI",
-        configured: true,
-        connected: false,
-        latencyMs,
-        error: `API returned ${response.status}`,
-      };
-    }
-  } catch (error: unknown) {
-    return {
-      name: "OpenAI",
-      configured: true,
-      connected: false,
-      latencyMs: Date.now() - startTime,
-      error: error instanceof Error ? error.message : "Connection failed",
-    };
-  }
-}
-
 // Check Stripe API connectivity
 async function checkStripeStatus(): Promise<ProviderStatus> {
   const apiKey = Deno.env.get("STRIPE_SECRET_KEY");
-  
+
   if (!apiKey) {
     return {
       name: "Stripe",
@@ -273,14 +152,18 @@ async function checkStripeStatus(): Promise<ProviderStatus> {
         connected: true,
         latencyMs,
         details: {
-          available: data.available?.map((b: { amount: number; currency: string }) => ({
-            amount: b.amount / 100,
-            currency: b.currency.toUpperCase(),
-          })),
-          pending: data.pending?.map((b: { amount: number; currency: string }) => ({
-            amount: b.amount / 100,
-            currency: b.currency.toUpperCase(),
-          })),
+          available: data.available?.map(
+            (b: { amount: number; currency: string }) => ({
+              amount: b.amount / 100,
+              currency: b.currency.toUpperCase(),
+            }),
+          ),
+          pending: data.pending?.map(
+            (b: { amount: number; currency: string }) => ({
+              amount: b.amount / 100,
+              currency: b.currency.toUpperCase(),
+            }),
+          ),
         },
       };
     } else if (response.status === 401) {
@@ -315,7 +198,7 @@ async function checkStripeStatus(): Promise<ProviderStatus> {
 async function checkSupabaseStatus(): Promise<ProviderStatus> {
   const url = Deno.env.get("SUPABASE_URL");
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  
+
   if (!url || !key) {
     return {
       name: "Supabase",
@@ -360,36 +243,44 @@ async function checkSupabaseStatus(): Promise<ProviderStatus> {
 }
 
 // Determine overall health status
-function determineOverallStatus(status: ConfigStatus): "healthy" | "degraded" | "error" {
+function determineOverallStatus(
+  status: ConfigStatus,
+): "healthy" | "degraded" | "error" {
   const criticalServices = [status.supabase, status.stripe];
-  const aiProviders = [status.providers.gemini, status.providers.anthropic, status.providers.openai];
-  
+  const aiProviders = [status.providers.gemini];
+
   // Check if critical services are down
-  const criticalDown = criticalServices.some(s => s.configured && !s.connected);
+  const criticalDown = criticalServices.some(
+    (s) => s.configured && !s.connected,
+  );
   if (criticalDown) {
     return "error";
   }
-  
+
   // Check if at least one AI provider is available
-  const anyAiConnected = aiProviders.some(p => p.connected);
+  const anyAiConnected = aiProviders.some((p) => p.connected);
   if (!anyAiConnected) {
     return "error";
   }
-  
+
   // Check for degraded state (some services down but not critical)
-  const anyDegraded = 
+  const anyDegraded =
     (status.langsmith.configured && !status.langsmith.connected) ||
-    aiProviders.some(p => p.configured && !p.connected);
-  
+    aiProviders.some((p) => p.configured && !p.connected);
+
   if (anyDegraded) {
     return "degraded";
   }
-  
+
   return "healthy";
 }
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  try {
+    verifyAuth(req);
+  } catch {
+    throw new UnauthorizedError();
+  } // Security Hardening
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -400,21 +291,13 @@ serve(async (req) => {
     console.log("[ai-config-status] Checking configuration status...");
 
     // Run all checks in parallel
-    const [
-      langsmithStatus,
-      geminiStatus,
-      anthropicStatus,
-      openaiStatus,
-      stripeStatus,
-      supabaseStatus,
-    ] = await Promise.all([
-      checkLangSmithStatus(),
-      checkGeminiStatus(),
-      checkAnthropicStatus(),
-      checkOpenAIStatus(),
-      checkStripeStatus(),
-      checkSupabaseStatus(),
-    ]);
+    const [langsmithStatus, geminiStatus, stripeStatus, supabaseStatus] =
+      await Promise.all([
+        checkLangSmithStatus(),
+        checkGeminiStatus(),
+        checkStripeStatus(),
+        checkSupabaseStatus(),
+      ]);
 
     const langsmithConfig = getLangSmithConfig();
     const cacheStats = getCacheStats();
@@ -433,15 +316,16 @@ serve(async (req) => {
       },
       providers: {
         gemini: geminiStatus,
-        anthropic: anthropicStatus,
-        openai: openaiStatus,
       },
       stripe: stripeStatus,
       supabase: supabaseStatus,
       promptCache: cacheStats,
       telemetry: {
         recentEntries: telemetry.length,
-        lastEntry: verbose && telemetry.length > 0 ? telemetry[telemetry.length - 1] : undefined,
+        lastEntry:
+          verbose && telemetry.length > 0
+            ? telemetry[telemetry.length - 1]
+            : undefined,
       },
     };
 
@@ -451,17 +335,25 @@ serve(async (req) => {
     console.log(`[ai-config-status] Status: ${status.overall}`);
 
     // Return appropriate HTTP status code
-    const httpStatus = status.overall === "healthy" ? 200 : status.overall === "degraded" ? 200 : 503;
+    const httpStatus =
+      status.overall === "healthy"
+        ? 200
+        : status.overall === "degraded"
+          ? 200
+          : 503;
 
     return apiSuccess(status, null, 2);
-
   } catch (error: unknown) {
     console.error("[ai-config-status] Error:", error);
-    
-    return apiError("INTERNAL_ERROR", JSON.stringify({
+
+    return apiError(
+      "INTERNAL_ERROR",
+      JSON.stringify({
         timestamp: new Date().toISOString(),
         overall: "error",
         error: error instanceof Error ? error.message : "Unknown error",
-      }), 500);
+      }),
+      500,
+    );
   }
 });

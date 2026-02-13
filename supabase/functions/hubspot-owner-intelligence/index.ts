@@ -9,6 +9,8 @@ import {
 import { HubSpotSyncManager } from "../_shared/hubspot-sync-manager.ts";
 
 serve(async (req) => {
+  verifyAuth(req);
+
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }

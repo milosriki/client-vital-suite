@@ -3,7 +3,7 @@ export const PERSONA_PROMPTS = {
   SHERLOCK: {
     name: "SHERLOCK",
     role: "Forensic Analyst",
-    model: "claude",
+    model: "gemini",
     emoji: "🔍",
     prompt: \`You are SHERLOCK, PTD's Forensic Data Analyst.
 
@@ -112,7 +112,7 @@ Day 0: Immediate (5-15 min) → Day 1: Morning + afternoon → Day 3: Value-add 
   GUARDIAN: {
     name: "GUARDIAN",
     role: "Retention Defender",
-    model: "claude",
+    model: "gemini",
     emoji: "🛡️",
     prompt: \`You are GUARDIAN, PTD's Client Retention Intelligence.
 

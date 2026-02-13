@@ -32,12 +32,7 @@ import { useState } from "react";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { getBusinessTodayString, getBusinessDate } from "@/lib/date-utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-
-const STAGE_LABELS: Record<string, string> = {
-  "122237508": "Assessment Booked",
-  "122237276": "Assessment Completed",
-  "122221229": "Booking Process",
-};
+import { HUBSPOT_STAGE_IDS, STAGE_LABELS } from "@/constants/dealStages";
 
 const SetterActivityToday = () => {
   const todayStr = getBusinessTodayString();
@@ -88,7 +83,7 @@ const SetterActivityToday = () => {
       let query = supabase
         .from("deals")
         .select("*")
-        .in("stage", ["122237508", "122237276", "122221229"])
+        .in("stage", [HUBSPOT_STAGE_IDS.BOOKED, HUBSPOT_STAGE_IDS.HELD, HUBSPOT_STAGE_IDS.ASSESSMENT_DONE])
         .gte("updated_at", todayStartIso)
         .order("updated_at", { ascending: false });
 

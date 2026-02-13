@@ -56,9 +56,9 @@ export async function exampleAIFunction(
   userMessage: string,
   sessionId?: string
 ): Promise<string> {
-  const MODEL = "claude-4-5-sonnet-20241022";
+  const MODEL = "gemini-3.0-flash";
   const FUNCTION_NAME = "example-ai-function";
-  
+
   // Create trace config with provider metadata (for cost tracking)
   const traceConfig = createAITraceConfig(FUNCTION_NAME, MODEL, {
     category: "example",
@@ -68,24 +68,24 @@ export async function exampleAIFunction(
   });
 
   // Start trace
-  const run = await traceStart(traceConfig, { 
+  const run = await traceStart(traceConfig, {
     user_message: userMessage,
-    session_id: sessionId 
+    session_id: sessionId
   });
 
   try {
     // Pull prompt from LangSmith Hub (cached for 5 min)
     const systemPrompt = await getSystemPrompt();
-    
-    // Your AI call here...
-    const response = await callAnthropicAPI({
+
+    // Your AI call here (use unifiedAI.chat in real functions)
+    const response = await callAIAPI({
       model: MODEL,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
     });
 
     // End trace with success
-    await traceEnd(run, { 
+    await traceEnd(run, {
       response: response,
       tokens_used: response.usage,
     });
@@ -149,11 +149,10 @@ async function analyzeClient(clientData: {
 BEFORE (hardcoded):
 ─────────────────────
 const systemPrompt = `You are a helpful assistant...`;
-await anthropic.messages.create({
-  model: "claude-4-5-sonnet",
-  system: systemPrompt,
-  messages: [...]
-});
+await unifiedAI.chat([
+  { role: "system", content: systemPrompt },
+  { role: "user", content: userMessage }
+]);
 
 
 AFTER (LangSmith Hub):
@@ -164,11 +163,10 @@ const FALLBACK_PROMPT = `You are a helpful assistant...`;  // Keep existing prom
 
 // In function:
 const systemPrompt = await pullPrompt("my-prompt:prod", FALLBACK_PROMPT);
-await anthropic.messages.create({
-  model: "claude-4-5-sonnet",
-  system: systemPrompt,
-  messages: [...]
-});
+await unifiedAI.chat([
+  { role: "system", content: systemPrompt },
+  { role: "user", content: userMessage }
+]);
 
 
 LANGSMITH HUB SETUP:
@@ -183,6 +181,6 @@ LANGSMITH HUB SETUP:
 */
 
 // Stub for example
-async function callAnthropicAPI(_options: unknown): Promise<{ content: string; usage: unknown }> {
+async function callAIAPI(_options: unknown): Promise<{ content: string; usage: unknown }> {
   return { content: "Example response", usage: {} };
 }

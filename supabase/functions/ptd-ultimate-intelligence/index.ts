@@ -36,18 +36,12 @@ import {
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
-// const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-// const GOOGLE_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY') || Deno.env.get('GOOGLE_GEMINI_API_KEY'); // Used for Gemini API
-
 // ============================================
-// PERSONA DEFINITIONS
-// ============================================
-
 const PERSONAS = {
   ATLAS: {
     name: "ATLAS",
     role: "Strategic CEO Brain",
-    model: "claude",
+    model: "gemini",
     emoji: "🎯",
     systemPrompt: `You are ATLAS, the Strategic Intelligence Brain for PTD Fitness - Dubai's premier mobile personal training service.
 
@@ -82,7 +76,7 @@ Before any recommendation, calculate:
   SHERLOCK: {
     name: "SHERLOCK",
     role: "Forensic Analyst",
-    model: "claude",
+    model: "gemini",
     emoji: "🔍",
     systemPrompt: `You are SHERLOCK, PTD's Forensic Data Analyst.
 
@@ -197,7 +191,7 @@ Day 0: Immediate (5-15 min) → Day 1: Morning + afternoon → Day 3: Value-add 
   GUARDIAN: {
     name: "GUARDIAN",
     role: "Retention Defender",
-    model: "claude",
+    model: "gemini",
     emoji: "🛡️",
     systemPrompt: `You are GUARDIAN, PTD's Client Retention Intelligence.
 
@@ -525,12 +519,6 @@ serve(async (req: Request) => {
   } catch {
     throw new UnauthorizedError();
   } // Security Hardening
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
-
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }
@@ -575,23 +563,14 @@ serve(async (req: Request) => {
     await parentRun.postRun();
 
     try {
-      if (persona.model === "claude") {
-        response = await generateWithClaude(
-          query,
-          persona,
-          businessContext,
-          parentRun,
-          supabase,
-        );
-      } else {
-        response = await generateWithGemini(
-          query,
-          persona,
-          businessContext,
-          parentRun,
-          supabase,
-        );
-      }
+      // Unify generation logic - all personas use UnifiedAI (Gemini)
+      response = await generateWithAI(
+        query,
+        persona,
+        businessContext,
+        parentRun,
+        supabase,
+      );
 
       await parentRun.end({ outputs: { response } });
       await parentRun.patchRun();
@@ -631,7 +610,7 @@ serve(async (req: Request) => {
 // LLM FUNCTIONS
 // ============================================
 
-async function generateWithClaude(
+async function generateWithAI(
   query: string,
   persona: any,
   context: any,
@@ -651,11 +630,19 @@ async function generateWithClaude(
 
     // Filter tools appropriate for this intelligence persona
     const intelligenceTools = tools.filter((t) =>
-      ["intelligence_control", "client_control", "revenue_intelligence",
-       "command_center_control", "universal_search"].includes(t.name)
+      [
+        "intelligence_control",
+        "client_control",
+        "revenue_intelligence",
+        "command_center_control",
+        "universal_search",
+      ].includes(t.name),
     );
 
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    const messages: {
+      role: "system" | "user" | "assistant";
+      content: string;
+    }[] = [
       { role: "system", content: systemPrompt },
       { role: "user", content: query },
     ];
@@ -680,20 +667,32 @@ async function generateWithClaude(
 
       for (const toolCall of currentResponse.tool_calls) {
         try {
-          const rawResult = await executeSharedTool(supabase, toolCall.name, toolCall.input);
-          const toolResult = typeof rawResult === "string"
-            ? (rawResult.length > MAX_TOOL_RESULT_CHARS
-                ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) + `\n... [truncated]`
-                : rawResult)
-            : JSON.stringify(rawResult).slice(0, MAX_TOOL_RESULT_CHARS);
+          const rawResult = await executeSharedTool(
+            supabase,
+            toolCall.name,
+            toolCall.input,
+          );
+          const toolResult =
+            typeof rawResult === "string"
+              ? rawResult.length > MAX_TOOL_RESULT_CHARS
+                ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) +
+                  `\n... [truncated]`
+                : rawResult
+              : JSON.stringify(rawResult).slice(0, MAX_TOOL_RESULT_CHARS);
           toolResults.push(`Tool '${toolCall.name}' Result:\n${toolResult}`);
         } catch (err: any) {
           toolResults.push(`Tool '${toolCall.name}' failed: ${err.message}`);
         }
       }
 
-      messages.push({ role: "assistant", content: currentResponse.content || "(Calling tools...)" });
-      messages.push({ role: "user", content: `Tool results (Loop ${loopCount}):\n\n${toolResults.join("\n\n---\n\n")}\n\nUse these results for an accurate, data-driven answer.` });
+      messages.push({
+        role: "assistant",
+        content: currentResponse.content || "(Calling tools...)",
+      });
+      messages.push({
+        role: "user",
+        content: `Tool results (Loop ${loopCount}):\n\n${toolResults.join("\n\n---\n\n")}\n\nUse these results for an accurate, data-driven answer.`,
+      });
 
       currentResponse = await unifiedAI.chat(messages, {
         max_tokens: 4000,
@@ -711,14 +710,4 @@ async function generateWithClaude(
     await childRun.patchRun();
     throw error;
   }
-}
-
-async function generateWithGemini(
-  query: string,
-  persona: any,
-  context: any,
-  parentRun: any,
-  supabase: any,
-) {
-  return generateWithClaude(query, persona, context, parentRun, supabase);
 }

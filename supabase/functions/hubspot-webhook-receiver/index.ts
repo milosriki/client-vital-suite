@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { verifyHubSpotSignature } from "../_shared/hubspot-verifier.ts";
 
@@ -14,7 +13,7 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
+  // Webhook endpoint — HubSpot signature verification handles security
   if (req.method === "OPTIONS") {
     return apiCorsPreFlight();
   }

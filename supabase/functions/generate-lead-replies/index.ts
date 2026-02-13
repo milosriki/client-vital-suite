@@ -31,12 +31,10 @@ serve(async (req) => {
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        // const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
         const missingEnv = [
             !supabaseUrl && "SUPABASE_URL",
             !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
-            // !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
         ].filter(Boolean) as string[];
 
         if (missingEnv.length > 0) {

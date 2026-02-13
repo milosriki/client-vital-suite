@@ -8,6 +8,7 @@ import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
 // Multi-Agent Intelligence Orchestrator
 // Coordinates 4 specialist agents that "chat" to provide recommendations
@@ -126,7 +127,9 @@ async function runAgent(
 ): Promise<AgentResponse> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-  const fullPrompt = `${prompt}
+  const fullPrompt = `${getConstitutionalSystemMessage()}
+
+${prompt}
 
 DATA TO ANALYZE:
 ${JSON.stringify(data, null, 2)}
@@ -168,7 +171,9 @@ async function synthesize(
 ): Promise<{ synthesis: string; actionPlan: string[]; projectedROI: number }> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-  const synthesisPrompt = `You are the CHIEF INTELLIGENCE OFFICER synthesizing recommendations from 4 specialist agents.
+  const synthesisPrompt = `${getConstitutionalSystemMessage()}
+
+You are the CHIEF INTELLIGENCE OFFICER synthesizing recommendations from 4 specialist agents.
 
 USER QUERY: "${query}"
 

@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
-serve(async (_req) => {
+serve(async (req) => {
+  verifyAuth(req);
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -34,7 +37,9 @@ serve(async (_req) => {
 
   // 4. Decay low-confidence patterns not used in 60 days
   // Column is `last_used_at` (NOT `last_confirmed_at`)
-  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const sixtyDaysAgo = new Date(
+    Date.now() - 60 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const { count: patternsDecayed } = await supabase
     .from("agent_patterns")
     .update({ confidence: 0.1 })

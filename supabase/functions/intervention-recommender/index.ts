@@ -29,12 +29,6 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing Supabase configuration");
 }
 
-// ANTHROPIC_API_KEY is optional
-// const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-// if (!ANTHROPIC_API_KEY) {
-//   console.warn("ANTHROPIC_API_KEY not set - using template messages only");
-// }
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface InterventionRecommendation {

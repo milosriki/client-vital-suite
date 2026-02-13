@@ -5,10 +5,8 @@ import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { isDubaiWorkHours } from "../_shared/date-utils.ts";
 import { parseAIResponse } from "../_shared/response-parser.ts";
 import { buildSmartPrompt } from "../_shared/smart-prompt.ts";
-import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
-import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 import {
   handleError,
@@ -44,7 +42,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    verifyAuth(req);
+    // Cron-triggered endpoint (verify_jwt=false) — auth via service_role Bearer token from pg_cron
     // 2. Query Follow-up Queue
     const { data: queue, error } = await supabase
       .from("v_followup_queue")
