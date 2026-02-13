@@ -13,6 +13,7 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -660,41 +661,17 @@ serve(async (req) => {
           }
 
           const dealsToUpsert = searchResults.map((deal: any) => {
-            const props = deal.properties;
-            const dealAmount = parseFloat(props.amount) || 0;
-
-            // Resolve Link
+            // Resolve Link: HubSpot contact ID → Supabase UUID
             const hsContactId = dealToContactHSId[deal.id];
             const resolvedUUID = hsContactId ? contactMap[hsContactId] : null;
 
-            // Resolve deal owner (setter/closer)
-            const dealOwnerId = props.hubspot_owner_id || null;
+            // Resolve deal owner name from owner map
+            const dealOwnerId = deal.properties.hubspot_owner_id || null;
             const dealOwnerName = dealOwnerId
               ? ownerMap[dealOwnerId] || null
               : null;
 
-            return {
-              hubspot_deal_id: deal.id,
-              deal_name: props.dealname,
-              deal_value: dealAmount,
-              value_aed: dealAmount,
-              stage: props.dealstage,
-              pipeline: props.pipeline,
-              close_date: props.closedate
-                ? new Date(props.closedate).toISOString()
-                : null,
-              status: mapDealStageToStatus(props.dealstage),
-              owner_id: dealOwnerId,
-              owner_name: dealOwnerName,
-              created_at: props.createdate
-                ? new Date(props.createdate).toISOString()
-                : new Date().toISOString(),
-              updated_at: props.lastmodifieddate
-                ? new Date(props.lastmodifieddate).toISOString()
-                : new Date().toISOString(),
-              // DIRECT PROPER LINKING
-              contact_id: resolvedUUID,
-            };
+            return HubSpotManager.mapDealFields(deal, resolvedUUID, dealOwnerName);
           });
 
           if (dealsToUpsert.length > 0) {
@@ -908,14 +885,6 @@ function mapHubspotStatusToLead(
   )
     return "new";
   return "new";
-}
-
-function mapDealStageToStatus(
-  stage: string,
-): "pending" | "closed" | "cancelled" {
-  if (stage?.includes("closed") && stage?.includes("won")) return "closed";
-  if (stage?.includes("closed") && stage?.includes("lost")) return "cancelled";
-  return "pending";
 }
 
 function mapHubspotCallStatus(status: string, disposition: string): string {

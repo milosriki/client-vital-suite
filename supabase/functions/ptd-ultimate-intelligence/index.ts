@@ -647,7 +647,7 @@ async function generateWithAI(
       { role: "user", content: query },
     ];
 
-    const MAX_LOOPS = 3;
+    const MAX_LOOPS = 5;
     const MAX_TOOL_RESULT_CHARS = 3000;
 
     let currentResponse = await unifiedAI.chat(messages, {

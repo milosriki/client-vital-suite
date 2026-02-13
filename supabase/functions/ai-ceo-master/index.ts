@@ -312,7 +312,7 @@ RESPOND WITH VALID JSON ONLY:
       { role: "user", content: `QUERY: ${command}` },
     ];
 
-    const MAX_LOOPS = 3;
+    const MAX_LOOPS = 5;
     const MAX_TOOL_RESULT_CHARS = 3000;
 
     let currentResponse = await unifiedAI.chat(messages, {
