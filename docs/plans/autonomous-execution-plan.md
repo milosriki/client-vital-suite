@@ -11,16 +11,16 @@
 
 Update this section as batches complete:
 
-- [ ] **Batch 0:** Deploy & Commit (45 min) — UNBLOCKS EVERYTHING
-- [ ] **Batch 1:** Cloud Cleanup (1h)
-- [ ] **Batch 2A:** Intelligence — Typed Errors + Constitutional (3-4h)
-- [ ] **Batch 2B:** Intelligence — Token Budget + Memory Retention (6h)
-- [ ] **Batch 2C:** Intelligence — Tool Adoption + Validation (12-16h)
-- [ ] **Batch 2D:** Intelligence — HubSpot Consolidation (6-8h)
-- [ ] **Batch 3:** Quick Wins (2h)
-- [ ] **Batch 4:** Attribution Pipeline (15-25h)
-- [ ] **Batch 5:** Frontend Hardening + Desktop Findings (8-12h)
-- [ ] **Batch 6:** Infrastructure Hardening + Security (12-16h)
+- [x] **Batch 0:** Deploy & Commit (45 min) — DONE
+- [x] **Batch 1:** Cloud Cleanup (1h) — DONE
+- [x] **Batch 2A:** Intelligence — Typed Errors + Constitutional (3-4h) — DONE
+- [x] **Batch 2B:** Intelligence — Token Budget + Memory Retention (6h) — DONE
+- [x] **Batch 2C:** Intelligence — Tool Adoption + Validation (12-16h) — DONE (agents already had tool loops + validation; bumped MAX_LOOPS, created shared validators)
+- [x] **Batch 2D:** Intelligence — HubSpot Consolidation (6-8h) — DONE (consolidated sync-hubspot-to-supabase to shared mapDealFields)
+- [x] **Batch 3:** Quick Wins (2h) — DONE
+- [x] **Batch 4:** Attribution Pipeline (15-25h) — DONE (8 tasks: attribution columns, deal-stripe view, call-attribution view, enhanced creative funnel with true_roas, live currency rates, real churn rate, aggregator rewrite, deal webhook handler)
+- [x] **Batch 5:** Frontend Hardening + Desktop Findings (8-12h) — DONE (a1b6eec: 62 select(*) replaced, 3 console.logs removed, Dashboard.tsx deleted)
+- [x] **Batch 6:** Infrastructure Hardening + Security (12-16h) — DONE (6dae36c: auth/UnifiedAI/cron_secret + a946cad: 103 backend select(*) replaced). Tasks 6.3, 6.8-6.11 BLOCKED (need prod/CLI access)
 - [ ] **Batch 7:** Contact Consolidation — **SKIP IN AUTONOMOUS MODE** (needs manual plan)
 
 ---

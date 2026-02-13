@@ -47,8 +47,6 @@ verify_jwt = true
 [functions.ptd-watcher]
 verify_jwt = true
 
-[functions.ptd-agent]
-verify_jwt = true
 
 # External API Integrations
 [functions.fetch-hubspot-live]
@@ -132,12 +130,8 @@ verify_jwt = true
 verify_jwt = true
 
 # Smart Agent with Tools (LangChain-style)
-[functions.smart-agent]
-verify_jwt = true
 
 # Claude-powered Agent with Anthropic SDK
-[functions.ptd-agent-claude]
-verify_jwt = true
 
 # RAG Knowledge Processor
 [functions.process-knowledge]
@@ -148,8 +142,6 @@ verify_jwt = true
 verify_jwt = true
 
 # Self-Learning Agent (Cron-triggered)
-[functions.ptd-self-learn]
-verify_jwt = true
 
 # Generate Embeddings for Knowledge Base
 [functions.generate-embeddings]
@@ -223,9 +215,6 @@ verify_jwt = true
 [functions.stripe-webhook]
 verify_jwt = false
 
-# Agent Analyst - Business Intelligence Analyst
-[functions.agent-analyst]
-verify_jwt = true
 
 # HubSpot Owner Reassignment Functions
 [functions.reassign-owner]
@@ -255,8 +244,6 @@ verify_jwt = true
 verify_jwt = true
 
 # PTD Self-Developer Agent (AI Code Generation)
-[functions.ptd-self-developer]
-verify_jwt = true
 
 [functions.super-agent-orchestrator]
 verify_jwt = true
@@ -270,8 +257,6 @@ verify_jwt = false
 verify_jwt = false
 
 # Deep Research Agent (LangGraph-style)
-[functions.deep-research]
-verify_jwt = true
 
 # Health Score Calculator - Calculates client health scores from HubSpot data
 [functions.calculate-health-scores]

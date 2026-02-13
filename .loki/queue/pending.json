@@ -1,0 +1,11 @@
+[
+  {"id":"P1.1","phase":1,"title":"Verify Auth Middleware Coverage","priority":"EXTREME","status":"pending"},
+  {"id":"P1.2","phase":1,"title":"Verify RLS Migration Status","priority":"EXTREME","status":"pending"},
+  {"id":"P1.3","phase":1,"title":"Verify Stripe Webhook Signature","priority":"EXTREME","status":"pending"},
+  {"id":"P2.1","phase":2,"title":"Implement Zod Validators","priority":"CRITICAL","status":"pending"},
+  {"id":"P2.2","phase":2,"title":"Structured Logging","priority":"HIGH","status":"pending"},
+  {"id":"P2.3","phase":2,"title":"Sentry Integration","priority":"HIGH","status":"pending"},
+  {"id":"BATCH1","phase":7,"title":"Cloud Cleanup","priority":"LOW","status":"pending"},
+  {"id":"BATCH3.2","phase":3,"title":"Register Cleanup Cron","priority":"CRITICAL","status":"pending"},
+  {"id":"BATCH5.1","phase":5,"title":"Error Boundaries","priority":"EXTREME","status":"pending"}
+]

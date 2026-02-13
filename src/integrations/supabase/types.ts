@@ -1672,6 +1672,13 @@ export type Database = {
             foreignKeyName: "call_transcription_jobs_call_record_id_fkey"
             columns: ["call_record_id"]
             isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["call_id"]
+          },
+          {
+            foreignKeyName: "call_transcription_jobs_call_record_id_fkey"
+            columns: ["call_record_id"]
+            isOneToOne: false
             referencedRelation: "call_records"
             referencedColumns: ["id"]
           },
@@ -2127,6 +2134,13 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "campaign_lead_attribution"
             referencedColumns: ["contact_id"]
           },
@@ -2221,6 +2235,13 @@ export type Database = {
             foreignKeyName: "contact_ownership_history_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "campaign_lead_attribution"
             referencedColumns: ["contact_id"]
           },
@@ -2289,6 +2310,10 @@ export type Database = {
           assessment_scheduled: boolean | null
           assigned_coach: string | null
           associated_deal_ids: string[] | null
+          attributed_ad_id: string | null
+          attributed_adset_id: string | null
+          attributed_campaign_id: string | null
+          attribution_source: string | null
           call_attempt_count: number | null
           city: string | null
           closed_deal_value: number | null
@@ -2409,6 +2434,10 @@ export type Database = {
           assessment_scheduled?: boolean | null
           assigned_coach?: string | null
           associated_deal_ids?: string[] | null
+          attributed_ad_id?: string | null
+          attributed_adset_id?: string | null
+          attributed_campaign_id?: string | null
+          attribution_source?: string | null
           call_attempt_count?: number | null
           city?: string | null
           closed_deal_value?: number | null
@@ -2529,6 +2558,10 @@ export type Database = {
           assessment_scheduled?: boolean | null
           assigned_coach?: string | null
           associated_deal_ids?: string[] | null
+          attributed_ad_id?: string | null
+          attributed_adset_id?: string | null
+          attributed_campaign_id?: string | null
+          attribution_source?: string | null
           call_attempt_count?: number | null
           city?: string | null
           closed_deal_value?: number | null
@@ -3179,6 +3212,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "staff"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "deals_contact_id_fkey"
@@ -5796,6 +5836,13 @@ export type Database = {
             foreignKeyName: "proactive_insights_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "campaign_lead_attribution"
             referencedColumns: ["contact_id"]
           },
@@ -7547,6 +7594,7 @@ export type Database = {
           closed_won: number | null
           conversion_rate_ranking: string | null
           cpl: number | null
+          cpo: number | null
           creative_verdict: string | null
           db_leads: number | null
           engagement_rate_ranking: string | null
@@ -7556,6 +7604,9 @@ export type Database = {
           revenue: number | null
           roas: number | null
           spend: number | null
+          stripe_revenue: number | null
+          stripe_transactions: number | null
+          true_roas: number | null
           video_completion_pct: number | null
           video_p100_total: number | null
           video_p25_total: number | null
@@ -7587,6 +7638,41 @@ export type Database = {
           roas: number | null
           spend: number | null
           verdict: string | null
+        }
+        Relationships: []
+      }
+      call_attribution: {
+        Row: {
+          agent_id: string | null
+          appointment_set: boolean | null
+          attribution_event_time: string | null
+          attribution_source: string | null
+          call_direction: string | null
+          call_id: string | null
+          call_outcome: string | null
+          call_revenue: number | null
+          call_score: number | null
+          call_started_at: string | null
+          call_status: string | null
+          caller_number: string | null
+          contact_email: string | null
+          contact_id: string | null
+          deal_id: string | null
+          deal_name: string | null
+          deal_stage: string | null
+          deal_status: Database["public"]["Enums"]["deal_status"] | null
+          deal_value: number | null
+          duration_seconds: number | null
+          fb_ad_id: string | null
+          fb_ad_name: string | null
+          fb_adset_id: string | null
+          fb_adset_name: string | null
+          fb_campaign_id: string | null
+          fb_campaign_name: string | null
+          first_name: string | null
+          hubspot_deal_id: string | null
+          last_name: string | null
+          lead_quality: string | null
         }
         Relationships: []
       }
@@ -7873,6 +7959,31 @@ export type Database = {
           total_events: number | null
           total_value: number | null
           unique_users: number | null
+        }
+        Relationships: []
+      }
+      deal_stripe_revenue: {
+        Row: {
+          actual_stripe_revenue: number | null
+          collection_rate_pct: number | null
+          contact_email: string | null
+          deal_id: string | null
+          deal_name: string | null
+          first_name: string | null
+          first_payment_at: string | null
+          hubspot_deal_id: string | null
+          hubspot_deal_value: number | null
+          last_name: string | null
+          last_payment_at: string | null
+          reported_deal_value: number | null
+          stage: string | null
+          status: Database["public"]["Enums"]["deal_status"] | null
+          stripe_currency: string | null
+          stripe_customer_id: string | null
+          stripe_invoice_count: number | null
+          stripe_invoiced_paid: number | null
+          stripe_paid_amount: number | null
+          stripe_transaction_count: number | null
         }
         Relationships: []
       }

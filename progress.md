@@ -873,3 +873,47 @@ All 9 autonomous batches (0-6) written with:
 - Multi-agent dispatch guide (parallel subagent opportunities)
 - Session handoff protocol for context overflow
 - Batch 7 marked SKIP (needs manual staging environment)
+
+---
+
+## Session: 2026-02-13 — Autonomous Batch 6 Gap: Backend select(*) Remediation
+
+### Trigger
+Continuation of autonomous execution (Loki Mode). Batch 5 committed (a1b6eec). Batch 6 previously partially committed (6dae36c covered auth middleware, UnifiedAI, cron_secret). Gap analysis revealed 124 remaining backend select("*") instances across 55 files.
+
+### Method
+5 parallel execution streams:
+- Direct edits: 10 shared/executor files (19 replacements)
+- Agent a07c2fa: proactive-insights-generator, daily-marketing-brief, marketing-agent-validator (30 replacements)
+- Agent ace7e46: hubspot-analyzer, multi-agent-orchestrator, agent-orchestrator, error-resolution-agent, health-calculator (13 replacements)
+- Agent a75339a: ultimate-aggregator, pipeline-monitor, ptd-proactive-scanner, ptd-ultimate-intelligence, weekly-ceo-report, marketing-analyst, integration-health, ultimate-fix (14 replacements)
+- Agent ad9030f: 23 single-instance files (20 replacements)
+- Final cleanup: meta-error-handler, callgear-error-handler (2 replacements)
+
+### Results
+- **103 select("*") replaced** with explicit column lists across 47 files
+- **21 intentionally preserved** in active code (VIEWs + count-only queries)
+- **18 in _archive/** (dead code, not modified)
+- Build: PASSING (3.14s, 0 errors)
+- Commit: a946cad
+
+### Batch 6 Task Status
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 6.1 Auth middleware | DONE (6dae36c) | 3 EFs |
+| 6.2 UnifiedAI migration | DONE (6dae36c) | |
+| 6.4 Stripe webhook verification | DONE | Already has constructEventAsync |
+| 6.5 cron_secret | DONE (6dae36c) | |
+| 6.6 Backend select(*) | DONE (a946cad) | 103 replaced, 21 VIEWs kept |
+| 6.7 apiClient.ts | N/A | File doesn't exist |
+| 6.3 RLS policies | BLOCKED | Needs prod access |
+| 6.8 types.ts regen | BLOCKED | Needs supabase CLI auth |
+| 6.9 PKs | BLOCKED | Needs prod access |
+| 6.10 Index audit | BLOCKED | Needs prod access |
+| 6.11 Cron consolidation | BLOCKED | Needs prod access |
+
+### Autonomous Execution Complete
+All autonomous batches (0-6) are now done. Batch 7 (Contact Consolidation) is marked SKIP IN AUTONOMOUS MODE per PRD. Remaining Batch 6 tasks (6.3, 6.8-6.11) require production/CLI access.
+
+### Grand Total: 51+ fixes across 22+ files + 7 migrations (all sessions combined)

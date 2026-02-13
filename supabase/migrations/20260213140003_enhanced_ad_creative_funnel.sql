@@ -3,6 +3,9 @@
 -- Full chain: facebook_ads_insights → attribution_events → contacts → deals → stripe_transactions
 -- Answers: "Ad X spent AED Y and generated AED Z = TRUE ROI of N%"
 
+-- Must DROP first because column order changed (PG cannot rename via CREATE OR REPLACE)
+DROP VIEW IF EXISTS public.ad_creative_funnel;
+
 CREATE OR REPLACE VIEW public.ad_creative_funnel AS
 WITH ad_spend AS (
     SELECT
