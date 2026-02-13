@@ -40,7 +40,7 @@ export async function executeIntelligenceTools(
 
     case "get_at_risk_clients": {
       const { zone = "red", limit = 20 } = input;
-      let query = supabase.from("client_health_scores").select("*");
+      let query = supabase.from("client_health_scores").select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at");
       if (zone !== "all") {
         query = query.eq("health_zone", zone);
       }
@@ -57,12 +57,12 @@ export async function executeIntelligenceTools(
       const [clients, coachPerf] = await Promise.all([
         supabase
           .from("client_health_scores")
-          .select("*")
+          .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session")
           .ilike("assigned_coach", searchName)
           .order("health_score", { ascending: true }),
         supabase
           .from("coach_performance")
-          .select("*")
+          .select("coach_name, report_date, performance_score, clients_at_risk, intervention_success_rate")
           .ilike("coach_name", searchName)
           .order("report_date", { ascending: false })
           .limit(1),
@@ -121,7 +121,7 @@ export async function executeIntelligenceTools(
       const { coach_name } = input;
       let query = supabase
         .from("coach_performance")
-        .select("*")
+        .select("coach_name, report_date, performance_score, clients_at_risk, intervention_success_rate, total_clients, avg_health_score")
         .order("report_date", { ascending: false });
       if (coach_name) {
         query = query.ilike("coach_name", `%${coach_name}%`);
@@ -159,7 +159,7 @@ export async function executeIntelligenceTools(
       const targetDate = date || new Date().toISOString().split("T")[0];
       const { data } = await supabase
         .from("daily_summary")
-        .select("*")
+        .select("id, summary_date, total_leads, total_deals, total_revenue, health_summary, ai_insights, created_at")
         .eq("summary_date", targetDate)
         .single();
       if (!data) {

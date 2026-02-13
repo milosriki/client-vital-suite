@@ -11,7 +11,7 @@ export async function executeCallGearTools(
       if (action === "get_all") {
         const { data } = await supabase
           .from("call_records")
-          .select("*")
+          .select("id, caller_number, started_at, duration_seconds, call_outcome, call_status, call_direction, transcription, summary, created_at")
           .order("created_at", { ascending: false })
           .limit(limit);
         return JSON.stringify({
@@ -33,7 +33,7 @@ export async function executeCallGearTools(
       if (action === "get_analytics") {
         const { data } = await supabase
           .from("call_analytics")
-          .select("*")
+          .select("id, date, total_calls, connected_calls, missed_calls, avg_duration, conversion_rate, created_at")
           .order("date", { ascending: false })
           .limit(30);
         return JSON.stringify(data || []);

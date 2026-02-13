@@ -31,7 +31,7 @@ export async function executeSalesTools(
         return JSON.stringify({ pipeline, total_deals: data?.length || 0 });
       }
       if (action === "get_deals") {
-        let query = supabase.from("deals").select("*");
+        let query = supabase.from("deals").select("id, deal_name, deal_value, stage, status, close_date, owner_name, owner_id, contact_email, hubspot_deal_id, created_at");
         if (stage) {
           const sanitizedStage = sanitizeString(stage, 100);
           query = query.eq("stage", sanitizedStage);
@@ -44,7 +44,7 @@ export async function executeSalesTools(
       if (action === "get_appointments") {
         const { data } = await supabase
           .from("appointments")
-          .select("*")
+          .select("id, owner_id, status, scheduled_at, contact_name, contact_email, appointment_type")
           .order("scheduled_at", { ascending: false })
           .limit(30);
         return JSON.stringify(data || []);
@@ -54,7 +54,7 @@ export async function executeSalesTools(
         since.setDate(since.getDate() - days);
         const { data } = await supabase
           .from("deals")
-          .select("*")
+          .select("id, deal_name, deal_value, stage, status, close_date, owner_name, owner_id, contact_email, hubspot_deal_id, created_at")
           .gte("close_date", since.toISOString())
           .order("close_date", { ascending: false });
         return JSON.stringify(data || []);

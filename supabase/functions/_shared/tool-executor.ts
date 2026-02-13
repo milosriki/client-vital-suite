@@ -193,37 +193,37 @@ async function executeUniversalSearch(supabase: any, input: any) {
     await Promise.all([
       supabase
         .from("contacts")
-        .select("*")
+        .select("id, first_name, last_name, email, phone, owner_name, lifecycle_stage, lead_status, city, location, hubspot_contact_id, first_touch_time, last_activity_date, created_at")
         .or(
           `phone.ilike.%${phoneCleaned}%,email.ilike.${searchLike},first_name.ilike.${searchLike},last_name.ilike.${searchLike},hubspot_contact_id.ilike.${searchLike},owner_name.ilike.${searchLike}`,
         )
         .limit(10),
       supabase
         .from("attribution_events")
-        .select("*")
+        .select("id, email, campaign, campaign_name, ad_name, lead_score, lead_quality, conversion_status, fitness_goal, budget_range, urgency, dubai_area, phone")
         .or(`email.ilike.${searchLike},campaign.ilike.${searchLike}`)
         .limit(10),
       supabase
         .from("call_records")
-        .select("*")
+        .select("id, caller_number, started_at, duration_seconds, call_outcome, call_status, call_direction")
         .or(`caller_number.ilike.%${phoneCleaned}%`)
         .order("started_at", { ascending: false })
         .limit(20),
       supabase
         .from("deals")
-        .select("*")
+        .select("id, deal_name, deal_value, stage, status, close_date, hubspot_deal_id")
         .or(`deal_name.ilike.${searchLike},hubspot_deal_id.ilike.${searchLike}`)
         .limit(10),
       supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score")
         .or(
           `email.ilike.${searchLike},firstname.ilike.${searchLike},lastname.ilike.${searchLike}`,
         )
         .limit(5),
       supabase
         .from("contact_activities")
-        .select("*")
+        .select("id, activity_type, activity_title, occurred_at, hubspot_contact_id")
         .or(`hubspot_contact_id.ilike.${searchLike}`)
         .order("occurred_at", { ascending: false })
         .limit(10),

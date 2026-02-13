@@ -21,22 +21,22 @@ export async function executeHubSpotTools(
         const [health, calls, deals, activities] = await Promise.all([
           supabase
             .from("client_health_scores")
-            .select("*")
+            .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at")
             .eq("email", validatedEmail)
             .single(),
           supabase
             .from("call_records")
-            .select("*")
+            .select("id, caller_number, started_at, duration_seconds, call_outcome, call_status, call_direction, transcription, summary, created_at")
             .order("created_at", { ascending: false })
             .limit(10),
           supabase
             .from("deals")
-            .select("*")
+            .select("id, deal_name, deal_value, stage, status, close_date, owner_name, owner_id, contact_email, hubspot_deal_id, created_at")
             .order("created_at", { ascending: false })
             .limit(10),
           supabase
             .from("contact_activities")
-            .select("*")
+            .select("id, activity_type, activity_title, occurred_at, hubspot_contact_id")
             .order("occurred_at", { ascending: false })
             .limit(20),
         ]);
@@ -55,7 +55,7 @@ export async function executeHubSpotTools(
         const validatedEmail = validateEmail(email);
         const { data } = await supabase
           .from("client_health_scores")
-          .select("*")
+          .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at")
           .eq("email", validatedEmail)
           .single();
         return JSON.stringify(data);
@@ -68,7 +68,7 @@ export async function executeHubSpotTools(
       if (action === "get_all") {
         const { data } = await supabase
           .from("contacts")
-          .select("*")
+          .select("id, first_name, last_name, email, phone, owner_name, lifecycle_stage, lead_status, city, location, hubspot_contact_id, created_at")
           .order("created_at", { ascending: false })
           .limit(limit);
         return JSON.stringify({
@@ -82,7 +82,7 @@ export async function executeHubSpotTools(
           .slice(0, 100);
         const { data } = await supabase
           .from("contacts")
-          .select("*")
+          .select("id, first_name, last_name, email, phone, owner_name, lifecycle_stage, lead_status, city, location, hubspot_contact_id, created_at")
           .or(
             `email.ilike.%${sanitizedQuery}%,first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,phone.ilike.%${sanitizedQuery}%`,
           )
@@ -133,7 +133,7 @@ export async function executeHubSpotTools(
       if (action === "get_contacts") {
         const { data } = await supabase
           .from("contacts")
-          .select("*")
+          .select("id, first_name, last_name, email, phone, owner_name, lifecycle_stage, lead_status, city, location, hubspot_contact_id, created_at")
           .order("created_at", { ascending: false })
           .limit(limit);
         return JSON.stringify({
@@ -144,7 +144,7 @@ export async function executeHubSpotTools(
       if (action === "get_activities") {
         const { data } = await supabase
           .from("contact_activities")
-          .select("*")
+          .select("id, activity_type, activity_title, occurred_at, hubspot_contact_id")
           .order("occurred_at", { ascending: false })
           .limit(limit);
         return JSON.stringify(data || []);

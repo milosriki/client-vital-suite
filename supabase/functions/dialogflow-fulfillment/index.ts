@@ -24,6 +24,7 @@ import {
   errorToResponse,
 } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -36,7 +37,7 @@ const hubspot = new HubSpotManager(hubspotKey, supabaseUrl, supabaseKey);
 Deno.serve(async (req: Request) => {
   const startTime = Date.now();
   try {
-    // Webhook endpoint — Dialogflow sends fulfillment requests (verify_jwt=false)
+    verifyAuth(req);
     // Rate limit — per api-patterns/rate-limiting.md
     const ip = req.headers.get("x-forwarded-for") || "unknown";
     const rateCheck = checkRateLimit(req, RATE_LIMITS.chat);

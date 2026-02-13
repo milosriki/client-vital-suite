@@ -10,6 +10,7 @@ import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/lang
 import { pullPrompt } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
@@ -219,9 +220,6 @@ serve(async (req) => {
     // ACTION: enterprise-chat (AI with FULL context + anti-hallucination)
     // ===================================================================
     if (action === "enterprise-chat") {
-      const geminiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
-      if (!geminiKey) throw new Error("GEMINI_API_KEY not configured");
-
       const context = message.context as EnterpriseContext;
       
       // Try to pull prompt from LangSmith (ptdbooking or stripe-enterprise)
@@ -314,32 +312,21 @@ ${(context?.balanceTransactions || []).slice(0, 10).map((tx: any) =>
 Provide enterprise-grade financial analysis. Every number you report MUST come from the data above with source citation.`;
       }
 
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${geminiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "gemini-3.0-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),
-            { role: "user", content: message.query }
-          ],
-          stream: true
-        })
-      });
+      const aiResult = await unifiedAI.chat(
+        [
+          { role: "system", content: systemPrompt },
+          ...(history || []).map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          { role: "user", content: message.query }
+        ],
+        { functionName: "stripe-enterprise-intelligence" }
+      );
 
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`AI error: ${response.status} - ${err}`);
-      }
+      await traceEnd(traceRun, { action: "enterprise-chat", model: aiResult.model });
 
-      // End trace before streaming (can't track stream completion easily)
-      await traceEnd(traceRun, { streaming: true, action: "enterprise-chat" });
-
-      return new Response(response.body, {
+      // Return as SSE stream format for backward compatibility with frontend
+      const encoder = new TextEncoder();
+      const ssePayload = `data: ${JSON.stringify({ choices: [{ delta: { content: aiResult.content } }] })}\n\ndata: [DONE]\n\n`;
+      return new Response(encoder.encode(ssePayload), {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
       });
     }

@@ -13,6 +13,8 @@ import {
   corsHeaders,
   ErrorCode,
 } from "../_shared/error-handler.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 const FUNCTION_NAME = "antigravity-followup-engine";
 
@@ -34,6 +36,8 @@ Deno.serve(async (req) => {
   }
 
   console.log("⏰ Antigravity Follow-up Engine Triggered");
+
+  try { verifyAuth(req); } catch { throw new UnauthorizedError(); }
 
   // 1. Guardrail: Timezone (7 AM - 10 PM GST)
   if (!isDubaiWorkHours()) {
@@ -133,6 +137,7 @@ Deno.serve(async (req) => {
 
     return apiSuccess({ status: "complete", processed: queue.length });
   } catch (err: unknown) {
+    if (err instanceof UnauthorizedError) return errorToResponse(err);
     console.error("💥 Follow-up Error:", err);
     return handleError(err, FUNCTION_NAME, {
       errorCode: ErrorCode.UNKNOWN_ERROR,
