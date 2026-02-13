@@ -268,7 +268,7 @@ serve(async (req: Request) => {
     // Get all clients
     const { data: clients, error } = await supabase
       .from("client_health_scores")
-      .select("*")
+      .select("email, firstname, lastname, health_score, health_zone, predictive_risk_score, days_since_last_session, sessions_last_7d, sessions_last_30d, outstanding_sessions, sessions_purchased, momentum_indicator")
       .order("predictive_risk_score", { ascending: false });
 
     if (error) throw error;

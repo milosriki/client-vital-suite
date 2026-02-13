@@ -338,7 +338,7 @@ async function checkCompanyHealth(): Promise<Insight[]> {
 
   const { data: summary } = await supabase
     .from("daily_summary")
-    .select("*")
+    .select("summary_date, average_health_score")
     .order("date", { ascending: false })
     .limit(7);
 

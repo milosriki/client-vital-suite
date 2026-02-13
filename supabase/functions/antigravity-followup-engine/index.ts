@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       // Check for recent interaction to avoid double-texting
       const { data: interactions } = await supabase
         .from("whatsapp_interactions")
-        .select("*")
+        .select("id, phone_number, created_at")
         .eq("phone_number", lead.phone)
         .gt("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString());
 

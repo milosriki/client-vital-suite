@@ -57,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 1. Get today's scout signals
     const { data: signals } = await supabase
       .from("marketing_agent_signals")
-      .select("*")
+      .select("id, ad_id, signal_type, created_at")
       .gte("created_at", `${today}T00:00:00`)
       .eq("processed", false);
 

@@ -101,7 +101,7 @@ export async function executeHubSpotTools(
       if (action === "get_contact_history") {
         const { data } = await supabase
           .from("contact_ownership_history")
-          .select("*")
+          .select("contact_id, previous_owner, new_owner, changed_at, reason")
           .eq("contact_id", contact_id)
           .order("changed_at", { ascending: false });
         return JSON.stringify(data || []);

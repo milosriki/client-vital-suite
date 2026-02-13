@@ -234,7 +234,7 @@ serve(async (req) => {
     // Build query
     let query = supabase
       .from("capi_events_enriched")
-      .select("*")
+      .select("id, event_id, event_name, event_time, email, phone, first_name, last_name, value, fbp, fbc, send_status")
       .limit(limit);
 
     if (event_ids.length > 0) {

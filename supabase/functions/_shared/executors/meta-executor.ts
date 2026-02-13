@@ -79,7 +79,7 @@ export async function executeMetaTools(
 
       let query = supabase
         .from("facebook_ads_insights")
-        .select("*")
+        .select("campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, date, spend, impressions, clicks, ctr, cpc, cpm, conversions, cost_per_conversion, reach, frequency")
         .order(String(order_by), { ascending: false })
         .limit(Number(limit));
 

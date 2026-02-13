@@ -16,7 +16,7 @@ export async function executeErrorTools(
     const days = input.days || 1;
     const { data: errors } = await supabase
       .from("sync_errors")
-      .select("*")
+      .select("id, error_type, error_message, platform, object_type, object_id, operation, error_details, created_at, resolved_at")
       .gte(
         "created_at",
         new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString(),
@@ -42,7 +42,7 @@ export async function executeErrorTools(
   if (toolName === "triage_error_batch") {
     const { data: errors } = await supabase
       .from("sync_errors")
-      .select("*")
+      .select("id, error_type, error_message, platform, object_type, object_id, operation, error_details, created_at, resolved_at")
       .is("resolved_at", null)
       .limit(input.limit || 50);
 
@@ -70,7 +70,7 @@ export async function executeErrorTools(
   if (toolName === "resolve_error_batch") {
     const { data: errors } = await supabase
       .from("sync_errors")
-      .select("*")
+      .select("id, error_type, error_message, platform, object_type, object_id, operation, error_details, created_at, resolved_at")
       .is("resolved_at", null)
       .limit(input.limit || 50);
 

@@ -35,7 +35,7 @@ serve(async (req) => {
     if (action === "triage_batch") {
       const { data: errors } = await supabase
         .from("sync_errors")
-        .select("*")
+        .select("id, source, error_type, error_message, retry_count, created_at, error_details")
         .is("resolved_at", null)
         .limit(50);
 
@@ -97,7 +97,7 @@ You are an Expert Systems Engineer.
     if (action === "resolve_batch") {
       const { data: errors } = await supabase
         .from("sync_errors")
-        .select("*")
+        .select("id, source, error_type, error_message, retry_count, created_at, error_details")
         .is("resolved_at", null)
         .limit(50);
 
@@ -117,7 +117,7 @@ You are an Expert Systems Engineer.
     if (action === "analyze_patterns") {
       const { data: errors } = await supabase
         .from("sync_errors")
-        .select("*")
+        .select("id, source, error_type, error_message, retry_count, created_at, error_details")
         .gte(
           "created_at",
           new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),

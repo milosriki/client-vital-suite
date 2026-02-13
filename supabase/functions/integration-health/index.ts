@@ -83,7 +83,7 @@ async function checkHubSpot(): Promise<IntegrationStatus> {
     try {
       const { data: recentSyncs, error } = await supabase
         .from("sync_logs")
-        .select("*")
+        .select("status, completed_at, error_details, started_at")
         .eq("platform", "hubspot")
         .order("started_at", { ascending: false })
         .limit(10);
@@ -278,7 +278,7 @@ async function checkStapeCAPI(): Promise<IntegrationStatus> {
     try {
       const { data: recentBatches, error } = await supabase
         .from("batch_jobs")
-        .select("*")
+        .select("status, events_failed, created_at")
         .order("created_at", { ascending: false })
         .limit(5);
 

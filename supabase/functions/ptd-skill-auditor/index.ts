@@ -52,7 +52,7 @@ serve(async (req) => {
     // For now, we grab the last N.
     const { data: interactions, error } = await supabase
       .from("whatsapp_interactions")
-      .select("*")
+      .select("id, phone_number, message_text, response_text, created_at")
       .order("created_at", { ascending: false })
       .limit(limit);
 

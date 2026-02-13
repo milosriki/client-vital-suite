@@ -76,7 +76,7 @@ async function checkDataIngestion(): Promise<PipelineStage> {
   try {
     const { data: webhooks, count, error } = await supabase
       .from("webhook_logs")
-      .select("*", { count: "exact" })
+      .select("processed, error, created_at", { count: "exact" })
       .gte("created_at", hourAgo);
 
     if (error) throw error;
@@ -307,7 +307,7 @@ async function checkCAPIPipeline(): Promise<PipelineStage> {
   try {
     const { data: recentBatches, error } = await supabase
       .from("batch_jobs")
-      .select("*")
+      .select("status, completed_at, created_at")
       .gte("created_at", dayAgo)
       .order("created_at", { ascending: false });
 
@@ -346,7 +346,7 @@ async function checkDailySummary(): Promise<PipelineStage> {
   try {
     const { data: summaries, error } = await supabase
       .from("daily_summary")
-      .select("*")
+      .select("summary_date, generated_at")
       .order("summary_date", { ascending: false })
       .limit(7);
 

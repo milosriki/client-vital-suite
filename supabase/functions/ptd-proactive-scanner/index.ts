@@ -29,7 +29,7 @@ serve(async (req) => {
     // 1. Check for Churn Risks (Guardian)
     const { data: atRiskClients } = await supabase
       .from("client_health_scores")
-      .select("*")
+      .select("contact_id, email, health_score, health_zone, days_since_last_session, assigned_coach")
       .eq("health_zone", "red")
       .limit(5);
 
@@ -51,7 +51,7 @@ serve(async (req) => {
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const { data: staleLeads } = await supabase
       .from("contacts")
-      .select("*")
+      .select("id, email, first_name, last_name, lifecycle_stage, lead_status, created_at")
       .eq("lifecycle_stage", "lead")
       .lt("created_at", twoDaysAgo)
       .limit(5);

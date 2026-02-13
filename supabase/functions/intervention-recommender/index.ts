@@ -249,7 +249,7 @@ serve(async (req: Request) => {
     // Build query
     let query = supabase
       .from("client_health_scores")
-      .select("*")
+      .select("email, firstname, lastname, health_score, health_zone, momentum_indicator, days_since_last_session, outstanding_sessions, predictive_risk_score, assigned_coach, sessions_last_7d, sessions_last_30d")
       .order("predictive_risk_score", { ascending: false })
       .limit(limit);
 

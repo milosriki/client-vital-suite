@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 1. Yesterday's numbers (from daily_business_metrics)
     const { data: yesterdayMetrics } = await supabase
       .from("daily_business_metrics")
-      .select("*")
+      .select("total_assessments_completed, total_leads_new, total_deals_closed, total_revenue_booked, ad_spend_facebook, roas_daily, cost_per_lead")
       .eq("metric_date", yesterday)
       .single();
 
@@ -115,7 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 3. Actions required (from Analyst — pending recommendations)
     const { data: actions } = await supabase
       .from("marketing_recommendations")
-      .select("*")
+      .select("id, ad_id, ad_name, action, confidence, reasoning, metrics, status, created_at")
       .gte("created_at", `${today}T00:00:00`)
       .in("action", ["SCALE", "KILL", "REFRESH"])
       .eq("status", "pending")
@@ -125,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 4. Budget proposals (from Allocator)
     const { data: budgetProposals } = await supabase
       .from("marketing_budget_proposals")
-      .select("*")
+      .select("id, ad_id, ad_name, current_daily_budget, proposed_daily_budget, change_pct, action, status, created_at")
       .gte("created_at", `${today}T00:00:00`)
       .eq("status", "pending_approval")
       .limit(10);
@@ -133,7 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 5. Fatigue alerts (from Predictor)
     const { data: fatigueAlerts } = await supabase
       .from("marketing_fatigue_alerts")
-      .select("*")
+      .select("id, ad_id, ad_name, ctr_today, ctr_3d_avg, ctr_delta_pct, projected_roas_30d, alert_type, recommendation, created_at")
       .gte("created_at", `${today}T00:00:00`)
       .limit(5);
 
@@ -177,7 +177,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 8. Funnel health (from Funnel Stage Tracker)
     const { data: funnelData } = await supabase
       .from("funnel_metrics")
-      .select("*")
+      .select("lead_to_booked_pct, booked_to_held_pct, held_to_deal_pct, deal_to_payment_pct, overall_lead_to_customer_pct, marketing_health, sales_health, coach_health, ops_health")
       .eq("dimension_type", "overall")
       .eq("dimension_value", "all")
       .order("metric_date", { ascending: false })

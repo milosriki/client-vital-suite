@@ -449,7 +449,7 @@ async function handleRefundEvent(supabase: any, event: StripeEvent) {
   if (refund.charge || refund.payment_intent) {
     const { data: transaction } = await supabase
       .from("stripe_transactions")
-      .select("*")
+      .select("id, stripe_id, charge_id, amount, amount_refunded, refunded, status")
       .or(`stripe_id.eq.${refund.payment_intent},charge_id.eq.${refund.charge}`)
       .single();
 

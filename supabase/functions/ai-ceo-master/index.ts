@@ -150,7 +150,7 @@ serve(async (req) => {
     // 1. Gather Context
     const { data: goals } = await supabase
       .from("business_goals")
-      .select("*")
+      .select("id, goal_name, status")
       .eq("status", "active");
     const { data: calibration } = await supabase.rpc(
       "get_calibration_examples",

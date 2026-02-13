@@ -53,7 +53,7 @@ serve(async (req) => {
     // Get business rules
     const { data: businessRules } = await supabase
       .from("business_rules")
-      .select("*")
+      .select("rule_name, rule_category, rule_config")
       .eq("is_active", true);
 
     const workingHoursRule = businessRules?.find(
@@ -64,7 +64,7 @@ serve(async (req) => {
     // Get learned patterns for better recommendations
     const { data: learningRules } = await supabase
       .from("ai_learning_rules")
-      .select("*")
+      .select("condition_pattern, action_pattern, confidence_score")
       .eq("is_active", true)
       .gte("confidence_score", 0.6)
       .order("success_count", { ascending: false })
@@ -81,34 +81,34 @@ serve(async (req) => {
     ] = await Promise.all([
       supabase
         .from("leads")
-        .select("*")
+        .select("id, email, phone, first_name, last_name, source, status, lead_score, created_at")
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("call_records")
-        .select("*")
+        .select("id, call_status, direction, caller_number, called_number, agent_name, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, email, client_name, health_score, health_zone, churn_risk_score, risk_level")
         .order("health_score", { ascending: true })
         .limit(50),
       // Using unified schema: contacts table instead of enhanced_leads
       supabase
         .from("contacts")
-        .select("*")
+        .select("id, email, phone, first_name, last_name, lifecycle_stage, lead_status, follow_up_status, lead_score, budget_range, created_at")
         .eq("lifecycle_stage", "lead")
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("deals")
-        .select("*")
+        .select("id, deal_name, amount, stage, pipeline, contact_id, created_at")
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("coach_performance")
-        .select("*")
+        .select("id, coach_name, report_date, total_clients, avg_health_score, red_clients, clients_improving, clients_declining")
         .order("report_date", { ascending: false })
         .limit(10),
     ]);

@@ -45,7 +45,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 1. Get today's recommendations
     const { data: recommendations } = await supabase
       .from("marketing_recommendations")
-      .select("*")
+      .select("id, ad_id, ad_name, action, status")
       .gte("created_at", `${today}T00:00:00`)
       .eq("status", "pending");
 

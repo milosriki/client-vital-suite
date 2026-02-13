@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
       getChatHistory(phone),
       supabase
         .from("conversation_intelligence")
-        .select("*")
+        .select("phone, lead_score, conversation_phase, psychological_profile, dominant_pain, desired_outcome, primary_blocker, message_count, last_lead_message_at, conversation_summary, last_internal_thought, followup_stage, followup_count")
         .eq("phone", phone)
         .maybeSingle(),
       // 2.1 Social Proof REMOVED per User Instruction ("No Social Proof on New Leads")

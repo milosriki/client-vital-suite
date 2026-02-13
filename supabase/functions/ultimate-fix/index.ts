@@ -40,7 +40,7 @@ serve(async (req) => {
     // The orchestrator triggers triage asynchronously, so we check if any insights were created
     const { data: insights } = await supabase
       .from("proactive_insights")
-      .select("*")
+      .select("id")
       .eq("insight_type", "error_triage")
       .gt("created_at", new Date(Date.now() - 60000).toISOString()); // Last minute
 
@@ -51,7 +51,7 @@ serve(async (req) => {
     // We check if any prepared actions were created by ptd-self-developer
     const { data: actions } = await supabase
       .from("prepared_actions")
-      .select("*")
+      .select("id")
       .gt("created_at", new Date(Date.now() - 60000).toISOString());
 
     const actionsPrepared = actions?.length || 0;

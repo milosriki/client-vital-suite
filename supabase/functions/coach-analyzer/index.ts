@@ -46,7 +46,7 @@ async function analyzeCoaches(): Promise<CoachMetrics[]> {
   // Get all clients with health scores
   const { data: clients, error } = await supabase
     .from("client_health_scores")
-    .select("*")
+    .select("email, firstname, lastname, assigned_coach, health_score, health_zone, momentum_indicator, sessions_last_30d, package_value_aed")
     .not("assigned_coach", "is", null);
 
   if (error) {

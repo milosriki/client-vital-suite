@@ -46,25 +46,25 @@ serve(async (req) => {
     // Analyze leads data
     const { data: leads } = await supabase
       .from("enhanced_leads")
-      .select("*")
+      .select("email, phone, created_at, updated_at, conversion_status, deal_value, lifecycle_stage")
       .order("created_at", { ascending: false })
       .limit(1000);
 
     const { data: contacts } = await supabase
       .from("contacts")
-      .select("*")
+      .select("email, phone")
       .order("created_at", { ascending: false })
       .limit(1000);
 
     const { data: deals } = await supabase
       .from("deals")
-      .select("*")
+      .select("status, deal_value, created_at, updated_at")
       .order("created_at", { ascending: false })
       .limit(500);
 
     const { data: callRecords } = await supabase
       .from("call_records")
-      .select("*")
+      .select("caller_number, created_at")
       .order("created_at", { ascending: false })
       .limit(500);
 

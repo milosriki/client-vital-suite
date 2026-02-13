@@ -52,17 +52,17 @@ const dataCollectorNode: NodeFunction = async (state, supabase) => {
       supabase.from("deals").select("id", { count: "exact", head: true }),
       supabase
         .from("client_health_scores")
-        .select("*")
+        .select("email, health_score, health_zone, churn_risk_score, health_trend, calculated_at")
         .order("calculated_at", { ascending: false })
         .limit(10),
       supabase
         .from("sync_logs")
-        .select("*")
+        .select("status, started_at")
         .order("started_at", { ascending: false })
         .limit(5),
       supabase
         .from("sync_errors")
-        .select("*")
+        .select("id, source, error_type, error_message, created_at")
         .eq("resolved_at", null)
         .order("created_at", { ascending: false })
         .limit(10),

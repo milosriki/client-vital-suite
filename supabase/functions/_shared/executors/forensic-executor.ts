@@ -47,7 +47,7 @@ export async function executeForensicTools(
 
     case "get_proactive_insights": {
       const { priority = "all", limit = 10 } = input;
-      let query = supabase.from("proactive_insights").select("*");
+      let query = supabase.from("proactive_insights").select("id, insight_type, priority, title, content, is_dismissed, created_at");
       if (priority !== "all") {
         query = query.eq("priority", priority);
       }

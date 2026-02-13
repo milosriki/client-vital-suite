@@ -65,7 +65,7 @@ export async function getLastCheckpoint(
 ): Promise<AgentCheckpoint | null> {
   const { data, error } = await supabase
     .from("agent_checkpoints")
-    .select("*")
+    .select("checkpoint_id, conversation_id, function_name, step_index, step_name, state, status, started_at, completed_at, error, metadata")
     .eq("conversation_id", conversationId)
     .eq("function_name", functionName)
     .order("step_index", { ascending: false })

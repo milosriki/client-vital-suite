@@ -105,7 +105,7 @@ serve(async (req) => {
       // CONTRACT 1: Scout must flag CTR drop > 30%
       const { data: scoutSignals } = await supabase
         .from("marketing_agent_signals")
-        .select("*")
+        .select("id, signal_type, ad_id, severity, evidence, created_at")
         .eq("signal_type", "fatigue")
         .gte("created_at", `${today}T00:00:00`);
 
@@ -132,7 +132,7 @@ serve(async (req) => {
       // CONTRACT 2: Scout must flag ghost rate > 50%
       const { data: ghostSignals } = await supabase
         .from("marketing_agent_signals")
-        .select("*")
+        .select("id, signal_type, ad_id, severity, created_at")
         .eq("signal_type", "ghost_spike")
         .gte("created_at", `${today}T00:00:00`);
 
@@ -152,7 +152,7 @@ serve(async (req) => {
       // CONTRACT 3: Analyst must recommend KILL for ghost_rate > 60%
       const { data: killRecs } = await supabase
         .from("marketing_recommendations")
-        .select("*")
+        .select("id, ad_id, action, confidence, metrics, status, created_at")
         .eq("action", "KILL")
         .gte("created_at", `${today}T00:00:00`);
 
@@ -179,7 +179,7 @@ serve(async (req) => {
       // CONTRACT 4: Copywriter must return valid structured output
       const { data: copyEntries } = await supabase
         .from("creative_library")
-        .select("*")
+        .select("id, headlines, bodies, status, created_at")
         .gte("created_at", `${today}T00:00:00`);
 
       const invalidCopy = (copyEntries || []).filter(
@@ -211,7 +211,7 @@ serve(async (req) => {
       // CONTRACT 5: Allocator must never exceed 20% increase
       const { data: budgetProposals } = await supabase
         .from("marketing_budget_proposals")
-        .select("*")
+        .select("id, ad_id, change_pct, action, status, created_at")
         .eq("action", "increase")
         .gte("created_at", `${today}T00:00:00`);
 

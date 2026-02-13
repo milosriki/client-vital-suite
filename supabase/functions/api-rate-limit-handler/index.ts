@@ -320,7 +320,7 @@ serve(async (req) => {
     // Fetch all rate limit errors
     const { data: errors, error: fetchError } = await supabase
       .from("sync_errors")
-      .select("*")
+      .select("id, source, retry_count, max_retries, error_type, error_message, error_details, created_at, resolved_at")
       .eq("error_type", "rate_limit")
       .is("resolved_at", null)
       .order("created_at", { ascending: false })

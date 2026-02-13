@@ -66,10 +66,10 @@ Deno.serve(async (req: Request) => {
 
     // 2. Parallel Context
     const [leadRes, aiMemoryRes, hubspotContext] = await Promise.all([
-      supabase.from("leads").select("*").eq("phone", userPhone).maybeSingle(),
+      supabase.from("leads").select("name, phone, goal, area, housing_type").eq("phone", userPhone).maybeSingle(),
       supabase
         .from("conversation_intelligence")
-        .select("*")
+        .select("phone, lead_score, conversation_phase, desired_outcome, conversation_summary")
         .eq("phone", userPhone)
         .maybeSingle(),
       hubspot.searchContactByPhone(userPhone),

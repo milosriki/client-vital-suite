@@ -357,7 +357,7 @@ serve(async (req) => {
     // Fetch Stripe-related errors
     const { data: errors, error: fetchError } = await supabase
       .from("sync_errors")
-      .select("*")
+      .select("id, source, error_type, error_message, error_details, retry_count, max_retries, created_at, resolved_at")
       .is("resolved_at", null)
       .eq("source", "stripe")
       .order("created_at", { ascending: false })

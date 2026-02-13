@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const { data: metrics, error } = await supabase
       .from("daily_business_metrics")
-      .select("*")
+      .select("date, total_revenue_booked, ad_spend_facebook, total_leads_new")
       .gte("date", sixMonthsAgo.toISOString())
       .order("date", { ascending: true });
 

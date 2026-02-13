@@ -114,7 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
     const today = new Date().toISOString().split("T")[0];
     const { data: winners } = await supabase
       .from("marketing_recommendations")
-      .select("*")
+      .select("ad_id, ad_name, action, metrics, reasoning, status")
       .in("action", ["SCALE", "REFRESH"])
       .gte("created_at", `${today}T00:00:00`)
       .eq("status", "pending");

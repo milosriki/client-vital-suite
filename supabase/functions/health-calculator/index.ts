@@ -523,7 +523,7 @@ export async function handleRequest(req: Request) {
     while (hasMore) {
       let query = supabase
         .from("contacts")
-        .select("*")
+        .select("id, email, hubspot_contact_id, first_name, last_name, last_paid_session_date, sessions_last_7d, sessions_last_30d, sessions_last_90d, outstanding_sessions, sessions_purchased, assigned_coach, next_session_is_booked, future_booked_sessions")
         .eq("lifecycle_stage", "customer");
       
       if (client_emails.length > 0) {

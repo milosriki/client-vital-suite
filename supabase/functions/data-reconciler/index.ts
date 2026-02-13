@@ -93,7 +93,7 @@ serve(async (req) => {
     try {
       const { data, error: attrError } = await supabase
         .from("attribution_events")
-        .select("*")
+        .select("email, event_name, source, platform, campaign, utm_campaign, event_time")
         .gte("event_time", firstDay);
 
       if (attrError && attrError.code !== "PGRST116") {

@@ -51,7 +51,7 @@ serve(async (req) => {
         }),
         supabase
           .from("ai_learning_rules")
-          .select("*")
+          .select("id, condition_pattern, action_pattern, confidence_score, success_count, is_active")
           .eq("is_active", true)
           .gte("confidence_score", 0.6)
           .order("success_count", { ascending: false })

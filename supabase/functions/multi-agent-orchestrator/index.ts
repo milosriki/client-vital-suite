@@ -72,7 +72,7 @@ Be specific with ROAS and conversion metrics. Format your response as JSON with:
 async function getOracleData(supabase: any) {
   const { data: deals } = await supabase
     .from("deals")
-    .select("*")
+    .select("deal_name, deal_value, amount, status, stage, pipeline, close_date, owner_name, created_at, updated_at")
     .gte(
       "close_date",
       new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
@@ -103,7 +103,7 @@ async function getCostOptimizerData(supabase: any) {
 async function getPaymentData(supabase: any) {
   const { data: payments } = await supabase
     .from("stripe_subscriptions")
-    .select("*")
+    .select("stripe_id, customer_id, status, cancel_at_period_end, current_period_start, current_period_end, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
   return payments || [];

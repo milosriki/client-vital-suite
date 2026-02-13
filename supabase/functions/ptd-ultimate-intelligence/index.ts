@@ -331,7 +331,7 @@ async function buildBusinessContext(supabase: any) {
   // 3. Active Goals
   const { data: goalsData } = await supabase
     .from("business_goals")
-    .select("*")
+    .select("goal_name, metric_name, current_value, target_value, baseline_value, deadline")
     .eq("status", "active");
 
   if (goalsData) {
@@ -389,7 +389,7 @@ async function buildBusinessContext(supabase: any) {
 
   const { data: treasuryData } = await supabase
     .from("stripe_outbound_transfers")
-    .select("*")
+    .select("stripe_id, amount, currency, status, created_at")
     .gte("created_at", twelveMonthsAgo.toISOString())
     .order("created_at", { ascending: false })
     .limit(100);

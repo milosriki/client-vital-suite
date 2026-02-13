@@ -153,7 +153,7 @@ class UnifiedBrain {
   async getRecent(limit = 10, source?: string): Promise<Memory[]> {
     let query = this.supabase
       .from("agent_memory")
-      .select("*")
+      .select("id, query, response, knowledge_extracted, created_at, source")
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -361,7 +361,7 @@ class UnifiedBrain {
     try {
       const { data } = await this.supabase
         .from("agent_patterns")
-        .select("*")
+        .select("id, pattern_name, confidence, usage_count, last_used_at, pattern_data")
         .eq("pattern_name", name)
         .single();
 
@@ -378,7 +378,7 @@ class UnifiedBrain {
     try {
       const { data } = await this.supabase
         .from("agent_patterns")
-        .select("*")
+        .select("id, pattern_name, confidence, usage_count, last_used_at, pattern_data")
         .order("confidence", { ascending: false })
         .limit(limit);
 

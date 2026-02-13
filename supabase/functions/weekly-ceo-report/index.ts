@@ -36,7 +36,7 @@ serve(async (req) => {
     // 1. Aggregate Financials
     const { data: metrics } = await supabase
       .from("daily_business_metrics")
-      .select("*")
+      .select("total_revenue_booked, roas_daily, total_leads_new")
       .gte("date", dateStr);
 
     const totalRevenue = metrics?.reduce((sum, m) => sum + (Number(m.total_revenue_booked) || 0), 0) || 0;
@@ -47,7 +47,7 @@ serve(async (req) => {
     // 2. Coach Leaderboard
     const { data: coaches } = await supabase
       .from("coach_performance")
-      .select("*")
+      .select("coach_name, performance_score, avg_client_health")
       .order("performance_score", { ascending: false })
       .limit(5);
 

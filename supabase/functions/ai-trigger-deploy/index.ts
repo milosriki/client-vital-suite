@@ -101,7 +101,7 @@ serve(async (req) => {
     // Get the action
     const { data: action, error: fetchError } = await supabase
       .from("prepared_actions")
-      .select("*")
+      .select("id, action_type, action_title, action_description, reasoning, confidence, prepared_payload, status")
       .eq("id", approval_id)
       .single();
 

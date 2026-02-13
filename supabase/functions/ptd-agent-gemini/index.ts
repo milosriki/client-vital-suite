@@ -66,7 +66,7 @@ async function loadActiveSkill(supabase: any, query: string): Promise<string> {
     }
 
     // 2. Search agent_skills table
-    let queryBuilder = supabase.from("agent_skills").select("*");
+    let queryBuilder = supabase.from("agent_skills").select("id, name, description, function_name, parameters, category, is_active");
 
     if (explicitSearch) {
       queryBuilder = queryBuilder.ilike("name", `%${searchTerm}%`);
@@ -482,7 +482,7 @@ async function saveToMemory(
     for (const pattern of knowledge.detected_patterns) {
       const { data: existing } = await supabase
         .from("agent_patterns")
-        .select("*")
+        .select("id, pattern_name, confidence, usage_count, last_used_at")
         .eq("pattern_name", pattern)
         .single();
 
@@ -593,7 +593,7 @@ async function getClientProfile(
   try {
     const { data: contact } = await supabase
       .from("contacts")
-      .select("*")
+      .select("first_name, last_name, location, city, owner_name, lifecycle_stage, lead_status, last_activity_date, created_at, hubspot_contact_id")
       .eq("hubspot_contact_id", contactId)
       .single();
 
