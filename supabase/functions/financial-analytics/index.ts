@@ -58,20 +58,38 @@ serve(async (req) => {
       .gt("outstanding_sessions", 0);
     const realActiveClients = activeClients || 1; // Avoid division by zero
 
-    // --- Real churn rate from health zone distribution (last 90 days) ---
-    const { data: healthData } = await supabase
-      .from("client_health_scores")
-      .select("health_zone");
-    const totalTracked = healthData?.length || 1;
-    const redZoneClients =
-      healthData?.filter((c) => c.health_zone === "RED").length || 0;
-    const yellowZoneClients =
-      healthData?.filter((c) => c.health_zone === "YELLOW").length || 0;
-    // Weighted churn: RED clients = likely to churn, YELLOW = 30% probability
-    const estimatedChurners = redZoneClients + yellowZoneClients * 0.3;
+    // --- Real churn rate from actual payment/session gaps (last 90 days) ---
+    // Churned = was active in past 90d but no session in last 45d AND outstanding_sessions = 0
+    const { data: churnData } = await supabase
+      .from("contacts")
+      .select("last_paid_session_date, outstanding_sessions, sessions_last_90d")
+      .gt("sessions_last_90d", 0); // Only count clients who were active in 90d window
+
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const totalActive90d = churnData?.length || 1;
+    let churned = 0;
+    let redZoneClients = 0;
+    let yellowZoneClients = 0;
+
+    for (const c of churnData || []) {
+      const lastSession = c.last_paid_session_date
+        ? new Date(c.last_paid_session_date).getTime()
+        : 0;
+      const daysSinceSession = lastSession > 0 ? (now - lastSession) / dayMs : 999;
+      const noSessions = (c.outstanding_sessions || 0) === 0;
+
+      if (daysSinceSession > 45 && noSessions) {
+        churned++;
+        redZoneClients++;
+      } else if (daysSinceSession > 30 || noSessions) {
+        yellowZoneClients++;
+      }
+    }
+
     const realChurnRate = Math.max(
       0.01,
-      Math.min(0.5, estimatedChurners / totalTracked),
+      Math.min(0.5, churned / totalActive90d),
     );
 
     // --- Revenue calculations ---

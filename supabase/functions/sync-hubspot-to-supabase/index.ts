@@ -501,6 +501,37 @@ serve(async (req) => {
               };
             });
 
+          // Enrich contacts with Facebook ad attribution from attribution_events
+          if (contactsToUpsert.length > 0) {
+            const emails = contactsToUpsert.map((c: any) => c.email).filter(Boolean);
+            if (emails.length > 0) {
+              const { data: attrEvents } = await supabase
+                .from("attribution_events")
+                .select("email, fb_ad_id, fb_campaign_id, fb_adset_id, source, event_time")
+                .in("email", emails)
+                .order("event_time", { ascending: false });
+
+              if (attrEvents?.length) {
+                // Build map: email → latest attribution event (first occurrence = latest due to DESC order)
+                const attrByEmail = new Map<string, typeof attrEvents[0]>();
+                for (const ae of attrEvents) {
+                  if (!attrByEmail.has(ae.email)) {
+                    attrByEmail.set(ae.email, ae);
+                  }
+                }
+                for (const contact of contactsToUpsert) {
+                  const attr = attrByEmail.get(contact.email);
+                  if (attr) {
+                    (contact as any).attributed_ad_id = attr.fb_ad_id;
+                    (contact as any).attributed_campaign_id = attr.fb_campaign_id;
+                    (contact as any).attributed_adset_id = attr.fb_adset_id;
+                    (contact as any).attribution_source = attr.source;
+                  }
+                }
+              }
+            }
+          }
+
           if (contactsToUpsert.length > 0) {
             const { error: contactError } = await supabase
               .from("contacts")

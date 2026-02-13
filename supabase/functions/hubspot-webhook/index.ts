@@ -90,11 +90,31 @@ serve(async (req) => {
       const { subscriptionType, objectId, propertyName, propertyValue } = event;
 
       try {
-        // Handle Deals
-        if (subscriptionType.includes("deal")) {
+        // Handle Deal property changes (stage transitions)
+        if (subscriptionType === "deal.propertyChange" && propertyName === "dealstage") {
+          const success = await handleDealUpdate(objectId, supabase);
+          if (success) {
+            results.upserted++;
+            // Log stage transition for analytics
+            await supabase.from("sync_errors").insert({
+              error_type: "info",
+              error_message: `Deal ${objectId} stage changed to ${propertyValue}`,
+              object_type: "deal",
+              object_id: String(objectId),
+              operation: "stage_change",
+              error_details: { propertyName, propertyValue, subscriptionType },
+            }).then(() => {});
+            // Enrich deal with attribution from contact
+            await enrichDealAttribution(objectId, supabase);
+          } else {
+            results.errors++;
+          }
+        }
+        // Handle all other deal events (creation, deletion, other property changes)
+        else if (subscriptionType.includes("deal")) {
           const success = await handleDealUpdate(objectId, supabase);
           if (success) results.upserted++;
-          else results.errors++; // Count fetch/logic failures as errors
+          else results.errors++;
         }
 
         // Handle Contacts (Leads)
@@ -397,4 +417,56 @@ async function handleMeetingUpdate(
     return false;
   }
   return true;
+}
+
+// Enrich deal with Facebook ad attribution from the contact's attribution_events
+async function enrichDealAttribution(
+  dealId: number,
+  supabase: any,
+): Promise<void> {
+  try {
+    // Find the deal and its contact
+    const { data: deal } = await supabase
+      .from("deals")
+      .select("id, contact_id")
+      .eq("hubspot_id", dealId.toString())
+      .maybeSingle();
+
+    if (!deal?.contact_id) return;
+
+    // Get the contact's email
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("email, attributed_ad_id")
+      .eq("id", deal.contact_id)
+      .maybeSingle();
+
+    if (!contact?.email) return;
+    // Skip if contact already has attribution
+    if (contact.attributed_ad_id) return;
+
+    // Look up latest attribution event
+    const { data: attrEvent } = await supabase
+      .from("attribution_events")
+      .select("fb_ad_id, fb_campaign_id, fb_adset_id, source")
+      .eq("email", contact.email)
+      .order("event_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!attrEvent?.fb_ad_id) return;
+
+    // Backfill attribution on the contact
+    await supabase
+      .from("contacts")
+      .update({
+        attributed_ad_id: attrEvent.fb_ad_id,
+        attributed_campaign_id: attrEvent.fb_campaign_id,
+        attributed_adset_id: attrEvent.fb_adset_id,
+        attribution_source: attrEvent.source,
+      })
+      .eq("id", deal.contact_id);
+  } catch (e) {
+    console.warn("Attribution enrichment failed (non-critical):", e);
+  }
 }

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -10,8 +11,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Currency conversion rates to AED (approximate, should be updated from live API in production)
-const CURRENCY_TO_AED: Record<string, number> = {
+// Fallback currency rates to AED (used if org_memory_kv lookup fails)
+const FALLBACK_RATES: Record<string, number> = {
   "aed": 1,
   "usd": 3.67,
   "eur": 4.00,
@@ -23,6 +24,33 @@ const CURRENCY_TO_AED: Record<string, number> = {
   "chf": 4.15,
   "inr": 0.044,
 };
+
+// In-memory cache: refreshed once per invocation (edge function cold start)
+let CURRENCY_TO_AED: Record<string, number> = { ...FALLBACK_RATES };
+let ratesLoaded = false;
+
+async function loadCurrencyRates(): Promise<void> {
+  if (ratesLoaded) return;
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data } = await supabase
+      .from("org_memory_kv")
+      .select("value")
+      .eq("namespace", "config")
+      .eq("key", "currency_rates_aed")
+      .maybeSingle();
+
+    if (data?.value && typeof data.value === "object") {
+      CURRENCY_TO_AED = { ...FALLBACK_RATES, ...(data.value as Record<string, number>) };
+    }
+  } catch {
+    // Fallback to hardcoded rates on error — non-critical
+  }
+  ratesLoaded = true;
+}
 
 /**
  * Converts any currency amount to AED
@@ -52,6 +80,9 @@ serve(async (req) => {
   }
 
   try {
+    // Load live currency rates from org_memory_kv (falls back to hardcoded)
+    await loadCurrencyRates();
+
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     const langsmithConfigured = !!Deno.env.get("LANGSMITH_API_KEY");
 
