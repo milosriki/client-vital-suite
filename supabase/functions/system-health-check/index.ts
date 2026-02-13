@@ -33,7 +33,7 @@ interface SystemHealthReport {
   };
 }
 
-// All edge functions to check
+// All edge functions to check (names must match deployed function directories)
 const EDGE_FUNCTIONS = [
   { name: "business-intelligence", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: true },
   { name: "stripe-dashboard-data", secrets: ["STRIPE_SECRET_KEY"], critical: true },
@@ -41,17 +41,17 @@ const EDGE_FUNCTIONS = [
   { name: "stripe-payouts-ai", secrets: ["STRIPE_SECRET_KEY", "GOOGLE_GEMINI_API_KEY"], critical: false },
   { name: "stripe-payout-controls", secrets: ["STRIPE_SECRET_KEY"], critical: true },
   { name: "stripe-treasury", secrets: ["STRIPE_SECRET_KEY"], critical: false },
-  { name: "hubspot-sync", secrets: ["HUBSPOT_API_KEY"], critical: true },
+  { name: "sync-hubspot-to-supabase", secrets: ["HUBSPOT_API_KEY"], critical: true },
   { name: "fetch-hubspot-live", secrets: ["HUBSPOT_API_KEY"], critical: true },
-  { name: "meta-capi", secrets: ["FB_ACCESS_TOKEN", "FB_PIXEL_ID"], critical: false },
-  { name: "daily-summary-briefing", secrets: [], critical: false },
+  { name: "process-capi-batch", secrets: ["FB_ACCESS_TOKEN", "FB_PIXEL_ID"], critical: false },
+  { name: "daily-report", secrets: [], critical: false },
   { name: "ptd-24x7-monitor", secrets: [], critical: true },
   { name: "generate-lead-replies", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
-  { name: "run-intelligence-suite", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
-  { name: "client-health-calculator", secrets: [], critical: true },
-  { name: "coach-performance-report", secrets: [], critical: false },
+  { name: "ptd-ultimate-intelligence", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
+  { name: "health-calculator", secrets: [], critical: true },
+  { name: "coach-analyzer", secrets: [], critical: false },
   { name: "proactive-insights-generator", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
-  { name: "smart-agent", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
+  { name: "smart-coach-analytics", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
   { name: "agent-orchestrator", secrets: ["GOOGLE_GEMINI_API_KEY"], critical: false },
 ];
 

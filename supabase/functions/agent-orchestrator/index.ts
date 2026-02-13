@@ -479,7 +479,12 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { mode = "full" } = body;
+    const { mode = "full", healthCheck } = body;
+
+    // Health check: respond immediately without running the full graph
+    if (healthCheck) {
+      return apiSuccess({ status: "ok", mode: "healthCheck" });
+    }
 
     console.log(`[Orchestrator] Starting in mode: ${mode}`);
 
