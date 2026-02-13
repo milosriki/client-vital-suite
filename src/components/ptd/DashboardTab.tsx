@@ -21,7 +21,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("daily_summary")
-        .select("*")
+        .select("id, summary_date, total_active_clients, avg_health_score, critical_interventions, at_risk_revenue, red_clients, yellow_clients, green_clients, purple_clients, red_percentage, yellow_percentage, green_percentage, purple_percentage, created_at")
         .order("summary_date", { ascending: false })
         .limit(1)
         .maybeSingle();

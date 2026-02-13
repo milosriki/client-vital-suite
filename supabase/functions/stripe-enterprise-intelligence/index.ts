@@ -11,6 +11,7 @@ import { pullPrompt } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
@@ -314,7 +315,7 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
 
       const aiResult = await unifiedAI.chat(
         [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: `${getConstitutionalSystemMessage()}\n\n${systemPrompt}` },
           ...(history || []).map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user", content: message.query }
         ],

@@ -7,6 +7,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { UNIFIED_ATLAS_PROMPT } from "../_shared/unified-atlas-prompt.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { buildUnifiedPromptForEdgeFunction } from "../_shared/unified-prompts.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import {
   PTD_STATIC_KNOWLEDGE,
@@ -891,7 +892,7 @@ ${activeLearnings}
 `;
 
   const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: `${getConstitutionalSystemMessage()}\n\n${systemPrompt}` },
     ...chatHistory.map((msg: any) => ({
       role: (msg.role === "model" ? "assistant" : msg.role) as
         | "user"
