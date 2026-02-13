@@ -30,7 +30,7 @@ export function SystemHealthWidget() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sync_logs")
-        .select("*")
+        .select("platform, status, started_at")
         .order("created_at", { ascending: false })
         .limit(10);
       

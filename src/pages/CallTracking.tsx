@@ -33,7 +33,7 @@ export default function CallTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("call_records")
-        .select("*")
+        .select("id, caller_number, agent_name, call_status, call_outcome, duration_seconds, call_score, lead_quality, transcription, recording_url, appointment_set, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

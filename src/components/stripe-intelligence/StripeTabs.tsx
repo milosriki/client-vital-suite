@@ -200,8 +200,7 @@ export const StripeTabs = ({
                           variant="danger"
                           confirmText="Process Refund"
                           onConfirm={() => {
-                            // In a real app, this would call the refund API
-                            console.log("Refund initiated:", payment.id);
+                            // TODO: Call refund API endpoint
                           }}
                         />
                       )}
@@ -223,8 +222,7 @@ export const StripeTabs = ({
                           variant="warning"
                           confirmText="Retry Charge"
                           onConfirm={() => {
-                            // In a real app, this would retry the charge
-                            console.log("Retry initiated:", payment.id);
+                            // TODO: Call payment retry API endpoint
                           }}
                         />
                       )}

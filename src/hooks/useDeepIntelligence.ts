@@ -117,14 +117,14 @@ export function useDeepIntelligence() {
         // 1. Historical baselines (overall, 90d)
         supabase
           .from("historical_baselines" as any)
-          .select("*")
+          .select("dimension_type, dimension_value, period_days, avg_roas, avg_cpl, avg_ghost_rate, avg_close_rate, total_spend, total_leads, total_revenue, trend_direction, trend_pct, best_week_start, best_week_roas, worst_week_start, worst_week_roas")
           .eq("dimension_type", "overall")
           .order("period_days", { ascending: true }),
 
         // 2. Latest funnel metrics (overall)
         supabase
           .from("funnel_metrics" as any)
-          .select("*")
+          .select("metric_date, dimension_type, leads_created, assessments_booked, assessments_held, deals_created, packages_selected, payments_pending, closed_won, closed_lost, lead_to_booked_pct, booked_to_held_pct, held_to_deal_pct, deal_to_payment_pct, payment_to_won_pct, overall_lead_to_customer_pct, marketing_health, sales_health, coach_health, ops_health")
           .eq("dimension_type", "overall")
           .order("metric_date", { ascending: false })
           .limit(1),
@@ -139,7 +139,7 @@ export function useDeepIntelligence() {
         // 4. Source discrepancy — last 7 days
         supabase
           .from("source_discrepancy_matrix" as any)
-          .select("*")
+          .select("report_date, campaign_name, fb_reported_leads, anytrack_leads, supabase_contacts, max_discrepancy_pct, trust_verdict")
           .order("report_date", { ascending: false })
           .limit(30),
 
@@ -152,14 +152,14 @@ export function useDeepIntelligence() {
         // 6. Assessment truth matrix — HubSpot vs AWS
         supabase
           .from("assessment_truth_matrix" as any)
-          .select("*")
+          .select("email, first_name, last_name, coach, hubspot_stage_name, hubspot_says_completed, aws_confirms_attended, truth_status, attribution_source, health_score, health_zone, stage_updated_at")
           .order("stage_updated_at", { ascending: false })
           .limit(50),
 
         // 7. Latest CEO morning brief
         supabase
           .from("daily_marketing_briefs" as any)
-          .select("*")
+          .select("brief_date, yesterday_spend, yesterday_leads, yesterday_cpl, yesterday_assessments, yesterday_true_cpa, rolling_7d_spend, rolling_7d_revenue, rolling_7d_roas, rolling_7d_ghost_rate, actions_required, budget_proposals, fatigue_alerts, new_copy_pending, historical_context, funnel_health, loss_analysis, source_alignment, projections")
           .order("brief_date", { ascending: false })
           .limit(1),
       ]);

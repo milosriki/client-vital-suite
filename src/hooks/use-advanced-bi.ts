@@ -5,8 +5,6 @@ export const useAdvancedBI = () => {
   return useQuery({
     queryKey: ["advanced-bi"],
     queryFn: async () => {
-      console.log("🧠 Fetching Advanced Business Intelligence...");
-
       // Parallel Fetching for Speed
       const [financials, customers, strategy] = await Promise.all([
         supabase.functions.invoke("financial-analytics", {

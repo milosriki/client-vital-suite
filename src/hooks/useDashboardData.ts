@@ -50,20 +50,20 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         // Query 1: Coaches
         supabase
           .from("coach_performance")
-          .select("*")
+          .select("id, coach_name, avg_client_health, total_clients, active_clients, at_risk_clients, interventions_count, created_at")
           .order("avg_client_health", { ascending: false }),
 
         // Query 2: Interventions
         supabase
           .from("intervention_log")
-          .select("*")
+          .select("id, intervention_type, client_id, coach_id, reason, outcome, notes, created_at")
           .order("created_at", { ascending: false })
           .limit(10),
 
         // Query 3: Daily Summary
         supabase
           .from("daily_summary")
-          .select("*")
+          .select("id, summary_date, total_clients, active_clients, at_risk_clients, churned_clients, total_revenue, avg_health_score, interventions_today, created_at")
           .order("summary_date", { ascending: false })
           .limit(1)
           .single(),
@@ -79,7 +79,7 @@ export function useDashboardData(filters: DashboardFilters = {}) {
         (async () => {
           let query = supabase
             .from("client_health_scores")
-            .select("*")
+            .select("id, firstname, lastname, email, health_score, health_zone, assigned_coach, churn_risk_score, package_value_aed, calculated_on, created_at")
             .order("health_score", { ascending: true });
 
           // Apply filters

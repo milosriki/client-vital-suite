@@ -51,7 +51,7 @@ export default function AILearning() {
     queryFn: async () => {
       let query = supabase
         .from("agent_decisions")
-        .select("*")
+        .select("id, decision_type, input_context, status, outcome, confidence_score, created_at")
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -74,7 +74,7 @@ export default function AILearning() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agent_patterns")
-        .select("*")
+        .select("id, pattern_name, confidence, usage_count, last_used_at")
         .order("last_used_at", { ascending: false })
         .limit(30);
 

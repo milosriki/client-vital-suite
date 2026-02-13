@@ -42,7 +42,7 @@ export default function AIKnowledge() {
     queryFn: async () => {
       let query = supabase
         .from("knowledge_base")
-        .select("*")
+        .select("id, content, source, category, confidence, created_at")
         .order("created_at", { ascending: false });
 
       if (categoryFilter !== "all") {

@@ -36,7 +36,7 @@ const Interventions = () => {
     queryFn: async () => {
       let query = supabase
         .from("intervention_log")
-        .select("*")
+        .select("id, email, intervention_type, trigger_reason, ai_recommendation, status, priority, assigned_to, health_score_at_trigger, health_zone_at_trigger, triggered_at, completed_at, notes")
         .order("triggered_at", { ascending: false });
 
       if (statusFilter !== "ALL") {

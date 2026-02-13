@@ -65,7 +65,7 @@ const Overview = () => {
       // Try today first
       const { data: todayData, error: todayError } = await (supabase as any)
         .from("daily_summary")
-        .select("*")
+        .select("id, summary_date, total_clients, avg_health_score, critical_interventions, at_risk_revenue_aed, clients_red, clients_yellow, clients_green, clients_purple")
         .eq("summary_date", today)
         .maybeSingle();
 
@@ -76,7 +76,7 @@ const Overview = () => {
       // Fallback to latest available summary
       const { data: latestData, error: latestError } = await (supabase as any)
         .from("daily_summary")
-        .select("*")
+        .select("id, summary_date, total_clients, avg_health_score, critical_interventions, at_risk_revenue_aed, clients_red, clients_yellow, clients_green, clients_purple")
         .order("summary_date", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -105,7 +105,7 @@ const Overview = () => {
 
       const { data, error } = await (supabase as any)
         .from("client_health_scores")
-        .select("*")
+        .select("id, email, firstname, lastname, health_score, health_zone, days_since_last_session")
         .eq("health_zone", "RED")
         .eq("calculated_on", latestDate)
         .order("health_score", { ascending: true })
@@ -127,7 +127,7 @@ const Overview = () => {
       const today = getBusinessTodayString();
       const { data: todayData } = await (supabase as any)
         .from("coach_performance")
-        .select("*")
+        .select("id, coach_name, total_clients, avg_client_health, clients_red, clients_yellow, clients_green, clients_purple, health_trend, report_date")
         .eq("report_date", today)
         .order("avg_client_health", { ascending: false });
 
@@ -138,7 +138,7 @@ const Overview = () => {
       // Fallback to latest available
       const { data, error } = await (supabase as any)
         .from("coach_performance")
-        .select("*")
+        .select("id, coach_name, total_clients, avg_client_health, clients_red, clients_yellow, clients_green, clients_purple, health_trend, report_date")
         .order("report_date", { ascending: false })
         .limit(20);
 
@@ -158,7 +158,7 @@ const Overview = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("intervention_log")
-        .select("*")
+        .select("id, email, firstname, lastname, intervention_type, intervention_date, triggered_at, status, priority, assigned_to, executed_by, health_score_at_trigger, health_zone_at_trigger, health_score_after, health_zone, ai_recommendation, outcome, notes, trigger_reason, revenue_protected_aed, completed_at, created_at")
         .order("intervention_date", { ascending: false })
         .limit(20);
 

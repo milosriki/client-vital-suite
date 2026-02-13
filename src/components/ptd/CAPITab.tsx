@@ -42,7 +42,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from("capi_events" as any)
-        .select("*")
+        .select("id, event_name, event_time, currency, value_aed, email, status, created_at")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
         .limit(50) as any);

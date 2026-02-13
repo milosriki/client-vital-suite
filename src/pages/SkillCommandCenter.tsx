@@ -89,7 +89,7 @@ export default function SkillCommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agent_knowledge" as any)
-        .select("*")
+        .select("id, title, content, source, category, structured_data, created_at")
         .eq("source", "atlas_audit")
         .eq("category", "learning")
         .order("created_at", { ascending: false })

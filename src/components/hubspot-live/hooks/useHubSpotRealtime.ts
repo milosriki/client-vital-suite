@@ -83,7 +83,7 @@ export const useHubSpotRealtime = (timeframe: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contacts")
-        .select("*")
+        .select("id, first_name, last_name, email, phone, lifecycle_stage, lead_status, latest_traffic_source, first_touch_source, total_value, created_at, hubspot_contact_id")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false });
@@ -115,7 +115,7 @@ export const useHubSpotRealtime = (timeframe: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enhanced_leads")
-        .select("*")
+        .select("id, first_name, last_name, email, phone, created_at, lead_quality, conversion_status, source")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false });
@@ -135,7 +135,7 @@ export const useHubSpotRealtime = (timeframe: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
-        .select("*")
+        .select("id, deal_name, deal_value, cash_collected, status, closer_id, created_at")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false });
@@ -155,7 +155,7 @@ export const useHubSpotRealtime = (timeframe: string) => {
       queryFn: async () => {
         const { data, error } = await supabase
           .from("deals")
-          .select("*")
+          .select("id, deal_value, cash_collected, status, created_at")
           .gte("created_at", monthStart.toISOString())
           .order("created_at", { ascending: false });
 
@@ -174,7 +174,7 @@ export const useHubSpotRealtime = (timeframe: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("call_records")
-        .select("*")
+        .select("id, call_direction, caller_number, call_status, duration_seconds, call_score, appointment_set, created_at")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false });
@@ -188,7 +188,7 @@ export const useHubSpotRealtime = (timeframe: string) => {
   const { data: staffData } = useDedupedQuery({
     queryKey: ["staff"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("*");
+      const { data, error } = await supabase.from("staff").select("id, name");
       if (error) throw error;
       return data || [];
     },

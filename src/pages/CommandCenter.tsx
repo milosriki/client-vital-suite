@@ -143,7 +143,7 @@ export default function CommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("setter_funnel_matrix")
-        .select("*");
+        .select("setter_name, total_leads, booked, held, closed_won, ghost_rate_pct");
       if (error) throw error;
       return data;
     },
@@ -155,7 +155,7 @@ export default function CommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coach_performance")
-        .select("*")
+        .select("id, coach_name, total_clients, avg_health_score, clients_improving, clients_declining, trend, report_date")
         .order("report_date", { ascending: false });
       if (error) throw error;
       const seen = new Set<string>();
@@ -173,7 +173,7 @@ export default function CommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_truth_matrix")
-        .select("*")
+        .select("contact_name, deal_name, email, coach, assigned_coach, stage_label, stage, truth_status")
         .in("truth_status", [
           "BOOKED_NOT_ATTENDED",
           "HUBSPOT_ONLY_NO_AWS_PROOF",

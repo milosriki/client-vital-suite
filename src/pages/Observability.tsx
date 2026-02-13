@@ -69,7 +69,7 @@ export default function Observability() {
 
       const { data, error } = await supabase
         .from("ai_execution_metrics")
-        .select("*")
+        .select("id, correlation_id, function_name, provider, model, latency_ms, tokens_in, tokens_out, cost_usd_est, status, error_message, created_at, tags")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(500);

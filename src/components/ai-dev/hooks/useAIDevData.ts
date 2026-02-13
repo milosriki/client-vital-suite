@@ -46,7 +46,7 @@ export const useAIDevData = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prepared_actions")
-        .select("*")
+        .select("id, action_type, action_title, action_description, reasoning, expected_impact, risk_level, confidence, prepared_payload, status, priority, source_agent, created_at, executed_at, rejection_reason")
         .order("created_at", { ascending: false });
 
       if (error) throw error;

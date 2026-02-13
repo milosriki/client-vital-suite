@@ -30,7 +30,7 @@ export const NotificationCenter = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications")
-        .select("*")
+        .select("id, type, title, message, category, metadata, read, created_at")
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;

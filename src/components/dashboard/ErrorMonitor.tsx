@@ -14,7 +14,7 @@ export function ErrorMonitor() {
         queryFn: async () => {
             const { data } = await supabase
                 .from("sync_errors")
-                .select("*")
+                .select("id, error_type, platform, object_type, error_message, created_at, resolved_at")
                 .is("resolved_at", null)
                 .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
                 .order("created_at", { ascending: false })

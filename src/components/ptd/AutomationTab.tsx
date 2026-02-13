@@ -26,7 +26,7 @@ export default function AutomationTab({ mode }: AutomationTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sync_logs")
-        .select("*")
+        .select("id, platform, sync_type, status, records_synced, started_at, error_message")
         .order("started_at", { ascending: false })
         .limit(50);
       if (error) throw error;

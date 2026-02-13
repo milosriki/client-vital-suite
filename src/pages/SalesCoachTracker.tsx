@@ -78,7 +78,7 @@ const SalesCoachTracker = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("setter_funnel_matrix")
-        .select("*");
+        .select("setter_name, total_leads, booked, held, closed_won, book_to_held_pct, ghost_rate_pct, held_to_close_pct");
       if (error) throw error;
       return data;
     },
@@ -90,7 +90,7 @@ const SalesCoachTracker = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_truth_matrix")
-        .select("*")
+        .select("contact_name, first_name, deal_name, email, coach, assigned_coach, stage_label, deal_stage, stage, truth_status, utm_campaign, source_campaign")
         .in("truth_status", [
           "BOOKED_NOT_ATTENDED",
           "HUBSPOT_ONLY_NO_AWS_PROOF",
@@ -107,7 +107,7 @@ const SalesCoachTracker = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coach_performance")
-        .select("*")
+        .select("id, coach_name, total_clients, avg_health_score, clients_improving, clients_declining, trend, report_date")
         .order("report_date", { ascending: false });
       if (error) throw error;
       const seen = new Set<string>();

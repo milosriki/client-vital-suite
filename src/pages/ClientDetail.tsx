@@ -43,7 +43,7 @@ export default function ClientDetail() {
 
       const { data, error } = await supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, email, firstname, lastname, health_score, health_zone, health_trend, churn_risk_score, outstanding_sessions, package_type, days_since_last_session, sessions_last_7d, sessions_last_30d, sessions_last_90d, engagement_score, momentum_score, package_health_score, relationship_score, financial_score, assigned_coach, package_value_aed, client_segment, intervention_priority, days_until_renewal, sessions_purchased, hubspot_contact_id, calculation_version, calculated_at")
         .eq("email", decodedEmail)
         .order("calculated_at", { ascending: false })
         .limit(1)
@@ -66,7 +66,7 @@ export default function ClientDetail() {
 
         const { data, error } = await supabase
           .from("intervention_log")
-          .select("*")
+          .select("id, intervention_type, intervention_date, triggered_at, status, priority, assigned_to, health_score_at_trigger, health_zone_at_trigger, ai_recommendation, outcome")
           .or(`client_email.eq.${decodedEmail},email.eq.${decodedEmail}`)
           .order("triggered_at", { ascending: false })
           .limit(5);

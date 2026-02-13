@@ -21,7 +21,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coach_reviews")
-        .select("*")
+        .select("id, coach_id, review_month, created_at, ai_recommendations")
         .order("created_at", { ascending: false })
         .limit(50);
       
@@ -35,7 +35,7 @@ export default function CoachReviewsTab({ mode }: CoachReviewsTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coach_performance")
-        .select("*")
+        .select("id, coach_name, report_date, total_clients, active_clients, avg_client_health, clients_green, clients_yellow, clients_red, clients_purple, health_trend, clients_at_risk, at_risk_revenue_aed")
         .order("report_date", { ascending: false })
         .limit(20);
       

@@ -17,7 +17,7 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from("capi_events" as any)
-        .select("*")
+        .select("id, event_name, event_id, email, user_email, phone, user_phone, value_aed, currency, status, fbp, fbc, created_at")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
         .limit(500) as any);

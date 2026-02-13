@@ -40,7 +40,7 @@ export function useWorkflowStatus() {
       // Query agent_decisions for workflow execution data
       const { data: decisions, error } = await supabase
         .from("agent_decisions")
-        .select("*")
+        .select("decision_type, status, outcome, executed_at, created_at")
         .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order("created_at", { ascending: false });
 

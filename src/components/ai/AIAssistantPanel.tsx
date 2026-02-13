@@ -94,7 +94,7 @@ export function AIAssistantPanel() {
         // Using raw query since table may not exist in schema yet
         const { data, error } = await (supabase as any)
           .from("proactive_insights")
-          .select("*")
+          .select("id, insight_type, priority, title, content, is_dismissed, created_at")
           .eq("is_dismissed", false)
           .order("created_at", { ascending: false })
           .limit(5);
@@ -129,7 +129,7 @@ export function AIAssistantPanel() {
         // Using raw query since table may not exist in schema yet
         const { data, error } = await (supabase as any)
           .from("agent_conversations")
-          .select("*")
+          .select("id, role, content, session_id, created_at")
           .eq("session_id", sessionId)
           .order("created_at", { ascending: true });
 

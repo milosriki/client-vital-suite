@@ -25,7 +25,7 @@ export default function HealthIntelligenceTab({ mode }: HealthIntelligenceTabPro
     queryFn: async () => {
       let query = supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, firstname, lastname, email, health_score, health_zone, churn_risk_score, health_trend, assigned_coach")
         .order("health_score", { ascending: true });
 
       if (zoneFilter !== "all") {

@@ -29,7 +29,7 @@ export default function SettingsTab() {
     try {
       const { data, error } = await (supabase
         .from("app_settings" as any)
-        .select("*")
+        .select("supabase_url, supabase_anon_key, capi_base_url, meta_pixel_id, meta_access_token, test_event_code, telegram_bot_token, telegram_chat_id")
         .single() as any);
       
       if (data) {

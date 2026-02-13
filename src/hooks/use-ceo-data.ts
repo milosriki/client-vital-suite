@@ -23,7 +23,7 @@ export function useCEOData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prepared_actions")
-        .select("*")
+        .select("id, action_type, action_title, action_description, reasoning, expected_impact, risk_level, confidence, prepared_payload, supporting_data, status, priority, source_agent, created_at, executed_at, rejection_reason")
         .in("status", ["prepared", "executing"])
         .order("priority", { ascending: false })
         .limit(50);
@@ -38,7 +38,7 @@ export function useCEOData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prepared_actions")
-        .select("*")
+        .select("id, action_type, action_title, action_description, reasoning, expected_impact, risk_level, confidence, prepared_payload, supporting_data, status, priority, source_agent, created_at, executed_at, rejection_reason")
         .in("status", ["executed", "failed"])
         .order("executed_at", { ascending: false })
         .limit(20);
@@ -53,7 +53,7 @@ export function useCEOData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("business_goals")
-        .select("*")
+        .select("id, goal_name, metric_name, baseline_value, current_value, target_value, deadline, status")
         .eq("status", "active");
       if (error) throw error;
       return (data || []) as BusinessGoal[];
@@ -65,7 +65,7 @@ export function useCEOData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("business_calibration")
-        .select("*")
+        .select("id, scenario_description, ai_recommendation, your_decision, was_ai_correct, created_at")
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;

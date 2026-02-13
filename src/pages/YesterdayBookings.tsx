@@ -47,7 +47,7 @@ const YesterdayBookings = () => {
       // Approach 1: Check intervention_log for booked assessments
       const { data: interventions, error: interventionError } = await supabase
         .from("intervention_log")
-        .select("*")
+        .select("id, firstname, lastname, email, assigned_to, executed_by, revenue_protected_aed, status, intervention_type, created_at, health_score_after, health_zone, notes")
         .or(
           "intervention_type.ilike.%booking%,intervention_type.ilike.%assessment%,intervention_type.ilike.%scheduled%",
         )
@@ -62,7 +62,7 @@ const YesterdayBookings = () => {
       // Approach 2: Check client_health_scores for GREEN/PURPLE clients from yesterday
       const { data: greenClients, error: clientError } = await supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, firstname, lastname, email, assigned_coach, package_value_aed, health_zone, health_score, calculated_at, client_segment")
         .in("health_zone", ["GREEN", "PURPLE"])
         .gte("calculated_at", yesterdayStartIso)
         .lte("calculated_at", yesterdayEndIso)

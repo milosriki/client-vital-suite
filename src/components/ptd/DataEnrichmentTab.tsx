@@ -47,7 +47,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from("batch_jobs" as any)
-        .select("*")
+        .select("id, batch_name, scheduled_time, status, events_count, events_sent, events_failed, mode, created_at")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
         .limit(10) as any);
@@ -64,7 +64,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from("batch_config" as any)
-        .select("*")
+        .select("id, config_name, batch_time, batch_size, last_run, enabled")
         .order("batch_time", { ascending: true }) as any);
       
       if (error) throw error;
