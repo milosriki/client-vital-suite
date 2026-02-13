@@ -49,7 +49,7 @@ export const useWarRoomData = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
-        .select("*")
+        .select("id, status, deal_value, cash_collected, created_at, updated_at, close_date, stage, owner_name")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -67,7 +67,7 @@ export const useWarRoomData = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enhanced_leads")
-        .select("*")
+        .select("id, email, first_name, last_name, created_at, conversion_status")
         .not("email", "ilike", "%@example.com")
         .not("email", "ilike", "%@test.com")
         .not("email", "ilike", "%@email.com")

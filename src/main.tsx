@@ -1,7 +1,7 @@
-import { StrictMode } from "react";
+import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import * as Sentry from "@sentry/react"; // Sentry Import
+import * as Sentry from "@sentry/react";
 import {
   QueryClient,
   QueryClientProvider,
@@ -15,55 +15,69 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider } from "@/contexts/AuthProvider"; // Import AuthProvider
-import { TimeMachineProvider } from "@/contexts/TimeMachineContext"; // Import TimeMachineProvider
+import { AuthProvider } from "@/contexts/AuthProvider";
+import { TimeMachineProvider } from "@/contexts/TimeMachineContext";
 import { startBackgroundLearning } from "@/lib/ptd-auto-learn";
 import { testAllFunctions } from "@/utils/testFunctions";
 import { verifyAllConnections } from "@/utils/verifyBrowserConnection";
-import { Fishbird } from "@/lib/fishbird-analytics"; // Import Fishbird
+import { Fishbird } from "@/lib/fishbird-analytics";
 import { SidebarProvider } from "@/hooks/use-sidebar";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
-Fishbird.init(); // Initialize Fishbird "Truth Layer"
-import Operations from "./pages/Operations";
-import Overview from "./pages/Overview";
-import Clients from "./pages/Clients";
-import ClientDetail from "./pages/ClientDetail";
-import Coaches from "./pages/Coaches";
-import Interventions from "./pages/Interventions";
-import AnalyticsPage from "./pages/Analytics";
-import MetaDashboard from "./pages/MetaDashboard";
-import HubSpotAnalyzer from "./pages/HubSpotAnalyzer";
-import SalesCoachTracker from "./pages/SalesCoachTracker";
-import SetterActivityToday from "./pages/SetterActivityToday";
-import YesterdayBookings from "./pages/YesterdayBookings";
-import HubSpotLiveData from "./pages/HubSpotLiveData";
-import CampaignMoneyMap from "./pages/CampaignMoneyMap";
-import TeamLeaderboard from "./pages/TeamLeaderboard";
-import AIBusinessAdvisor from "./pages/AIBusinessAdvisor";
-import SalesPipeline from "./pages/SalesPipeline";
-import CallTracking from "./pages/CallTracking";
-import AIKnowledge from "./pages/AIKnowledge";
-import AILearning from "./pages/AILearning";
+Fishbird.init();
+
+// Static imports — critical path (login, error, not-found)
+import ErrorPage from "./pages/ErrorPage";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import StripeIntelligence from "./pages/StripeIntelligence";
-import AuditTrail from "./pages/AuditTrail";
-import WarRoom from "./pages/WarRoom";
-import AIDevConsole from "./pages/AIDevConsole";
-import GlobalBrain from "./pages/GlobalBrain";
-import Observability from "./pages/Observability";
-import ExecutiveDashboard from "./pages/ExecutiveDashboard";
-import EdgeFunctionsPage from "./pages/admin/EdgeFunctions";
-import MasterControlPanel from "./pages/MasterControlPanel";
-import AttributionWarRoom from "./pages/AttributionWarRoom";
-import ErrorPage from "./pages/ErrorPage"; // Import ErrorPage
-import Login from "./pages/Login"; // Import Login Page
-import SkillCommandCenter from "./pages/SkillCommandCenter";
-import { ProtectedRoute } from "@/components/ProtectedRoute"; // Auth Guard
-import ReconciliationDashboard from "./pages/ReconciliationDashboard";
-import MarketingIntelligence from "./pages/MarketingIntelligence";
-import MarketingDeepIntelligence from "./pages/MarketingDeepIntelligence";
-import CommandCenter from "./pages/CommandCenter";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import "./index.css";
+
+// Lazy-loaded page imports — route-level code splitting
+const Operations = lazy(() => import("./pages/Operations"));
+const Overview = lazy(() => import("./pages/Overview"));
+const Clients = lazy(() => import("./pages/Clients"));
+const ClientDetail = lazy(() => import("./pages/ClientDetail"));
+const Coaches = lazy(() => import("./pages/Coaches"));
+const Interventions = lazy(() => import("./pages/Interventions"));
+const AnalyticsPage = lazy(() => import("./pages/Analytics"));
+const MetaDashboard = lazy(() => import("./pages/MetaDashboard"));
+const HubSpotAnalyzer = lazy(() => import("./pages/HubSpotAnalyzer"));
+const SalesCoachTracker = lazy(() => import("./pages/SalesCoachTracker"));
+const SetterActivityToday = lazy(() => import("./pages/SetterActivityToday"));
+const YesterdayBookings = lazy(() => import("./pages/YesterdayBookings"));
+const HubSpotLiveData = lazy(() => import("./pages/HubSpotLiveData"));
+const CampaignMoneyMap = lazy(() => import("./pages/CampaignMoneyMap"));
+const TeamLeaderboard = lazy(() => import("./pages/TeamLeaderboard"));
+const AIBusinessAdvisor = lazy(() => import("./pages/AIBusinessAdvisor"));
+const SalesPipeline = lazy(() => import("./pages/SalesPipeline"));
+const CallTracking = lazy(() => import("./pages/CallTracking"));
+const AIKnowledge = lazy(() => import("./pages/AIKnowledge"));
+const AILearning = lazy(() => import("./pages/AILearning"));
+const StripeIntelligence = lazy(() => import("./pages/StripeIntelligence"));
+const AuditTrail = lazy(() => import("./pages/AuditTrail"));
+const WarRoom = lazy(() => import("./pages/WarRoom"));
+const AIDevConsole = lazy(() => import("./pages/AIDevConsole"));
+const GlobalBrain = lazy(() => import("./pages/GlobalBrain"));
+const Observability = lazy(() => import("./pages/Observability"));
+const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
+const EdgeFunctionsPage = lazy(() => import("./pages/admin/EdgeFunctions"));
+const MasterControlPanel = lazy(() => import("./pages/MasterControlPanel"));
+const AttributionWarRoom = lazy(() => import("./pages/AttributionWarRoom"));
+const SkillCommandCenter = lazy(() => import("./pages/SkillCommandCenter"));
+const ReconciliationDashboard = lazy(() => import("./pages/ReconciliationDashboard"));
+const MarketingIntelligence = lazy(() => import("./pages/MarketingIntelligence"));
+const MarketingDeepIntelligence = lazy(() => import("./pages/MarketingDeepIntelligence"));
+const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+
+// Suspense wrapper helper
+function SuspensePage({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<PageSkeleton variant="dashboard" />}>
+      {children}
+    </Suspense>
+  );
+}
 
 // Initialize Sentry
 Sentry.init({
@@ -99,43 +113,43 @@ const router = createBrowserRouter([
     ),
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: <ExecutiveDashboard /> },
-      { path: "/dashboard", element: <ExecutiveDashboard /> },
-      { path: "/operations", element: <Operations /> },
-      { path: "/sales-pipeline", element: <SalesPipeline /> },
-      { path: "/stripe", element: <StripeIntelligence /> },
-      { path: "/call-tracking", element: <CallTracking /> },
-      { path: "/audit-trail", element: <AuditTrail /> },
-      { path: "/war-room", element: <WarRoom /> },
-      { path: "/ai-knowledge", element: <AIKnowledge /> },
-      { path: "/ai-learning", element: <AILearning /> },
-      { path: "/overview", element: <Overview /> },
-      { path: "/clients", element: <Clients /> },
-      { path: "/clients/:email", element: <ClientDetail /> },
-      { path: "/coaches", element: <Coaches /> },
-      { path: "/interventions", element: <Interventions /> },
-      { path: "/analytics", element: <AnalyticsPage /> },
-      { path: "/meta-dashboard", element: <MetaDashboard /> },
-      { path: "/hubspot-analyzer", element: <HubSpotAnalyzer /> },
-      { path: "/sales-coach-tracker", element: <SalesCoachTracker /> },
-      { path: "/setter-activity-today", element: <SetterActivityToday /> },
-      { path: "/yesterday-bookings", element: <YesterdayBookings /> },
-      { path: "/hubspot-live", element: <HubSpotLiveData /> },
-      { path: "/money-map", element: <CampaignMoneyMap /> },
-      { path: "/leaderboard", element: <TeamLeaderboard /> },
-      { path: "/ai-advisor", element: <AIBusinessAdvisor /> },
-      { path: "/ai-dev", element: <AIDevConsole /> },
-      { path: "/global-brain", element: <GlobalBrain /> },
-      { path: "/observability", element: <Observability /> },
-      { path: "/admin/edge-functions", element: <EdgeFunctionsPage /> },
-      { path: "/executive-dashboard", element: <ExecutiveDashboard /> },
-      { path: "/master-control", element: <MasterControlPanel /> },
-      { path: "/attribution", element: <AttributionWarRoom /> },
-      { path: "/reconciliation", element: <ReconciliationDashboard /> },
-      { path: "/marketing-intelligence", element: <MarketingIntelligence /> },
-      { path: "/deep-intel", element: <MarketingDeepIntelligence /> },
-      { path: "/skills-matrix", element: <SkillCommandCenter /> },
-      { path: "/command-center", element: <CommandCenter /> },
+      { index: true, element: <SuspensePage><ErrorBoundary><ExecutiveDashboard /></ErrorBoundary></SuspensePage> },
+      { path: "/dashboard", element: <SuspensePage><ErrorBoundary><ExecutiveDashboard /></ErrorBoundary></SuspensePage> },
+      { path: "/operations", element: <SuspensePage><Operations /></SuspensePage> },
+      { path: "/sales-pipeline", element: <SuspensePage><SalesPipeline /></SuspensePage> },
+      { path: "/stripe", element: <SuspensePage><StripeIntelligence /></SuspensePage> },
+      { path: "/call-tracking", element: <SuspensePage><CallTracking /></SuspensePage> },
+      { path: "/audit-trail", element: <SuspensePage><AuditTrail /></SuspensePage> },
+      { path: "/war-room", element: <SuspensePage><WarRoom /></SuspensePage> },
+      { path: "/ai-knowledge", element: <SuspensePage><AIKnowledge /></SuspensePage> },
+      { path: "/ai-learning", element: <SuspensePage><AILearning /></SuspensePage> },
+      { path: "/overview", element: <SuspensePage><Overview /></SuspensePage> },
+      { path: "/clients", element: <SuspensePage><Clients /></SuspensePage> },
+      { path: "/clients/:email", element: <SuspensePage><ClientDetail /></SuspensePage> },
+      { path: "/coaches", element: <SuspensePage><Coaches /></SuspensePage> },
+      { path: "/interventions", element: <SuspensePage><Interventions /></SuspensePage> },
+      { path: "/analytics", element: <SuspensePage><AnalyticsPage /></SuspensePage> },
+      { path: "/meta-dashboard", element: <SuspensePage><MetaDashboard /></SuspensePage> },
+      { path: "/hubspot-analyzer", element: <SuspensePage><HubSpotAnalyzer /></SuspensePage> },
+      { path: "/sales-coach-tracker", element: <SuspensePage><SalesCoachTracker /></SuspensePage> },
+      { path: "/setter-activity-today", element: <SuspensePage><ErrorBoundary><SetterActivityToday /></ErrorBoundary></SuspensePage> },
+      { path: "/yesterday-bookings", element: <SuspensePage><YesterdayBookings /></SuspensePage> },
+      { path: "/hubspot-live", element: <SuspensePage><HubSpotLiveData /></SuspensePage> },
+      { path: "/money-map", element: <SuspensePage><CampaignMoneyMap /></SuspensePage> },
+      { path: "/leaderboard", element: <SuspensePage><TeamLeaderboard /></SuspensePage> },
+      { path: "/ai-advisor", element: <SuspensePage><AIBusinessAdvisor /></SuspensePage> },
+      { path: "/ai-dev", element: <SuspensePage><AIDevConsole /></SuspensePage> },
+      { path: "/global-brain", element: <SuspensePage><GlobalBrain /></SuspensePage> },
+      { path: "/observability", element: <SuspensePage><Observability /></SuspensePage> },
+      { path: "/admin/edge-functions", element: <SuspensePage><EdgeFunctionsPage /></SuspensePage> },
+      { path: "/executive-dashboard", element: <SuspensePage><ExecutiveDashboard /></SuspensePage> },
+      { path: "/master-control", element: <SuspensePage><MasterControlPanel /></SuspensePage> },
+      { path: "/attribution", element: <SuspensePage><AttributionWarRoom /></SuspensePage> },
+      { path: "/reconciliation", element: <SuspensePage><ReconciliationDashboard /></SuspensePage> },
+      { path: "/marketing-intelligence", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
+      { path: "/deep-intel", element: <SuspensePage><MarketingDeepIntelligence /></SuspensePage> },
+      { path: "/skills-matrix", element: <SuspensePage><SkillCommandCenter /></SuspensePage> },
+      { path: "/command-center", element: <SuspensePage><ErrorBoundary><CommandCenter /></ErrorBoundary></SuspensePage> },
       { path: "*", element: <NotFound /> },
     ],
   },

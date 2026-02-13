@@ -31,15 +31,125 @@ import { format } from "date-fns";
 import { STATUS_CONFIG, CALL_STATUS_CONFIG } from "./constants";
 import { DealsKanban } from "./DealsKanban";
 
+interface FunnelLead {
+  id: string;
+  first_name?: string | null;
+  firstname?: string | null;
+  last_name?: string | null;
+  lastname?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  source?: string | null;
+  latest_traffic_source?: string | null;
+  owner_name?: string | null;
+  status?: string | null;
+  created_at: string;
+}
+
+interface FunnelData {
+  leads: FunnelLead[];
+  statusCounts: Record<string, number>;
+  sourceCounts: Record<string, number>;
+  total: number;
+}
+
+interface EnhancedLead {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  campaign_id?: string | null;
+  campaign_name?: string | null;
+  ad_id?: string | null;
+  ad_name?: string | null;
+  lead_quality?: string | null;
+  created_at?: string | null;
+}
+
+interface Contact {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  lifecycle_stage?: string | null;
+  status?: string | null;
+  total_value?: number | null;
+}
+
+interface DealRecord {
+  id: string;
+  deal_name?: string | null;
+  stage?: string | null;
+  status?: string | null;
+  deal_value?: number | null;
+  cash_collected?: number | null;
+  created_at?: string | null;
+}
+
+interface DealsData {
+  deals: DealRecord[];
+  closedCount: number;
+  totalValue: number;
+  totalCollected: number;
+  avgDealValue: number;
+}
+
+interface CallRecord {
+  id: string;
+  caller_number?: string | null;
+  agent_name?: string | null;
+  call_status?: string | null;
+  call_outcome?: string | null;
+  duration_seconds?: number | null;
+  lead_quality?: string | null;
+  transcription?: string | null;
+  recording_url?: string | null;
+  created_at?: string | null;
+}
+
+interface CallRecordsData {
+  calls: CallRecord[];
+  statusCounts: Record<string, number>;
+  total: number;
+}
+
+interface Appointment {
+  id: string;
+  scheduled_at: string;
+  status?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+}
+
+interface AppointmentsData {
+  appointments: Appointment[];
+  scheduled: number;
+  completed: number;
+}
+
+interface AllLead {
+  email?: string | null;
+  phone?: string | null;
+  call_attempt_count?: number | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  owner?: string | null;
+  lead_source?: string | null;
+  campaign?: string | null;
+}
+
 interface SalesTabsProps {
-  funnelData: any;
-  enhancedLeads: any[];
-  contacts: any[];
-  dealsData: any;
-  callRecords: any;
-  appointments: any;
-  allLeads: any[];
-  onDealClick?: (deal: any) => void;
+  funnelData: FunnelData | undefined;
+  enhancedLeads: EnhancedLead[];
+  contacts: Contact[];
+  dealsData: DealsData | undefined;
+  callRecords: CallRecordsData | undefined;
+  appointments: AppointmentsData | undefined;
+  allLeads: AllLead[];
+  onDealClick?: (deal: DealRecord) => void;
 }
 
 export const SalesTabs = ({
@@ -95,7 +205,7 @@ export const SalesTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(funnelData?.leads || []).slice(0, 50).map((lead: any) => (
+                  {(funnelData?.leads || []).slice(0, 50).map((lead: FunnelLead) => (
                     <TableRow key={lead.id}>
                       <TableCell className="font-medium">
                         {lead.first_name || lead.firstname}{" "}
@@ -124,7 +234,7 @@ export const SalesTabs = ({
                         <div className="flex items-center gap-2">
                           {allLeads.find((l) => l.email === lead.email)
                             ?.call_attempt_count > 0 ||
-                          callRecords?.calls?.some((c: any) =>
+                          callRecords?.calls?.some((c: CallRecord) =>
                             c.caller_number?.includes(
                               lead.phone?.replace(/\D/g, ""),
                             ),
@@ -366,7 +476,7 @@ export const SalesTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {callRecords?.calls?.map((call: any) => {
+                  {callRecords?.calls?.map((call: CallRecord) => {
                     const statusConfig =
                       CALL_STATUS_CONFIG[call.call_status] ||
                       CALL_STATUS_CONFIG.initiated;
@@ -545,7 +655,7 @@ export const SalesTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {appointments?.appointments?.map((apt: any) => (
+                  {appointments?.appointments?.map((apt: Appointment) => (
                     <TableRow key={apt.id}>
                       <TableCell className="font-medium">
                         {format(

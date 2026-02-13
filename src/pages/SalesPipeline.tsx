@@ -222,7 +222,7 @@ export default function SalesPipeline() {
     queryKey: ["enhanced-leads", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("enhanced_leads").select("*");
+      let query = supabase.from("enhanced_leads").select("id, first_name, last_name, email, phone, campaign_id, campaign_name, ad_id, ad_name, lead_quality, created_at");
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);
       }
@@ -241,7 +241,7 @@ export default function SalesPipeline() {
     queryKey: ["contacts", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("contacts").select("*");
+      let query = supabase.from("contacts").select("id, first_name, last_name, email, phone, city, lifecycle_stage, status, total_value, contact_unworked, created_at");
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);
       }
@@ -260,7 +260,7 @@ export default function SalesPipeline() {
     queryKey: ["deals-summary", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("deals").select("*");
+      let query = supabase.from("deals").select("id, deal_name, stage, status, deal_value, cash_collected, amount, close_date, contact_id, owner_name, pipeline_id, org_id, created_at, updated_at");
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);
       }
@@ -296,7 +296,7 @@ export default function SalesPipeline() {
     queryKey: ["call-records", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("call_records").select("*");
+      let query = supabase.from("call_records").select("id, caller_number, agent_name, call_status, call_outcome, duration_seconds, lead_quality, transcription, recording_url, appointment_set, created_at");
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);
       }
@@ -323,7 +323,7 @@ export default function SalesPipeline() {
     queryKey: ["appointments-summary", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("appointments").select("*");
+      let query = supabase.from("appointments").select("id, scheduled_at, status, notes, created_at");
       if (dateFilter) {
         query = query.gte("scheduled_at", dateFilter);
       }

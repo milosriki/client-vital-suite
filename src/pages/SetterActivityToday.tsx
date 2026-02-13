@@ -60,7 +60,7 @@ const SetterActivityToday = () => {
     queryFn: async () => {
       let query = supabase
         .from("call_records")
-        .select("*")
+        .select("id, created_at, call_status, call_outcome, owner, assigned_to, duration_seconds, caller_number")
         .gte("created_at", todayStartIso)
         .lte("created_at", todayEndIso)
         .order("created_at", { ascending: false });
@@ -82,7 +82,7 @@ const SetterActivityToday = () => {
     queryFn: async () => {
       let query = supabase
         .from("deals")
-        .select("*")
+        .select("id, stage, deal_value, owner_name, updated_at, deal_name, created_at")
         .in("stage", [HUBSPOT_STAGE_IDS.BOOKED, HUBSPOT_STAGE_IDS.HELD, HUBSPOT_STAGE_IDS.ASSESSMENT_DONE])
         .gte("updated_at", todayStartIso)
         .order("updated_at", { ascending: false });

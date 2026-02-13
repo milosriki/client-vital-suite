@@ -32,7 +32,7 @@ export const dealsApi = {
   getDeals: async (): Promise<Deal[]> => {
     const { data, error } = await supabase
       .from("deals")
-      .select("*")
+      .select("id, deal_name, stage, amount, close_date, org_id, pipeline_id, contact_id, created_at, updated_at, status, deal_value, cash_collected")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
