@@ -11,14 +11,15 @@ import { getRDSConfig } from "../_shared/rds-client.ts";
 import { UnauthorizedError } from "../_shared/app-errors.ts";
 
 /**
- * AWS TRUTH ALIGNMENT ENGINE (Supreme Court of Data)
+ * AWS TRUTH ALIGNMENT ENGINE
  *
- * Objectives:
- * 1. Pull Ground-Truth session data from AWS RDS UAE Replica.
- * 2. Pull Package Balances from AWS RDS.
- * 3. Pull Coach Attribution from AWS RDS (Ongoing Trainer).
- * 4. Reconcile with Supabase/HubSpot Mirror.
- * 5. Update Supabase when 100% sure.
+ * ALL AWS operations are READ-ONLY. Data flows one way: AWS → Supabase.
+ *
+ * Steps:
+ * 1. READ packages from AWS vw_client_packages (remaining sessions, pack size, amount)
+ * 2. READ session stats from AWS vw_schedulers (coach, attended/cancelled counts, last session)
+ * 3. WRITE to Supabase aws_truth_cache (view_contact_360 reads from this)
+ * 4. UPDATE contacts.outstanding_sessions + assigned_coach where different
  */
 
 Deno.serve(async (req) => {
@@ -39,36 +40,70 @@ Deno.serve(async (req) => {
   let rdsClient: PostgresClient | null = null;
 
   try {
-    // 1. Connect to AWS Backoffice Replica
+    // 1. Connect to AWS Backoffice Replica (READ-ONLY)
     const config = getRDSConfig("backoffice");
     if (!config.password) {
       console.error(
-        "[truth-alignment] CRITICAL: AWS_RDS_BACKOFFICE_PASSWORD not set in secrets.",
+        "[truth-alignment] CRITICAL: RDS_BACKOFFICE_PASSWORD not set in secrets.",
       );
       return apiError(
         "CONFIG_ERROR",
-        "AWS RDS password not configured. Set AWS_RDS_BACKOFFICE_PASSWORD in Supabase secrets.",
+        "AWS RDS password not configured. Set RDS_BACKOFFICE_PASSWORD in Supabase secrets.",
         500,
       );
     }
     rdsClient = new PostgresClient(config);
     await rdsClient.connect();
-    console.log("[truth-alignment] Connected to AWS RDS.");
+    console.log("[truth-alignment] Connected to AWS RDS (READ-ONLY).");
 
-    // 2. Fetch AWS Ground Truth (SIMPLIFIED FOR DIAGNOSTICS)
+    // 2. READ packages + computed session stats from AWS
+    // Joins vw_client_packages for balances + vw_schedulers for coach/session activity
     const truthQuery = `
-      SELECT 
+      SELECT
         m.email,
         m.full_name,
-        p.remainingsessions as outstanding_sessions,
-        p.packsize as total_purchased
+        p.remainingsessions AS outstanding_sessions,
+        p.packsize AS total_purchased,
+        p.name_packet AS package_name,
+        p.amounttotal AS lifetime_revenue,
+        -- Coach: most recent trainer from vw_schedulers
+        (
+          SELECT s.trainer_name
+          FROM enhancesch.vw_schedulers s
+          WHERE s.id_client = m.id_client
+            AND s.status IN ('Completed', 'Attended')
+          ORDER BY s.training_date_utc DESC
+          LIMIT 1
+        ) AS coach_name,
+        -- Last session date
+        (
+          SELECT MAX(s.training_date_utc)
+          FROM enhancesch.vw_schedulers s
+          WHERE s.id_client = m.id_client
+            AND s.status IN ('Completed', 'Attended')
+        ) AS last_session_date,
+        -- Sessions attended (all time)
+        (
+          SELECT COUNT(*)
+          FROM enhancesch.vw_schedulers s
+          WHERE s.id_client = m.id_client
+            AND s.status IN ('Completed', 'Attended')
+        ) AS total_sessions_attended,
+        -- Sessions cancelled (all time)
+        (
+          SELECT COUNT(*)
+          FROM enhancesch.vw_schedulers s
+          WHERE s.id_client = m.id_client
+            AND s.status IN ('Cancelled', 'No Show')
+        ) AS total_sessions_cancelled
       FROM enhancesch.vw_client_master m
       JOIN enhancesch.vw_client_packages p ON m.id_client = p.id_client
       WHERE p.remainingsessions >= 0
-      LIMIT 100;
+        AND m.email IS NOT NULL
+      LIMIT 500;
     `;
 
-    const truthResult = await rdsClient.queryObject(truthQuery).catch((err) => {
+    const truthResult = await rdsClient.queryObject(truthQuery).catch((err: Error) => {
       console.error("[truth-alignment] SQL Error:", err);
       throw err;
     });
@@ -77,25 +112,50 @@ Deno.serve(async (req) => {
       `[truth-alignment] Retrieved ${awsTruth.length} truth records from AWS.`,
     );
 
-    // 3. Fetch Staff for mapping
-    const { data: staff } = await supabase
-      .from("staff")
-      .select("id, full_name");
-    const staffMap: Record<string, string> = {};
-    staff?.forEach((s) => {
-      if (s.full_name) staffMap[s.full_name.toLowerCase()] = s.id;
-    });
+    // 3. WRITE to aws_truth_cache (view_contact_360 reads from this table)
+    const cacheRows = awsTruth.map((truth: any) => ({
+      email: truth.email.toLowerCase(),
+      full_name: truth.full_name || null,
+      outstanding_sessions: Number(truth.outstanding_sessions) || 0,
+      package_name: truth.package_name || null,
+      lifetime_revenue: Number(truth.lifetime_revenue) || 0,
+      coach_name: truth.coach_name || null,
+      last_session_date: truth.last_session_date || null,
+      total_sessions_attended: Number(truth.total_sessions_attended) || 0,
+      total_sessions_cancelled: Number(truth.total_sessions_cancelled) || 0,
+      leak_score: truth.total_purchased > 0
+        ? Math.round(
+            ((Number(truth.total_purchased) - Number(truth.outstanding_sessions)) /
+              Number(truth.total_purchased)) *
+              100,
+          )
+        : null,
+      updated_at: new Date().toISOString(),
+    }));
 
-    // 4. Fetch Supabase Customers
+    if (cacheRows.length > 0) {
+      const { error: cacheError } = await supabase
+        .from("aws_truth_cache")
+        .upsert(cacheRows, { onConflict: "email" });
+
+      if (cacheError) {
+        console.error("[truth-alignment] Cache upsert error:", cacheError.message);
+      } else {
+        console.log(`[truth-alignment] Cached ${cacheRows.length} records to aws_truth_cache.`);
+      }
+    }
+
+    // 4. Fetch Supabase Customers for contact alignment
     const { data: contacts } = await supabase
       .from("contacts")
-      .select("id, email, outstanding_sessions, coach_uuid, assigned_coach")
+      .select("id, email, outstanding_sessions, assigned_coach")
       .eq("lifecycle_stage", "customer");
 
-    // 5. Compare & Prepare Updates
+    // 5. Compare & Prepare Contact Updates
     const updates: any[] = [];
     const report = {
       total_checked: awsTruth.length,
+      cached: cacheRows.length,
       matched: 0,
       aligned: 0,
       discrepancies: [] as any[],
@@ -111,44 +171,42 @@ Deno.serve(async (req) => {
 
       report.matched++;
 
-      const coachUuid = truth.ongoing_coach
-        ? staffMap[truth.ongoing_coach.toLowerCase()]
-        : null;
+      const awsCoach = truth.coach_name || null;
+      const awsSessions = Number(truth.outstanding_sessions) || 0;
 
-      // Determine if update is needed (100% Sure logic)
+      // Determine if contact update is needed
       const needsUpdate =
-        Number(local.outstanding_sessions) !==
-          Number(truth.outstanding_sessions) || local.coach_uuid !== coachUuid;
+        Number(local.outstanding_sessions) !== awsSessions ||
+        (awsCoach && local.assigned_coach !== awsCoach);
 
       if (needsUpdate) {
-        updates.push({
+        const update: Record<string, unknown> = {
           id: local.id,
-          outstanding_sessions: Number(truth.outstanding_sessions),
-          coach_uuid: coachUuid,
-          sessions_last_7d: Number(truth.sessions_7d) || 0,
-          sessions_last_30d: Number(truth.sessions_30d) || 0,
-          sessions_last_90d: Number(truth.sessions_90d) || 0,
-          last_paid_session_date: truth.last_session_date,
+          outstanding_sessions: awsSessions,
           updated_at: new Date().toISOString(),
-        });
+        };
+        // Only update coach if AWS has a value
+        if (awsCoach) {
+          update.assigned_coach = awsCoach;
+        }
 
+        updates.push(update);
         report.aligned++;
         report.discrepancies.push({
           email: truth.email,
           field: "sessions/coach",
           old: {
             sessions: local.outstanding_sessions,
-            coach: local.coach_uuid,
+            coach: local.assigned_coach,
           },
-          new: { sessions: truth.outstanding_sessions, coach: coachUuid },
+          new: { sessions: awsSessions, coach: awsCoach },
         });
       }
     }
 
-    // 6. Execute Updates in Batches
+    // 6. Execute Contact Updates in Batches
     if (updates.length > 0) {
-      console.log(`[truth-alignment] Aligning ${updates.length} records...`);
-      // Use upsert for batch updates by ID
+      console.log(`[truth-alignment] Aligning ${updates.length} contacts...`);
       const { error: updateError } = await supabase
         .from("contacts")
         .upsert(updates);
@@ -162,7 +220,7 @@ Deno.serve(async (req) => {
       sync_type: "alignment",
       status: "completed",
       records_processed: updates.length,
-      message: `Aligned ${updates.length} clients with AWS ground truth.`,
+      message: `Cached ${cacheRows.length} to aws_truth_cache. Aligned ${updates.length} contacts.`,
     });
 
     return apiSuccess({
@@ -171,8 +229,9 @@ Deno.serve(async (req) => {
       duration_ms: Date.now() - startTime,
     });
   } catch (error: unknown) {
-    console.error("[truth-alignment] Error:", error);
-    return apiError("INTERNAL_ERROR", error.message, 500);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[truth-alignment] Error:", msg);
+    return apiError("INTERNAL_ERROR", msg, 500);
   } finally {
     if (rdsClient) await rdsClient.end();
   }
