@@ -64,3 +64,7 @@ payload_smart.json
 response.json
 response_marko.json
 response_smart.json
+.worktrees/
+.claude/
+.agent/
+.loki/

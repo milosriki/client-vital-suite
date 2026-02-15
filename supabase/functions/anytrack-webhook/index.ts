@@ -12,6 +12,38 @@ import {
   parseJsonSafely,
 } from "../_shared/error-handler.ts";
 
+// Parse Facebook ad parameters from landing page URLs
+// AnyTrack stores the full landing URL in event.location which contains
+// ad_id=, adset_id=, hsa_cam= (campaign ID), utm_source, etc.
+function parseFbParamsFromUrl(url: string | null | undefined): {
+  ad_id: string | null;
+  adset_id: string | null;
+  campaign_id: string | null;
+} {
+  if (!url) return { ad_id: null, adset_id: null, campaign_id: null };
+  try {
+    const parsed = new URL(url);
+    return {
+      ad_id: parsed.searchParams.get("ad_id") || null,
+      adset_id: parsed.searchParams.get("adset_id") || null,
+      campaign_id: parsed.searchParams.get("utm_id")
+        || parsed.searchParams.get("hsa_cam")
+        || parsed.searchParams.get("campaign_id")
+        || null,
+    };
+  } catch {
+    // Malformed URL — try regex fallback
+    const adMatch = url.match(/[?&]ad_id=([^&]+)/);
+    const adsetMatch = url.match(/[?&]adset_id=([^&]+)/);
+    const campMatch = url.match(/[?&](?:utm_id|hsa_cam|campaign_id)=([^&]+)/);
+    return {
+      ad_id: adMatch?.[1] || null,
+      adset_id: adsetMatch?.[1] || null,
+      campaign_id: campMatch?.[1] || null,
+    };
+  }
+}
+
 // AnyTrack Webhook Receiver - syncs conversion events to Supabase
 serve(async (req) => {
   // Webhook endpoint — external service, no JWT auth (verify_jwt=false in config.toml)
@@ -138,11 +170,16 @@ serve(async (req) => {
 
         // Also create/update attribution event for journey tracking
         if (event.eventName === "Purchase" || event.eventName === "Lead" || event.eventName === "CompleteRegistration") {
+          // Extract real Facebook ad/adset/campaign IDs from landing page URL
+          // These are numeric IDs (e.g. 120215...) — NOT fbclid which is a click tracker
+          const fbParams = parseFbParamsFromUrl(event.location);
+
           const attributionData = {
             event_id: eventData.event_id,
             event_name: eventData.event_name,
             event_time: eventData.event_time,
             email: eventData.user_data.em,
+            phone: eventData.user_data.ph,
             first_name: eventData.user_data.fn,
             last_name: eventData.user_data.ln,
             value: eventData.custom.value,
@@ -158,10 +195,10 @@ serve(async (req) => {
             landing_page: event.location || null,
             referrer: event.mainAttribution?.referrer || null,
             platform: "anytrack",
-            // Facebook attribution IDs — populated from fbclid/click_id when available
-            fb_ad_id: event.mainAttribution?.fbclid || event.clickId || null,
-            fb_campaign_id: event.mainAttribution?.campaign_id || null,
-            fb_adset_id: event.mainAttribution?.adset_id || null,
+            // Facebook ad IDs — parsed from landing page URL params (ad_id=, adset_id=, hsa_cam=)
+            fb_ad_id: fbParams.ad_id,
+            fb_campaign_id: fbParams.campaign_id,
+            fb_adset_id: fbParams.adset_id,
             fb_campaign_name: event.mainAttribution?.campaign || null,
             fb_ad_name: event.adName || null,
             fb_adset_name: event.adSetName || null,

@@ -11,6 +11,13 @@ PTD LEAD JOURNEY:
 4. Opportunity
 5. Closed Won ✅
 - Rules: Query LIVE Supabase tables.
+
+## 🏆 CONSTITUTIONAL SALES RUBRIC (GEMINI 3 FLASH)
+Evaluate every call based on INTENT, not Duration:
+- SENTIMENT (40%): Affirmative language, urgency, commitment.
+- NEPQ MATCH (40%): Dominant Pain found? Binary choice offered?
+- OUTCOME (20%): Matches transcript reality.
+- VERDICT: IQ > 85 = WINNER | IQ < 50 = NOISE.
 `;
 
 export const UNIFIED_SCHEMA_PROMPT = `
