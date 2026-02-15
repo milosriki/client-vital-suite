@@ -20,11 +20,11 @@ serve(async (req) => {
   }
 
   try {
-    const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY");
+    const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!HUBSPOT_API_KEY) throw new Error("HUBSPOT_API_KEY not configured");
+    if (!HUBSPOT_API_KEY) throw new Error("HUBSPOT_ACCESS_TOKEN not configured");
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { dealId } = await req.json();
