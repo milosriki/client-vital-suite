@@ -9,6 +9,7 @@ import { ChartCard } from "@/components/dashboard/cards/ChartCard";
 import { DataTableCard } from "@/components/dashboard/cards/DataTableCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDeepAnalysis, useMetaAds, useMoneyMap } from "@/hooks/useMarketingAnalytics";
 import {
   LineChart,
   Line,
@@ -32,7 +33,7 @@ export default function MarketingAnalytics() {
   const [dateRange, setDateRange] = useState("this_month");
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Fetch real data
+  // Fetch real data for overview
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["marketing-analytics", dateRange],
     queryFn: async () => {
@@ -44,8 +45,16 @@ export default function MarketingAnalytics() {
     },
   });
 
+  // Fetch tab-specific data
+  const deepAnalysis = useDeepAnalysis(dateRange);
+  const metaAds = useMetaAds(dateRange);
+  const moneyMap = useMoneyMap(dateRange);
+
   const handleRefresh = () => {
     refetch();
+    deepAnalysis.refetch();
+    metaAds.refetch();
+    moneyMap.refetch();
   };
 
   // Map real data or safe defaults (Using zone_a.metrics from business-intelligence-dashboard)
@@ -104,8 +113,8 @@ export default function MarketingAnalytics() {
     { source: "Organic", leads: 76, closed: 6, revenue: 12100, cac: 0, roi: Infinity },
   ];
 
-  // Deep Analysis mock data
-  const baselineComparison = [
+  // Deep Analysis - use real data or fallback to mock
+  const baselineComparison = deepAnalysis.data?.baselineComparison || [
     { metric: "CPL", current: 14.70, baseline: 15.80, variance: -6.96, status: "improving" },
     { metric: "Conversion Rate", current: 4.96, baseline: 4.25, variance: 16.71, status: "improving" },
     { metric: "ROAS", current: 6.8, baseline: 5.2, variance: 30.77, status: "improving" },
@@ -122,7 +131,7 @@ export default function MarketingAnalytics() {
     { reason: "Not Qualified", count: 12 },
   ];
 
-  const cohortAnalysisData = [
+  const cohortAnalysisData = deepAnalysis.data?.cohortAnalysis || [
     { month: "Feb 2026", leads: 847, conv: 4.96, revenue: 84700, roas: 6.8, cac: 1834, trend: "+12%" },
     { month: "Jan 2026", leads: 756, conv: 4.52, revenue: 75600, roas: 6.2, cac: 1892, trend: "+8%" },
     { month: "Dec 2025", leads: 698, conv: 4.21, revenue: 69800, roas: 5.8, cac: 1945, trend: "+2%" },
@@ -130,16 +139,21 @@ export default function MarketingAnalytics() {
     { month: "Oct 2025", leads: 718, conv: 4.35, revenue: 71800, roas: 6.0, cac: 1912, trend: "+7%" },
   ];
 
-  // Meta Ads mock data
-  const metaMetrics = [
-    { label: "Impressions", value: "1.2M", delta: { value: 15, type: "positive" as const }, icon: BarChart3 },
-    { label: "Clicks", value: "21,840", delta: { value: 18, type: "positive" as const }, icon: Target },
-    { label: "CTR", value: "1.82%", delta: { value: 0.1, type: "positive" as const }, icon: TrendingUp },
-    { label: "CPC", value: "$0.82", delta: { value: -0.12, type: "positive" as const }, icon: DollarSign },
-    { label: "Frequency", value: "2.8", delta: { value: 0.3, type: "neutral" as const }, icon: BarChart3 },
+  // Meta Ads - use real data or fallback to mock, map icon strings to components
+  const iconMap = { BarChart3, Target, TrendingUp, DollarSign };
+  const metaMetricsRaw = metaAds.data?.metrics || [
+    { label: "Impressions", value: "1.2M", delta: { value: 15, type: "positive" as const }, icon: "BarChart3" },
+    { label: "Clicks", value: "21,840", delta: { value: 18, type: "positive" as const }, icon: "Target" },
+    { label: "CTR", value: "1.82%", delta: { value: 0.1, type: "positive" as const }, icon: "TrendingUp" },
+    { label: "CPC", value: "$0.82", delta: { value: -0.12, type: "positive" as const }, icon: "DollarSign" },
+    { label: "Frequency", value: "2.8", delta: { value: 0.3, type: "neutral" as const }, icon: "BarChart3" },
   ];
+  const metaMetrics = metaMetricsRaw.map(m => ({
+    ...m,
+    icon: iconMap[m.icon as keyof typeof iconMap] || BarChart3,
+  }));
 
-  const metaCampaigns = [
+  const metaCampaigns = metaAds.data?.campaigns || [
     { campaign: "Summer Sale 2026", status: "Active", spend: 4234, leads: 324, cpl: 13.07, roas: 8.5 },
     { campaign: "Retargeting Q1", status: "Active", spend: 3124, leads: 218, cpl: 14.33, roas: 12.3 },
     { campaign: "Brand Awareness", status: "Active", spend: 2856, leads: 142, cpl: 20.11, roas: 4.2 },
@@ -147,16 +161,20 @@ export default function MarketingAnalytics() {
     { campaign: "Webinar Feb", status: "Ended", spend: 1234, leads: 42, cpl: 29.38, roas: 3.2 },
   ];
 
-  // Money Map mock data
-  const moneyMapMetrics = [
-    { label: "Total ROI", value: "8.3x", delta: { value: 1.2, type: "positive" as const }, icon: TrendingUp },
-    { label: "True CAC", value: "$1,834", delta: { value: -142, type: "positive" as const }, icon: DollarSign },
-    { label: "LTV", value: "$8,245", delta: { value: 324, type: "positive" as const }, icon: DollarSign },
-    { label: "LTV:CAC", value: "4.5:1", delta: { value: 0.3, type: "positive" as const }, icon: Target },
-    { label: "Payback", value: "3.2 mo", delta: { value: -0.8, type: "positive" as const }, icon: BarChart3 },
+  // Money Map - use real data or fallback to mock, map icon strings to components
+  const moneyMapMetricsRaw = moneyMap.data?.metrics || [
+    { label: "Total ROI", value: "8.3x", delta: { value: 1.2, type: "positive" as const }, icon: "TrendingUp" },
+    { label: "True CAC", value: "$1,834", delta: { value: -142, type: "positive" as const }, icon: "DollarSign" },
+    { label: "LTV", value: "$8,245", delta: { value: 324, type: "positive" as const }, icon: "DollarSign" },
+    { label: "LTV:CAC", value: "4.5:1", delta: { value: 0.3, type: "positive" as const }, icon: "Target" },
+    { label: "Payback", value: "3.2 mo", delta: { value: -0.8, type: "positive" as const }, icon: "BarChart3" },
   ];
+  const moneyMapMetrics = moneyMapMetricsRaw.map(m => ({
+    ...m,
+    icon: iconMap[m.icon as keyof typeof iconMap] || BarChart3,
+  }));
 
-  const campaignROI = [
+  const campaignROI = moneyMap.data?.campaignROI || [
     { campaign: "Summer Sale", spend: 4234, revenue: 35700, roi: 8.4, cac: 1307, ltv: 8500, margin: 31466 },
     { campaign: "Retargeting Q1", spend: 3124, revenue: 38400, roi: 12.3, cac: 982, ltv: 10105, margin: 35276 },
     { campaign: "Brand Awareness", spend: 2856, revenue: 10600, roi: 3.7, cac: 2011, ltv: 7465, margin: 7744 },
