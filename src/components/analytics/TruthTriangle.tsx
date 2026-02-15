@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 interface TruthTriangleProps {
   hubspotValue: number;
   stripeValue: number;
-  posthogValue: number;
+  metaValue: number;
   className?: string;
 }
 
@@ -80,7 +80,7 @@ const Connection = ({
 export function TruthTriangle({
   hubspotValue,
   stripeValue,
-  posthogValue,
+  metaValue,
   className,
 }: TruthTriangleProps) {
   const containerSize = 400;
@@ -96,8 +96,8 @@ export function TruthTriangle({
     x: centerX + radius * Math.cos(Math.PI / 6),
     y: centerY + radius * Math.sin(Math.PI / 6),
   };
-  // Bottom Left (PostHog - Analytics)
-  const posthogPos = {
+  // Bottom Left (Meta - Ad Platform)
+  const metaPos = {
     x: centerX - radius * Math.cos(Math.PI / 6),
     y: centerY + radius * Math.sin(Math.PI / 6),
   };
@@ -107,12 +107,12 @@ export function TruthTriangle({
     Math.abs(a - b) / ((a + b) / 2) < 0.01;
 
   const stripeHubspotMatch = isMatch(stripeValue, hubspotValue);
-  const stripePosthogMatch = isMatch(stripeValue, posthogValue);
-  const hubspotPosthogMatch = isMatch(hubspotValue, posthogValue);
+  const stripeMetaMatch = isMatch(stripeValue, metaValue);
+  const hubspotMetaMatch = isMatch(hubspotValue, metaValue);
 
   // Center Status
   const allMatch =
-    stripeHubspotMatch && stripePosthogMatch && hubspotPosthogMatch;
+    stripeHubspotMatch && stripeMetaMatch && hubspotMetaMatch;
 
   return (
     <div
@@ -143,16 +143,16 @@ export function TruthTriangle({
       <Connection
         x1={hubspotPos.x}
         y1={hubspotPos.y}
-        x2={posthogPos.x}
-        y2={posthogPos.y}
-        isMatch={hubspotPosthogMatch}
+        x2={metaPos.x}
+        y2={metaPos.y}
+        isMatch={hubspotMetaMatch}
       />
       <Connection
-        x1={posthogPos.x}
-        y1={posthogPos.y}
+        x1={metaPos.x}
+        y1={metaPos.y}
         x2={stripePos.x}
         y2={stripePos.y}
-        isMatch={stripePosthogMatch}
+        isMatch={stripeMetaMatch}
       />
 
       {/* Nodes */}
@@ -169,10 +169,10 @@ export function TruthTriangle({
         {...hubspotPos}
       />
       <Node
-        label="POSTHOG"
-        value={posthogValue}
-        color="text-purple-400"
-        {...posthogPos}
+        label="META"
+        value={metaValue}
+        color="text-blue-400"
+        {...metaPos}
       />
 
       {/* Center Label */}

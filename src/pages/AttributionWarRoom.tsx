@@ -23,6 +23,7 @@ import { ErrorDetective } from "@/lib/error-detective";
 import { TruthTriangle } from "@/components/analytics/TruthTriangle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAnnounce } from "@/lib/accessibility";
+import { useTruthTriangle } from "@/hooks/useTruthTriangle";
 
 // --- Sub-Components ---
 
@@ -82,6 +83,14 @@ const CampaignRow = ({ camp, index, formatCurrency }: any) => (
 const AttributionWarRoom = () => {
   const [period, setPeriod] = useState("this_month");
 
+  // Fetch the Truth Triangle data from the materialized view
+  const {
+    data: truthTriangleData,
+    isLoading: isLoadingTriangle,
+    refetch: refetchTriangle,
+    error: triangleError,
+  } = useTruthTriangle();
+
   // Fetch the Truth from our new Edge Function
   const { data, isLoading, refetch, error } = useQuery({
     queryKey: ["attribution-truth", period],
@@ -135,12 +144,15 @@ const AttributionWarRoom = () => {
             Last 30 Days
           </Button>
           <Button
-            onClick={() => refetch()}
-            disabled={isLoading}
+            onClick={() => {
+              refetch();
+              refetchTriangle();
+            }}
+            disabled={isLoading || isLoadingTriangle}
             variant="outline"
           >
             <RefreshCw
-              className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              className={`mr-2 h-4 w-4 ${isLoading || isLoadingTriangle ? "animate-spin" : ""}`}
             />
             Re-Verify Data
           </Button>
@@ -157,11 +169,21 @@ const AttributionWarRoom = () => {
         </Alert>
       )}
 
+      {triangleError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Truth Triangle Data Unavailable</AlertTitle>
+          <AlertDescription>
+            Could not load monthly reconciliation data. {String(triangleError)}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* The Truth Triangle (Visual Data Reconciliation) */}
       <TruthTriangle
-        hubspotValue={data?.financials?.attributed_revenue || 0}
-        stripeValue={data?.financials?.attributed_revenue || 0} // Using HubSpot as proxy for verified revenue until Stripe fully linked
-        posthogValue={data?.financials?.attributed_revenue || 0} // Using HubSpot as proxy for verified revenue until PostHog fully linked
+        hubspotValue={truthTriangleData?.hubspot_deal_value || 0}
+        stripeValue={truthTriangleData?.stripe_gross_revenue || 0}
+        metaValue={truthTriangleData?.meta_reported_revenue || 0}
         className="mb-8"
       />
 
