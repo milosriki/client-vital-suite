@@ -55,7 +55,7 @@ Key files:
 
 - [x] **3. MarketingAnalytics.tsx** — Wire tabs 2-4. Tab 2 (Deep Analysis): query `facebook_ads_insights` for historical comparison. Tab 3 (Meta Ads): query `facebook_ads_insights` for campaign/adset metrics. Tab 4 (Money Map): query `deals` + `facebook_ads_insights` + `stripe_transactions` for ROI calc.
 
-- [ ] **4. AttributionLeaks.tsx** — Wire tab 2 (Leak Detector): invoke `data-reconciler` edge function for discrepancy data.
+- [x] **4. AttributionLeaks.tsx** — Wire tab 2 (Leak Detector): invoke `data-reconciler` edge function for discrepancy data.
 
 - [ ] **5. StripeIntelligence.tsx** — Replace 7 hardcoded const arrays. Query `stripe_transactions` directly for status breakdown, chart data, recent transactions. Remove static fallback arrays.
 

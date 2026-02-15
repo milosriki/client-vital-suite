@@ -12,7 +12,6 @@ import {
 
 interface StripeMetricsCardsProps {
   isLoading: boolean;
-  balance: any;
   metrics: any;
   payingCustomerCount: number;
   currency: string;
@@ -21,74 +20,43 @@ interface StripeMetricsCardsProps {
 
 export const StripeMetricsCards = ({
   isLoading,
-  balance,
   metrics,
   payingCustomerCount,
   currency,
   formatCurrency,
 }: StripeMetricsCardsProps) => {
-  const availableBalance = balance?.available?.[0]?.amount || 0;
-  const pendingBalance = balance?.pending?.[0]?.amount || 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
       <XRayTooltip
-        title="Available Balance"
+        title="Total Revenue"
         insights={[
-          { label: "Currency", value: currency.toUpperCase() },
           {
-            label: "Pending",
-            value: formatCurrency(pendingBalance, currency),
-            color: "text-amber-400",
+            label: "Successful Payments",
+            value: `${metrics.successfulPaymentsCount || 0} transactions`,
+            color: "text-emerald-400",
+          },
+          {
+            label: "Currency",
+            value: currency.toUpperCase(),
           },
         ]}
-        summary="Funds available for payout. This is your settled balance minus any reserves."
+        summary="Total successful charges for the selected period."
       >
         <Card className="card-dashboard">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Available</p>
+                <p className="text-xs text-muted-foreground">Total Revenue</p>
                 {isLoading ? (
                   <Skeleton className="h-6 w-20 mt-1" />
                 ) : (
                   <p className="text-lg font-bold font-mono text-success">
-                    {formatCurrency(availableBalance, currency)}
+                    {formatCurrency(metrics.totalRevenue || 0, currency)}
                   </p>
                 )}
               </div>
-              <Wallet className="h-5 w-5 text-success" />
-            </div>
-          </CardContent>
-        </Card>
-      </XRayTooltip>
-
-      <XRayTooltip
-        title="Pending Balance"
-        insights={[
-          {
-            label: "Available",
-            value: formatCurrency(availableBalance, currency),
-            color: "text-emerald-400",
-          },
-          { label: "Status", value: "In transit to bank" },
-        ]}
-        summary="Payments received but not yet settled. Typically takes 2-7 business days."
-      >
-        <Card className="card-dashboard">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Pending</p>
-                {isLoading ? (
-                  <Skeleton className="h-6 w-20 mt-1" />
-                ) : (
-                  <p className="text-lg font-bold font-mono text-warning">
-                    {formatCurrency(pendingBalance, currency)}
-                  </p>
-                )}
-              </div>
-              <Clock className="h-5 w-5 text-warning" />
+              <TrendingUp className="h-5 w-5 text-success" />
             </div>
           </CardContent>
         </Card>
@@ -130,36 +98,36 @@ export const StripeMetricsCards = ({
       </XRayTooltip>
 
       <XRayTooltip
-        title="Monthly Recurring Revenue"
+        title="Paying Customers"
         insights={[
           {
-            label: "Active Subs",
-            value: (payingCustomerCount || 0).toString(),
-            color: "text-indigo-400",
+            label: "Total Transactions",
+            value: `${(metrics.successfulPaymentsCount || 0) + (metrics.failedPaymentsCount || 0)} attempts`,
           },
           {
-            label: "Avg Per Sub",
+            label: "Avg Revenue",
             value:
               payingCustomerCount > 0
                 ? formatCurrency(
-                    Math.round((metrics.mrr || 0) / payingCustomerCount),
+                    Math.round((metrics.totalRevenue || 0) / payingCustomerCount),
                     currency,
                   )
                 : "N/A",
+            color: "text-indigo-400",
           },
         ]}
-        summary="Sum of all active subscription amounts. This is your predictable monthly income."
+        summary="Unique customers who have made successful payments."
       >
         <Card className="card-dashboard">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">MRR</p>
+                <p className="text-xs text-muted-foreground">Paying Customers</p>
                 {isLoading ? (
                   <Skeleton className="h-6 w-20 mt-1" />
                 ) : (
                   <p className="text-lg font-bold font-mono text-primary">
-                    {formatCurrency(metrics.mrr || 0, currency)}
+                    {payingCustomerCount || 0}
                   </p>
                 )}
               </div>

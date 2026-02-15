@@ -35,7 +35,7 @@ import {
 import { getBusinessDate } from "@/lib/date-utils";
 
 // Components & Hooks
-import { useStripeMetrics } from "@/components/stripe-intelligence/hooks/useStripeMetrics";
+import { useStripeTransactions } from "@/components/stripe-intelligence/hooks/useStripeTransactions";
 import { StripeMetricsCards } from "@/components/stripe-intelligence/StripeMetricsCards";
 import { StripeCharts } from "@/components/stripe-intelligence/StripeCharts";
 import { StripeTabs } from "@/components/stripe-intelligence/StripeTabs";
@@ -114,8 +114,16 @@ export default function StripeIntelligence() {
   const [selectedPreset, setSelectedPreset] = useState("All time");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const { stripeData, isLoading, refetch, isRefetching, forensicData } =
-    useStripeMetrics(dateRange, statusFilter);
+  const {
+    transactions,
+    recentTransactions,
+    metrics,
+    chartData,
+    statusBreakdown,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useStripeTransactions(dateRange, statusFilter);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -150,13 +158,9 @@ export default function StripeIntelligence() {
 
     try {
       const context = {
-        balance: stripeData?.balance,
-        metrics: stripeData?.metrics,
-        recentPayments: (stripeData?.payments || []).slice(0, 10),
-        customers:
-          stripeData?.payingCustomers?.length ?? stripeData?.customers?.length,
-        subscriptions: stripeData?.subscriptions?.length,
-        account: stripeData?.account,
+        metrics,
+        recentPayments: recentTransactions.slice(0, 10),
+        transactionsCount: transactions.length,
         dateRange: {
           preset: selectedPreset,
           from: dateRange.from?.toISOString(),
@@ -168,13 +172,6 @@ export default function StripeIntelligence() {
                 ? "All time (no date filter)"
                 : selectedPreset,
         },
-        forensics: forensicData
-          ? {
-              anomalies: (forensicData.anomalies || []).slice(0, 5),
-              moneyFlow: (forensicData.moneyFlow || []).slice(0, 10),
-              payouts: (forensicData.payouts || []).slice(0, 5),
-            }
-          : null,
       };
 
       const response = await fetch(getEdgeFunctionUrl("stripe-payouts-ai"), {
@@ -245,29 +242,16 @@ export default function StripeIntelligence() {
     }
   };
 
-  const balance = stripeData?.balance;
-  const currency = balance?.available?.[0]?.currency || "aed";
-  const metrics = stripeData?.metrics || {};
-  const payingCustomers =
-    stripeData?.payingCustomers ?? stripeData?.customers ?? [];
-  const payingCustomerCount = payingCustomers.length;
+  const currency = metrics.currency || "aed";
 
-  // Prepare chart data
-  const chartData = stripeData?.chartData || [];
-
-  // Payment status breakdown for pie chart
-  const statusBreakdown = [
-    {
-      name: "Successful",
-      value: metrics.successfulPaymentsCount || 0,
-      color: "hsl(var(--success))",
-    },
-    {
-      name: "Failed",
-      value: metrics.failedPaymentsCount || 0,
-      color: "hsl(var(--destructive))",
-    },
-  ].filter((item) => item.value > 0);
+  // Calculate unique paying customers from transactions
+  const payingCustomerIds = new Set(
+    transactions
+      .filter((t) => t.status === "succeeded" || t.status === "paid")
+      .map((t) => t.customer_id)
+      .filter(Boolean)
+  );
+  const payingCustomerCount = payingCustomerIds.size;
 
   if (isLoading) {
     return <StripeIntelligenceGhost />;
@@ -386,7 +370,6 @@ export default function StripeIntelligence() {
       {/* Key Metrics Cards */}
       <StripeMetricsCards
         isLoading={isLoading}
-        balance={balance}
         metrics={metrics}
         payingCustomerCount={payingCustomerCount}
         currency={currency}
@@ -410,7 +393,7 @@ export default function StripeIntelligence() {
             setActiveTab={setActiveTab}
             isLoading={isLoading}
             metrics={metrics}
-            stripeData={stripeData}
+            transactions={transactions}
             payingCustomerCount={payingCustomerCount}
             currency={currency}
             formatCurrency={formatCurrency}

@@ -18,12 +18,26 @@ import { ActionIntercept } from "@/components/ui/action-intercept";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+interface Transaction {
+  id: string;
+  stripe_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  payment_method: string | null;
+  description: string | null;
+  created_at: string;
+  contact_id: string | null;
+  customer_id: string | null;
+  metadata: any;
+}
+
 interface StripeTabsProps {
   activeTab: string;
   setActiveTab: (value: string) => void;
   isLoading: boolean;
   metrics: any;
-  stripeData: any;
+  transactions: Transaction[];
   payingCustomerCount: number;
   currency: string;
   formatCurrency: (amount: number, currency?: string) => string;
@@ -34,7 +48,7 @@ export const StripeTabs = ({
   setActiveTab,
   isLoading,
   metrics,
-  stripeData,
+  transactions,
   payingCustomerCount,
   currency,
   formatCurrency,
@@ -44,10 +58,6 @@ export const StripeTabs = ({
       <TabsList className="mb-4">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="payments">Payments</TabsTrigger>
-        <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-        <TabsTrigger value="payouts">Payouts</TabsTrigger>
-        <TabsTrigger value="treasury">Treasury</TabsTrigger>
-        <TabsTrigger value="customers">Customers</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">
@@ -122,7 +132,7 @@ export const StripeTabs = ({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              Payments ({stripeData?.payments?.length || 0})
+              Payments ({transactions.length || 0})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -133,27 +143,29 @@ export const StripeTabs = ({
                     <Skeleton key={i} className="h-16 w-full" />
                   ))}
                 </div>
-              ) : stripeData?.payments?.length === 0 ? (
+              ) : transactions.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   No payments in selected period
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {stripeData?.payments?.map((payment: any) => (
+                  {transactions.map((transaction: Transaction) => (
                     <div
-                      key={payment.id}
+                      key={transaction.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className={cn(
                             "h-9 w-9 rounded-full flex items-center justify-center",
-                            payment.status === "succeeded"
+                            transaction.status === "succeeded" ||
+                              transaction.status === "paid"
                               ? "bg-success/10"
                               : "bg-destructive/10",
                           )}
                         >
-                          {payment.status === "succeeded" ? (
+                          {transaction.status === "succeeded" ||
+                          transaction.status === "paid" ? (
                             <CheckCircle className="h-4 w-4 text-success" />
                           ) : (
                             <XCircle className="h-4 w-4 text-destructive" />
@@ -161,154 +173,42 @@ export const StripeTabs = ({
                         </div>
                         <div>
                           <p className="font-medium text-sm font-mono">
-                            {formatCurrency(payment.amount, payment.currency)}
+                            {formatCurrency(
+                              transaction.amount,
+                              transaction.currency,
+                            )}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {format(
-                              new Date(payment.created * 1000),
+                              new Date(transaction.created_at),
                               "MMM d, yyyy HH:mm",
                             )}
                           </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant={
-                          payment.status === "succeeded"
-                            ? "default"
-                            : "destructive"
-                        }
-                        className="text-xs"
-                      >
-                        {payment.status}
-                      </Badge>
-
-                      {/* Action Intercept: Refund or Retry */}
-                      {payment.status === "succeeded" && (
-                        <ActionIntercept
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive ml-2"
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                              <span className="sr-only">Refund</span>
-                            </Button>
-                          }
-                          title="Issue Refund?"
-                          description={`Are you sure you want to refund ${formatCurrency(payment.amount, payment.currency)}? This action will reverse the transfer and cannot be undone.`}
-                          variant="danger"
-                          confirmText="Process Refund"
-                          onConfirm={() => {
-                            // TODO: Call refund API endpoint
-                          }}
-                        />
-                      )}
-
-                      {payment.status !== "succeeded" && (
-                        <ActionIntercept
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-primary ml-2"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              <span className="sr-only">Retry</span>
-                            </Button>
-                          }
-                          title="Retry Payment?"
-                          description="This will attempt to charge the customer's payment method again."
-                          variant="warning"
-                          confirmText="Retry Charge"
-                          onConfirm={() => {
-                            // TODO: Call payment retry API endpoint
-                          }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="subscriptions">
-        <Card className="card-dashboard">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Repeat className="h-5 w-5" />
-              Subscriptions ({stripeData?.subscriptions?.length || 0})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : stripeData?.subscriptions?.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No subscriptions found
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {stripeData?.subscriptions?.map((sub: any) => (
-                    <div
-                      key={sub.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "h-9 w-9 rounded-full flex items-center justify-center",
-                            sub.status === "active"
-                              ? "bg-success/10"
-                              : sub.status === "trialing"
-                                ? "bg-warning/10"
-                                : "bg-destructive/10",
+                          {transaction.description && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {transaction.description}
+                            </p>
                           )}
-                        >
-                          <Repeat
-                            className={cn(
-                              "h-4 w-4",
-                              sub.status === "active"
-                                ? "text-success"
-                                : sub.status === "trialing"
-                                  ? "text-warning"
-                                  : "text-destructive",
-                            )}
-                          />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">
-                            {sub.items?.data?.[0]?.price?.product ||
-                              "Subscription"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(
-                              new Date(sub.current_period_end * 1000),
-                              "MMM d, yyyy",
-                            )}
-                          </p>
                         </div>
                       </div>
-                      <Badge
-                        variant={
-                          sub.status === "active"
-                            ? "default"
-                            : sub.status === "trialing"
-                              ? "secondary"
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            transaction.status === "succeeded" ||
+                            transaction.status === "paid"
+                              ? "default"
                               : "destructive"
-                        }
-                        className="text-xs"
-                      >
-                        {sub.status}
-                      </Badge>
+                          }
+                          className="text-xs"
+                        >
+                          {transaction.status}
+                        </Badge>
+                        {transaction.payment_method && (
+                          <Badge variant="outline" className="text-xs">
+                            {transaction.payment_method}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -318,60 +218,6 @@ export const StripeTabs = ({
         </Card>
       </TabsContent>
 
-      <TabsContent value="payouts">
-        <Card className="card-dashboard">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowDownRight className="h-5 w-5" />
-              Payouts ({stripeData?.payouts?.length || 0})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : stripeData?.payouts?.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No payouts in selected period
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {stripeData?.payouts?.map((payout: any) => (
-                    <div
-                      key={payout.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-                          <ArrowDownRight className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm font-mono">
-                            {formatCurrency(payout.amount, payout.currency)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(
-                              new Date(payout.arrival_date * 1000),
-                              "MMM d, yyyy",
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {payout.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </TabsContent>
     </Tabs>
   );
 };
