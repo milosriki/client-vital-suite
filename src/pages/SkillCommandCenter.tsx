@@ -73,10 +73,17 @@ const SKILL_DEFS = [
   },
 ];
 
+interface TestResult {
+  response: string;
+  score: number;
+  analysis: string;
+  status: string;
+}
+
 export default function SkillCommandCenter() {
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [testInput, setTestInput] = useState("");
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
 
   // ── LIVE DATA: Fetch skill audit results from agent_knowledge ──
@@ -88,7 +95,7 @@ export default function SkillCommandCenter() {
     queryKey: ["skill-audit-history"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("agent_knowledge" as any)
+        .from("agent_knowledge")
         .select("id, title, content, source, category, structured_data, created_at")
         .eq("source", "atlas_audit")
         .eq("category", "learning")
@@ -123,11 +130,15 @@ export default function SkillCommandCenter() {
   const skillScores = (() => {
     const scores: Record<string, { total: number; count: number }> = {};
     // Process stored audit lessons for per-weakness scoring
-    const lessons = (auditData as any[]) || [];
-    lessons.forEach((lesson: any) => {
+    const lessons = (auditData as unknown[]) || [];
+    lessons.forEach((lesson: unknown) => {
+      const auditLesson = lesson as {
+        title?: string;
+        structured_data?: { score?: number };
+      };
       const weakness =
-        lesson.title?.replace("Improvement: ", "")?.toLowerCase() || "";
-      const score = lesson.structured_data?.score || 0;
+        auditLesson.title?.replace("Improvement: ", "")?.toLowerCase() || "";
+      const score = auditLesson.structured_data?.score || 0;
       // Map weakness to skill IDs
       const skillMap: Record<string, string> = {
         "the opener": "opener",
@@ -190,7 +201,7 @@ export default function SkillCommandCenter() {
     SKILLS.filter((s) => s.level !== null).length > 0
       ? Math.round(
           SKILLS.filter((s) => s.level !== null).reduce(
-            (sum, s) => sum + (s.level || 0),
+            (sum: number, s) => sum + (s.level || 0),
             0,
           ) / SKILLS.filter((s) => s.level !== null).length,
         )
@@ -202,7 +213,7 @@ export default function SkillCommandCenter() {
       SKILLS.find((s) => s.id === "opener")?.level,
     ]
       .filter(Boolean)
-      .reduce((a, b) => (a || 0) + (b || 0), 0)! /
+      .reduce((a: number, b) => (a || 0) + (b || 0), 0)! /
       [
         SKILLS.find((s) => s.id === "qualification")?.level,
         SKILLS.find((s) => s.id === "opener")?.level,
@@ -215,7 +226,7 @@ export default function SkillCommandCenter() {
       SKILLS.find((s) => s.id === "followup")?.level,
     ]
       .filter(Boolean)
-      .reduce((a, b) => (a || 0) + (b || 0), 0)! /
+      .reduce((a: number, b) => (a || 0) + (b || 0), 0)! /
       [
         SKILLS.find((s) => s.id === "booking")?.level,
         SKILLS.find((s) => s.id === "objection")?.level,
@@ -259,12 +270,13 @@ export default function SkillCommandCenter() {
         });
         toast.info("No interactions to audit yet");
       }
-    } catch (e: any) {
-      toast.error(`Audit failed: ${e.message || "Unknown error"}`);
+    } catch (e: unknown) {
+      const error = e as Error;
+      toast.error(`Audit failed: ${error.message || "Unknown error"}`);
       setTestResult({
         response: "Error running audit",
         score: 0,
-        analysis: e.message || "Unknown error",
+        analysis: error.message || "Unknown error",
         status: "error",
       });
     } finally {
@@ -364,7 +376,7 @@ export default function SkillCommandCenter() {
               <Progress
                 value={iqAvg || 0}
                 className="h-2 bg-blue-950"
-                indicatorColor="bg-blue-500"
+                indicatorClassName="bg-blue-500"
               />
 
               <div className="flex justify-between text-sm mt-2">
@@ -376,7 +388,7 @@ export default function SkillCommandCenter() {
               <Progress
                 value={salesAvg || 0}
                 className="h-2 bg-green-950"
-                indicatorColor="bg-green-500"
+                indicatorClassName="bg-green-500"
               />
             </div>
           </CardContent>
@@ -392,7 +404,7 @@ export default function SkillCommandCenter() {
                 <TabsTrigger value="history">Audit History</TabsTrigger>
               </TabsList>
               <Badge variant="outline" className="text-xs">
-                {(auditData as any[])?.length || 0} audits stored
+                {Array.isArray(auditData) ? auditData.length : 0} audits stored
               </Badge>
             </div>
 
@@ -492,39 +504,47 @@ export default function SkillCommandCenter() {
             <TabsContent value="history" className="mt-4">
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3">
-                  {((auditData as any[]) || [])
+                  {(Array.isArray(auditData) ? auditData : [])
                     .slice(0, 20)
-                    .map((audit: any, i: number) => (
-                      <Card key={i} className="bg-muted/30">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <h4 className="font-medium text-sm">
-                                {audit.title}
-                              </h4>
-                              <p className="text-xs text-muted-foreground">
-                                {audit.content}
-                              </p>
+                    .map((audit: unknown, i: number) => {
+                      const auditItem = audit as {
+                        title: string;
+                        content: string;
+                        structured_data?: { score?: number };
+                        created_at: string;
+                      };
+                      return (
+                        <Card key={i} className="bg-muted/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <h4 className="font-medium text-sm">
+                                  {auditItem.title}
+                                </h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {auditItem.content}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={
+                                  (auditItem.structured_data?.score || 0) >= 80
+                                    ? "default"
+                                    : (auditItem.structured_data?.score || 0) >= 60
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                              >
+                                {auditItem.structured_data?.score || "—"}/100
+                              </Badge>
                             </div>
-                            <Badge
-                              variant={
-                                (audit.structured_data?.score || 0) >= 80
-                                  ? "default"
-                                  : (audit.structured_data?.score || 0) >= 60
-                                    ? "secondary"
-                                    : "destructive"
-                              }
-                            >
-                              {audit.structured_data?.score || "—"}/100
-                            </Badge>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-2">
-                            {new Date(audit.created_at).toLocaleString()}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  {((auditData as any[]) || []).length === 0 && (
+                            <p className="text-[10px] text-muted-foreground mt-2">
+                              {new Date(auditItem.created_at).toLocaleString()}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  {(Array.isArray(auditData) ? auditData.length : 0) === 0 && (
                     <div className="text-center text-muted-foreground py-8">
                       {isLoading
                         ? "Loading audit history..."
