@@ -425,38 +425,52 @@ async function enrichDealAttribution(
   supabase: any,
 ): Promise<void> {
   try {
-    // Find the deal and its contact
+    // FIX: column is hubspot_deal_id, NOT hubspot_id
     const { data: deal } = await supabase
       .from("deals")
       .select("id, contact_id")
-      .eq("hubspot_id", dealId.toString())
+      .eq("hubspot_deal_id", dealId.toString())
       .maybeSingle();
 
     if (!deal?.contact_id) return;
 
-    // Get the contact's email
     const { data: contact } = await supabase
       .from("contacts")
-      .select("email, attributed_ad_id")
+      .select("email, phone, attributed_ad_id, first_touch_source")
       .eq("id", deal.contact_id)
       .maybeSingle();
 
-    if (!contact?.email) return;
-    // Skip if contact already has attribution
+    if (!contact) return;
+    // Skip if contact already has ad-level attribution
     if (contact.attributed_ad_id) return;
 
-    // Look up latest attribution event
-    const { data: attrEvent } = await supabase
-      .from("attribution_events")
-      .select("fb_ad_id, fb_campaign_id, fb_adset_id, source")
-      .eq("email", contact.email)
-      .order("event_time", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Strategy 1: Try email match in attribution_events
+    let attrEvent = null;
+    if (contact.email) {
+      const { data } = await supabase
+        .from("attribution_events")
+        .select("fb_ad_id, fb_campaign_id, fb_adset_id, source")
+        .eq("email", contact.email)
+        .order("event_time", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      attrEvent = data;
+    }
+
+    // Strategy 2: Phone fallback (8,832 contacts have phone)
+    if (!attrEvent?.fb_ad_id && contact.phone) {
+      const { data } = await supabase
+        .from("attribution_events")
+        .select("fb_ad_id, fb_campaign_id, fb_adset_id, source")
+        .eq("phone", contact.phone)
+        .order("event_time", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      attrEvent = data;
+    }
 
     if (!attrEvent?.fb_ad_id) return;
 
-    // Backfill attribution on the contact
     await supabase
       .from("contacts")
       .update({
@@ -466,6 +480,8 @@ async function enrichDealAttribution(
         attribution_source: attrEvent.source,
       })
       .eq("id", deal.contact_id);
+
+    console.log(`[enrichDealAttribution] Linked deal ${dealId} → contact ${deal.contact_id} → ad ${attrEvent.fb_ad_id}`);
   } catch (e) {
     console.warn("Attribution enrichment failed (non-critical):", e);
   }
