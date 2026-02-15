@@ -2197,7 +2197,28 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
           },
         ]
@@ -2298,7 +2319,28 @@ export type Database = {
             foreignKeyName: "contact_ownership_history_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
           },
         ]
@@ -3280,7 +3322,28 @@ export type Database = {
             foreignKeyName: "deals_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
           },
           {
@@ -5899,7 +5962,28 @@ export type Database = {
             foreignKeyName: "proactive_insights_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
           },
           {
@@ -6240,6 +6324,8 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string | null
+          gender: string | null
+          home_zone: string | null
           id: string
           name: string
           role: string
@@ -6249,6 +6335,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           email?: string | null
+          gender?: string | null
+          home_zone?: string | null
           id?: string
           name: string
           role: string
@@ -6258,6 +6346,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           email?: string | null
+          gender?: string | null
+          home_zone?: string | null
           id?: string
           name?: string
           role?: string
@@ -8177,6 +8267,23 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_enterprise_truth_genome: {
+        Row: {
+          ad_id: string | null
+          atlas_verdict: string | null
+          avg_call_min: number | null
+          city: string | null
+          contact_id: string | null
+          email: string | null
+          last_reconciled_at: string | null
+          lead_intent_iq: number | null
+          lead_name: string | null
+          payback_days: number | null
+          stage: string | null
+          verified_cash: number | null
+        }
+        Relationships: []
+      }
       setter_funnel_matrix: {
         Row: {
           book_to_held_pct: number | null
@@ -8321,6 +8428,60 @@ export type Database = {
           last_lead_message_at?: string | null
           lead_score?: number | null
           phone?: string | null
+        }
+        Relationships: []
+      }
+      view_atlas_lead_dna: {
+        Row: {
+          ad_copy: string | null
+          ad_id: string | null
+          atlas_lead_status: string | null
+          call_count: number | null
+          call_duration_seconds: number | null
+          city: string | null
+          contact_id: string | null
+          creative_name: string | null
+          custom_lifecycle_stage: string | null
+          email: string | null
+          full_name: string | null
+          image_url: string | null
+          verified_revenue: number | null
+        }
+        Relationships: []
+      }
+      view_coach_capacity_load: {
+        Row: {
+          capacity_status: string | null
+          coach_name: string | null
+          gender: string | null
+          load_percentage: number | null
+          sessions_14d: number | null
+          zone: string | null
+        }
+        Relationships: []
+      }
+      view_enterprise_truth_genome: {
+        Row: {
+          ad_id: string | null
+          atlas_verdict: string | null
+          avg_call_min: number | null
+          city: string | null
+          contact_id: string | null
+          email: string | null
+          lead_name: string | null
+          payback_days: number | null
+          stage: string | null
+          verified_cash: number | null
+        }
+        Relationships: []
+      }
+      view_segment_capacity_hud: {
+        Row: {
+          avg_segment_load: number | null
+          coach_count: number | null
+          gender: string | null
+          total_segment_sessions: number | null
+          zone: string | null
         }
         Relationships: []
       }
@@ -8729,6 +8890,8 @@ export type Database = {
       }
       refresh_daily_analytics: { Args: never; Returns: undefined }
       refresh_platform_metrics: { Args: never; Returns: undefined }
+      refresh_revenue_genome: { Args: never; Returns: undefined }
+      trigger_immediate_truth_sync: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
