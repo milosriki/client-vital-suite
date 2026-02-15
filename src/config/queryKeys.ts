@@ -337,6 +337,54 @@ export const QUERY_KEYS = {
   contactOwners: {
     all: ['contact-owners'] as const,
   },
+
+  // Enterprise — Truth Genome & Strategy
+  enterprise: {
+    truthGenome: ['enterprise', 'truth-genome'] as const,
+    segmentCapacity: ['enterprise', 'segment-capacity'] as const,
+    coachCapacity: (zone?: string) => ['enterprise', 'coach-capacity', zone] as const,
+    revenueShadow: ['enterprise', 'revenue-shadow'] as const,
+  },
+
+  // Enterprise — Call Analytics
+  callAnalytics: {
+    metrics: (days: number) => ['call-analytics', 'metrics', days] as const,
+    log: (days: number) => ['call-analytics', 'log', days] as const,
+    topSetters: ['call-analytics', 'top-setters'] as const,
+  },
+
+  // Enterprise — AI Advisor
+  aiAdvisor: {
+    queue: ['ai-advisor', 'queue'] as const,
+    revenueAtRisk: ['ai-advisor', 'revenue-at-risk'] as const,
+  },
+
+  // Enterprise — System Observability
+  systemObservability: {
+    functions: (timeRange: string) => ['system-observability', 'functions', timeRange] as const,
+    alerts: ['system-observability', 'alerts'] as const,
+    syncCycle: ['system-observability', 'sync-cycle'] as const,
+  },
+
+  // Enterprise — Client X-Ray
+  clientXRay: {
+    list: (search?: string) => ['client-xray', 'list', search] as const,
+    detail: (id: string) => ['client-xray', 'detail', id] as const,
+    timeline: (id: string) => ['client-xray', 'timeline', id] as const,
+  },
+
+  // Enterprise — Coach Command
+  coachCommand: {
+    load: (zone?: string) => ['coach-command', 'load', zone] as const,
+    segmentHud: ['coach-command', 'segment-hud'] as const,
+    predictions: ['coach-command', 'predictions'] as const,
+  },
+
+  // Enterprise — Knowledge Search
+  knowledgeSearch: {
+    results: (query: string, category?: string) => ['knowledge-search', query, category] as const,
+    stats: ['knowledge-search', 'stats'] as const,
+  },
 } as const;
 
 /**

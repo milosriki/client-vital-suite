@@ -34,6 +34,10 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import "./index.css";
 
 // Lazy-loaded page imports — route-level code splitting
+const ExecutiveOverview = lazy(() => import("./pages/ExecutiveOverview"));
+const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
+const RevenueIntelligence = lazy(() => import("./pages/RevenueIntelligence"));
+const AttributionLeaks = lazy(() => import("./pages/AttributionLeaks"));
 const Operations = lazy(() => import("./pages/Operations"));
 const Overview = lazy(() => import("./pages/Overview"));
 const Clients = lazy(() => import("./pages/Clients"));
@@ -69,6 +73,15 @@ const ReconciliationDashboard = lazy(() => import("./pages/ReconciliationDashboa
 const MarketingIntelligence = lazy(() => import("./pages/MarketingIntelligence"));
 const MarketingDeepIntelligence = lazy(() => import("./pages/MarketingDeepIntelligence"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+
+// Enterprise pages — real data, production hooks
+const EnterpriseStrategy = lazy(() => import("./pages/enterprise/EnterpriseStrategy"));
+const EnterpriseCallAnalytics = lazy(() => import("./pages/enterprise/CallAnalytics"));
+const EnterpriseSystemObservability = lazy(() => import("./pages/enterprise/SystemObservability"));
+const EnterpriseAIAdvisor = lazy(() => import("./pages/enterprise/AIAdvisor"));
+const EnterpriseClientHealth = lazy(() => import("./pages/enterprise/ClientHealth"));
+const EnterpriseCoachPerformance = lazy(() => import("./pages/enterprise/CoachPerformance"));
+const EnterpriseKnowledgeBase = lazy(() => import("./pages/enterprise/KnowledgeBase"));
 
 // Suspense wrapper helper
 function SuspensePage({ children }: { children: React.ReactNode }) {
@@ -113,9 +126,11 @@ const router = createBrowserRouter([
     ),
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: <SuspensePage><ErrorBoundary><ExecutiveDashboard /></ErrorBoundary></SuspensePage> },
-      { path: "/dashboard", element: <SuspensePage><ErrorBoundary><ExecutiveDashboard /></ErrorBoundary></SuspensePage> },
+      { index: true, element: <SuspensePage><ErrorBoundary><ExecutiveOverview /></ErrorBoundary></SuspensePage> },
+      { path: "/dashboard", element: <SuspensePage><ErrorBoundary><ExecutiveOverview /></ErrorBoundary></SuspensePage> },
       { path: "/operations", element: <SuspensePage><Operations /></SuspensePage> },
+      { path: "/marketing", element: <SuspensePage><MarketingAnalytics /></SuspensePage> },
+      { path: "/revenue", element: <SuspensePage><RevenueIntelligence /></SuspensePage> },
       { path: "/sales-pipeline", element: <SuspensePage><SalesPipeline /></SuspensePage> },
       { path: "/stripe", element: <SuspensePage><StripeIntelligence /></SuspensePage> },
       { path: "/call-tracking", element: <SuspensePage><CallTracking /></SuspensePage> },
@@ -144,12 +159,23 @@ const router = createBrowserRouter([
       { path: "/admin/edge-functions", element: <SuspensePage><EdgeFunctionsPage /></SuspensePage> },
       { path: "/executive-dashboard", element: <SuspensePage><ExecutiveDashboard /></SuspensePage> },
       { path: "/master-control", element: <SuspensePage><MasterControlPanel /></SuspensePage> },
+      { path: "/attribution-leaks", element: <SuspensePage><AttributionLeaks /></SuspensePage> },
       { path: "/attribution", element: <SuspensePage><AttributionWarRoom /></SuspensePage> },
       { path: "/reconciliation", element: <SuspensePage><ReconciliationDashboard /></SuspensePage> },
       { path: "/marketing-intelligence", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/deep-intel", element: <SuspensePage><MarketingDeepIntelligence /></SuspensePage> },
       { path: "/skills-matrix", element: <SuspensePage><SkillCommandCenter /></SuspensePage> },
       { path: "/command-center", element: <SuspensePage><ErrorBoundary><CommandCenter /></ErrorBoundary></SuspensePage> },
+
+      // Enterprise pages
+      { path: "/enterprise/strategy", element: <SuspensePage><EnterpriseStrategy /></SuspensePage> },
+      { path: "/enterprise/call-analytics", element: <SuspensePage><EnterpriseCallAnalytics /></SuspensePage> },
+      { path: "/enterprise/observability", element: <SuspensePage><EnterpriseSystemObservability /></SuspensePage> },
+      { path: "/enterprise/ai-advisor", element: <SuspensePage><EnterpriseAIAdvisor /></SuspensePage> },
+      { path: "/enterprise/client-health", element: <SuspensePage><EnterpriseClientHealth /></SuspensePage> },
+      { path: "/enterprise/coach-performance", element: <SuspensePage><EnterpriseCoachPerformance /></SuspensePage> },
+      { path: "/enterprise/knowledge-base", element: <SuspensePage><EnterpriseKnowledgeBase /></SuspensePage> },
+
       { path: "*", element: <NotFound /> },
     ],
   },
