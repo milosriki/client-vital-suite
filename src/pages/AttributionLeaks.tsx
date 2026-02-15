@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { DollarSign, TrendingUp, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -25,45 +27,72 @@ import { chartTheme } from "@/components/dashboard/cards/ChartCard";
 
 export default function AttributionLeaks() {
   const [dateRange, setDateRange] = useState("this_month");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("attribution");
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    // TODO: Call edge functions to refresh data
-    setTimeout(() => setIsRefreshing(false), 1000);
+  // Fetch real data from data-reconciler Edge Function
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ["data-reconciler", dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("data-reconciler", {
+        body: { date_range: dateRange },
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleRefresh = () => {
+    refetch();
   };
 
-  // Tab 1: Attribution - Mock data
+  // Map backend data to UI metrics (Using financials/intelligence objects from data-reconciler)
+  const financials = data?.financials;
+  const intelligence = data?.intelligence;
+  
   const attributionMetrics = [
-    { label: "FB Ads Revenue", value: "$84.7K", delta: { value: 0, type: "neutral" as const }, icon: DollarSign },
-    { label: "HubSpot Revenue", value: "$87.2K", delta: { value: 0, type: "neutral" as const }, icon: DollarSign },
-    { label: "AnyTrack Revenue", value: "$85.1K", delta: { value: 0, type: "neutral" as const }, icon: DollarSign },
-    { label: "Conflicts", value: "3", delta: { value: 0, type: "warning" as const }, icon: AlertTriangle },
-    { label: "True ROAS", value: "6.8x", delta: { value: 0, type: "positive" as const }, icon: TrendingUp },
+    { 
+      label: "FB Ads Revenue", 
+      value: financials?.meta_revenue ? `$${(financials.meta_revenue / 1000).toFixed(1)}K` : "—", 
+      delta: { value: 0, type: "neutral" as const }, 
+      icon: DollarSign 
+    },
+    { 
+      label: "HubSpot Revenue", 
+      value: financials?.hubspot_revenue ? `$${(financials.hubspot_revenue / 1000).toFixed(1)}K` : "—", 
+      delta: { value: 0, type: "neutral" as const }, 
+      icon: DollarSign 
+    },
+    { 
+      label: "AnyTrack Revenue", 
+      value: financials?.anytrack_revenue ? `$${(financials.anytrack_revenue / 1000).toFixed(1)}K` : "—", 
+      delta: { value: 0, type: "neutral" as const }, 
+      icon: DollarSign 
+    },
+    { 
+      label: "Conflicts", 
+      value: data?.discrepancies?.count?.toString() || "0", 
+      delta: { value: 0, type: "warning" as const }, 
+      icon: AlertTriangle 
+    },
+    { 
+      label: "True ROAS", 
+      value: intelligence?.true_roas ? `${intelligence.true_roas}x` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: TrendingUp 
+    },
   ];
 
-  const reconciliationMatrix = [
-    { campaign: "Summer Sale", fbAds: 35700, hubspot: 36200, anytrack: 35900, deltaMax: 1.4, status: "aligned" },
-    { campaign: "Retargeting Q1", fbAds: 38400, hubspot: 39800, anytrack: 38700, deltaMax: 3.5, status: "check" },
-    { campaign: "Brand Awareness", fbAds: 10600, hubspot: 11200, anytrack: 10500, deltaMax: 6.2, status: "conflict" },
-  ];
+  // Use real discrepancies or empty array
+  const reconciliationMatrix = data?.discrepancies?.items || [];
 
-  const revenueBySource = [
-    { source: "Summer Sale", fb: 35700, hs: 36200, at: 35900 },
-    { source: "Retargeting Q1", fb: 38400, hs: 39800, at: 38700 },
-    { source: "Brand Awareness", fb: 10600, hs: 11200, at: 10500 },
-  ];
+  // Use real revenue by source or empty array
+  const revenueBySource = data?.revenue_by_source || [];
 
-  const attributionEvents = [
-    { event: "fb_ad_click", source: "FB Ads", value: "-", contact: "Sarah Wilson", time: "2h ago", status: "success" },
-    { event: "lead_created", source: "HubSpot", value: "-", contact: "Sarah Wilson", time: "2h ago", status: "success" },
-    { event: "deal_created", source: "HubSpot", value: "$18K", contact: "Sarah Wilson", time: "2h ago", status: "success" },
-    { event: "payment_recv", source: "AnyTrack", value: "$18K", contact: "Sarah Wilson", time: "2h ago", status: "success" },
-    { event: "stripe_success", source: "Stripe", value: "$18K", contact: "Sarah Wilson", time: "2h ago", status: "success" },
-  ];
+  // Use real recent events or empty array
+  const attributionEvents = data?.recent_deals || [];
 
-  // Tab 2: Leak Detector - Mock data
+  // Tab 2: Leak Detector - Mock data preserved until backend ready for this specific tab
+  // (Assuming data-reconciler mainly covers Tab 1 based on previous analysis)
   const leakMetrics = [
     { label: "Supabase", value: "12,847", delta: { value: 0, type: "neutral" as const }, icon: DollarSign },
     { label: "AWS RDS", value: "12,851", delta: { value: 0, type: "neutral" as const }, icon: DollarSign },
@@ -105,9 +134,9 @@ export default function AttributionLeaks() {
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefetching}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </>

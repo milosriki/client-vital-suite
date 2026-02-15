@@ -90,9 +90,9 @@ export default function ExecutiveOverview() {
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefetching}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </>

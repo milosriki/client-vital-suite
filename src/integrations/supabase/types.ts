@@ -2218,6 +2218,13 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
           },
@@ -2334,6 +2341,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
           {
@@ -3337,6 +3351,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
           {
@@ -5983,6 +6004,13 @@ export type Database = {
             foreignKeyName: "proactive_insights_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
           },
@@ -6803,6 +6831,7 @@ export type Database = {
       stripe_transactions: {
         Row: {
           amount: number | null
+          contact_id: string | null
           created_at: string | null
           currency: string | null
           customer_id: string | null
@@ -6816,6 +6845,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          contact_id?: string | null
           created_at?: string | null
           currency?: string | null
           customer_id?: string | null
@@ -6829,6 +6859,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          contact_id?: string | null
           created_at?: string | null
           currency?: string | null
           customer_id?: string | null
@@ -6840,7 +6871,106 @@ export type Database = {
           stripe_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+        ]
       }
       sync_errors: {
         Row: {
@@ -8275,6 +8405,7 @@ export type Database = {
           city: string | null
           contact_id: string | null
           email: string | null
+          first_touch_source: string | null
           last_reconciled_at: string | null
           lead_intent_iq: number | null
           lead_name: string | null
@@ -8441,10 +8572,12 @@ export type Database = {
           city: string | null
           contact_id: string | null
           creative_name: string | null
-          custom_lifecycle_stage: string | null
+          deal_count: number | null
           email: string | null
+          first_touch_source: string | null
           full_name: string | null
           image_url: string | null
+          lifecycle_stage: string | null
           verified_revenue: number | null
         }
         Relationships: []
@@ -8460,6 +8593,66 @@ export type Database = {
         }
         Relationships: []
       }
+      view_contact_360: {
+        Row: {
+          ai_lead_score: number | null
+          ai_phase: string | null
+          ai_temperature: string | null
+          analytics_score: number | null
+          attribution_confidence: string | null
+          avg_call_score: number | null
+          avg_sentiment: number | null
+          aws_coach: string | null
+          aws_last_session: string | null
+          aws_outstanding_sessions: number | null
+          aws_revenue_aed: number | null
+          aws_sessions_attended: number | null
+          aws_sessions_cancelled: number | null
+          best_ad_id: string | null
+          best_campaign_id: string | null
+          best_channel: string | null
+          best_utm_campaign: string | null
+          best_utm_source: string | null
+          churn_risk_score: number | null
+          coach_mismatch_flag: boolean | null
+          composite_lead_score: number | null
+          contact_id: string | null
+          data_completeness_score: number | null
+          deal_count: number | null
+          deal_latest_stage: string | null
+          deal_revenue_aed: number | null
+          early_warning_flag: boolean | null
+          email: string | null
+          engagement_score: number | null
+          first_name: string | null
+          first_touch_source: string | null
+          health_score: number | null
+          health_scores_coach: string | null
+          health_zone: string | null
+          hubspot_coach: string | null
+          hubspot_contact_id: string | null
+          last_name: string | null
+          lead_status: string | null
+          lifecycle_stage: string | null
+          momentum_score: number | null
+          num_associated_deals: number | null
+          package_value_aed: number | null
+          phone: string | null
+          revenue_mismatch_flag: boolean | null
+          risk_category: string | null
+          sessions_last_30d: number | null
+          sessions_last_7d: number | null
+          sessions_last_90d: number | null
+          sessions_purchased: number | null
+          total_calls: number | null
+          total_talk_seconds: number | null
+          verified_coach: string | null
+          verified_outstanding_sessions: number | null
+          verified_revenue_aed: number | null
+          verified_verdict: string | null
+        }
+        Relationships: []
+      }
       view_enterprise_truth_genome: {
         Row: {
           ad_id: string | null
@@ -8468,10 +8661,31 @@ export type Database = {
           city: string | null
           contact_id: string | null
           email: string | null
+          first_touch_source: string | null
           lead_name: string | null
           payback_days: number | null
           stage: string | null
           verified_cash: number | null
+        }
+        Relationships: []
+      }
+      view_marketing_attribution: {
+        Row: {
+          cac_aed: number | null
+          channel: string | null
+          channel_confidence: string | null
+          closedwon_deals: number | null
+          closedwon_revenue_aed: number | null
+          conversion_rate_pct: number | null
+          customers: number | null
+          mqls: number | null
+          roas: number | null
+          sqls: number | null
+          total_clicks: number | null
+          total_contacts: number | null
+          total_impressions: number | null
+          total_spend_aed: number | null
+          utm_campaign: string | null
         }
         Relationships: []
       }
@@ -8482,6 +8696,20 @@ export type Database = {
           gender: string | null
           total_segment_sessions: number | null
           zone: string | null
+        }
+        Relationships: []
+      }
+      view_truth_triangle: {
+        Row: {
+          gap_stripe_hubspot: number | null
+          hubspot_deal_count: number | null
+          hubspot_deal_value: number | null
+          meta_ad_spend: number | null
+          meta_reported_revenue: number | null
+          month: string | null
+          pipeline_roas_booked: number | null
+          stripe_gross_revenue: number | null
+          true_roas_cash: number | null
         }
         Relationships: []
       }
@@ -8852,6 +9080,10 @@ export type Database = {
         | { Args: { role_name: string }; Returns: boolean }
       introspect_schema_verbose: { Args: { p_schema?: unknown }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      manual_link_deal_contact: {
+        Args: { p_contact_id: string; p_deal_id: string }
+        Returns: undefined
+      }
       match_knowledge: {
         Args: {
           match_count?: number

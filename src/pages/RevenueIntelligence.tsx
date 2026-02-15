@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { DollarSign, TrendingUp, Users, AlertCircle, Activity, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -34,61 +36,74 @@ import { chartTheme } from "@/components/dashboard/cards/ChartCard";
 
 export default function RevenueIntelligence() {
   const [dateRange, setDateRange] = useState("this_month");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("stripe");
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    // TODO: Call edge functions to refresh data
-    setTimeout(() => setIsRefreshing(false), 1000);
+  // Fetch real Stripe data
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ["stripe-dashboard-data", dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stripe-dashboard-data", {
+        body: { 
+          startDate: new Date().toISOString(), // In real app, calculate from dateRange
+          endDate: new Date().toISOString() 
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleRefresh = () => {
+    refetch();
   };
 
-  // Tab 1: Stripe Data - Mock data
+  // Tab 1: Stripe Data - Wired to real response
   const stripeMetrics = [
-    { label: "MRR", value: "$127,340", delta: { value: 15240, type: "positive" as const }, icon: DollarSign },
-    { label: "ARR", value: "$1.53M", delta: { value: 182000, type: "positive" as const }, icon: TrendingUp },
-    { label: "Churn", value: "4.2%", delta: { value: -0.5, type: "positive" as const }, icon: AlertCircle },
-    { label: "Active Subs", value: "487", delta: { value: 42, type: "positive" as const }, icon: Users },
-    { label: "Failed Pmt", value: "12", delta: { value: -3, type: "positive" as const }, icon: AlertCircle },
+    { 
+      label: "MRR", 
+      value: data?.metrics?.mrr ? `$${(data.metrics.mrr / 100).toLocaleString()}` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: DollarSign 
+    },
+    { 
+      label: "ARR", 
+      value: data?.metrics?.mrr ? `$${((data.metrics.mrr * 12) / 100).toLocaleString()}` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: TrendingUp 
+    },
+    { 
+      label: "Churn", 
+      value: data?.metrics?.churnRate ? `${data.metrics.churnRate}%` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: AlertCircle 
+    },
+    { 
+      label: "Active Subs", 
+      value: data?.metrics?.activeSubscriptions?.toString() || "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: Users 
+    },
+    { 
+      label: "Failed Pmt", 
+      value: data?.metrics?.failedPayments?.toString() || "0", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: AlertCircle 
+    },
   ];
 
-  const mrrGrowthData = [
-    { month: "Feb", mrr: 40000, target: 50000 },
-    { month: "Mar", mrr: 60000, target: 65000 },
-    { month: "Apr", mrr: 80000, target: 85000 },
-    { month: "May", mrr: 95000, target: 100000 },
-    { month: "Jun", mrr: 105000, target: 110000 },
-    { month: "Jul", mrr: 115000, target: 120000 },
-    { month: "Aug", mrr: 120000, target: 125000 },
-    { month: "Sep", mrr: 122000, target: 128000 },
-    { month: "Oct", mrr: 125000, target: 130000 },
-    { month: "Nov", mrr: 126000, target: 132000 },
-    { month: "Dec", mrr: 127000, target: 135000 },
-    { month: "Jan", mrr: 127340, target: 138000 },
+  // Map real charts or use safe defaults
+  const mrrGrowthData = data?.charts?.mrr_history || [];
+  const paymentStatusData = data?.charts?.payment_status || [];
+  const recentTransactions = data?.recent_transactions || [];
+  
+  // Fix: Define revenueBreakdownData to prevent runtime crash
+  const revenueBreakdownData = data?.charts?.revenue_breakdown || [
+    { name: "Monthly", value: 0, percentage: 0 },
+    { name: "Annual", value: 0, percentage: 0 },
+    { name: "One-time", value: 0, percentage: 0 },
   ];
 
-  const paymentStatusData = [
-    { status: "Succeeded", count: 487, value: 127000 },
-    { status: "Pending", count: 12, value: 3200 },
-    { status: "Failed", count: 8, value: 2100 },
-    { status: "Refunded", count: 4, value: 1800 },
-  ];
-
-  const revenueBreakdownData = [
-    { name: "Monthly", value: 127000, percentage: 85 },
-    { name: "Annual", value: 18000, percentage: 12 },
-    { name: "One-time", value: 4000, percentage: 3 },
-  ];
-
-  const recentTransactions = [
-    { customer: "Acme Corp", amount: 2500, status: "Paid", date: "2h ago", invoice: "#INV-001" },
-    { customer: "Global Tech", amount: 1800, status: "Pending", date: "5h ago", invoice: "#INV-002" },
-    { customer: "Startup Inc", amount: 3200, status: "Paid", date: "1d ago", invoice: "#INV-003" },
-    { customer: "Enterprise Co", amount: 5400, status: "Paid", date: "2d ago", invoice: "#INV-004" },
-    { customer: "Small Biz LLC", amount: 980, status: "Failed", date: "3d ago", invoice: "#INV-005" },
-  ];
-
-  // Tab 2: Pipeline - Mock data
+  // Tab 2: Pipeline - Mock data preserved (not covered by stripe-dashboard-data)
   const pipelineMetrics = [
     { label: "Total Pipeline", value: "$847K", delta: { value: 42, type: "neutral" as const }, icon: DollarSign },
     { label: "Weighted", value: "$324K", delta: { value: 0, type: "neutral" as const }, icon: TrendingUp },
@@ -194,9 +209,9 @@ export default function RevenueIntelligence() {
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefetching}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </>

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { DollarSign, TrendingUp, Target, BarChart3, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -28,41 +30,64 @@ import { chartTheme } from "@/components/dashboard/cards/ChartCard";
 
 export default function MarketingAnalytics() {
   const [dateRange, setDateRange] = useState("this_month");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    // TODO: Call edge functions to refresh data
-    setTimeout(() => setIsRefreshing(false), 1000);
+  // Fetch real data
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ["marketing-analytics", dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("business-intelligence-dashboard", {
+        body: { range: dateRange },
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleRefresh = () => {
+    refetch();
   };
 
-  // Mock data - TODO: Replace with real edge function calls
+  // Map real data or safe defaults (Using zone_a.metrics from business-intelligence-dashboard)
+  const kpis = data?.zone_a?.metrics;
   const overviewMetrics = [
-    { label: "Ad Spend", value: "$12,450", delta: { value: 8.2, type: "neutral" as const }, icon: DollarSign },
-    { label: "Leads", value: "847", delta: { value: 12.5, type: "positive" as const }, icon: TrendingUp },
-    { label: "CPL", value: "$14.70", delta: { value: -5.3, type: "positive" as const }, icon: Target },
-    { label: "ROAS", value: "6.8x", delta: { value: 18.2, type: "positive" as const }, icon: BarChart3 },
-    { label: "CAC", value: "$1,834", delta: { value: -3.1, type: "positive" as const }, icon: Target },
+    { 
+      label: "Ad Spend", 
+      value: kpis?.ad_spend ? `$${kpis.ad_spend.toLocaleString()}` : "—", 
+      delta: { value: 0, type: "neutral" as const }, 
+      icon: DollarSign 
+    },
+    { 
+      label: "Leads", 
+      value: kpis?.new_leads?.toString() || "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: TrendingUp 
+    },
+    { 
+      label: "CPL", 
+      value: kpis?.cpl ? `$${kpis.cpl.toFixed(2)}` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: Target 
+    },
+    { 
+      label: "ROAS", 
+      value: kpis?.true_roas ? `${kpis.true_roas.toFixed(2)}x` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: BarChart3 
+    },
+    { 
+      label: "CAC", 
+      value: kpis?.cac ? `$${kpis.cac.toFixed(0)}` : "—", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: Target 
+    },
   ];
 
-  const spendRevenueData = [
-    { day: "1", revenue: 50000, spend: 10000, target: 55000 },
-    { day: "5", revenue: 60000, spend: 10500, target: 60000 },
-    { day: "10", revenue: 70000, spend: 11000, target: 65000 },
-    { day: "15", revenue: 75000, spend: 11500, target: 70000 },
-    { day: "20", revenue: 82000, spend: 12000, target: 75000 },
-    { day: "25", revenue: 88000, spend: 12300, target: 80000 },
-    { day: "30", revenue: 95000, spend: 12450, target: 85000 },
-  ];
-
-  const campaignPerformanceData = [
-    { name: "Summer Sale", spend: 4200, roas: 8.5 },
-    { name: "Retargeting", spend: 3100, roas: 12.3 },
-    { name: "Brand Aware", spend: 2800, roas: 4.2 },
-    { name: "Lead Gen", spend: 2400, roas: 6.8 },
-  ];
-
+  // Use real charts if provided by EF, else defaults
+  const spendRevenueData = data?.charts?.spend_vs_revenue || [];
+  const campaignPerformanceData = data?.campaigns || [];
+  
+  // Safe defaults for visuals not yet in EF
   const channelBreakdownData = [
     { name: "Facebook", value: 7700, percentage: 62 },
     { name: "Google", value: 3500, percentage: 28 },
@@ -150,9 +175,9 @@ export default function MarketingAnalytics() {
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefetching}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </>
