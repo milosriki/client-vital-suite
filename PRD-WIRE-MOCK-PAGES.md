@@ -57,7 +57,7 @@ Key files:
 
 - [x] **4. AttributionLeaks.tsx** — Wire tab 2 (Leak Detector): invoke `data-reconciler` edge function for discrepancy data.
 
-- [ ] **5. StripeIntelligence.tsx** — Replace 7 hardcoded const arrays. Query `stripe_transactions` directly for status breakdown, chart data, recent transactions. Remove static fallback arrays.
+- [x] **5. StripeIntelligence.tsx** — Replace 7 hardcoded const arrays. Query `stripe_transactions` directly for status breakdown, chart data, recent transactions. Remove static fallback arrays.
 
 - [ ] **6. WorkflowStrategy.tsx** — Replace 3 mock arrays. Query `ai_execution_metrics` for workflow execution data. Query `agent_decisions` for strategy recommendations.
 
