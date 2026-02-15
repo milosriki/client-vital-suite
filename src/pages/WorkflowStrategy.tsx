@@ -1,69 +1,171 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2, AlertTriangle, Info, ArrowRight } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Info, ArrowRight, Activity, TrendingDown, TrendingUp } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { subDays } from "date-fns";
+
+interface WorkflowMetrics {
+  function_name: string;
+  total_executions: number;
+  successful: number;
+  failed: number;
+  avg_latency_ms: number | null;
+  total_cost: number | null;
+  error_rate: number;
+  latest_error: string | null;
+}
+
+interface StrategyRecommendation {
+  id: string;
+  decision_type: string;
+  confidence_score: number | null;
+  status: string | null;
+  outcome: string | null;
+  decision_output: Record<string, unknown> | string | null;
+  created_at: string | null;
+}
 
 const WorkflowStrategy = () => {
-  const workflows = [
-    {
-      id: "eSzjByOJHo3Si03y",
-      name: "Daily Calculator",
-      priority: "HIGH",
-      description: "Calculates daily health scores for all clients",
-      criticalNodes: [
-        "Fetch Client Data",
-        "Calculate Health Score",
-        "Zone Classification",
-        "Upsert to client_health_scores"
-      ]
+  // Fetch workflow execution metrics from ai_execution_metrics
+  const { data: executionMetrics, isLoading: metricsLoading } = useDedupedQuery({
+    queryKey: ["workflow-execution-metrics"],
+    queryFn: async () => {
+      const sevenDaysAgo = subDays(new Date(), 7).toISOString();
+
+      const { data, error } = await supabase
+        .from("ai_execution_metrics")
+        .select("function_name, status, latency_ms, cost_usd_est, error_message, created_at")
+        .gte("created_at", sevenDaysAgo)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.warn("Execution metrics query error:", error);
+        return [];
+      }
+
+      // Aggregate metrics by function
+      const metricsMap = new Map<string, WorkflowMetrics>();
+
+      (data || []).forEach((metric) => {
+        const funcName = metric.function_name;
+        if (!metricsMap.has(funcName)) {
+          metricsMap.set(funcName, {
+            function_name: funcName,
+            total_executions: 0,
+            successful: 0,
+            failed: 0,
+            avg_latency_ms: null,
+            total_cost: null,
+            error_rate: 0,
+            latest_error: null,
+          });
+        }
+
+        const metrics = metricsMap.get(funcName)!;
+        metrics.total_executions++;
+
+        if (metric.status === "success") {
+          metrics.successful++;
+        } else if (metric.status === "error" || metric.status === "failed") {
+          metrics.failed++;
+          if (!metrics.latest_error && metric.error_message) {
+            metrics.latest_error = metric.error_message;
+          }
+        }
+
+        if (metric.latency_ms) {
+          metrics.avg_latency_ms = metrics.avg_latency_ms
+            ? (metrics.avg_latency_ms + metric.latency_ms) / 2
+            : metric.latency_ms;
+        }
+
+        if (metric.cost_usd_est) {
+          metrics.total_cost = (metrics.total_cost || 0) + metric.cost_usd_est;
+        }
+      });
+
+      // Calculate error rates
+      metricsMap.forEach((metrics) => {
+        metrics.error_rate = metrics.total_executions > 0
+          ? (metrics.failed / metrics.total_executions) * 100
+          : 0;
+      });
+
+      return Array.from(metricsMap.values()).sort((a, b) => b.error_rate - a.error_rate);
     },
-    {
-      id: "BdVKbuQH6f5nYkvV",
-      name: "AI Risk Analysis",
-      priority: "HIGH",
-      description: "AI-powered risk assessment and intervention recommendations",
-      criticalNodes: [
-        "Get At-Risk Clients",
-        "AI Analysis",
-        "Generate Recommendations",
-        "Insert to intervention_log"
-      ]
+  });
+
+  // Fetch strategy recommendations from agent_decisions
+  const { data: strategyRecommendations, isLoading: recommendationsLoading } = useDedupedQuery({
+    queryKey: ["workflow-strategy-recommendations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agent_decisions")
+        .select("id, decision_type, confidence_score, status, outcome, decision_output, created_at")
+        .eq("decision_type", "workflow_optimization")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.warn("Strategy recommendations query error:", error);
+        return [];
+      }
+      return data || [];
     },
-    {
-      id: "oWCnjPfErKrjUXG",
-      name: "Weekly Pattern Detection",
-      priority: "MEDIUM",
-      description: "Analyzes weekly trends and patterns",
-      criticalNodes: [
-        "Aggregate Weekly Data",
-        "Pattern Analysis",
-        "Upsert to weekly_patterns"
-      ]
-    },
-    {
-      id: "S2BCDEjVrUGRzQM0",
-      name: "Monthly Coach Review",
-      priority: "MEDIUM",
-      description: "Monthly performance review for coaches",
-      criticalNodes: [
-        "Fetch Coach Data",
-        "Performance Calculation",
-        "Upsert to coach_performance"
-      ]
-    },
-    {
-      id: "DSj6s8POqhl40SOo",
-      name: "Intervention Logger",
-      priority: "HIGH",
-      description: "Logs and tracks client interventions",
-      criticalNodes: [
-        "Get Trigger Events",
-        "Create Intervention Record",
-        "Insert to intervention_log"
-      ]
+  });
+
+  // Map execution metrics to workflow display with priority
+  const workflows = (executionMetrics || []).map((metric) => {
+    let priority: "HIGH" | "MEDIUM" | "LOW" = "LOW";
+    if (metric.error_rate > 50) {
+      priority = "HIGH";
+    } else if (metric.error_rate > 20) {
+      priority = "MEDIUM";
     }
-  ];
+
+    // Extract function purpose from name
+    const functionName = metric.function_name;
+    let description = "Edge function workflow";
+    let criticalNodes: string[] = [];
+
+    // Map known functions to descriptions
+    if (functionName.includes("health") || functionName.includes("calculator")) {
+      description = "Calculates daily health scores for all clients";
+      criticalNodes = ["Fetch Client Data", "Calculate Health Score", "Zone Classification", "Upsert to DB"];
+    } else if (functionName.includes("risk") || functionName.includes("analysis")) {
+      description = "AI-powered risk assessment and intervention recommendations";
+      criticalNodes = ["Get At-Risk Clients", "AI Analysis", "Generate Recommendations", "Insert to Log"];
+    } else if (functionName.includes("pattern") || functionName.includes("weekly")) {
+      description = "Analyzes weekly trends and patterns";
+      criticalNodes = ["Aggregate Weekly Data", "Pattern Analysis", "Upsert to Patterns"];
+    } else if (functionName.includes("coach") || functionName.includes("performance")) {
+      description = "Monthly performance review for coaches";
+      criticalNodes = ["Fetch Coach Data", "Performance Calculation", "Upsert to Performance"];
+    } else if (functionName.includes("intervention") || functionName.includes("logger")) {
+      description = "Logs and tracks client interventions";
+      criticalNodes = ["Get Trigger Events", "Create Intervention Record", "Insert to Log"];
+    }
+
+    return {
+      id: metric.function_name,
+      name: functionName.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+      priority,
+      description,
+      criticalNodes,
+      metrics: {
+        executions: metric.total_executions,
+        successRate: metric.total_executions > 0 ? ((metric.successful / metric.total_executions) * 100).toFixed(1) : "0.0",
+        errorRate: metric.error_rate.toFixed(1),
+        avgLatency: metric.avg_latency_ms ? Math.round(metric.avg_latency_ms) : null,
+        totalCost: metric.total_cost ? metric.total_cost.toFixed(4) : null,
+        latestError: metric.latest_error,
+      }
+    };
+  });
 
   const phases = [
     {
@@ -293,48 +395,181 @@ const WorkflowStrategy = () => {
         </div>
 
         {/* Current Issues Alert */}
-        <Alert className="border-destructive">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
-          <AlertDescription className="text-lg">
-            <strong>Critical Issues Detected:</strong>
-            <ul className="mt-2 space-y-1">
-              <li>• Daily Calculator: 87.5% failure rate (35 of 40 executions failed)</li>
-              <li>• Authorization errors in "GET: Overall Avg (Today)" node</li>
-              <li>• Data flow interruptions causing incomplete calculations</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
+        {metricsLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : workflows.filter(w => w.priority === "HIGH").length > 0 ? (
+          <Alert className="border-destructive">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertDescription className="text-lg">
+              <strong>Critical Issues Detected:</strong>
+              <ul className="mt-2 space-y-1">
+                {workflows
+                  .filter((w) => w.priority === "HIGH")
+                  .slice(0, 3)
+                  .map((w) => (
+                    <li key={w.id}>
+                      • {w.name}: {w.metrics.errorRate}% failure rate ({w.metrics.executions} executions)
+                      {w.metrics.latestError && (
+                        <span className="block ml-4 text-sm text-muted-foreground mt-1">
+                          Latest: {w.metrics.latestError.substring(0, 100)}...
+                        </span>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="border-green-500">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <AlertDescription className="text-lg">
+              <strong>All Systems Operational</strong>
+              <p className="mt-1">No critical issues detected in the last 7 days.</p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Workflow Priority List */}
         <Card>
           <CardHeader>
             <CardTitle>Workflow Priority Order</CardTitle>
-            <CardDescription>Review and fix in this sequence</CardDescription>
+            <CardDescription>
+              {metricsLoading ? "Loading execution metrics..." : `${workflows.length} workflows analyzed over the last 7 days`}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {workflows.map((workflow, index) => (
-                <div key={workflow.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold">{workflow.name}</h3>
-                      <Badge variant={workflow.priority === "HIGH" ? "destructive" : "secondary"}>
-                        {workflow.priority}
-                      </Badge>
+            {metricsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : workflows.length === 0 ? (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  No workflow execution data found in the last 7 days. Execute some workflows to see metrics here.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-3">
+                {workflows.map((workflow, index) => (
+                  <div key={workflow.id} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
+                      {index + 1}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{workflow.description}</p>
-                    <div className="text-xs text-muted-foreground">
-                      <strong>Critical Nodes:</strong> {workflow.criticalNodes.join(" → ")}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold">{workflow.name}</h3>
+                        <Badge variant={workflow.priority === "HIGH" ? "destructive" : workflow.priority === "MEDIUM" ? "default" : "secondary"}>
+                          {workflow.priority}
+                        </Badge>
+                        <Badge variant="outline" className="gap-1">
+                          <Activity className="h-3 w-3" />
+                          {workflow.metrics.executions} runs
+                        </Badge>
+                        <Badge variant={parseFloat(workflow.metrics.errorRate) > 50 ? "destructive" : parseFloat(workflow.metrics.errorRate) > 20 ? "default" : "secondary"} className="gap-1">
+                          {parseFloat(workflow.metrics.errorRate) > 20 ? (
+                            <TrendingDown className="h-3 w-3" />
+                          ) : (
+                            <TrendingUp className="h-3 w-3" />
+                          )}
+                          {workflow.metrics.successRate}% success
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">{workflow.description}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground mb-2">
+                        <div>
+                          <strong>Error Rate:</strong> {workflow.metrics.errorRate}%
+                        </div>
+                        {workflow.metrics.avgLatency && (
+                          <div>
+                            <strong>Avg Latency:</strong> {workflow.metrics.avgLatency}ms
+                          </div>
+                        )}
+                        {workflow.metrics.totalCost && (
+                          <div>
+                            <strong>Cost (7d):</strong> ${workflow.metrics.totalCost}
+                          </div>
+                        )}
+                      </div>
+                      {workflow.criticalNodes.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          <strong>Critical Nodes:</strong> {workflow.criticalNodes.join(" → ")}
+                        </div>
+                      )}
+                      {workflow.metrics.latestError && parseFloat(workflow.metrics.errorRate) > 0 && (
+                        <div className="mt-2 p-2 bg-destructive/10 rounded text-xs text-destructive border border-destructive/20">
+                          <strong>Latest Error:</strong> {workflow.metrics.latestError.substring(0, 200)}
+                          {workflow.metrics.latestError.length > 200 && "..."}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* AI Strategy Recommendations */}
+        {!recommendationsLoading && strategyRecommendations && strategyRecommendations.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Strategy Recommendations</CardTitle>
+              <CardDescription>
+                AI-generated optimization strategies based on workflow analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {strategyRecommendations.map((recommendation) => (
+                  <div
+                    key={recommendation.id}
+                    className="p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{recommendation.decision_type}</Badge>
+                        {recommendation.confidence_score && (
+                          <Badge variant={recommendation.confidence_score > 0.8 ? "default" : "secondary"}>
+                            {(recommendation.confidence_score * 100).toFixed(0)}% confidence
+                          </Badge>
+                        )}
+                        {recommendation.status && (
+                          <Badge variant={
+                            recommendation.status === "executed" ? "default" :
+                            recommendation.status === "pending" ? "secondary" :
+                            "outline"
+                          }>
+                            {recommendation.status}
+                          </Badge>
+                        )}
+                      </div>
+                      {recommendation.created_at && (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(recommendation.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {recommendation.decision_output && (
+                      <div className="text-sm">
+                        {typeof recommendation.decision_output === "string"
+                          ? recommendation.decision_output
+                          : JSON.stringify(recommendation.decision_output, null, 2)}
+                      </div>
+                    )}
+                    {recommendation.outcome && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        <strong>Outcome:</strong> {recommendation.outcome}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Implementation Phases */}
         <Card>
