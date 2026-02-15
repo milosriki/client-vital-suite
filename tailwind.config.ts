@@ -82,10 +82,22 @@ export default {
           purple: "hsl(var(--health-purple))",
         },
       },
+      spacing: {
+        'dashboard-gap': '1.5rem',     // 24px - consistent card spacing
+        'dashboard-header': '4rem',    // 64px - header height
+        'sidebar-width': '16rem',      // 256px - expanded sidebar
+        'sidebar-collapsed': '4.5rem', // 72px - collapsed sidebar
+      },
+      fontSize: {
+        'metric-xl': ['3.5rem', { lineHeight: '1.1', fontWeight: '700' }],  // 56px
+        'metric-lg': ['2rem', { lineHeight: '1.2', fontWeight: '600' }],    // 32px
+        'metric-md': ['1.5rem', { lineHeight: '1.3', fontWeight: '600' }],  // 24px
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        card: "12px",  // Consistent card radius
       },
       boxShadow: {
         // Clean, no-glow shadows for Pro look

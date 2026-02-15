@@ -182,7 +182,7 @@ function GenomeTable({ data }: { data: TruthGenomeRecord[] }) {
                 </div>
               </td>
               <td className="px-4 py-3">
-                <Badge variant={record.atlas_verdict === 'VERIFIED WINNER' ? 'default' : record.atlas_verdict === 'REVENUE LEAK' ? 'destructive' : 'secondary'} className="text-xs">
+                <Badge variant={record.atlas_verdict === 'VERIFIED WINNER' ? 'default' : record.atlas_verdict === 'ACTIVE PIPELINE' ? 'destructive' : 'secondary'} className="text-xs">
                   {record.atlas_verdict}
                 </Badge>
               </td>

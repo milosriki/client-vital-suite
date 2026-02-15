@@ -4,12 +4,13 @@ export interface TruthGenomeRecord {
   email: string;
   city: string | null;
   stage: string | null;
+  first_touch_source: string | null;
   ad_id: string | null;
   verified_cash: number;
   payback_days: number | null;
   lead_intent_iq: number;
   avg_call_min: number;
-  atlas_verdict: 'VERIFIED WINNER' | 'HIGH INTENT PENDING' | 'REVENUE LEAK' | 'PROSPECTING';
+  atlas_verdict: 'VERIFIED WINNER' | 'HIGH INTENT PENDING' | 'ACTIVE PIPELINE' | 'PROSPECTING';
   last_reconciled_at?: string;
 }
 

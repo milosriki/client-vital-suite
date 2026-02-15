@@ -31,7 +31,7 @@ export function useCallAnalytics(days: number = 14) {
         id: call.id,
         lead_name: contactMap.get(call.caller_number) || call.caller_number || 'Unknown',
         direction: (call.direction || 'inbound') as 'inbound' | 'outbound',
-        duration_seconds: call.duration_seconds || 0,
+        duration_seconds: Math.round((call.duration_seconds || 0) / 1000),
         intent_iq: Math.round(((call.call_score || 0) * 0.6) + ((call.sentiment_score || 0) * 100 * 0.4)),
         verdict: call.call_score && call.call_score > 7 ? 'High Intent' : 'Low Intent',
         coach: call.assigned_coach || 'Unassigned',
