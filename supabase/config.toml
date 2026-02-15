@@ -252,6 +252,9 @@ verify_jwt = true
 [functions.hubspot-webhook]
 verify_jwt = false
 
+[functions.hubspot-webhook-receiver]
+verify_jwt = false
+
 # Comprehensive System Health Check
 [functions.system-health-check]
 verify_jwt = false

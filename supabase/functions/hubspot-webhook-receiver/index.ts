@@ -42,6 +42,7 @@ serve(async (req) => {
     console.log(`[HubSpot Webhook] Received ${events.length} events`);
 
     for (const event of events) {
+      try {
       const { subscriptionType, objectId, propertyName, propertyValue } = event;
       console.log(`Processing ${subscriptionType} for object ${objectId}`);
 
@@ -107,7 +108,7 @@ serve(async (req) => {
 
         if (!HUBSPOT_API_KEY) {
           console.error("❌ HUBSPOT_API_KEY not configured");
-          return;
+          continue;
         }
 
         try {
@@ -131,7 +132,7 @@ serve(async (req) => {
 
           if (!msgResponse.ok) {
             console.error(`❌ Failed to fetch messages: ${msgResponse.status}`);
-            return;
+            continue;
           }
 
           const threadData = threadRes.ok ? await threadRes.json() : {};
@@ -180,7 +181,7 @@ serve(async (req) => {
 
           if (!latestMessage || !latestMessage.text) {
             console.warn("⚠️ No message text found");
-            return;
+            continue;
           }
 
           const userMessage = latestMessage.text;
@@ -236,6 +237,10 @@ serve(async (req) => {
         } catch (whatsappError: any) {
           console.error("❌ WhatsApp setup error:", whatsappError);
         }
+      }
+      } catch (eventError: unknown) {
+        console.error(`❌ Error processing event ${event.eventId || 'unknown'} (${event.subscriptionType}):`, eventError);
+        // Continue processing remaining events — don't kill the batch
       }
     }
 
