@@ -9,7 +9,7 @@ export function useEnterpriseTruthGenome() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mv_enterprise_truth_genome")
-        .select("contact_id, lead_name, email, city, stage, ad_id, verified_cash, payback_days, lead_intent_iq, avg_call_min, atlas_verdict, last_reconciled_at")
+        .select("contact_id, lead_name, email, city, stage, first_touch_source, ad_id, verified_cash, payback_days, lead_intent_iq, avg_call_min, atlas_verdict, last_reconciled_at")
         .order("verified_cash", { ascending: false })
         .limit(500);
 
@@ -34,7 +34,9 @@ export function useEnterpriseTruthGenome() {
     queryKey: QUERY_KEYS.enterprise.revenueShadow,
     queryFn: async () => {
       const genomeData = genome.data || [];
-      const leaks = genomeData.filter(r => r.atlas_verdict === 'REVENUE LEAK');
+      const leaks = genomeData.filter(r =>
+        r.atlas_verdict === 'ACTIVE PIPELINE' || r.atlas_verdict === 'HIGH INTENT'
+      );
       const totalProjected = genomeData.reduce((sum, r) => sum + r.verified_cash, 0);
       return {
         projected_revenue: totalProjected,
@@ -48,7 +50,9 @@ export function useEnterpriseTruthGenome() {
     genome,
     segments,
     revenueShadow,
-    leaks: (genome.data || []).filter(r => r.atlas_verdict === 'REVENUE LEAK'),
+    leaks: (genome.data || []).filter(r =>
+      r.atlas_verdict === 'ACTIVE PIPELINE' || r.atlas_verdict === 'HIGH INTENT'
+    ),
     isLoading: genome.isLoading || segments.isLoading,
   };
 }
