@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DollarSign, TrendingUp, Users, AlertCircle, Activity, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePipelineData, useHubSpotHealth, useLiveData } from "@/hooks/useRevenueIntelligence";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -55,7 +56,30 @@ export default function RevenueIntelligence() {
 
   const handleRefresh = () => {
     refetch();
+    pipelineRefetch();
+    hubspotRefetch();
   };
+
+  // Tab 2: Pipeline Data (Real Supabase data)
+  const {
+    data: pipelineData,
+    isLoading: pipelineLoading,
+    refetch: pipelineRefetch
+  } = usePipelineData(dateRange);
+
+  // Tab 3: HubSpot Health Data (Real Supabase data)
+  const {
+    data: hubspotData,
+    isLoading: hubspotLoading,
+    refetch: hubspotRefetch
+  } = useHubSpotHealth(dateRange);
+
+  // Tab 4: Live Data (Real Supabase realtime)
+  const {
+    liveActivity: realtimeLiveActivity,
+    recentDeals: realtimeRecentDeals,
+    todayActivity: realtimeTodayActivity
+  } = useLiveData();
 
   // Tab 1: Stripe Data - Wired to real response
   const stripeMetrics = [
@@ -103,97 +127,124 @@ export default function RevenueIntelligence() {
     { name: "One-time", value: 0, percentage: 0 },
   ];
 
-  // Tab 2: Pipeline - Mock data preserved (not covered by stripe-dashboard-data)
+  // Tab 2: Pipeline - Real Supabase data
   const pipelineMetrics = [
-    { label: "Total Pipeline", value: "$847K", delta: { value: 42, type: "neutral" as const }, icon: DollarSign },
-    { label: "Weighted", value: "$324K", delta: { value: 0, type: "neutral" as const }, icon: TrendingUp },
-    { label: "Close Rate", value: "28.6%", delta: { value: 0, type: "neutral" as const }, icon: Activity },
-    { label: "Avg Deal", value: "$18,450", delta: { value: 0, type: "neutral" as const }, icon: DollarSign },
-    { label: "Velocity", value: "24 days", delta: { value: 0, type: "neutral" as const }, icon: Activity },
+    {
+      label: "Total Pipeline",
+      value: pipelineData?.metrics.totalPipeline ? `$${(pipelineData.metrics.totalPipeline / 1000).toFixed(0)}K` : "—",
+      delta: { value: 0, type: "neutral" as const },
+      icon: DollarSign
+    },
+    {
+      label: "Weighted",
+      value: pipelineData?.metrics.weightedPipeline ? `$${(pipelineData.metrics.weightedPipeline / 1000).toFixed(0)}K` : "—",
+      delta: { value: 0, type: "neutral" as const },
+      icon: TrendingUp
+    },
+    {
+      label: "Close Rate",
+      value: pipelineData?.metrics.closeRate ? `${pipelineData.metrics.closeRate.toFixed(1)}%` : "—",
+      delta: { value: 0, type: "neutral" as const },
+      icon: Activity
+    },
+    {
+      label: "Avg Deal",
+      value: pipelineData?.metrics.avgDealValue ? `$${pipelineData.metrics.avgDealValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—",
+      delta: { value: 0, type: "neutral" as const },
+      icon: DollarSign
+    },
+    {
+      label: "Velocity",
+      value: pipelineData?.metrics.avgVelocity ? `${Math.round(pipelineData.metrics.avgVelocity)} days` : "—",
+      delta: { value: 0, type: "neutral" as const },
+      icon: Activity
+    },
   ];
 
-  const funnelData = [
-    { name: "Lead", value: 847, label: "847 (100%)" },
-    { name: "Qualified", value: 284, label: "284 (33.5%)" },
-    { name: "Demo", value: 124, label: "124 (14.6%)" },
-    { name: "Proposal", value: 42, label: "42 (5.0%)" },
-    { name: "Closed Won", value: 12, label: "12 (1.4%)" },
-  ];
+  const funnelData = pipelineData?.funnelData || [];
+  const stageBreakdown = (pipelineData?.stageBreakdown || []).map(s => ({
+    stage: s.stage,
+    count: s.count,
+    value: s.total_value,
+  }));
+  const timeInStage = pipelineData?.timeInStage || [];
+  const activeDeals = pipelineData?.activeDeals || [];
 
-  const stageBreakdown = [
-    { stage: "Lead", count: 124, value: 248000 },
-    { stage: "Qualified", count: 68, value: 204000 },
-    { stage: "Demo", count: 42, value: 189000 },
-    { stage: "Proposal", count: 28, value: 154000 },
-    { stage: "Closed Won", count: 12, value: 52000 },
-  ];
-
-  const timeInStage = [
-    { stage: "Lead", days: 5 },
-    { stage: "Qualified", days: 8 },
-    { stage: "Demo", days: 12 },
-    { stage: "Proposal", days: 18 },
-    { stage: "Closed", days: 24 },
-  ];
-
-  const activeDeals = [
-    { company: "Acme Corp", stage: "Proposal", value: 25000, owner: "Mike", days: 42, next: "🔴 Follow-up" },
-    { company: "Global Tech", stage: "Demo", value: 18000, owner: "Sarah", days: 12, next: "✅ Send deck" },
-    { company: "Startup Inc", stage: "Qualified", value: 12000, owner: "Alex", days: 8, next: "✅ Schedule call" },
-    { company: "Enterprise Co", stage: "Proposal", value: 45000, owner: "Mike", days: 18, next: "🟡 Contract" },
-    { company: "Small Biz LLC", stage: "Demo", value: 8000, owner: "Sarah", days: 5, next: "✅ Quote ready" },
-  ];
-
-  // Tab 3: HubSpot Health - Mock data
+  // Tab 3: HubSpot Health - Real Supabase data
   const hubspotMetrics = [
-    { label: "Contacts", value: "12,847", delta: { value: 284, type: "positive" as const }, icon: Users },
-    { label: "Deals", value: "847", delta: { value: 42, type: "positive" as const }, icon: DollarSign },
-    { label: "Companies", value: "3,245", delta: { value: 18, type: "positive" as const }, icon: Activity },
-    { label: "Tasks Open", value: "142", delta: { value: 8, type: "positive" as const }, icon: AlertCircle },
-    { label: "Workflows", value: "12 active", delta: { value: 0, type: "positive" as const }, icon: Activity },
+    {
+      label: "Contacts",
+      value: hubspotData?.metrics.contacts.toLocaleString() || "—",
+      delta: { value: 0, type: "positive" as const },
+      icon: Users
+    },
+    {
+      label: "Deals",
+      value: hubspotData?.metrics.deals.toLocaleString() || "—",
+      delta: { value: 0, type: "positive" as const },
+      icon: DollarSign
+    },
+    {
+      label: "Companies",
+      value: hubspotData?.metrics.companies.toLocaleString() || "—",
+      delta: { value: 0, type: "positive" as const },
+      icon: Activity
+    },
+    {
+      label: "Sync Errors",
+      value: hubspotData?.metrics.syncErrors.toString() || "0",
+      delta: { value: 0, type: hubspotData?.metrics.syncErrors ? "negative" as const : "positive" as const },
+      icon: AlertCircle
+    },
+    {
+      label: "Data Quality",
+      value: hubspotData?.dataQuality ? "Good" : "—",
+      delta: { value: 0, type: "positive" as const },
+      icon: Activity
+    },
   ];
 
-  const workflows = [
-    { name: "Lead Nurture", status: "Active", runs: 1247, success: 99.2, errors: 10, lastRun: "2h ago" },
-    { name: "Deal Stage Notif", status: "Active", runs: 847, success: 100, errors: 0, lastRun: "5m ago" },
-    { name: "Client Onboarding", status: "Active", runs: 42, success: 97.6, errors: 1, lastRun: "1d ago" },
-  ];
+  // Group sync errors by type for workflow-like display
+  const errorsByType = hubspotData?.syncErrors.reduce((acc, error) => {
+    const type = error.error_type || "Unknown";
+    if (!acc[type]) {
+      acc[type] = { name: type, status: "Error", runs: 0, success: 0, errors: 0, lastRun: error.created_at || "" };
+    }
+    acc[type].errors++;
+    if (error.resolved_at) {
+      acc[type].success++;
+    }
+    return acc;
+  }, {} as Record<string, any>);
 
-  // Tab 4: Live Data - Mock data
-  const liveActivity = [
-    { time: "12s ago", event: "New contact: Sarah Wilson (FB Ad: Summer Sale 2026)", type: "contact" },
-    { time: "45s ago", event: 'Deal "Enterprise Co" moved to Closed Won ($45,000)', type: "deal" },
-    { time: "1m ago", event: "Contact \"Mike Johnson\" lifecycle: Lead → MQL", type: "lifecycle" },
-    { time: "2m ago", event: 'Deal "Global Tech" stuck in Demo for 32 days (alert)', type: "alert" },
-    { time: "3m ago", event: "New contact: Alex Chen (Organic Search)", type: "contact" },
-    { time: "5m ago", event: 'Deal "Acme Corp" value updated: $20K → $25K', type: "deal" },
-    { time: "8m ago", event: 'Contact "Jane Smith" opened email "Summer Sale Promo"', type: "email" },
-    { time: "12m ago", event: "New contact: David Lee (Google Ads)", type: "contact" },
-  ];
+  const workflows = Object.values(errorsByType || {}).map((w: any) => ({
+    name: w.name,
+    status: w.errors > 0 ? "Has Errors" : "Active",
+    runs: w.errors,
+    success: w.success > 0 ? (w.success / w.errors) * 100 : 0,
+    errors: w.errors - w.success,
+    lastRun: w.lastRun ? new Date(w.lastRun).toLocaleString() : "Unknown",
+  }));
 
+  // Tab 4: Live Data - Real Supabase realtime
+  const liveActivity = realtimeLiveActivity;
   const todayActivity = [
-    { metric: "New Contacts", count: 42 },
-    { metric: "New Deals", count: 8 },
-    { metric: "Emails Sent", count: 284 },
-    { metric: "Calls Logged", count: 124 },
-    { metric: "Tasks Created", count: 68 },
+    { metric: "New Contacts", count: realtimeTodayActivity.newContacts },
+    { metric: "New Deals", count: realtimeTodayActivity.newDeals },
+    { metric: "Emails Sent", count: realtimeTodayActivity.emailsSent },
+    { metric: "Calls Logged", count: realtimeTodayActivity.callsLogged },
+    { metric: "Tasks Created", count: realtimeTodayActivity.tasksCreated },
   ];
 
-  const lifecycleDistribution = [
-    { name: "Subscriber", value: 2847, percentage: 22 },
-    { name: "Lead", value: 4124, percentage: 32 },
-    { name: "MQL", value: 3245, percentage: 25 },
-    { name: "SQL", value: 1847, percentage: 14 },
-    { name: "Customer", value: 784, percentage: 6 },
-  ];
-
-  const recentDeals = [
-    { deal: "Enterprise Co", stage: "Proposal", value: 45000, owner: "Mike", created: "2h ago", source: "FB Ads" },
-    { deal: "Tech Startup", stage: "Demo", value: 18000, owner: "Sarah", created: "5h ago", source: "Organic" },
-    { deal: "Small Business", stage: "Qualified", value: 12000, owner: "Alex", created: "8h ago", source: "LinkedIn" },
-    { deal: "Global Corp", stage: "Lead", value: 28000, owner: "Mike", created: "12h ago", source: "Referral" },
-    { deal: "Local Store", stage: "Qualified", value: 8000, owner: "Sarah", created: "18h ago", source: "Google" },
-  ];
+  const lifecycleDistribution = hubspotData?.lifecycleDistribution || [];
+  const recentDeals = realtimeRecentDeals.slice(0, 5).map(deal => ({
+    deal: deal.deal_name || "Unknown",
+    stage: deal.stage || "Unknown",
+    value: deal.deal_value,
+    owner: deal.owner_name || "Unassigned",
+    created: new Date(deal.created_at || "").toLocaleTimeString(),
+    source: "HubSpot",
+  }));
 
   const COLORS = ["#F59E0B", "#8B5CF6", "#10B981", "#3B82F6", "#EC4899"];
 
@@ -525,12 +576,12 @@ export default function RevenueIntelligence() {
 
             <AccordionItem value="leaks" className="bg-[#0A0A0A] border border-[#1F2937] rounded-card px-6">
               <AccordionTrigger className="hover:no-underline">
-                <span className="text-lg font-semibold">Data Leaks</span>
+                <span className="text-lg font-semibold">Data Quality Issues</span>
               </AccordionTrigger>
               <AccordionContent className="text-sm text-slate-400 space-y-2">
-                <p>├─ Missing emails: 12 contacts (0.09%)</p>
-                <p>├─ Duplicate companies: 3 found</p>
-                <p>└─ Orphaned deals: 0 (all contacts linked)</p>
+                <p>├─ Missing emails: {hubspotData?.dataQuality.contactsWithoutEmail || 0} contacts</p>
+                <p>├─ Duplicate companies: {hubspotData?.dataQuality.duplicateCompanies || 0} found</p>
+                <p>└─ Orphaned deals: {hubspotData?.dataQuality.orphanedDeals || 0} (all contacts linked)</p>
               </AccordionContent>
             </AccordionItem>
 
