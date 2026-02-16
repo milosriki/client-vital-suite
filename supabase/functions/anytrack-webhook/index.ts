@@ -169,10 +169,20 @@ serve(async (req) => {
         }
 
         // Also create/update attribution event for journey tracking
-        if (event.eventName === "Purchase" || event.eventName === "Lead" || event.eventName === "CompleteRegistration") {
-          // Extract real Facebook ad/adset/campaign IDs from landing page URL
-          // These are numeric IDs (e.g. 120215...) — NOT fbclid which is a click tracker
+        // EXPANDED: Include OutboundClick (has ad_id in URL/attributions) + PageView for full funnel
+        const ATTRIBUTION_EVENTS = ["Purchase", "Lead", "CompleteRegistration", "OutboundClick", "PageView"];
+        if (ATTRIBUTION_EVENTS.includes(event.eventName)) {
+          // Extract real Facebook ad/adset/campaign IDs
+          // Priority: 1) attributions[0].params (most reliable), 2) landing page URL params
           const fbParams = parseFbParamsFromUrl(event.location);
+
+          // AnyTrack also puts ad params in attributions[0].params — often more reliable
+          const attrParams = event.attributions?.[0]?.params || {};
+          if (!fbParams.ad_id && attrParams.ad_id) fbParams.ad_id = attrParams.ad_id;
+          if (!fbParams.adset_id && attrParams.adset_id) fbParams.adset_id = attrParams.adset_id;
+          if (!fbParams.campaign_id) {
+            fbParams.campaign_id = attrParams.utm_id || attrParams.hsa_cam || attrParams.campaign_id || fbParams.campaign_id;
+          }
 
           const attributionData = {
             event_id: eventData.event_id,
@@ -207,6 +217,50 @@ serve(async (req) => {
           await supabase
             .from("attribution_events")
             .upsert(attributionData, { onConflict: "event_id" });
+
+          // ATTRIBUTION LINKING: When a Lead/CompleteRegistration has no ad_id,
+          // look for a recent OutboundClick from the same contact and inherit its attribution
+          if ((event.eventName === "Lead" || event.eventName === "CompleteRegistration") && !fbParams.ad_id) {
+            const contactIdentifier = eventData.user_data.em || eventData.user_data.ph;
+            if (contactIdentifier) {
+              const identifierField = eventData.user_data.em ? "email" : "phone";
+              const { data: clickAttribution } = await supabase
+                .from("attribution_events")
+                .select("fb_ad_id, fb_adset_id, fb_campaign_id, fb_campaign_name, fb_ad_name, fb_adset_name, landing_page")
+                .eq(identifierField, contactIdentifier)
+                .eq("event_name", "OutboundClick")
+                .not("fb_ad_id", "is", null)
+                .order("event_time", { ascending: false })
+                .limit(1);
+
+              if (clickAttribution?.[0]) {
+                console.log(`[AnyTrack] Linking ${event.eventName} to OutboundClick attribution for ${contactIdentifier}`);
+                await supabase
+                  .from("attribution_events")
+                  .update({
+                    fb_ad_id: clickAttribution[0].fb_ad_id,
+                    fb_adset_id: clickAttribution[0].fb_adset_id,
+                    fb_campaign_id: clickAttribution[0].fb_campaign_id,
+                    fb_campaign_name: clickAttribution[0].fb_campaign_name,
+                    fb_ad_name: clickAttribution[0].fb_ad_name,
+                    fb_adset_name: clickAttribution[0].fb_adset_name,
+                  })
+                  .eq("event_id", eventData.event_id);
+
+                // Also update the contact record with attribution
+                if (eventData.user_data.em) {
+                  await supabase
+                    .from("contacts")
+                    .update({
+                      attributed_ad_id: clickAttribution[0].fb_ad_id,
+                      attributed_campaign_id: clickAttribution[0].fb_campaign_id,
+                      attribution_source: "anytrack_linked",
+                    })
+                    .eq("email", eventData.user_data.em);
+                }
+              }
+            }
+          }
         }
 
         // If it's a lead event, also sync to contacts
