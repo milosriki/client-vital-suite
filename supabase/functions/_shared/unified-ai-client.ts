@@ -42,6 +42,9 @@ export interface AIOptions {
   model?: string; // Override default model cascade
   functionName?: string; // For token usage tracking
   correlationId?: string; // For token usage tracking
+  agentType?: "atlas" | "lisa" | "default"; // Agent-specific budget enforcement
+  requestId?: string; // For tracing
+  traceId?: string; // For distributed tracing
 }
 
 // ============================================================================
@@ -59,6 +62,16 @@ const MODEL_CASCADE = [
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
+
+// Agent-specific token budgets (output tokens)
+const AGENT_TOKEN_BUDGETS = {
+  atlas: 8000, // Complex reasoning, financial analysis
+  lisa: 512, // Quick conversational responses
+  default: 2048, // Standard agent budget
+} as const;
+
+// Context compaction trigger (75% of budget)
+const COMPACTION_THRESHOLD = 0.75;
 
 export class UnifiedAIClient {
   private googleKey: string | undefined;
@@ -81,14 +94,116 @@ export class UnifiedAIClient {
   }
 
   /**
+   * Get agent-specific token budget
+   */
+  private getAgentBudget(agentType?: "atlas" | "lisa" | "default"): number {
+    return AGENT_TOKEN_BUDGETS[agentType || "default"];
+  }
+
+  /**
+   * Compact conversation history by summarizing older messages
+   * Preserves system message and most recent messages
+   */
+  private async compactConversation(
+    messages: ChatMessage[],
+    targetLength: number,
+  ): Promise<ChatMessage[]> {
+    if (messages.length <= targetLength) return messages;
+
+    console.log(
+      `[UnifiedAI] 🗜️ Compacting conversation: ${messages.length} → ~${targetLength} messages`,
+    );
+
+    // Preserve system message
+    const systemMsg = messages.find((m) => m.role === "system");
+    const otherMessages = messages.filter((m) => m.role !== "system");
+
+    // Keep last N messages
+    const recentMessages = otherMessages.slice(-Math.floor(targetLength * 0.6));
+
+    // Summarize older messages
+    const olderMessages = otherMessages.slice(0, -Math.floor(targetLength * 0.6));
+
+    if (olderMessages.length === 0) {
+      return messages; // Nothing to compact
+    }
+
+    try {
+      const summaryPrompt = `Summarize this conversation history in 2-3 sentences, preserving key context:
+
+${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
+
+      const summary = await this.callGemini(
+        [
+          { role: "system", content: "You are a conversation summarizer." },
+          { role: "user", content: summaryPrompt },
+        ],
+        { max_tokens: 256, model: "gemini-1.5-flash" }, // Use cheapest model
+        "gemini-1.5-flash",
+      );
+
+      const compactedMessages: ChatMessage[] = [];
+      if (systemMsg) compactedMessages.push(systemMsg);
+      compactedMessages.push({
+        role: "system",
+        content: `[Previous conversation summary]: ${summary.content}`,
+      });
+      compactedMessages.push(...recentMessages);
+
+      console.log(
+        `[UnifiedAI] ✅ Compaction complete: ${compactedMessages.length} messages`,
+      );
+      return compactedMessages;
+    } catch (error) {
+      console.warn(
+        "[UnifiedAI] ⚠️ Compaction failed, returning recent messages only:",
+        error,
+      );
+      // Fallback: just keep recent messages
+      const fallback: ChatMessage[] = [];
+      if (systemMsg) fallback.push(systemMsg);
+      fallback.push(...recentMessages);
+      return fallback;
+    }
+  }
+
+  /**
    * Main entry point: Uses model fallback cascade for resilience.
    * Primary: gemini-2.5-flash → Fallback: gemini-2.0-flash → Last resort: gemini-1.5-flash
+   * Enforces agent-specific token budgets and auto-compacts on threshold.
    */
   async chat(
     messages: ChatMessage[],
     options: AIOptions = {},
   ): Promise<AIResponse> {
     if (!this.googleKey) throw new Error("Google API key missing");
+
+    // Enforce agent-specific token budget
+    const agentBudget = this.getAgentBudget(options.agentType);
+    if (!options.max_tokens || options.max_tokens > agentBudget) {
+      options.max_tokens = agentBudget;
+      console.log(
+        `[UnifiedAI] 🎯 Enforcing ${options.agentType || "default"} budget: ${agentBudget} tokens`,
+      );
+    }
+
+    // Estimate input tokens (rough approximation: 1 token ≈ 4 chars)
+    const estimatedInputTokens = messages.reduce(
+      (sum, m) => sum + Math.ceil(m.content.length / 4),
+      0,
+    );
+
+    // Check if approaching context limit (trigger compaction at 75%)
+    const totalEstimatedTokens = estimatedInputTokens + (options.max_tokens || 2048);
+    const contextLimit = 32000; // Conservative limit for Gemini models
+
+    if (totalEstimatedTokens > contextLimit * COMPACTION_THRESHOLD) {
+      console.log(
+        `[UnifiedAI] ⚠️ Approaching context limit: ${totalEstimatedTokens}/${contextLimit} tokens`,
+      );
+      const targetMessageCount = Math.max(5, Math.floor(messages.length * 0.5));
+      messages = await this.compactConversation(messages, targetMessageCount);
+    }
 
     // Try each model in the cascade
     for (let i = 0; i < MODEL_CASCADE.length; i++) {
@@ -120,17 +235,30 @@ export class UnifiedAIClient {
     options: AIOptions,
     modelName: string,
   ): Promise<AIResponse> {
+    const startTime = Date.now();
+    let lastError: Error | undefined;
+
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         return await this.callGemini(messages, options, modelName);
       } catch (error) {
+        lastError = error as Error;
         const isRetryable =
-          (error as Error).message?.includes("429") ||
-          (error as Error).message?.includes("500") ||
-          (error as Error).message?.includes("503") ||
-          (error as Error).message?.includes("RESOURCE_EXHAUSTED");
+          lastError.message?.includes("429") ||
+          lastError.message?.includes("500") ||
+          lastError.message?.includes("503") ||
+          lastError.message?.includes("RESOURCE_EXHAUSTED");
 
-        if (!isRetryable || attempt === MAX_RETRIES - 1) throw error;
+        if (!isRetryable || attempt === MAX_RETRIES - 1) {
+          // Log error to ai_execution_metrics
+          this.logExecutionError(
+            modelName,
+            options,
+            lastError,
+            Date.now() - startTime,
+          );
+          throw error;
+        }
 
         const delay = RETRY_BASE_MS * Math.pow(2, attempt);
         console.log(
@@ -139,7 +267,79 @@ export class UnifiedAIClient {
         await new Promise((r) => setTimeout(r, delay));
       }
     }
+
+    // Log final failure
+    if (lastError) {
+      this.logExecutionError(
+        modelName,
+        options,
+        lastError,
+        Date.now() - startTime,
+      );
+    }
     throw new Error("Max retries exceeded");
+  }
+
+  /**
+   * Log execution errors to ai_execution_metrics (fire-and-forget)
+   */
+  private logExecutionError(
+    modelName: string,
+    options: AIOptions,
+    error: Error,
+    latencyMs: number,
+  ): void {
+    try {
+      const sb = createClient(this.supabaseUrl, this.supabaseKey);
+
+      const errorType = error.message?.includes("429")
+        ? "rate_limit"
+        : error.message?.includes("timeout")
+        ? "timeout"
+        : error.message?.includes("500") || error.message?.includes("503")
+        ? "server_error"
+        : "unknown";
+
+      const status = errorType === "timeout" ? "timeout" : "error";
+
+      sb.from("ai_execution_metrics")
+        .insert({
+          request_id: options?.requestId,
+          correlation_id: options?.correlationId || crypto.randomUUID(),
+          trace_id: options?.traceId,
+          function_name: options?.functionName || "unified-ai-client",
+          run_type: "chain",
+          provider: "gemini",
+          model: modelName,
+          latency_ms: latencyMs,
+          status,
+          http_status:
+            errorType === "rate_limit"
+              ? 429
+              : errorType === "server_error"
+              ? 500
+              : null,
+          error_message: error.message,
+          error_type: errorType,
+          metadata: {
+            agent_type: options?.agentType || "default",
+            budget_limit: options?.max_tokens,
+            error_stack: error.stack?.substring(0, 500),
+          },
+          tags: [
+            modelName.includes("flash") ? "flash" : "pro",
+            options?.agentType || "default",
+            "error",
+          ],
+        })
+        .then(() => {})
+        .catch((err) => {
+          console.warn("[UnifiedAI] ⚠️ Error logging failed:", err.message);
+        });
+    } catch (err) {
+      // Never let telemetry break the agent
+      console.warn("[UnifiedAI] ⚠️ Error logging setup failed:", err);
+    }
   }
 
   /**
@@ -235,6 +435,7 @@ export class UnifiedAIClient {
     options: AIOptions,
     defaultModel: string = MODEL_CASCADE[0],
   ): Promise<AIResponse> {
+    const startTime = Date.now();
     const genAI = new GoogleGenerativeAI(this.googleKey!);
 
     // Allow override from options, otherwise use cascade default
@@ -327,38 +528,91 @@ export class UnifiedAIClient {
     const response = await result.response;
     const text = response.text();
 
+    const latencyMs = Date.now() - startTime;
+
     // Token budget tracking
     const usageMeta = response.usageMetadata;
     let tokensUsed: number | undefined;
     let costUsd: number | undefined;
+    let inputTokens = 0;
+    let outputTokens = 0;
 
     if (usageMeta) {
-      const promptTokens = usageMeta.promptTokenCount || 0;
-      const completionTokens = usageMeta.candidatesTokenCount || 0;
-      const totalTokens = promptTokens + completionTokens;
+      inputTokens = usageMeta.promptTokenCount || 0;
+      outputTokens = usageMeta.candidatesTokenCount || 0;
+      const totalTokens = inputTokens + outputTokens;
       tokensUsed = totalTokens;
 
       this.tokenBudget.totalTokens += totalTokens;
 
       const inputCostPer1M = modelName.includes("flash") ? 0.10 : 3.00;
       const outputCostPer1M = modelName.includes("flash") ? 0.40 : 15.00;
-      const cost = (promptTokens * inputCostPer1M + completionTokens * outputCostPer1M) / 1_000_000;
+      const cost = (inputTokens * inputCostPer1M + outputTokens * outputCostPer1M) / 1_000_000;
       costUsd = cost;
       this.tokenBudget.totalCost += cost;
 
-      // Fire-and-forget token logging
+      console.log(
+        `[UnifiedAI] 📊 Tokens: in=${inputTokens} out=${outputTokens} | Cost: $${cost.toFixed(6)} | Latency: ${latencyMs}ms`,
+      );
+
+      // Enhanced metrics logging to ai_execution_metrics
       try {
         const sb = createClient(this.supabaseUrl, this.supabaseKey);
-        sb.from("token_usage_metrics").insert({
-          function_name: options?.functionName || "unknown",
-          model_used: modelName,
-          prompt_tokens: promptTokens,
-          completion_tokens: completionTokens,
-          total_tokens: totalTokens,
-          estimated_cost_usd: cost,
-          correlation_id: options?.correlationId,
-        }).then(() => {}).catch(() => {});
-      } catch { /* telemetry must never break agents */ }
+
+        // Log to both tables for backward compatibility
+        const metricsPromises = [];
+
+        // Legacy token_usage_metrics table
+        metricsPromises.push(
+          sb.from("token_usage_metrics").insert({
+            function_name: options?.functionName || "unknown",
+            model_used: modelName,
+            prompt_tokens: inputTokens,
+            completion_tokens: outputTokens,
+            total_tokens: totalTokens,
+            estimated_cost_usd: cost,
+            correlation_id: options?.correlationId,
+          })
+        );
+
+        // New ai_execution_metrics table with full observability
+        metricsPromises.push(
+          sb.from("ai_execution_metrics").insert({
+            request_id: options?.requestId,
+            correlation_id: options?.correlationId || crypto.randomUUID(),
+            trace_id: options?.traceId,
+            function_name: options?.functionName || "unified-ai-client",
+            run_type: "chain",
+            provider: "gemini",
+            model: modelName,
+            latency_ms: latencyMs,
+            tokens_in: inputTokens,
+            tokens_out: outputTokens,
+            cost_usd_est: cost,
+            status: "success",
+            http_status: 200,
+            metadata: {
+              agent_type: options?.agentType || "default",
+              budget_limit: options?.max_tokens,
+              thinking_level: options?.thinkingLevel,
+              has_tools: options?.tools && options.tools.length > 0,
+              message_count: messages.length,
+            },
+            tags: [
+              modelName.includes("flash") ? "flash" : "pro",
+              options?.agentType || "default",
+            ],
+          })
+        );
+
+        // Fire-and-forget - don't block on telemetry
+        Promise.all(metricsPromises).then(() => {}).catch((err) => {
+          console.warn("[UnifiedAI] ⚠️ Metrics logging failed:", err.message);
+        });
+      } catch (err) {
+        // Telemetry must never break agents
+        console.warn("[UnifiedAI] ⚠️ Metrics setup error:", err);
+      }
     }
 
     // Gemini 3: Extract Thought Signature
