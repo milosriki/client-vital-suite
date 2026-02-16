@@ -75,9 +75,10 @@ export default function Observability() {
         .limit(500);
 
       if (error) throw error;
+      if (!data) throw new Error("Query returned null data despite no error");
 
-      setMetrics(data || []);
-      calculateStats(data || []);
+      setMetrics(data);
+      calculateStats(data);
     } catch (err) {
       console.error("Failed to fetch metrics:", err);
     } finally {
@@ -426,13 +427,16 @@ export default function Observability() {
                   {m.cost_usd_est && (
                     <div>${Number(m.cost_usd_est).toFixed(6)}</div>
                   )}
-                  <div>{new Date(m.created_at).toLocaleTimeString()}</div>
+                  <div>
+                    {m.created_at
+                      ? new Date(m.created_at).toLocaleTimeString()
+                      : "N/A"}
+                  </div>
                 </div>
                 {m.error_message && (
-                  <AlertTriangle
-                    className="w-4 h-4 text-red-500"
-                    title={m.error_message}
-                  />
+                  <div title={m.error_message}>
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                  </div>
                 )}
               </div>
             ))}
