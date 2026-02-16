@@ -53,13 +53,13 @@ serve(async (req) => {
     // Stape is optional - if no key, return success but don't send
     if (!STAPE_CAPIG_API_KEY) {
       console.log('⚠️  STAPE_CAPIG_API_KEY not configured - event stored but not sent to Meta CAPI');
-      return apiSuccess({
-          success: true,
+      return apiError("CONFIG_ERROR", JSON.stringify({
+          success: false,
           mode,
-          event_id: `evt_${Date.now()}`,
-          message: 'Stape API key not configured - event stored but not sent',
-          stored_only: true
-        });
+          message: 'STAPE_CAPIG_API_KEY not configured - event NOT sent to Meta CAPI',
+          stored_only: true,
+          action_required: 'Set STAPE_CAPIG_API_KEY in Supabase secrets'
+        }), 503);
     }
 
     console.log('Sending event to Stape CAPI:', {

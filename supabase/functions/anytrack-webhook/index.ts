@@ -170,7 +170,11 @@ serve(async (req) => {
 
         // Also create/update attribution event for journey tracking
         // EXPANDED: Include OutboundClick (has ad_id in URL/attributions) + PageView for full funnel
-        const ATTRIBUTION_EVENTS = ["Purchase", "Lead", "CompleteRegistration", "OutboundClick", "PageView"];
+        const ATTRIBUTION_EVENTS = [
+          "Purchase", "Lead", "CompleteRegistration", "OutboundClick", "PageView",
+          "FormSubmit", "CrmLeadCrmLead", "DealNew", "salesqualifiedlead",
+          "marketingqualifiedlead", "Schedule", "customer"
+        ];
         if (ATTRIBUTION_EVENTS.includes(event.eventName)) {
           // Extract real Facebook ad/adset/campaign IDs
           // Priority: 1) attributions[0].params (most reliable), 2) landing page URL params

@@ -44,19 +44,39 @@ serve(async (req) => {
     for (const event of events) {
       try {
       const { subscriptionType, objectId, propertyName, propertyValue } = event;
-      console.log(`Processing ${subscriptionType} for object ${objectId}`);
+      // HubSpot objectTypeId: 0-1=contact, 0-3=deal, 0-48=call, 0-2=company
+      const objectTypeId = (event as any).objectTypeId as string | undefined;
+      console.log(`Processing ${subscriptionType} (type=${objectTypeId || 'legacy'}) for object ${objectId}`);
+
+      // --- Normalize: Map generic object.* events to legacy format for unified handling ---
+      let effectiveType = subscriptionType;
+      if (subscriptionType === "object.creation") {
+        if (objectTypeId === "0-1") effectiveType = "contact.creation";
+        else if (objectTypeId === "0-3") effectiveType = "deal.creation";
+        else if (objectTypeId === "0-48") effectiveType = "call.creation";
+      } else if (subscriptionType === "object.propertyChange") {
+        if (objectTypeId === "0-1") effectiveType = "contact.propertyChange";
+        else if (objectTypeId === "0-3") effectiveType = "deal.propertyChange";
+      } else if (subscriptionType === "object.merge") {
+        if (objectTypeId === "0-1") effectiveType = "contact.merge";
+        else if (objectTypeId === "0-3") effectiveType = "deal.merge";
+      } else if (subscriptionType === "object.associationChange") {
+        if (objectTypeId === "0-1") effectiveType = "contact.associationChange";
+        else if (objectTypeId === "0-3") effectiveType = "deal.associationChange";
+      }
 
       // 1. Deal Events
-      if (subscriptionType === "deal.creation") {
+      if (effectiveType === "deal.creation" || effectiveType === "deal.propertyChange") {
+        console.log(`Triggering sync for deal ${objectId}`);
         await supabase.functions.invoke("sync-single-deal", {
           body: { dealId: objectId },
         });
       }
 
-      // 2. Contact Events (New Lead)
+      // 2. Contact Events (New Lead or Property Change)
       if (
-        subscriptionType === "contact.creation" ||
-        subscriptionType === "contact.propertyChange"
+        effectiveType === "contact.creation" ||
+        effectiveType === "contact.propertyChange"
       ) {
         console.log(`Triggering sync for contact ${objectId}`);
         await supabase.functions.invoke("sync-single-contact", {
@@ -64,21 +84,16 @@ serve(async (req) => {
         });
       }
 
-      // 3. Call Creation (The "Smart Sync" for Calls)
-      // Note: User must subscribe to "Call creation" in HubSpot Webhooks
-      if (
-        subscriptionType === "call.creation" ||
-        (subscriptionType === "object.creation" &&
-          (event as any).objectType === "CALL")
-      ) {
+      // 3. Call Creation
+      if (effectiveType === "call.creation") {
         console.log(`Triggering sync for CALL ${objectId}`);
         await supabase.functions.invoke("sync-single-call", {
           body: { objectId },
         });
       }
 
-      // 4. Association Change (Linker)
-      if (subscriptionType === "deal.associationChange") {
+      // 4. Association Change — Deal↔Contact linking
+      if (effectiveType === "deal.associationChange") {
         const { toObjectId } = event;
         console.log(
           `Association changed: Deal ${objectId} <-> Object ${toObjectId}`,
@@ -89,7 +104,41 @@ serve(async (req) => {
         });
       }
 
-      // 5. Stage Change
+      // 5. Contact Association Change — Contact↔Company linking
+      if (effectiveType === "contact.associationChange") {
+        const { toObjectId, associationTypeId } = event as any;
+        console.log(`Contact ${objectId} association changed → Object ${toObjectId} (type=${associationTypeId})`);
+        // Re-sync the contact to pick up company association
+        await supabase.functions.invoke("sync-single-contact", {
+          body: { objectId },
+        });
+      }
+
+      // 6. Contact Merge — Update Supabase to keep the winning record
+      if (effectiveType === "contact.merge") {
+        const { primaryObjectId, mergedObjectIds } = event as any;
+        console.log(`Contact merge: winner=${primaryObjectId}, merged=${JSON.stringify(mergedObjectIds)}`);
+        // Re-sync the winning contact (it now has merged data)
+        await supabase.functions.invoke("sync-single-contact", {
+          body: { objectId: primaryObjectId },
+        });
+        // Mark merged contacts as merged in Supabase
+        if (mergedObjectIds?.length) {
+          for (const mergedId of mergedObjectIds) {
+            await supabase
+              .from("contacts")
+              .update({ 
+                lead_status: "merged",
+                lifecycle_stage: "other",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("hubspot_contact_id", mergedId.toString());
+            console.log(`Marked contact ${mergedId} as merged`);
+          }
+        }
+      }
+
+      // 7. Stage Change — Deal Won
       if (
         propertyName === "dealstage" &&
         (propertyValue === "closedwon" || propertyValue === "closed_won")
