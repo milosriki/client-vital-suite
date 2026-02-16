@@ -47,7 +47,7 @@ export default function ExecutiveOverview() {
 
   // Extract data with fallbacks
   const northStarMetric = data?.northStarMetric || {
-    value: "$0",
+    value: "AED 0",
     label: "Monthly Revenue",
     delta: { value: 0, type: "positive" as const },
   };
@@ -189,7 +189,7 @@ export default function ExecutiveOverview() {
                 <YAxis
                   stroke={chartTheme.axis.stroke}
                   tick={{ fill: chartTheme.axis.tick.fill }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -198,7 +198,7 @@ export default function ExecutiveOverview() {
                     borderRadius: chartTheme.tooltip.borderRadius,
                     padding: chartTheme.tooltip.padding,
                   }}
-                  formatter={(value: number) => `$${value.toLocaleString()}`}
+                  formatter={(value: number) => `AED ${value.toLocaleString()}`}
                 />
                 <Legend />
                 <Line

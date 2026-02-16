@@ -86,7 +86,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
   };
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-AE', {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount / 100);
@@ -216,7 +216,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-green-600">
-                  {formatCurrency(totalAvailable, 'usd')}
+                  {formatCurrency(totalAvailable, 'aed')}
                 </span>
                 <ArrowUpRight className="h-4 w-4 text-green-600" />
               </div>
@@ -237,7 +237,7 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-yellow-600">
-                  {formatCurrency(totalPending, 'usd')}
+                  {formatCurrency(totalPending, 'aed')}
                 </span>
                 <Clock className="h-4 w-4 text-yellow-600" />
               </div>

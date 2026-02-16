@@ -206,15 +206,15 @@ export function StripePayoutControlsTab({ mode }: StripePayoutControlsTabProps) 
     },
   });
 
-  const formatCurrency = (amount: number, currency = "usd") => {
-    return new Intl.NumberFormat("en-US", {
+  const formatCurrency = (amount: number, currency = "aed") => {
+    return new Intl.NumberFormat("en-AE", {
       style: "currency",
       currency: currency.toUpperCase(),
     }).format(amount / 100);
   };
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+    return new Date(timestamp * 1000).toLocaleDateString("en-AE", {
       year: "numeric",
       month: "short",
       day: "numeric",

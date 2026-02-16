@@ -313,7 +313,7 @@ export function useExecutiveData(filters: ExecutiveFilters) {
 
 // Helper functions
 function formatCurrency(value: number, decimals = 0): string {
-  return `$${value.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+  return `AED ${value.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
 interface DealData {

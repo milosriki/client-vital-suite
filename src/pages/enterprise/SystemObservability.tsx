@@ -45,7 +45,7 @@ export default function SystemObservability() {
         <MetricCard label="Success Rate" value={`${globalStats.successRate}%`} icon={ShieldCheck} />
         <MetricCard label="Avg Latency" value={`${globalStats.avgLatency}ms`} icon={Activity} />
         <MetricCard label="Total Calls" value={globalStats.totalCalls.toLocaleString()} icon={Cpu} />
-        <MetricCard label="Total Cost" value={`$${globalStats.totalCost.toFixed(4)}`} icon={Database} />
+        <MetricCard label="Total Cost" value={`AED ${globalStats.totalCost.toFixed(4)}`} icon={Database} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

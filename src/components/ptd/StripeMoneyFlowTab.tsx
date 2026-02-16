@@ -78,8 +78,8 @@ export function StripeMoneyFlowTab({ mode }: StripeMoneyFlowTabProps) {
     staleTime: 5 * 60 * 1000
   });
 
-  const formatCurrency = (amount: number, currency = "usd") => {
-    return new Intl.NumberFormat("en-US", {
+  const formatCurrency = (amount: number, currency = "aed") => {
+    return new Intl.NumberFormat("en-AE", {
       style: "currency",
       currency: currency.toUpperCase()
     }).format(amount);

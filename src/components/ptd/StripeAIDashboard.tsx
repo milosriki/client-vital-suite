@@ -144,8 +144,8 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = 'usd') => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number, currency: string = 'aed') => {
+    return new Intl.NumberFormat('en-AE', {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount / 100);
@@ -224,13 +224,13 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
                         <div>
                           <p className="text-xs text-muted-foreground">Available</p>
                           <p className="text-xl font-bold text-green-600">
-                            {formatCurrency(payoutData?.balance?.available?.[0]?.amount || 0, payoutData?.balance?.available?.[0]?.currency || 'usd')}
+                            {formatCurrency(payoutData?.balance?.available?.[0]?.amount || 0, payoutData?.balance?.available?.[0]?.currency || 'aed')}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Pending</p>
                           <p className="text-xl font-bold text-yellow-600">
-                            {formatCurrency(payoutData?.balance?.pending?.[0]?.amount || 0, payoutData?.balance?.pending?.[0]?.currency || 'usd')}
+                            {formatCurrency(payoutData?.balance?.pending?.[0]?.amount || 0, payoutData?.balance?.pending?.[0]?.currency || 'aed')}
                           </p>
                         </div>
                       </div>

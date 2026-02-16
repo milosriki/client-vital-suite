@@ -51,7 +51,7 @@ export function StripeTreasuryTab() {
   
   // Form state
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("usd");
+  const [currency, setCurrency] = useState("aed");
   const [destinationMethod, setDestinationMethod] = useState("");
   const [description, setDescription] = useState("");
 
@@ -199,7 +199,7 @@ export function StripeTreasuryTab() {
   };
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-AE", {
       style: "currency",
       currency: currency.toUpperCase(),
     }).format(amount / 100);
@@ -349,7 +349,7 @@ export function StripeTreasuryTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Total Amount</p>
-                <p className="text-2xl font-bold font-mono">{formatCurrency(stats.totalAmount, "usd")}</p>
+                <p className="text-2xl font-bold font-mono">{formatCurrency(stats.totalAmount, "aed")}</p>
               </div>
               <Building2 className="h-5 w-5 text-primary" />
             </div>

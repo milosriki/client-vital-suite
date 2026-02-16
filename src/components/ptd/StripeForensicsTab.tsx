@@ -101,8 +101,8 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
     }
   };
 
-  const formatCurrency = (amount: number, currency = 'usd') => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number, currency = 'aed') => {
+    return new Intl.NumberFormat('en-AE', {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount / 100);

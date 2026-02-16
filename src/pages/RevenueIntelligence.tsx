@@ -85,13 +85,13 @@ export default function RevenueIntelligence() {
   const stripeMetrics = [
     { 
       label: "MRR", 
-      value: data?.metrics?.mrr ? `$${(data.metrics.mrr / 100).toLocaleString()}` : "—", 
+      value: data?.metrics?.mrr ? `AED ${(data.metrics.mrr / 100).toLocaleString()}` : "—", 
       delta: { value: 0, type: "positive" as const }, 
       icon: DollarSign 
     },
     { 
       label: "ARR", 
-      value: data?.metrics?.mrr ? `$${((data.metrics.mrr * 12) / 100).toLocaleString()}` : "—", 
+      value: data?.metrics?.mrr ? `AED ${((data.metrics.mrr * 12) / 100).toLocaleString()}` : "—", 
       delta: { value: 0, type: "positive" as const }, 
       icon: TrendingUp 
     },
@@ -131,13 +131,13 @@ export default function RevenueIntelligence() {
   const pipelineMetrics = [
     {
       label: "Total Pipeline",
-      value: pipelineData?.metrics.totalPipeline ? `$${(pipelineData.metrics.totalPipeline / 1000).toFixed(0)}K` : "—",
+      value: pipelineData?.metrics.totalPipeline ? `AED ${(pipelineData.metrics.totalPipeline / 1000).toFixed(0)}K` : "—",
       delta: { value: 0, type: "neutral" as const },
       icon: DollarSign
     },
     {
       label: "Weighted",
-      value: pipelineData?.metrics.weightedPipeline ? `$${(pipelineData.metrics.weightedPipeline / 1000).toFixed(0)}K` : "—",
+      value: pipelineData?.metrics.weightedPipeline ? `AED ${(pipelineData.metrics.weightedPipeline / 1000).toFixed(0)}K` : "—",
       delta: { value: 0, type: "neutral" as const },
       icon: TrendingUp
     },
@@ -149,7 +149,7 @@ export default function RevenueIntelligence() {
     },
     {
       label: "Avg Deal",
-      value: pipelineData?.metrics.avgDealValue ? `$${pipelineData.metrics.avgDealValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—",
+      value: pipelineData?.metrics.avgDealValue ? `AED ${pipelineData.metrics.avgDealValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—",
       delta: { value: 0, type: "neutral" as const },
       icon: DollarSign
     },
@@ -318,7 +318,7 @@ export default function RevenueIntelligence() {
                 <YAxis
                   stroke={chartTheme.axis.stroke}
                   tick={{ fill: chartTheme.axis.tick.fill }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -327,7 +327,7 @@ export default function RevenueIntelligence() {
                     borderRadius: chartTheme.tooltip.borderRadius,
                     padding: chartTheme.tooltip.padding,
                   }}
-                  formatter={(value: number) => `$${value.toLocaleString()}`}
+                  formatter={(value: number) => `AED ${value.toLocaleString()}`}
                 />
                 <Legend />
                 <Area
@@ -344,7 +344,7 @@ export default function RevenueIntelligence() {
                   stroke="#8B5CF6"
                   strokeWidth={2}
                   strokeDasharray="5 5"
-                  name="Target ($130K)"
+                  name="Target (AED 130K)"
                   dot={false}
                 />
               </AreaChart>
@@ -370,7 +370,7 @@ export default function RevenueIntelligence() {
                       </span>
                       <div className="flex gap-4">
                         <span className="text-slate-400">{item.count}</span>
-                        <span className="text-slate-400">${(item.value / 1000).toFixed(1)}K</span>
+                        <span className="text-slate-400">AED {(item.value / 1000).toFixed(1)}K</span>
                       </div>
                     </div>
                   ))}
@@ -406,7 +406,7 @@ export default function RevenueIntelligence() {
                       borderRadius: chartTheme.tooltip.borderRadius,
                       padding: chartTheme.tooltip.padding,
                     }}
-                    formatter={(value: number) => `$${value.toLocaleString()}`}
+                    formatter={(value: number) => `AED ${value.toLocaleString()}`}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -419,7 +419,7 @@ export default function RevenueIntelligence() {
             data={recentTransactions}
             columns={[
               { key: "customer", label: "Customer", render: (item) => item.customer },
-              { key: "amount", label: "Amount", render: (item) => `$${item.amount.toLocaleString()}` },
+              { key: "amount", label: "Amount", render: (item) => `AED ${item.amount.toLocaleString()}` },
               {
                 key: "status",
                 label: "Status",
@@ -478,14 +478,14 @@ export default function RevenueIntelligence() {
                       <span className="text-slate-300">{item.stage}</span>
                       <div className="flex gap-4">
                         <span className="text-slate-400">{item.count}</span>
-                        <span className="text-slate-400">${(item.value / 1000).toFixed(0)}K</span>
+                        <span className="text-slate-400">AED {(item.value / 1000).toFixed(0)}K</span>
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 pt-4 border-t border-[#1F2937] flex justify-between font-semibold">
                   <span>Total:</span>
-                  <span>274 deals / $847K</span>
+                  <span>274 deals / AED 847K</span>
                 </div>
               </CardContent>
             </Card>
@@ -531,7 +531,7 @@ export default function RevenueIntelligence() {
             columns={[
               { key: "company", label: "Company", render: (item) => item.company },
               { key: "stage", label: "Stage", render: (item) => item.stage },
-              { key: "value", label: "Value", render: (item) => `$${(item.value / 1000).toFixed(0)}K` },
+              { key: "value", label: "Value", render: (item) => `AED ${(item.value / 1000).toFixed(0)}K` },
               { key: "owner", label: "Owner", render: (item) => item.owner },
               { key: "days", label: "Days", render: (item) => `${item.days}d` },
               { key: "next", label: "Next Action", render: (item) => item.next },
@@ -698,7 +698,7 @@ export default function RevenueIntelligence() {
             columns={[
               { key: "deal", label: "Deal Name", render: (item) => item.deal },
               { key: "stage", label: "Stage", render: (item) => item.stage },
-              { key: "value", label: "Value", render: (item) => `$${(item.value / 1000).toFixed(0)}K` },
+              { key: "value", label: "Value", render: (item) => `AED ${(item.value / 1000).toFixed(0)}K` },
               { key: "owner", label: "Owner", render: (item) => item.owner },
               { key: "created", label: "Created", render: (item) => item.created },
               { key: "source", label: "Source", render: (item) => item.source },
