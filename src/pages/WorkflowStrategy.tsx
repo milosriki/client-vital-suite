@@ -43,14 +43,17 @@ const WorkflowStrategy = () => {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.warn("Execution metrics query error:", error);
-        return [];
+        console.error("Execution metrics query error:", error);
+        throw error;
+      }
+      if (!data) {
+        throw new Error("Query returned null data despite no error");
       }
 
       // Aggregate metrics by function
       const metricsMap = new Map<string, WorkflowMetrics>();
 
-      (data || []).forEach((metric) => {
+      data.forEach((metric) => {
         const funcName = metric.function_name;
         if (!metricsMap.has(funcName)) {
           metricsMap.set(funcName, {
@@ -111,15 +114,18 @@ const WorkflowStrategy = () => {
         .limit(10);
 
       if (error) {
-        console.warn("Strategy recommendations query error:", error);
-        return [];
+        console.error("Strategy recommendations query error:", error);
+        throw error;
       }
-      return data || [];
+      if (!data) {
+        throw new Error("Query returned null data despite no error");
+      }
+      return data;
     },
   });
 
   // Map execution metrics to workflow display with priority
-  const workflows = (executionMetrics || []).map((metric) => {
+  const workflows = executionMetrics ? executionMetrics.map((metric) => {
     let priority: "HIGH" | "MEDIUM" | "LOW" = "LOW";
     if (metric.error_rate > 50) {
       priority = "HIGH";
@@ -165,7 +171,7 @@ const WorkflowStrategy = () => {
         latestError: metric.latest_error,
       }
     };
-  });
+  }) : [];
 
   const phases = [
     {

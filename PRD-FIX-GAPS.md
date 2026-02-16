@@ -22,9 +22,9 @@ DO NOT touch any files that PRD-WIRE-MOCK-PAGES is modifying (ExecutiveOverview,
 
 ## Tasks
 
-- [ ] **0. Apply staff migration** — Run `supabase db push` to apply `20260216000000_populate_real_staff.sql`. This replaces fake seed data with 31+ real coaches/setters. Verify with `SELECT COUNT(*) FROM staff`.
+- [x] **0. Apply staff migration** — Run `supabase db push` to apply `20260216000000_populate_real_staff.sql`. This replaces fake seed data with 31+ real coaches/setters. Verify with `SELECT COUNT(*) FROM staff`.
 
-- [ ] **1. Wire Truth Triangle to view_truth_triangle** — In `src/pages/AttributionWarRoom.tsx`, the TruthTriangle component receives hardcoded props. Query `view_truth_triangle` from Supabase to get real monthly data (meta_ad_spend, hubspot_deal_value, stripe_gross_revenue). Pass the latest month's values as props. The view already exists in production. Also update `src/components/analytics/TruthTriangle.tsx` to accept a third label — currently it says "PostHog" but should say "Stripe" since we're comparing Meta/HubSpot/Stripe.
+- [x] **1. Wire Truth Triangle to view_truth_triangle** — In `src/pages/AttributionWarRoom.tsx`, the TruthTriangle component receives hardcoded props. Query `view_truth_triangle` from Supabase to get real monthly data (meta_ad_spend, hubspot_deal_value, stripe_gross_revenue). Pass the latest month's values as props. The view already exists in production. Also update `src/components/analytics/TruthTriangle.tsx` to accept a third label — currently it says "PostHog" but should say "Stripe" since we're comparing Meta/HubSpot/Stripe.
 
 - [ ] **2. Wire AttributionWarRoom fully** — Check all data in `src/pages/AttributionWarRoom.tsx`. It invokes `data-reconciler` edge function which is good. Verify the Truth Triangle section uses real data from task 1. Ensure no hardcoded fallback values remain.
 
