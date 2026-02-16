@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { IntelligenceService } from "../intelligence-service.ts";
 import { LearningLayer } from "../learning-layer.ts";
+import { checkDataFreshness, getFreshnessSummary } from "../data-freshness-sla.ts";
 
 export async function executeIntelligenceTools(
   supabase: any,
@@ -20,6 +21,69 @@ export async function executeIntelligenceTools(
         const data = await intelligence.analyzeGoalConversion();
         return JSON.stringify(data, null, 2);
       }
+
+      // === NEW: View-backed intelligence actions ===
+
+      if (action === "get_lead_dna") {
+        const { email, name, limit: queryLimit = 20 } = input;
+        let query = supabase
+          .from("view_atlas_lead_dna")
+          .select("*");
+        if (email) query = query.ilike("email", `%${email}%`);
+        if (name) query = query.or(`firstname.ilike.%${name}%,lastname.ilike.%${name}%`);
+        const { data, error } = await query.limit(queryLimit);
+        if (error) return `Error querying lead DNA: ${error.message}`;
+        return JSON.stringify({ source: "view_atlas_lead_dna", count: data?.length || 0, leads: data || [] }, null, 2);
+      }
+
+      if (action === "get_contact_360") {
+        const { email, name, limit: queryLimit = 10 } = input;
+        let query = supabase
+          .from("view_contact_360")
+          .select("*");
+        if (email) query = query.ilike("email", `%${email}%`);
+        if (name) query = query.or(`firstname.ilike.%${name}%,lastname.ilike.%${name}%`);
+        const { data, error } = await query.limit(queryLimit);
+        if (error) return `Error querying contact 360: ${error.message}`;
+        return JSON.stringify({ source: "view_contact_360", count: data?.length || 0, contacts: data || [] }, null, 2);
+      }
+
+      if (action === "get_capacity_alert") {
+        const { data, error } = await supabase
+          .from("view_capacity_vs_spend")
+          .select("*");
+        if (error) return `Error querying capacity: ${error.message}`;
+        return JSON.stringify({ source: "view_capacity_vs_spend", data: data || [] }, null, 2);
+      }
+
+      if (action === "get_discrepancies") {
+        const { limit: queryLimit = 50 } = input;
+        const { data, error } = await supabase
+          .from("source_discrepancy_matrix")
+          .select("*")
+          .limit(queryLimit);
+        if (error) return `Error querying discrepancies: ${error.message}`;
+        return JSON.stringify({ source: "source_discrepancy_matrix", count: data?.length || 0, discrepancies: data || [] }, null, 2);
+      }
+
+      if (action === "get_marketing_attribution") {
+        const { email, campaign_name, limit: queryLimit = 20 } = input;
+        let query = supabase
+          .from("view_marketing_attribution")
+          .select("*");
+        if (email) query = query.ilike("email", `%${email}%`);
+        if (campaign_name) query = query.ilike("campaign_name", `%${campaign_name}%`);
+        const { data, error } = await query.limit(queryLimit);
+        if (error) return `Error querying attribution: ${error.message}`;
+        return JSON.stringify({ source: "view_marketing_attribution", count: data?.length || 0, attribution: data || [] }, null, 2);
+      }
+
+      if (action === "data_freshness") {
+        const results = await checkDataFreshness(supabase);
+        const summary = getFreshnessSummary(results);
+        return JSON.stringify({ ...summary, details: results }, null, 2);
+      }
+
       return "Unknown intelligence action";
     }
 

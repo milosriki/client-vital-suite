@@ -24,6 +24,7 @@ import { calculateLeadScore } from "../_shared/lead-scorer.ts";
 import { SentimentTriage } from "../_shared/sentiment.ts";
 import { getSocialProof, formatSocialProof } from "../_shared/social-proof.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { StageDetector, type SalesStage } from "../_shared/stage-detection.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,6 +115,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    // [STAGE DETECTION] Intelligent NEPQ stage progression
+    const currentStage = (aiMemory?.conversation_phase?.toUpperCase()?.startsWith("1_")
+      ? aiMemory.conversation_phase
+      : `1_CONNECTION`) as SalesStage;
+    const stageResult = StageDetector.detect(currentStage, incomingText);
+    if (stageResult.hasChanged) {
+      console.log(`🚀 NEPQ Stage: ${currentStage} → ${stageResult.stage}`);
+      // Persist new stage to conversation_intelligence
+      await supabase
+        .from("conversation_intelligence")
+        .update({ conversation_phase: stageResult.stage })
+        .eq("phone", phone);
+    }
+
     console.log(`🧠 Context retrieved in ${Date.now() - startTime}ms`);
 
     // [SKILL: DUAL MODE] - Check if Bot is Paused
@@ -168,6 +183,9 @@ Deno.serve(async (req) => {
       voice_mood: voiceTone,
       // social_proof: ... REMOVED
     });
+
+    // Inject NEPQ stage goal into prompt
+    systemPrompt = `${systemPrompt}\n\n## CURRENT SALES STAGE: ${stageResult.stage}\nSTAGE GOAL: ${stageResult.promptGoal}\nFocus your response on achieving this stage's goal.`;
 
     // Prepend constitutional framing to system prompt
     systemPrompt = `${constitutionalPrefix}\n\n${systemPrompt}`;

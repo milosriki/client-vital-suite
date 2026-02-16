@@ -65,7 +65,7 @@ const RETRY_BASE_MS = 1000;
 
 // Agent-specific token budgets (output tokens)
 const AGENT_TOKEN_BUDGETS = {
-  atlas: 8000, // Complex reasoning, financial analysis
+  atlas: 12000, // Complex cross-source reasoning, financial analysis, RAG context
   lisa: 512, // Quick conversational responses
   default: 2048, // Standard agent budget
 } as const;

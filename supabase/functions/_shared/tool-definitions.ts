@@ -140,11 +140,21 @@ export const tools: ToolDefinition[] = [
             "churn_analysis", // Why are people leaving?
             "revenue_trends", // General revenue trends
             "daily_summary", // Daily business snapshot
+            "get_lead_dna", // Full lead profile with attribution (view_atlas_lead_dna)
+            "get_contact_360", // 7-source unified contact view
+            "get_capacity_alert", // Coach capacity vs ad spend alert
+            "get_discrepancies", // Cross-source data disagreements
+            "get_marketing_attribution", // Which ad/campaign drove each contact
+            "data_freshness", // Platform data staleness check
           ],
           description: "Analysis to run.",
         },
         coach_name: { type: "string", description: "Optional: specific coach" },
         date: { type: "string", description: "Optional: date for summary" },
+        email: { type: "string", description: "Optional: filter by email" },
+        name: { type: "string", description: "Optional: filter by name" },
+        campaign_name: { type: "string", description: "Optional: filter by campaign" },
+        limit: { type: "number", description: "Optional: max results (default varies)" },
       },
       required: ["action"],
     },

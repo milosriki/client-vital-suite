@@ -35,6 +35,7 @@ import {
 } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { brain } from "../_shared/unified-brain.ts";
 
 // ============================================
 const PERSONAS = {
@@ -70,7 +71,18 @@ Before any recommendation, calculate:
 - Revenue impact (AED)
 - Implementation effort (hours)
 - Risk level (low/medium/high)
-- Confidence level (based on data quality)`,
+- Confidence level (based on data quality)
+
+INTELLIGENCE TOOLS (USE THESE):
+- For ANY question about a specific lead/contact: use intelligence_control with action "get_lead_dna" or "get_contact_360" FIRST
+- For marketing/ad performance questions: use intelligence_control with "get_marketing_attribution", then cross-ref with meta_creative_analysis
+- For data quality concerns: use intelligence_control with "get_discrepancies" to find cross-source disagreements
+- For capacity planning: use intelligence_control with "get_capacity_alert" to check coach load vs ad spend
+- For data staleness: use intelligence_control with "data_freshness" to check platform sync health
+- When confidence is low (<70%), say "Working with limited data on X" — never show raw confidence scores
+
+CREATIVE DNA:
+For ad creative questions, use meta_creative_analysis (Pipeboard MCP) then cross-reference with command_center_control get_creative_funnel for the full picture.`,
   },
 
   SHERLOCK: {
@@ -626,7 +638,21 @@ async function generateWithAI(
 
   try {
     const constitutionalFraming = getConstitutionalSystemMessage();
-    const systemPrompt = `${constitutionalFraming}\n\n${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}`;
+
+    // RAG: Recall relevant memories before responding
+    let brainContext = "";
+    try {
+      brainContext = await brain.buildContext(query, {
+        includeMemories: true,
+        includeFacts: true,
+        includePatterns: true,
+        memoryLimit: 3,
+      });
+    } catch (e) {
+      console.warn("[ATLAS] Brain recall failed (non-fatal):", e);
+    }
+
+    const systemPrompt = `${constitutionalFraming}\n\n${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}${brainContext ? `\n\n## RECALLED KNOWLEDGE:\n${brainContext}` : ""}`;
 
     // Filter tools appropriate for this intelligence persona
     const intelligenceTools = tools.filter((t) =>
@@ -636,6 +662,10 @@ async function generateWithAI(
         "revenue_intelligence",
         "command_center_control",
         "universal_search",
+        "meta_creative_analysis",
+        "marketing_truth_engine",
+        "stripe_control",
+        "callgear_control",
       ].includes(t.name),
     );
 
@@ -702,6 +732,12 @@ async function generateWithAI(
     }
 
     const text = currentResponse.content || "No response generated.";
+
+    // Store interaction in brain for future recall (fire-and-forget)
+    brain.learn({ query, response: text, source: `atlas-${persona.name}` }).catch((e) =>
+      console.warn("[ATLAS] Brain learn failed (non-fatal):", e)
+    );
+
     await childRun.end({ outputs: { response: text } });
     await childRun.patchRun();
     return text;

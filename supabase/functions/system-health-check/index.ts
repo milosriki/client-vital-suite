@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { checkDataFreshness, getFreshnessSummary } from "../_shared/data-freshness-sla.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -217,6 +218,20 @@ serve(async (req) => {
       overall = "degraded";
     }
 
+    // Data freshness check
+    let dataFreshness;
+    try {
+      const freshnessResults = await checkDataFreshness(supabase);
+      dataFreshness = getFreshnessSummary(freshnessResults);
+      // Escalate overall health if data is critically stale
+      if (dataFreshness.criticalCount > 0 && overall !== "critical") {
+        overall = "degraded";
+      }
+    } catch (e) {
+      console.warn("[SYSTEM-HEALTH] Data freshness check failed:", e);
+      dataFreshness = { error: "check failed" };
+    }
+
     const report: SystemHealthReport = {
       timestamp: new Date().toISOString(),
       overall,
@@ -224,7 +239,8 @@ serve(async (req) => {
       secrets,
       database,
       summary,
-    };
+      dataFreshness,
+    } as any;
 
     console.log(`[SYSTEM-HEALTH] Complete: ${overall.toUpperCase()} - ${summary.healthy}/${summary.total} functions healthy`);
 
