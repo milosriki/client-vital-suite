@@ -199,7 +199,7 @@ export default function MasterControlPanel() {
                         <span className="font-bold text-slate-300">
                           {log.func}
                         </span>
-                        <span className="text-slate-600 ml-auto text-[10px]">
+                        <span className="text-slate-400 ml-auto text-[10px]">
                           {getBusinessDate().toLocaleTimeString()}
                         </span>
                       </div>
