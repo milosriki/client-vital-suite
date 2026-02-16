@@ -60,6 +60,8 @@ export function useExecutiveData(filters: ExecutiveFilters) {
         healthDistributionResult,
         pipelineStagesResult,
         recentActivityResult,
+        topPerformersResult,
+        staleLeadsResult,
       ] = await Promise.all([
         // Query 1: Monthly Revenue (closed won deals in period)
         supabase
@@ -117,12 +119,25 @@ export function useExecutiveData(filters: ExecutiveFilters) {
           .in("status", ["open", "in_progress", "pending"]),
 
         // Query 9: Recent Activity (for live feed)
-        // Note: This combines multiple sources - we'll use deals for now
         supabase
           .from("deals")
           .select("id, deal_name, deal_value, stage, status, updated_at, created_at")
           .order("updated_at", { ascending: false })
           .limit(10),
+
+        // Query 10: Top Performers (staff with most calls today)
+        supabase
+          .from("call_records")
+          .select("owner_name, call_outcome, appointment_set")
+          .gte("created_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+
+        // Query 11: Stale leads needing follow-up (created >48h ago, no deal, not customer)
+        supabase
+          .from("contacts")
+          .select("id, first_name, last_name, email, phone, lifecycle_stage, created_at, last_activity_date, lead_status, owner_name, speed_to_lead_minutes")
+          .in("lifecycle_stage", ["lead", "subscriber", "marketingqualifiedlead", "salesqualifiedlead"])
+          .order("created_at", { ascending: false })
+          .limit(50),
       ]);
 
       // Handle errors (throw critical ones, warn on optional)
@@ -135,6 +150,8 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       if (healthDistributionResult.error) throw healthDistributionResult.error;
       if (pipelineStagesResult.error) throw pipelineStagesResult.error;
       if (recentActivityResult.error) console.warn("Recent activity error:", recentActivityResult.error);
+      if (topPerformersResult.error) console.warn("Top performers error:", topPerformersResult.error);
+      if (staleLeadsResult.error) console.warn("Stale leads error:", staleLeadsResult.error);
 
       // Calculate aggregated metrics
       const deals = dealsResult.data || [];
@@ -146,6 +163,40 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       const healthDistribution = healthDistributionResult.data || [];
       const pipelineStages = pipelineStagesResult.data || [];
       const recentActivities = recentActivityResult.data || [];
+      const todayCalls = topPerformersResult.data || [];
+      const staleLeadsRaw = staleLeadsResult.data || [];
+
+      // Top performers: aggregate calls by owner
+      const performerMap = new Map<string, { calls: number; booked: number }>();
+      todayCalls.forEach(call => {
+        const owner = call.owner_name || "Unknown";
+        const current = performerMap.get(owner) || { calls: 0, booked: 0 };
+        current.calls++;
+        if (call.appointment_set) current.booked++;
+        performerMap.set(owner, current);
+      });
+      const topPerformers = Array.from(performerMap.entries())
+        .map(([name, stats]) => ({ name, ...stats }))
+        .sort((a, b) => b.calls - a.calls)
+        .slice(0, 5);
+
+      // Stale leads: leads with no activity in 48h+ or speed_to_lead > 60min
+      const now = Date.now();
+      const staleLeads = staleLeadsRaw
+        .filter(l => {
+          const lastActivity = l.last_activity_date ? new Date(l.last_activity_date).getTime() : new Date(l.created_at || "").getTime();
+          const hoursSinceActivity = (now - lastActivity) / (1000 * 60 * 60);
+          return hoursSinceActivity > 48;
+        })
+        .slice(0, 10)
+        .map(l => ({
+          name: `${l.first_name || ""} ${l.last_name || ""}`.trim() || l.email || "Unknown",
+          email: l.email,
+          stage: l.lifecycle_stage || "lead",
+          owner: l.owner_name || "Unassigned",
+          daysSinceActivity: Math.round((now - new Date(l.last_activity_date || l.created_at || "").getTime()) / (1000 * 60 * 60 * 24)),
+          speedToLead: l.speed_to_lead_minutes,
+        }));
 
       // Revenue calculations
       const totalRevenue = closedDeals.reduce((sum, deal) => sum + (deal.deal_value || deal.amount || 0), 0);
@@ -295,6 +346,12 @@ export function useExecutiveData(filters: ExecutiveFilters) {
 
         // Live activity feed
         liveActivityData: activityFeed,
+
+        // Top performers today
+        topPerformers,
+
+        // Stale leads needing follow-up
+        staleLeads,
 
         // Raw data for custom processing
         raw: {

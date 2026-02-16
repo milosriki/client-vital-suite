@@ -113,10 +113,25 @@ export default function ExecutiveOverview() {
         ) : (
           <InsightPanel
             content={
-              <ul className="space-y-2 text-sm">
-                <li>⚠️ {data?.healthDistribution?.red || 0} At-Risk Clients</li>
-                <li>📉 Revenue {northStarMetric.delta.value >= 0 ? "+" : ""}{northStarMetric.delta.value.toFixed(1)}% vs previous period</li>
-                <li>🔴 {data?.raw?.deals.filter(d => !d.close_date && Date.now() - new Date(d.created_at || "").getTime() > 30 * 24 * 60 * 60 * 1000).length || 0} Stuck Deals (&gt;30 days)</li>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400">⚠️</span>
+                  <span><strong className="text-white">{data?.healthDistribution?.red || 0}</strong> <span className="text-slate-300">at-risk clients need intervention</span></span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span>{northStarMetric.delta.value >= 0 ? "📈" : "📉"}</span>
+                  <span className="text-slate-300">Revenue <strong className={northStarMetric.delta.value >= 0 ? "text-emerald-400" : "text-red-400"}>{northStarMetric.delta.value >= 0 ? "+" : ""}{northStarMetric.delta.value.toFixed(1)}%</strong> vs previous period</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400">🔴</span>
+                  <span><strong className="text-white">{data?.raw?.deals.filter(d => !d.close_date && Date.now() - new Date(d.created_at || "").getTime() > 30 * 24 * 60 * 60 * 1000).length || 0}</strong> <span className="text-slate-300">deals stuck &gt;30 days — review pipeline</span></span>
+                </li>
+                {(data?.staleLeads?.length || 0) > 0 && (
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400">🔔</span>
+                    <span><strong className="text-white">{data?.staleLeads?.length}</strong> <span className="text-slate-300">leads need follow-up (48h+ silent)</span></span>
+                  </li>
+                )}
               </ul>
             }
             action={{
@@ -290,25 +305,26 @@ export default function ExecutiveOverview() {
           <>
             <Card className="bg-[#0A0A0A] border-[#1F2937]">
               <CardHeader>
-                <CardTitle className="text-lg">Top Coaches (Today)</CardTitle>
+                <CardTitle className="text-lg">Top Performers (Today)</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2">
-                  <li className="flex justify-between">
-                    <span>1. Mike</span>
-                    <span className="text-slate-400">12 📞</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>2. Sarah</span>
-                    <span className="text-slate-400">10 📞</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>3. Alex</span>
-                    <span className="text-slate-400">9 📞</span>
-                  </li>
-                </ul>
-                <Button variant="link" className="mt-4 p-0 h-auto text-primary">
-                  View All →
+                {data?.topPerformers && data.topPerformers.length > 0 ? (
+                  <ul className="space-y-2">
+                    {data.topPerformers.map((p, i) => (
+                      <li key={i} className="flex justify-between items-center">
+                        <span className="text-white">{i + 1}. {p.name}</span>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-slate-400">{p.calls} 📞</span>
+                          {p.booked > 0 && <span className="text-emerald-400 text-sm">{p.booked} 📅</span>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-slate-500 text-sm">No calls recorded today yet</p>
+                )}
+                <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => window.location.href = "/leaderboard"}>
+                  View Leaderboard →
                 </Button>
               </CardContent>
             </Card>
@@ -340,31 +356,34 @@ export default function ExecutiveOverview() {
 
             <Card className="bg-[#0A0A0A] border-[#1F2937]">
               <CardHeader>
-                <CardTitle className="text-lg">Pipeline Stages</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  🚨 Leads Need Follow-Up
+                  {data?.staleLeads && data.staleLeads.length > 0 && (
+                    <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">{data.staleLeads.length}</span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2">
-                  <li className="flex justify-between">
-                    <span>Lead:</span>
-                    <span className="text-slate-400">{data?.pipelineStages?.Lead || 0}</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Qualified:</span>
-                    <span className="text-slate-400">{data?.pipelineStages?.Qualified || 0}</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Demo:</span>
-                    <span className="text-slate-400">{data?.pipelineStages?.Demo || 0}</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Proposal:</span>
-                    <span className="text-slate-400">{data?.pipelineStages?.Proposal || 0}</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Closed:</span>
-                    <span className="text-emerald-400">{data?.pipelineStages?.Closed || 0}</span>
-                  </li>
-                </ul>
+                {data?.staleLeads && data.staleLeads.length > 0 ? (
+                  <ul className="space-y-2">
+                    {data.staleLeads.slice(0, 5).map((lead, i) => (
+                      <li key={i} className="flex justify-between items-center">
+                        <div className="truncate max-w-[60%]">
+                          <span className="text-white text-sm">{lead.name}</span>
+                          <span className="text-slate-500 text-xs ml-1">({lead.stage})</span>
+                        </div>
+                        <span className={`text-xs ${lead.daysSinceActivity > 7 ? 'text-red-400' : 'text-amber-400'}`}>
+                          {lead.daysSinceActivity}d silent
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-emerald-400 text-sm">✅ All leads followed up</p>
+                )}
+                <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => window.location.href = "/command-center"}>
+                  View All Leads →
+                </Button>
               </CardContent>
             </Card>
           </>
