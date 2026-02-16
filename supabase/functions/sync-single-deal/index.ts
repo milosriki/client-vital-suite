@@ -109,8 +109,6 @@ serve(async (req) => {
 
     const dealData = {
       ...HubSpotManager.mapDealFields(deal, contactId, dealOwnerName),
-      description: props.description,
-      lost_reason: props.failure_reason,
     };
 
     const { error } = await supabase
