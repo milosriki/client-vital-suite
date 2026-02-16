@@ -332,6 +332,15 @@ serve(async (req) => {
               // AnyTrack Tracking IDs
               "atclid",
               "satid",
+              // Facebook Attribution (AnyTrack CAPI / direct)
+              "ad_id",
+              "campaign_id",
+              "facebook_ad_id",
+              "facebook_campaign_id",
+              "fbclid",
+              "lead_id",
+              "client_id",
+              "conversion_score",
             ],
             currentCursor || undefined,
             incremental ? lastSyncTime || undefined : undefined,
@@ -371,6 +380,10 @@ serve(async (req) => {
                 // AnyTrack IDs for CAPI alignment
                 facebook_id: props.atclid || null,
                 google_id: props.satid || null,
+                // Facebook Attribution — from AnyTrack CAPI or direct
+                attributed_ad_id: props.ad_id || props.facebook_ad_id || null,
+                attributed_campaign_id: props.campaign_id || props.facebook_campaign_id || null,
+                attribution_source: (props.ad_id || props.facebook_ad_id) ? "hubspot_sync" : null,
                 owner_id: ownerId,
                 owner_name: ownerName,
                 setter_uuid: setterUuid,
