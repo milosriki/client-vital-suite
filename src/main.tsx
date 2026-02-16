@@ -35,9 +35,7 @@ import "./index.css";
 
 // Lazy-loaded page imports — route-level code splitting
 const ExecutiveOverview = lazy(() => import("./pages/ExecutiveOverview"));
-const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
 const RevenueIntelligence = lazy(() => import("./pages/RevenueIntelligence"));
-const AttributionLeaks = lazy(() => import("./pages/AttributionLeaks"));
 const Operations = lazy(() => import("./pages/Operations"));
 const Overview = lazy(() => import("./pages/Overview"));
 const Clients = lazy(() => import("./pages/Clients"));
@@ -45,7 +43,7 @@ const ClientDetail = lazy(() => import("./pages/ClientDetail"));
 const Coaches = lazy(() => import("./pages/Coaches"));
 const Interventions = lazy(() => import("./pages/Interventions"));
 const AnalyticsPage = lazy(() => import("./pages/Analytics"));
-const MetaDashboard = lazy(() => import("./pages/MetaDashboard"));
+// MetaDashboard archived → absorbed into MarketingIntelligence "Meta Ads" tab
 const HubSpotAnalyzer = lazy(() => import("./pages/HubSpotAnalyzer"));
 const SalesCoachTracker = lazy(() => import("./pages/SalesCoachTracker"));
 const SetterActivityToday = lazy(() => import("./pages/SetterActivityToday"));
@@ -67,11 +65,11 @@ const Observability = lazy(() => import("./pages/Observability"));
 const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
 const EdgeFunctionsPage = lazy(() => import("./pages/admin/EdgeFunctions"));
 const MasterControlPanel = lazy(() => import("./pages/MasterControlPanel"));
-const AttributionWarRoom = lazy(() => import("./pages/AttributionWarRoom"));
+// AttributionWarRoom archived → absorbed into MarketingIntelligence "Source Truth" tab
 const SkillCommandCenter = lazy(() => import("./pages/SkillCommandCenter"));
 const ReconciliationDashboard = lazy(() => import("./pages/ReconciliationDashboard"));
 const MarketingIntelligence = lazy(() => import("./pages/MarketingIntelligence"));
-const MarketingDeepIntelligence = lazy(() => import("./pages/MarketingDeepIntelligence"));
+// MarketingDeepIntelligence archived → absorbed into MarketingIntelligence "Deep Intel" tab
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 
 // Enterprise pages — real data, production hooks
@@ -129,7 +127,7 @@ const router = createBrowserRouter([
       { index: true, element: <SuspensePage><ErrorBoundary><ExecutiveOverview /></ErrorBoundary></SuspensePage> },
       { path: "/dashboard", element: <SuspensePage><ErrorBoundary><ExecutiveOverview /></ErrorBoundary></SuspensePage> },
       { path: "/operations", element: <SuspensePage><Operations /></SuspensePage> },
-      { path: "/marketing", element: <SuspensePage><MarketingAnalytics /></SuspensePage> },
+      { path: "/marketing", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/revenue", element: <SuspensePage><RevenueIntelligence /></SuspensePage> },
       { path: "/sales-pipeline", element: <SuspensePage><SalesPipeline /></SuspensePage> },
       { path: "/stripe", element: <SuspensePage><StripeIntelligence /></SuspensePage> },
@@ -144,7 +142,7 @@ const router = createBrowserRouter([
       { path: "/coaches", element: <SuspensePage><Coaches /></SuspensePage> },
       { path: "/interventions", element: <SuspensePage><Interventions /></SuspensePage> },
       { path: "/analytics", element: <SuspensePage><AnalyticsPage /></SuspensePage> },
-      { path: "/meta-dashboard", element: <SuspensePage><MetaDashboard /></SuspensePage> },
+      { path: "/meta-dashboard", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/hubspot-analyzer", element: <SuspensePage><HubSpotAnalyzer /></SuspensePage> },
       { path: "/sales-coach-tracker", element: <SuspensePage><SalesCoachTracker /></SuspensePage> },
       { path: "/setter-activity-today", element: <SuspensePage><ErrorBoundary><SetterActivityToday /></ErrorBoundary></SuspensePage> },
@@ -159,11 +157,11 @@ const router = createBrowserRouter([
       { path: "/admin/edge-functions", element: <SuspensePage><EdgeFunctionsPage /></SuspensePage> },
       { path: "/executive-dashboard", element: <SuspensePage><ExecutiveDashboard /></SuspensePage> },
       { path: "/master-control", element: <SuspensePage><MasterControlPanel /></SuspensePage> },
-      { path: "/attribution-leaks", element: <SuspensePage><AttributionLeaks /></SuspensePage> },
-      { path: "/attribution", element: <SuspensePage><AttributionWarRoom /></SuspensePage> },
+      { path: "/attribution-leaks", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
+      { path: "/attribution", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/reconciliation", element: <SuspensePage><ReconciliationDashboard /></SuspensePage> },
       { path: "/marketing-intelligence", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
-      { path: "/deep-intel", element: <SuspensePage><MarketingDeepIntelligence /></SuspensePage> },
+      { path: "/deep-intel", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/skills-matrix", element: <SuspensePage><SkillCommandCenter /></SuspensePage> },
       { path: "/command-center", element: <SuspensePage><ErrorBoundary><CommandCenter /></ErrorBoundary></SuspensePage> },
 
