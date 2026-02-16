@@ -4,6 +4,16 @@
       "count": 1,
       "last": "2026-02-16T03:44:38.511Z",
       "title": "**8. Observability.tsx** — Replace 2 fallback arrays. Ensure `ai_execution_metrics` queries have no hardcoded fallbacks that hide empty states."
+    },
+    "markdown:PRD-REMAINING-WIRE.md:44": {
+      "count": 1,
+      "last": "2026-02-16T04:39:42.341Z",
+      "title": "**5. MasterControlPanel.tsx** — Verify edge function invocations work. Test the health check button."
+    },
+    "markdown:PRD-INTELLIGENCE-95.md:74": {
+      "count": 1,
+      "last": "2026-02-16T04:39:44.156Z",
+      "title": "**6. Add `attribution_intelligence` tool to tool-definitions.ts** — New tool that queries `view_atlas_lead_dna`. Actions: `get_lead_dna` (single lead full trace), `get_ad_performance` (ad-level ROI with real revenue), `get_setter_performance` (funnel by setter), `get_coach_performance` (client outcomes by coach), `get_revenue_attribution` (which campaigns/ads drove actual Stripe payments), `get_capacity_alert` (which segments are full). Add to tool-executor.ts."
     }
   }
 }

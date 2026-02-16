@@ -51,15 +51,15 @@ Database views available:
 
 ### BATCH 1: Foundation (Low Risk)
 
-- [ ] **1. Token Budget Tracker in unified-ai-client.ts** — Add token counting to every AI call. Track input_tokens, output_tokens, model used, latency_ms. Log to `ai_execution_metrics` table. Add budget cap per request (default 8000 output tokens for Atlas, 512 for Lisa). When approaching context limit, auto-compact conversation history using summary. Reference: antigravity skill `context-optimization` and `context-compression`.
+- [x] **1. Token Budget Tracker in unified-ai-client.ts** — Add token counting to every AI call. Track input_tokens, output_tokens, model used, latency_ms. Log to `ai_execution_metrics` table. Add budget cap per request (default 8000 output tokens for Atlas, 512 for Lisa). When approaching context limit, auto-compact conversation history using summary. Reference: antigravity skill `context-optimization` and `context-compression`.
 
-- [ ] **2. Constitutional Framing for ALL agents** — In `constitutional-framing.ts`, ensure `getConstitutionalSystemMessage()` is called in EVERY edge function that uses AI. Audit all 151 functions, find which ones call `unifiedAI` or Google GenAI directly without constitutional framing. Add the framing call. The constitutional message must include: no hallucination, cite data sources, admit uncertainty, never fabricate numbers.
+- [x] **2. Constitutional Framing for ALL agents** — In `constitutional-framing.ts`, ensure `getConstitutionalSystemMessage()` is called in EVERY edge function that uses AI. Audit all 151 functions, find which ones call `unifiedAI` or Google GenAI directly without constitutional framing. Add the framing call. The constitutional message must include: no hallucination, cite data sources, admit uncertainty, never fabricate numbers.
 
-- [ ] **3. Typed Errors in auth-middleware.ts** — Replace `throw new Error("Too Many Requests")` with `throw new RateLimitError(60)` and `throw new Error("Unauthorized...")` with `throw new UnauthorizedError(...)`. Import from app-errors.ts.
+- [x] **3. Typed Errors in auth-middleware.ts** — Replace `throw new Error("Too Many Requests")` with `throw new RateLimitError(60)` and `throw new Error("Unauthorized...")` with `throw new UnauthorizedError(...)`. Import from app-errors.ts.
 
 ### BATCH 2: The Attribution Brain (HIGH IMPACT)
 
-- [ ] **4. Create view_atlas_lead_dna SQL view** — This is THE core intelligence view. Create a new migration file. The view joins:
+- [x] **4. Create view_atlas_lead_dna SQL view** — This is THE core intelligence view. Create a new migration file. The view joins:
   - `contacts` (lead info, lifecycle, source, email, phone)  
   - `attribution_events` ON `attribution_events.contact_email = contacts.email` (fb_ad_id, fb_campaign_id)
   - `facebook_ads_insights` ON `facebook_ads_insights.ad_id = attribution_events.fb_ad_id` (spend, impressions, clicks, ctr)
@@ -69,7 +69,7 @@ Database views available:
   - `client_health_scores` ON `client_health_scores.email = contacts.email` (health_score, zone)
   Use LEFT JOINs throughout. Include computed columns: `total_ad_spend`, `total_revenue`, `lead_roas`, `days_to_close`, `call_count`, `avg_call_duration`, `is_converted`. This view answers: "Which ad made me money end-to-end?"
 
-- [ ] **5. Create view_capacity_vs_spend SQL view** — Join `staff` (zone, gender) with aggregated `client_health_scores` (active client count per coach) and `facebook_ads_insights` (current spend by targeting). Compute `capacity_pct` per zone/gender segment. When capacity > 85%, flag as PAUSE_ADS.
+- [x] **5. Create view_capacity_vs_spend SQL view** — Join `staff` (zone, gender) with aggregated `client_health_scores` (active client count per coach) and `facebook_ads_insights` (current spend by targeting). Compute `capacity_pct` per zone/gender segment. When capacity > 85%, flag as PAUSE_ADS.
 
 - [ ] **6. Add `attribution_intelligence` tool to tool-definitions.ts** — New tool that queries `view_atlas_lead_dna`. Actions: `get_lead_dna` (single lead full trace), `get_ad_performance` (ad-level ROI with real revenue), `get_setter_performance` (funnel by setter), `get_coach_performance` (client outcomes by coach), `get_revenue_attribution` (which campaigns/ads drove actual Stripe payments), `get_capacity_alert` (which segments are full). Add to tool-executor.ts.
 

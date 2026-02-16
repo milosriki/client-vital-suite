@@ -33,13 +33,13 @@ Key files:
 
 ## Tasks
 
-- [ ] **1. Observability.tsx** — Replace 2 fallback arrays. Ensure `ai_execution_metrics` queries have no hardcoded fallbacks that hide empty states. Show real empty state when no data.
+- [x] **1. Observability.tsx** — Replace 2 fallback arrays. Ensure `ai_execution_metrics` queries have no hardcoded fallbacks that hide empty states. Show real empty state when no data.
 
-- [ ] **2. GlobalBrain.tsx** — Verify `ptd-brain-api` edge function calls work. Wire the "Add Memory" form to insert into `agent_memory` via supabase client (not fetch). Show loading states.
+- [x] **2. GlobalBrain.tsx** — Verify `ptd-brain-api` edge function calls work. Wire the "Add Memory" form to insert into `agent_memory` via supabase client (not fetch). Show loading states.
 
-- [ ] **3. AuditTrail.tsx** — Verify all data comes from real queries. The CSV export arrays are computed from data (OK). Ensure search/filter works with real data.
+- [x] **3. AuditTrail.tsx** — Verify all data comes from real queries. The CSV export arrays are computed from data (OK). Ensure search/filter works with real data.
 
-- [ ] **4. SetterActivityToday.tsx** — Verify all 3 useDedupedQuery hooks return real data. Test with today's date filter.
+- [x] **4. SetterActivityToday.tsx** — Verify all 3 useDedupedQuery hooks return real data. Test with today's date filter.
 
 - [ ] **5. MasterControlPanel.tsx** — Verify edge function invocations work. Test the health check button.
 
