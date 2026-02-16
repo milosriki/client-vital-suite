@@ -196,7 +196,9 @@ export default function AuditTrail() {
             <div className="flex flex-col sm:flex-row gap-3">
               <Select
                 value={searchType}
-                onValueChange={(v: any) => setSearchType(v)}
+                onValueChange={(v: "email" | "phone" | "hubspot_id") =>
+                  setSearchType(v)
+                }
               >
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Search by" />
