@@ -18,7 +18,7 @@ active_clients_per_coach AS (
     -- Count active clients per coach from recent health scores
     SELECT
         assigned_coach,
-        COUNT(DISTINCT COALESCE(contact_id, email)) AS active_client_count
+        COUNT(DISTINCT email) AS active_client_count
     FROM public.client_health_scores
     WHERE calculated_on >= (NOW() - INTERVAL '30 days')
         AND assigned_coach IS NOT NULL
