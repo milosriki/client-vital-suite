@@ -59,9 +59,9 @@ Key files:
 
 - [x] **5. StripeIntelligence.tsx** — Replace 7 hardcoded const arrays. Query `stripe_transactions` directly for status breakdown, chart data, recent transactions. Remove static fallback arrays.
 
-- [ ] **6. WorkflowStrategy.tsx** — Replace 3 mock arrays. Query `ai_execution_metrics` for workflow execution data. Query `agent_decisions` for strategy recommendations.
+- [x] **6. WorkflowStrategy.tsx** — Replace 3 mock arrays. Query `ai_execution_metrics` for workflow execution data. Query `agent_decisions` for strategy recommendations.
 
-- [ ] **7. SkillCommandCenter.tsx** — Replace 6 mock const arrays. Invoke `ptd-skill-auditor` edge function. Query `knowledge_base` for agent knowledge entries.
+- [x] **7. SkillCommandCenter.tsx** — Replace 6 mock const arrays. Invoke `ptd-skill-auditor` edge function. Query `knowledge_base` for agent knowledge entries.
 
 - [ ] **8. Observability.tsx** — Replace 2 fallback arrays. Ensure `ai_execution_metrics` queries have no hardcoded fallbacks that hide empty states.
 

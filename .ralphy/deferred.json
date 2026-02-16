@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "markdown:PRD-WIRE-MOCK-PAGES.md:66": {
+      "count": 1,
+      "last": "2026-02-16T03:44:38.511Z",
+      "title": "**8. Observability.tsx** — Replace 2 fallback arrays. Ensure `ai_execution_metrics` queries have no hardcoded fallbacks that hide empty states."
+    }
+  }
+}

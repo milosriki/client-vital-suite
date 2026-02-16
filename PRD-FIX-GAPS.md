@@ -10,7 +10,19 @@ DO NOT touch any files that PRD-WIRE-MOCK-PAGES is modifying (ExecutiveOverview,
 3. DO NOT modify `src/integrations/supabase/types.ts`
 4. DO NOT create new migrations
 
+## Critical Data Context (from live database audit 2026-02-15)
+- `staff` table has 6 FAKE entries (John Smith, etc.) — real coaches are in `contacts.assigned_coach` (31 names)
+- `coach_performance` table only has 13 coaches — needs refresh after staff fix
+- `contacts`: 10,552 total, 504 customers, only 126 active (sessions_last_30d > 0)
+- `attributed_ad_id`, `attributed_campaign_id`, `attribution_source` fields exist but are ALL EMPTY (0 populated)
+- `attribution_events` has data but `contact_id` is null — not linked to contacts
+- `stripe_transactions` has only 29 records — may need sync
+- `deals`: 19,474 records, `deals.owner_name` has 8 real setters/closers
+- Migration `20260216000000_populate_real_staff.sql` is ready to apply — populates staff from contacts.assigned_coach + deals.owner_name
+
 ## Tasks
+
+- [ ] **0. Apply staff migration** — Run `supabase db push` to apply `20260216000000_populate_real_staff.sql`. This replaces fake seed data with 31+ real coaches/setters. Verify with `SELECT COUNT(*) FROM staff`.
 
 - [ ] **1. Wire Truth Triangle to view_truth_triangle** — In `src/pages/AttributionWarRoom.tsx`, the TruthTriangle component receives hardcoded props. Query `view_truth_triangle` from Supabase to get real monthly data (meta_ad_spend, hubspot_deal_value, stripe_gross_revenue). Pass the latest month's values as props. The view already exists in production. Also update `src/components/analytics/TruthTriangle.tsx` to accept a third label — currently it says "PostHog" but should say "Stripe" since we're comparing Meta/HubSpot/Stripe.
 

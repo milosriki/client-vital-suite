@@ -15,8 +15,6 @@ import {
 import { toast } from "sonner";
 import { getApiUrl } from "@/config/api";
 import { BrainVisualizer } from "@/components/BrainVisualizer";
-import { toast } from "sonner";
-import { getApiUrl } from "@/config/api";
 
 interface Evidence {
   source: string;
