@@ -15,11 +15,12 @@ import {
 import { toast } from "sonner";
 import { getApiUrl } from "@/config/api";
 import { BrainVisualizer } from "@/components/BrainVisualizer";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Evidence {
   source: string;
   table?: string;
-  data: any;
+  data: Record<string, unknown>;
   timestamp?: string;
   relevance?: number;
 }
@@ -39,7 +40,7 @@ interface QueryResult {
 interface MemoryEntry {
   namespace: string;
   key: string;
-  value: any;
+  value: { query?: string; response?: string } | string;
   source?: string;
   updated_at?: string;
 }
@@ -59,6 +60,7 @@ export default function GlobalBrain() {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
   const [newNamespace, setNewNamespace] = useState("global");
+  const [addingMemory, setAddingMemory] = useState(false);
 
   // Brain stats
   const [stats, setStats] = useState<{
@@ -94,7 +96,13 @@ export default function GlobalBrain() {
       const data = await response.json();
       if (data.ok && data.memories) {
         setMemories(
-          data.memories.map((m: any) => ({
+          data.memories.map((m: {
+            id: string;
+            query: string;
+            response?: string;
+            knowledge_extracted?: { source?: string };
+            created_at: string;
+          }) => ({
             namespace: "agent_memory",
             key: m.id,
             value: { query: m.query, response: m.response?.slice(0, 200) },
@@ -148,32 +156,45 @@ export default function GlobalBrain() {
       return;
     }
 
+    setAddingMemory(true);
+
     try {
-      const response = await fetch(getApiUrl("/api/brain"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fact",
-          key: newKey,
-          value: newValue,
-          source: "global-brain-ui",
-        }),
-      });
+      // Insert directly into agent_memory table using Supabase client
+      const { data, error } = await supabase
+        .from("agent_memory")
+        .insert({
+          query: newKey,
+          response: newValue,
+          thread_id: `global-brain-${Date.now()}`,
+          agent_name: "global-brain-ui",
+          agent_type: "manual",
+          role: "user",
+          knowledge_extracted: {
+            source: "global-brain-ui",
+            manual: true,
+            timestamp: new Date().toISOString(),
+          },
+        })
+        .select()
+        .single();
 
-      const data = await response.json();
-
-      if (data.ok) {
-        toast.success(`Stored: ${newKey}`);
-        setNewKey("");
-        setNewValue("");
-        loadMemories();
-        loadStats();
-      } else {
-        toast.error(data.error || "Failed to store memory");
+      if (error) {
+        console.error("Insert error:", error);
+        toast.error(`Failed to store memory: ${error.message}`);
+        return;
       }
+
+      toast.success(`Memory stored: ${newKey}`);
+      setNewKey("");
+      setNewValue("");
+
+      // Reload memories and stats to show the new entry
+      await Promise.all([loadMemories(), loadStats()]);
     } catch (error) {
       console.error("Write error:", error);
       toast.error("Failed to write memory");
+    } finally {
+      setAddingMemory(false);
     }
   };
 
@@ -369,9 +390,17 @@ export default function GlobalBrain() {
                 />
                 <button
                   onClick={handleWriteMemory}
-                  className="w-full py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg text-white font-medium transition-all text-sm"
+                  disabled={addingMemory || !newKey.trim() || !newValue.trim()}
+                  className="w-full py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-all text-sm flex items-center justify-center gap-2"
                 >
-                  Store in Global Memory
+                  {addingMemory ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Storing...
+                    </>
+                  ) : (
+                    "Store in Global Memory"
+                  )}
                 </button>
               </div>
             </div>
@@ -411,7 +440,9 @@ export default function GlobalBrain() {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-cyan-400 font-mono text-xs truncate max-w-[150px]">
-                          {mem.value?.query?.slice(0, 30) || mem.key}
+                          {typeof mem.value === "object" && "query" in mem.value
+                            ? mem.value.query?.slice(0, 30) || mem.key
+                            : mem.key}
                         </span>
                         {mem.source && (
                           <span className="text-xs text-white/40">
@@ -420,8 +451,8 @@ export default function GlobalBrain() {
                         )}
                       </div>
                       <p className="text-white/60 text-xs truncate">
-                        {typeof mem.value === "object"
-                          ? mem.value?.response?.slice(0, 100) ||
+                        {typeof mem.value === "object" && "response" in mem.value
+                          ? mem.value.response?.slice(0, 100) ||
                             JSON.stringify(mem.value).slice(0, 100)
                           : String(mem.value).slice(0, 100)}
                       </p>
