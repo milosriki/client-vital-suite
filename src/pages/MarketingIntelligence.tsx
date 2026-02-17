@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MarketingDashboardData } from "@/types/marketing";
@@ -277,7 +277,7 @@ function CommandCenterTab({
               { label: "Formula", value: "Spend ÷ Leads" },
               { label: "Target CPL", value: "< AED 30", color: (data.zone_a.metrics.cpl || 0) > 30 ? "text-rose-400" : "text-emerald-400" },
             ]}
-            summary={`CPL = Ad Spend ÷ New Leads. ${(data.zone_a.metrics.cpl || 0) > 50 ? "⚠️ Above $50 threshold — review campaign targeting." : "Within acceptable range."}`}
+            summary={`CPL = Ad Spend ÷ New Leads. ${(data.zone_a.metrics.cpl || 0) > 50 ? "⚠️ Above AED 50 threshold — review campaign targeting." : "Within acceptable range."}`}
           >
             <PulseCard
               title="Cost Per Lead"
@@ -1110,6 +1110,13 @@ function SourceTruthTab() {
    ───────────────────────────────────────────── */
 
 export default function MarketingIntelligence() {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  // Determine initial tab from route or query param
+  const tabParam = searchParams.get("tab");
+  const isAttributionRoute = location.pathname === "/attribution";
+  const initialTab = tabParam || (isAttributionRoute ? "source-truth" : "command-center");
+
   const [range, setRange] = useState<"today" | "week" | "month">("month");
   const { data: deltas } = usePeriodComparison();
 
@@ -1178,7 +1185,7 @@ export default function MarketingIntelligence() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="command-center" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="command-center">Command Center</TabsTrigger>
           <TabsTrigger value="deep-intel">Deep Intel</TabsTrigger>
