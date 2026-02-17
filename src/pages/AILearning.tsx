@@ -40,6 +40,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { CHART_COLORS, CHART_AXIS } from "@/lib/chartColors";
 
 export default function AILearning() {
   const navigate = useNavigate();
@@ -247,17 +248,17 @@ export default function AILearning() {
                       data={chartData}
                       margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_AXIS.gridStroke} />
                       <XAxis
                         dataKey="name"
-                        stroke="#888"
+                        stroke={CHART_AXIS.stroke}
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
                       />
                       <YAxis
                         yAxisId="left"
-                        stroke="#888"
+                        stroke={CHART_AXIS.stroke}
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
@@ -265,7 +266,7 @@ export default function AILearning() {
                       <YAxis
                         yAxisId="right"
                         orientation="right"
-                        stroke="#888"
+                        stroke={CHART_AXIS.stroke}
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
@@ -282,7 +283,7 @@ export default function AILearning() {
                         yAxisId="left"
                         type="monotone"
                         dataKey="confidence"
-                        stroke="#10b981"
+                        stroke={CHART_COLORS.growth}
                         strokeWidth={2}
                         dot={false}
                         activeDot={{ r: 6 }}
@@ -292,7 +293,7 @@ export default function AILearning() {
                         yAxisId="right"
                         type="monotone"
                         dataKey="usage"
-                        stroke="#6366f1"
+                        stroke={CHART_COLORS.marketing}
                         strokeWidth={2}
                         dot={false}
                         name="Usage"

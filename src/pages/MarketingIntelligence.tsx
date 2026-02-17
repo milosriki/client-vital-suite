@@ -58,6 +58,7 @@ import { VisualDNA } from "@/components/dashboard/VisualDNA";
 import { usePeriodComparison } from "@/hooks/usePeriodComparison";
 import { useDeepIntelligence } from "@/hooks/useDeepIntelligence";
 import { useDeepAnalysis, useMetaAds, useMoneyMap } from "@/hooks/useMarketingAnalytics";
+import { CHART_COLORS } from "@/lib/chartColors";
 
 /* ─────────────────────────────────────────────
    Shared inline components
@@ -1009,9 +1010,9 @@ function SourceTruthTab() {
                     contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }}
                     formatter={(value: number) => `AED ${value?.toLocaleString() ?? 0}`}
                   />
-                  <Bar dataKey="meta_spend" name="Meta Spend" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="hubspot_deal_value" name="HubSpot Deals" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="stripe_cash" name="Stripe Cash" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="meta_spend" name="Meta Spend" fill={CHART_COLORS.danger} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="hubspot_deal_value" name="HubSpot Deals" fill={CHART_COLORS.revenue} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="stripe_cash" name="Stripe Cash" fill={CHART_COLORS.growth} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

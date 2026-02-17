@@ -28,6 +28,7 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { CHART_COLORS, HEALTH_COLORS, CHART_AXIS } from "@/lib/chartColors";
 
 export default function ClientDetail() {
   const { email } = useParams<{ email: string }>();
@@ -402,9 +403,9 @@ export default function ClientDetail() {
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={sessionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-              <XAxis dataKey="period" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_AXIS.gridStroke} />
+              <XAxis dataKey="period" stroke={CHART_AXIS.stroke} />
+              <YAxis stroke={CHART_AXIS.stroke} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#1e293b",
@@ -414,9 +415,9 @@ export default function ClientDetail() {
                 }}
               />
               <Bar dataKey="sessions" radius={[8, 8, 0, 0]}>
-                <Cell fill="#22c55e" />
-                <Cell fill="#3b82f6" />
-                <Cell fill="#a855f7" />
+                <Cell fill={HEALTH_COLORS.green} />
+                <Cell fill={CHART_COLORS.neutral} />
+                <Cell fill={HEALTH_COLORS.purple} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

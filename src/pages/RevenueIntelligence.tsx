@@ -8,6 +8,7 @@ import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/Fil
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
 import { ChartCard } from "@/components/dashboard/cards/ChartCard";
 import { DataTableCard } from "@/components/dashboard/cards/DataTableCard";
+import { CHART_COLORS } from "@/lib/chartColors";
 import { StatusBadge } from "@/components/dashboard/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -518,7 +519,7 @@ export default function RevenueIntelligence() {
                     }}
                     formatter={(value: number) => `${value} days`}
                   />
-                  <Bar dataKey="days" fill="#8B5CF6" name="Days" />
+                  <Bar dataKey="days" fill={CHART_COLORS.marketing} name="Days" />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>

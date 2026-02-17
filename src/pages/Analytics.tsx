@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw } from "lucide-react";
+import { CHART_COLORS, HEALTH_COLORS, CHART_AXIS } from "@/lib/chartColors";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { useAnnounce } from "@/lib/accessibility";
@@ -117,15 +118,15 @@ const Analytics = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="week" stroke="#9ca3af" />
-                      <YAxis stroke="#9ca3af" domain={[0, 100]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_AXIS.gridStroke} />
+                      <XAxis dataKey="week" stroke={CHART_AXIS.stroke} />
+                      <YAxis stroke={CHART_AXIS.stroke} domain={[0, 100]} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                         labelStyle={{ color: '#f3f4f6' }}
                       />
                       <Legend />
-                      <Line type="monotone" dataKey="avgScore" stroke="#3b82f6" strokeWidth={3} name="Avg Health Score" />
+                      <Line type="monotone" dataKey="avgScore" stroke={CHART_COLORS.neutral} strokeWidth={3} name="Avg Health Score" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -139,18 +140,18 @@ const Analytics = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="week" stroke="#9ca3af" />
-                      <YAxis stroke="#9ca3af" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_AXIS.gridStroke} />
+                      <XAxis dataKey="week" stroke={CHART_AXIS.stroke} />
+                      <YAxis stroke={CHART_AXIS.stroke} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                         labelStyle={{ color: '#f3f4f6' }}
                       />
                       <Legend />
-                      <Line type="monotone" dataKey="red" stroke="#ef4444" strokeWidth={2} name="RED" />
-                      <Line type="monotone" dataKey="yellow" stroke="#eab308" strokeWidth={2} name="YELLOW" />
-                      <Line type="monotone" dataKey="green" stroke="#22c55e" strokeWidth={2} name="GREEN" />
-                      <Line type="monotone" dataKey="purple" stroke="#a855f7" strokeWidth={2} name="PURPLE" />
+                      <Line type="monotone" dataKey="red" stroke={HEALTH_COLORS.red} strokeWidth={2} name="RED" />
+                      <Line type="monotone" dataKey="yellow" stroke={HEALTH_COLORS.yellow} strokeWidth={2} name="YELLOW" />
+                      <Line type="monotone" dataKey="green" stroke={HEALTH_COLORS.green} strokeWidth={2} name="GREEN" />
+                      <Line type="monotone" dataKey="purple" stroke={HEALTH_COLORS.purple} strokeWidth={2} name="PURPLE" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -174,7 +175,7 @@ const Analytics = () => {
                         labelLine={false}
                         label={({ name, value }) => `${name}: ${value}`}
                         outerRadius={100}
-                        fill="#8884d8"
+                        fill={CHART_COLORS.marketing}
                         dataKey="value"
                       >
                         {zoneData.map((entry, index) => (
@@ -197,14 +198,14 @@ const Analytics = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={segmentData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="segment" stroke="#9ca3af" angle={-45} textAnchor="end" height={100} />
-                      <YAxis stroke="#9ca3af" domain={[0, 100]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_AXIS.gridStroke} />
+                      <XAxis dataKey="segment" stroke={CHART_AXIS.stroke} angle={-45} textAnchor="end" height={100} />
+                      <YAxis stroke={CHART_AXIS.stroke} domain={[0, 100]} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                         labelStyle={{ color: '#f3f4f6' }}
                       />
-                      <Bar dataKey="avgScore" fill="#3b82f6" name="Avg Health Score" />
+                      <Bar dataKey="avgScore" fill={CHART_COLORS.neutral} name="Avg Health Score" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>

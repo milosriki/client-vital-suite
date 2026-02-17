@@ -11,6 +11,7 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
+import { CHART_COLORS, CHART_AXIS } from "@/lib/chartColors";
 
 interface PredictiveForecastingProps {
   forecastData: any[];
@@ -68,10 +69,10 @@ export const PredictiveForecasting = ({
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="month" stroke="#71717a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_AXIS.gridStroke} />
+              <XAxis dataKey="month" stroke={CHART_AXIS.stroke} />
               <YAxis
-                stroke="#71717a"
+                stroke={CHART_AXIS.stroke}
                 tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
               />
               <Tooltip
@@ -88,21 +89,21 @@ export const PredictiveForecasting = ({
               <Legend />
               <ReferenceLine
                 y={100000}
-                stroke="#f59e0b"
+                stroke={CHART_COLORS.revenue}
                 strokeDasharray="5 5"
                 label="Target"
               />
               <Area
                 type="monotone"
                 dataKey="actual"
-                stroke="#f59e0b"
+                stroke={CHART_COLORS.revenue}
                 fill="url(#actualGradient)"
                 name="Actual"
               />
               <Area
                 type="monotone"
                 dataKey="bestCase"
-                stroke="#3b82f6"
+                stroke={CHART_COLORS.neutral}
                 fill="url(#bestCaseGradient)"
                 name="Best Case"
                 strokeDasharray="5 5"
@@ -110,7 +111,7 @@ export const PredictiveForecasting = ({
               <Area
                 type="monotone"
                 dataKey="likely"
-                stroke="#8b5cf6"
+                stroke={CHART_COLORS.marketing}
                 fill="none"
                 name="Likely"
                 strokeDasharray="3 3"
@@ -118,7 +119,7 @@ export const PredictiveForecasting = ({
               <Area
                 type="monotone"
                 dataKey="commit"
-                stroke="#10b981"
+                stroke={CHART_COLORS.growth}
                 fill="url(#commitGradient)"
                 name="Commit"
               />
