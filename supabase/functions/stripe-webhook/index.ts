@@ -222,6 +222,14 @@ serve(async (req) => {
     else if (event.type.includes("refund")) {
       result = await handleRefundEvent(supabase, event);
     }
+    // Customer Events (CRITICAL — captures email for contact linking)
+    else if (event.type.startsWith("customer.") && !event.type.includes("subscription")) {
+      result = await handleCustomerEvent(supabase, event);
+    }
+    // Checkout Session Events
+    else if (event.type.includes("checkout.session")) {
+      result = await handleCheckoutSession(supabase, event);
+    }
     // Subscription Events
     else if (event.type.includes("subscription")) {
       result = await handleSubscriptionChange(supabase, event);
@@ -286,6 +294,170 @@ serve(async (req) => {
   }
 });
 
+// ============================================================================
+// CONTACT LINKING — resolve Stripe customer to Supabase contact
+// ============================================================================
+
+/**
+ * Extract email from any Stripe event object.
+ * Checks: receipt_email, billing_details.email, customer_email, email
+ */
+function extractEmail(obj: any): string | null {
+  return obj?.receipt_email
+    || obj?.billing_details?.email
+    || obj?.customer_email
+    || obj?.email
+    || null;
+}
+
+/**
+ * Link a Stripe transaction to a Supabase contact by email.
+ * Also updates the customer_email column for future reference.
+ */
+async function linkTransactionToContact(
+  supabase: any,
+  stripeId: string,
+  customerEmail: string | null,
+  customerId: string | null,
+): Promise<string | null> {
+  if (!customerEmail && !customerId) return null;
+
+  let email = customerEmail;
+
+  // If no direct email, try to find from previous transactions or Stripe customer cache
+  if (!email && customerId) {
+    // Check if we already linked this customer_id before
+    const { data: existing } = await supabase
+      .from("stripe_transactions")
+      .select("customer_email, contact_id")
+      .eq("customer_id", customerId)
+      .not("customer_email", "is", null)
+      .limit(1)
+      .single();
+
+    if (existing?.customer_email) {
+      email = existing.customer_email;
+    }
+    if (existing?.contact_id) {
+      // Already linked, just update this transaction
+      await supabase
+        .from("stripe_transactions")
+        .update({ contact_id: existing.contact_id, customer_email: email })
+        .eq("stripe_id", stripeId);
+      return existing.contact_id;
+    }
+  }
+
+  if (!email) return null;
+
+  // Find contact by email
+  const { data: contact } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("email", email.toLowerCase())
+    .limit(1)
+    .single();
+
+  if (contact?.id) {
+    // Link transaction to contact
+    await supabase
+      .from("stripe_transactions")
+      .update({ contact_id: contact.id, customer_email: email.toLowerCase() })
+      .eq("stripe_id", stripeId);
+
+    console.log(`🔗 Linked Stripe ${stripeId} → contact ${contact.id} (${email})`);
+
+    // Also link ALL other transactions from same customer_id
+    if (customerId) {
+      await supabase
+        .from("stripe_transactions")
+        .update({ contact_id: contact.id, customer_email: email.toLowerCase() })
+        .eq("customer_id", customerId)
+        .is("contact_id", null);
+    }
+
+    return contact.id;
+  }
+
+  // Store email even if no contact match (for future linking)
+  await supabase
+    .from("stripe_transactions")
+    .update({ customer_email: email.toLowerCase() })
+    .eq("stripe_id", stripeId);
+
+  console.log(`📧 Stored email ${email} for Stripe ${stripeId} (no contact match)`);
+  return null;
+}
+
+// ============================================================================
+// Customer Event Handler (NEW — captures email for linking)
+// ============================================================================
+
+async function handleCustomerEvent(supabase: any, event: StripeEvent) {
+  const customer = event.data.object;
+  const email = customer.email;
+
+  console.log(`👤 Customer ${event.type}: ${customer.id} (${email || 'no email'})`);
+
+  if (email && customer.id) {
+    // Link all existing transactions from this customer
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("id")
+      .eq("email", email.toLowerCase())
+      .limit(1)
+      .single();
+
+    if (contact?.id) {
+      const { count } = await supabase
+        .from("stripe_transactions")
+        .update({ contact_id: contact.id, customer_email: email.toLowerCase() })
+        .eq("customer_id", customer.id)
+        .is("contact_id", null)
+        .select("id", { count: "exact", head: true });
+
+      console.log(`🔗 Linked ${count || 0} transactions for customer ${customer.id} → contact ${contact.id}`);
+    }
+  }
+
+  return { processed: true, action: "customer_processed" };
+}
+
+// ============================================================================
+// Checkout Session Handler (NEW)
+// ============================================================================
+
+async function handleCheckoutSession(supabase: any, event: StripeEvent) {
+  const session = event.data.object;
+  const email = session.customer_email || session.customer_details?.email;
+
+  console.log(`🛒 Checkout ${event.type}: ${session.id} (${email || 'no email'})`);
+
+  if (session.payment_intent) {
+    // Store/update the transaction
+    await supabase.from("stripe_transactions").upsert(
+      {
+        stripe_id: session.payment_intent,
+        customer_id: session.customer,
+        amount: (session.amount_total || 0) / 100,
+        currency: session.currency,
+        status: session.payment_status === 'paid' ? 'succeeded' : session.payment_status,
+        customer_email: email?.toLowerCase(),
+        metadata: session.metadata,
+        created_at: new Date(session.created * 1000).toISOString(),
+      },
+      { onConflict: "stripe_id" },
+    );
+
+    // Link to contact
+    if (email) {
+      await linkTransactionToContact(supabase, session.payment_intent, email, session.customer);
+    }
+  }
+
+  return { processed: true, action: "checkout_completed" };
+}
+
 // Event Handlers
 
 async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
@@ -294,6 +466,8 @@ async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
   console.log(
     `✅ Payment succeeded: ${paymentIntent.id} - ${paymentIntent.amount / 100} ${paymentIntent.currency}`,
   );
+
+  const email = extractEmail(paymentIntent);
 
   // Update or create transaction record
   await supabase.from("stripe_transactions").upsert(
@@ -304,6 +478,7 @@ async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
       currency: paymentIntent.currency,
       status: "succeeded",
       payment_method: paymentIntent.payment_method,
+      customer_email: email?.toLowerCase(),
       metadata: paymentIntent.metadata,
       created_at: new Date(paymentIntent.created * 1000).toISOString(),
     },
@@ -311,6 +486,9 @@ async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
       onConflict: "stripe_id",
     },
   );
+
+  // Link to contact
+  await linkTransactionToContact(supabase, paymentIntent.id, email, paymentIntent.customer);
 
   return { processed: true, action: "payment_succeeded" };
 }
@@ -341,19 +519,23 @@ async function handlePaymentFailed(supabase: any, event: StripeEvent) {
 
 async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
   const charge = event.data.object;
+  const email = extractEmail(charge);
 
-  console.log(`💳 Charge succeeded: ${charge.id}`);
+  console.log(`💳 Charge succeeded: ${charge.id} (${email || 'no email'})`);
+
+  const stripeId = charge.payment_intent || charge.id;
 
   // Update transaction with charge details
   await supabase.from("stripe_transactions").upsert(
     {
-      stripe_id: charge.payment_intent || charge.id,
+      stripe_id: stripeId,
       charge_id: charge.id,
       customer_id: charge.customer,
       amount: charge.amount / 100,
       currency: charge.currency,
       status: charge.status,
       description: charge.description,
+      customer_email: email?.toLowerCase(),
       metadata: charge.metadata,
       created_at: new Date(charge.created * 1000).toISOString(),
     },
@@ -361,6 +543,9 @@ async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
       onConflict: "stripe_id",
     },
   );
+
+  // Link to contact
+  await linkTransactionToContact(supabase, stripeId, email, charge.customer);
 
   return { processed: true, action: "charge_succeeded" };
 }
@@ -503,8 +688,9 @@ async function handleSubscriptionChange(supabase: any, event: StripeEvent) {
 
 async function handleInvoiceEvent(supabase: any, event: StripeEvent) {
   const invoice = event.data.object;
+  const email = invoice.customer_email || extractEmail(invoice);
 
-  console.log(`📄 Invoice ${event.type}: ${invoice.id}`);
+  console.log(`📄 Invoice ${event.type}: ${invoice.id} (${email || 'no email'})`);
 
   await supabase.from("stripe_invoices").upsert(
     {
@@ -516,6 +702,7 @@ async function handleInvoiceEvent(supabase: any, event: StripeEvent) {
       currency: invoice.currency,
       status: invoice.status,
       paid: invoice.paid,
+      customer_email: email?.toLowerCase(),
       metadata: invoice.metadata,
       created_at: new Date(invoice.created * 1000).toISOString(),
     },
@@ -523,6 +710,11 @@ async function handleInvoiceEvent(supabase: any, event: StripeEvent) {
       onConflict: "stripe_id",
     },
   );
+
+  // If invoice paid, link any associated payment to contact
+  if (invoice.paid && invoice.payment_intent && email) {
+    await linkTransactionToContact(supabase, invoice.payment_intent, email, invoice.customer);
+  }
 
   return { processed: true, action: "invoice_processed" };
 }
