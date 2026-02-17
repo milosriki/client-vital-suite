@@ -371,7 +371,7 @@ export default function RevenueIntelligence() {
                       </span>
                       <div className="flex gap-4">
                         <span className="text-slate-300">{item.count}</span>
-                        <span className="text-slate-300">AED {(item.value / 1000).toFixed(1)}K</span>
+                        <span className="text-slate-300">AED {((item.value ?? 0) / 1000).toFixed(1)}K</span>
                       </div>
                     </div>
                   ))}
@@ -479,7 +479,7 @@ export default function RevenueIntelligence() {
                       <span className="text-slate-300">{item.stage}</span>
                       <div className="flex gap-4">
                         <span className="text-slate-300">{item.count}</span>
-                        <span className="text-slate-300">AED {(item.value / 1000).toFixed(0)}K</span>
+                        <span className="text-slate-300">AED {((item.value ?? 0) / 1000).toFixed(0)}K</span>
                       </div>
                     </div>
                   ))}
@@ -532,7 +532,7 @@ export default function RevenueIntelligence() {
             columns={[
               { key: "company", label: "Company", render: (item) => item.company },
               { key: "stage", label: "Stage", render: (item) => item.stage },
-              { key: "value", label: "Value", render: (item) => `AED ${(item.value / 1000).toFixed(0)}K` },
+              { key: "value", label: "Value", render: (item) => `AED ${((item.value ?? 0) / 1000).toFixed(0)}K` },
               { key: "owner", label: "Owner", render: (item) => item.owner },
               { key: "days", label: "Days", render: (item) => `${item.days}d` },
               { key: "next", label: "Next Action", render: (item) => item.next },
@@ -699,7 +699,7 @@ export default function RevenueIntelligence() {
             columns={[
               { key: "deal", label: "Deal Name", render: (item) => item.deal },
               { key: "stage", label: "Stage", render: (item) => item.stage },
-              { key: "value", label: "Value", render: (item) => `AED ${(item.value / 1000).toFixed(0)}K` },
+              { key: "value", label: "Value", render: (item) => `AED ${((item.value ?? 0) / 1000).toFixed(0)}K` },
               { key: "owner", label: "Owner", render: (item) => item.owner },
               { key: "created", label: "Created", render: (item) => item.created },
               { key: "source", label: "Source", render: (item) => item.source },

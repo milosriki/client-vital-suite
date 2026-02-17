@@ -35,7 +35,7 @@ SELECT
   END as truth_category
 FROM contacts c
 LEFT JOIN client_health_scores chs ON c.email = chs.email
-LEFT JOIN deals d ON c.hubspot_contact_id = d.contact_id::text
+LEFT JOIN deals d ON c.id = d.contact_id
 ORDER BY c.created_at DESC;
 
 -- daily_marketing_metrics_view: aggregated daily marketing metrics for CEO Morning Brief (Zone 8)

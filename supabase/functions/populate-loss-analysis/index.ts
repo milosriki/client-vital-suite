@@ -32,37 +32,43 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Get contacts for these deals
+    // Get contacts for these deals - deals.contact_id matches contacts.id (both UUID)
     const contactIds = [...new Set(lostDeals.map(d => d.contact_id).filter(Boolean))];
+    
     const { data: contacts } = await supabase
       .from('contacts')
-      .select('hubspot_contact_id, email, assigned_coach')
-      .in('hubspot_contact_id', contactIds);
+      .select('id, email, assigned_coach')
+      .in('id', contactIds);
 
-    const contactMap = new Map((contacts || []).map(c => [c.hubspot_contact_id, c]));
+    const contactMap = new Map((contacts || []).map(c => [c.id, c]));
 
     // Map deals to loss_analysis entries matching actual schema
-    const entries = lostDeals.map(deal => {
-      const contact = contactMap.get(deal.contact_id);
-      return {
-        contact_email: contact?.email || null,
-        hubspot_contact_id: deal.contact_id || null,
-        deal_id: deal.hubspot_deal_id || deal.id,
-        last_stage_reached: deal.stage_label || deal.stage || 'Unknown',
-        fb_ad_id: null,
-        campaign_name: null,
-        lead_source: null,
-        primary_loss_reason: 'Not specified',
-        coach_name: contact?.assigned_coach || deal.owner_name || null,
-        assessment_held: false,
-        analyzed_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-      };
-    });
+    // Filter out deals without a matching contact email (contact_email is NOT NULL)
+    const entries = lostDeals
+      .map(deal => {
+        const contact = contactMap.get(deal.contact_id);
+        if (!contact?.email) return null;
+        return {
+          contact_email: contact.email,
+          hubspot_contact_id: deal.contact_id ? String(deal.contact_id) : null,
+          deal_id: deal.hubspot_deal_id || String(deal.id),
+          last_stage_reached: deal.stage_label || deal.stage || 'Unknown',
+          primary_loss_reason: 'Not specified',
+          reasoning: `Deal "${deal.deal_name || 'Unknown'}" lost at stage ${deal.stage_label || deal.stage || 'unknown'}. Amount: ${deal.amount || 0}.`,
+          evidence: {},
+          coach_name: contact?.assigned_coach || deal.owner_name || null,
+          assessment_held: false,
+          analyzed_at: new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
 
+    // Clear existing entries and insert fresh
+    await supabase.from('loss_analysis').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    
     const { error: insertError } = await supabase
       .from('loss_analysis')
-      .upsert(entries, { onConflict: 'deal_id', ignoreDuplicates: true });
+      .insert(entries);
 
     if (insertError) throw insertError;
 
