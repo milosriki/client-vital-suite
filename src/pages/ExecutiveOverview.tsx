@@ -325,9 +325,14 @@ export default function ExecutiveOverview() {
                 ) : (
                   <p className="text-slate-300 text-sm">No calls recorded today yet</p>
                 )}
-                <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => window.location.href = "/leaderboard"}>
-                  View Leaderboard →
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/leaderboard"}>
+                    Leaderboard →
+                  </Button>
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/setter-command-center"}>
+                    Setter Control →
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -383,9 +388,14 @@ export default function ExecutiveOverview() {
                 ) : (
                   <p className="text-emerald-400 text-sm">✅ All leads followed up</p>
                 )}
-                <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => window.location.href = "/command-center"}>
-                  View All Leads →
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/lead-follow-up"}>
+                    Follow-Up Queue →
+                  </Button>
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/command-center"}>
+                    All Leads →
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </>
