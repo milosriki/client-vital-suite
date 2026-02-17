@@ -138,7 +138,7 @@ export default function ExecutiveOverview() {
             }
             action={{
               label: "View All Alerts →",
-              onClick: () => console.log("View alerts"),
+              onClick: () => window.location.href = "/lead-follow-up",
             }}
           />
         )}
@@ -257,7 +257,7 @@ export default function ExecutiveOverview() {
             }
             action={{
               label: "Generate Report →",
-              onClick: () => console.log("Generate report"),
+              onClick: () => window.location.href = "/setter-command-center",
             }}
           />
         )}
