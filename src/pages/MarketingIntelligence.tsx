@@ -509,7 +509,7 @@ function DeepIntelTab() {
                 </thead>
                 <tbody>
                   {baselines.map((b, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{b.period_days}d</td>
                       <td className="py-2 px-3 text-right font-mono text-emerald-400">{Number(b?.avg_roas ?? 0).toFixed(2)}x</td>
                       <td className="py-2 px-3 text-right font-mono">AED {Number(b?.avg_cpl ?? 0).toFixed(2)}</td>
@@ -647,7 +647,7 @@ function DeepIntelTab() {
                   </thead>
                   <tbody>
                     {assessmentTruth.recent.slice(0, 8).map((row, i) => (
-                      <tr key={i} className="border-b border-white/5">
+                      <tr key={i} className="border-b border-white/10">
                         <td className="py-1 px-2">{row.first_name} {row.last_name?.[0]}.</td>
                         <td className="py-1 px-2 text-muted-foreground">{row.coach || "—"}</td>
                         <td className="py-1 px-2">
@@ -761,7 +761,7 @@ function MetaAdsTab({ dateRange }: { dateRange: string }) {
               </thead>
               <tbody>
                 {data.campaigns.map((c, i) => (
-                  <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                  <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                     <td className="py-2 px-3 max-w-[200px] truncate">{c.campaign}</td>
                     <td className="py-2 px-3">
                       <Badge variant="outline" className="text-[10px] text-emerald-400">{c.status}</Badge>
@@ -837,7 +837,7 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
               </thead>
               <tbody>
                 {data.campaignROI.map((c, i) => (
-                  <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                  <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                     <td className="py-2 px-3 max-w-[200px] truncate">{c.campaign}</td>
                     <td className="py-2 px-3 text-right font-mono">AED {c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {c.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -876,7 +876,7 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                 </thead>
                 <tbody>
                   {deepData.cohortAnalysis.map((c, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{c.month}</td>
                       <td className="py-2 px-3 text-right font-mono">{c.leads}</td>
                       <td className="py-2 px-3 text-right font-mono">{Number(c?.conv ?? 0).toFixed(1)}%</td>
@@ -972,7 +972,7 @@ function SourceTruthTab() {
                 </thead>
                 <tbody>
                   {sourceAlignment.details.map((row, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono text-xs">{row.report_date}</td>
                       <td className="py-2 px-3 max-w-[180px] truncate">{row.campaign_name}</td>
                       <td className="py-2 px-3 text-right font-mono">{row.fb_reported_leads}</td>
@@ -1027,7 +1027,7 @@ function SourceTruthTab() {
                 </thead>
                 <tbody>
                   {triangleData.map((row: any, i: number) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{row.month}</td>
                       <td className="py-2 px-3 text-right font-mono text-rose-400">AED {row.meta_spend?.toLocaleString() ?? 0}</td>
                       <td className="py-2 px-3 text-right font-mono text-amber-400">AED {row.hubspot_deal_value?.toLocaleString() ?? 0}</td>

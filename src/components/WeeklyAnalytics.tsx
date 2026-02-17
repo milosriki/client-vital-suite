@@ -35,10 +35,10 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
   };
 
   const renderTrend = (change: number | null) => {
-    if (change === null) return <Minus className="h-4 w-4 text-gray-400" />;
+    if (change === null) return <Minus className="h-4 w-4 text-gray-300" />;
     if (change > 0) return <TrendingUp className="h-4 w-4 text-green-500" />;
     if (change < 0) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return <Minus className="h-4 w-4 text-gray-400" />;
+    return <Minus className="h-4 w-4 text-gray-300" />;
   };
 
   if (!latestWeek) {

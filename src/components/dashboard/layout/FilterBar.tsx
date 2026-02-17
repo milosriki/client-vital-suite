@@ -40,7 +40,7 @@ export function FilterBar({
           <Select value={dateRange.value} onValueChange={dateRange.onChange}>
             <SelectTrigger className="w-[180px] bg-slate-800/50 border-slate-700">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400" />
+                <Calendar className="w-4 h-4 text-slate-300" />
                 <SelectValue />
               </div>
             </SelectTrigger>

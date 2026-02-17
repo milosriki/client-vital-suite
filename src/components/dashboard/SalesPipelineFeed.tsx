@@ -82,7 +82,7 @@ export function SalesPipelineFeed() {
               <div key={lead.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-slate-400" />
+                    <User className="h-4 w-4 text-slate-300" />
                     <span className="font-medium">
                       {lead.first_name} {lead.last_name}
                     </span>
@@ -92,7 +92,7 @@ export function SalesPipelineFeed() {
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 text-sm text-slate-500">
+                <div className="grid grid-cols-2 gap-2 text-sm text-slate-400">
                   {lead.company && (
                     <div className="flex items-center gap-2">
                       <Building className="h-3 w-3" />
@@ -115,7 +115,7 @@ export function SalesPipelineFeed() {
               </div>
             ))}
             {leads.length === 0 && (
-              <div className="p-8 text-center text-slate-500">
+              <div className="p-8 text-center text-slate-400">
                 No active leads found in the pipeline.
               </div>
             )}

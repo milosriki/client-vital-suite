@@ -35,7 +35,7 @@ const statusConfig: Record<
   },
   neutral: {
     bg: "bg-slate-500/10",
-    text: "text-slate-400",
+    text: "text-slate-300",
     border: "border-slate-500/30",
   },
 };

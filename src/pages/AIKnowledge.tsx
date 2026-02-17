@@ -100,7 +100,7 @@ export default function AIKnowledge() {
       business: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
     };
     return (
-      colors[category] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
+      colors[category] || "bg-slate-500/10 text-slate-400 border-slate-500/20"
     );
   };
 

@@ -32,7 +32,7 @@ export const PredictiveForecasting = ({
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-xs text-zinc-500">Gap to Q1 Target</p>
+            <p className="text-xs text-zinc-400">Gap to Q1 Target</p>
             <p
               className={`text-lg font-bold font-mono ${gapToTarget > 0 ? "text-red-400" : "text-emerald-400"}`}
             >
@@ -128,15 +128,15 @@ export const PredictiveForecasting = ({
           <div className="flex justify-center gap-8 mt-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-zinc-400">Commit (90%)</span>
+              <span className="text-zinc-300">Commit (90%)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-purple-500" />
-              <span className="text-zinc-400">Likely (60%)</span>
+              <span className="text-zinc-300">Likely (60%)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500" />
-              <span className="text-zinc-400">Best Case (30%)</span>
+              <span className="text-zinc-300">Best Case (30%)</span>
             </div>
           </div>
         </CardContent>

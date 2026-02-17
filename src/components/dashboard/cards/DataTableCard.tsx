@@ -74,7 +74,7 @@ export function DataTableCard<T extends Record<string, any>>({
         <div className="flex items-center gap-3 mb-4">
           {searchable && (
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-300" />
               <Input
                 placeholder={searchPlaceholder}
                 value={searchQuery}
@@ -107,7 +107,7 @@ export function DataTableCard<T extends Record<string, any>>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="text-center text-slate-400 py-8"
+                  className="text-center text-slate-300 py-8"
                 >
                   No data available
                 </TableCell>
@@ -134,7 +134,7 @@ export function DataTableCard<T extends Record<string, any>>({
 
       {/* Pagination */}
       {pagination && data.length > 0 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-slate-400">
+        <div className="flex items-center justify-between mt-4 text-sm text-slate-300">
           <div>
             Showing {(pagination.page - 1) * pagination.pageSize + 1}-
             {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{" "}

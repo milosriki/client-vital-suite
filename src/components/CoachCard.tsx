@@ -29,7 +29,7 @@ const getTrendIcon = (trend: string | null) => {
     case 'declining':
       return <TrendingDown className="h-5 w-5 text-red-500" />;
     default:
-      return <Minus className="h-5 w-5 text-gray-500" />;
+      return <Minus className="h-5 w-5 text-gray-400" />;
   }
 };
 

@@ -155,8 +155,8 @@ export function useSuperAgentOrchestrator() {
       case "failed": return "text-red-500";
       case "running": return "text-blue-500";
       case "retrying": return "text-yellow-500";
-      case "pending": return "text-gray-500";
-      default: return "text-gray-400";
+      case "pending": return "text-gray-400";
+      default: return "text-gray-300";
     }
   }, []);
 
@@ -166,7 +166,7 @@ export function useSuperAgentOrchestrator() {
       case "connected": return "text-green-500";
       case "failed": case "error": return "text-red-500";
       case "no_key": return "text-yellow-500";
-      default: return "text-gray-400";
+      default: return "text-gray-300";
     }
   }, []);
 

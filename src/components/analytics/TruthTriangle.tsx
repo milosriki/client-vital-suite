@@ -34,7 +34,7 @@ const Node = ({
         maximumFractionDigits: 0,
       }).format(value)}
     </div>
-    <div className="text-[10px] text-zinc-400 mt-1 uppercase tracking-widest">
+    <div className="text-[10px] text-zinc-300 mt-1 uppercase tracking-widest">
       Revenue
     </div>
   </motion.div>
@@ -117,7 +117,7 @@ export function TruthTriangle({
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center p-8 rounded-3xl border border-white/5 bg-black/40 backdrop-blur-xl mb-8",
+        "relative flex items-center justify-center p-8 rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl mb-8",
         className,
       )}
       style={{ width: "100%", height: 500 }}

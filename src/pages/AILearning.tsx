@@ -120,7 +120,7 @@ export default function AILearning() {
       case "failed":
         return "bg-rose-500/10 text-rose-500 border-rose-500/20";
       default:
-        return "bg-slate-500/10 text-slate-500 border-slate-500/20";
+        return "bg-slate-500/10 text-slate-400 border-slate-500/20";
     }
   };
 

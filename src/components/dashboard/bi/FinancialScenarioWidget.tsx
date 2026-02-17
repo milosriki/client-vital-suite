@@ -40,7 +40,7 @@ export function FinancialScenarioWidget({ data }: { data: FinancialData }) {
     },
     {
       type: "Base Case",
-      color: "text-gray-400",
+      color: "text-gray-300",
       bg: "bg-gray-800/20",
       icon: TrendingUp,
       data: data.scenarios.base_case,

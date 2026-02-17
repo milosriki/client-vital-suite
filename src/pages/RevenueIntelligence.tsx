@@ -369,8 +369,8 @@ export default function RevenueIntelligence() {
                         {item.status === "Refunded" && "🔄"} {item.status}
                       </span>
                       <div className="flex gap-4">
-                        <span className="text-slate-400">{item.count}</span>
-                        <span className="text-slate-400">AED {(item.value / 1000).toFixed(1)}K</span>
+                        <span className="text-slate-300">{item.count}</span>
+                        <span className="text-slate-300">AED {(item.value / 1000).toFixed(1)}K</span>
                       </div>
                     </div>
                   ))}
@@ -477,8 +477,8 @@ export default function RevenueIntelligence() {
                     <div key={index} className="flex justify-between items-center">
                       <span className="text-slate-300">{item.stage}</span>
                       <div className="flex gap-4">
-                        <span className="text-slate-400">{item.count}</span>
-                        <span className="text-slate-400">AED {(item.value / 1000).toFixed(0)}K</span>
+                        <span className="text-slate-300">{item.count}</span>
+                        <span className="text-slate-300">AED {(item.value / 1000).toFixed(0)}K</span>
                       </div>
                     </div>
                   ))}
@@ -578,7 +578,7 @@ export default function RevenueIntelligence() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="text-lg font-semibold">Data Quality Issues</span>
               </AccordionTrigger>
-              <AccordionContent className="text-sm text-slate-400 space-y-2">
+              <AccordionContent className="text-sm text-slate-300 space-y-2">
                 <p>├─ Missing emails: {hubspotData?.dataQuality.contactsWithoutEmail || 0} contacts</p>
                 <p>├─ Duplicate companies: {hubspotData?.dataQuality.duplicateCompanies || 0} found</p>
                 <p>└─ Orphaned deals: {hubspotData?.dataQuality.orphanedDeals || 0} (all contacts linked)</p>
@@ -589,7 +589,7 @@ export default function RevenueIntelligence() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="text-lg font-semibold">Recent Actions</span>
               </AccordionTrigger>
-              <AccordionContent className="text-sm text-slate-400 space-y-2">
+              <AccordionContent className="text-sm text-slate-300 space-y-2">
                 <p>├─ Contacts created: 284 (this month)</p>
                 <p>├─ Deals created: 42</p>
                 <p>└─ Emails sent: 1,847</p>
@@ -600,7 +600,7 @@ export default function RevenueIntelligence() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="text-lg font-semibold">Properties Audit</span>
               </AccordionTrigger>
-              <AccordionContent className="text-sm text-slate-400 space-y-2">
+              <AccordionContent className="text-sm text-slate-300 space-y-2">
                 <p>├─ Total properties: 247</p>
                 <p>├─ Unused properties: 18 (7.3%)</p>
                 <p>└─ Custom properties: 42</p>
@@ -611,7 +611,7 @@ export default function RevenueIntelligence() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="text-lg font-semibold">Summary & Recommendations</span>
               </AccordionTrigger>
-              <AccordionContent className="text-sm text-slate-400 space-y-2">
+              <AccordionContent className="text-sm text-slate-300 space-y-2">
                 <p>├─ 🟢 Overall health: GOOD</p>
                 <p>├─ ⚠️ 12 contacts missing emails - clean up recommended</p>
                 <p>└─ ✅ All workflows passing</p>
@@ -627,7 +627,7 @@ export default function RevenueIntelligence() {
             title="🟢 LIVE ACTIVITY STREAM (Real-time sync via Supabase)"
             data={liveActivity}
             columns={[
-              { key: "time", label: "Time", render: (item) => <span className="text-slate-400">{item.time}</span> },
+              { key: "time", label: "Time", render: (item) => <span className="text-slate-300">{item.time}</span> },
               {
                 key: "event",
                 label: "Event",
@@ -650,7 +650,7 @@ export default function RevenueIntelligence() {
                   {todayActivity.map((item, index) => (
                     <div key={index} className="flex justify-between items-center">
                       <span className="text-slate-300">{item.metric}</span>
-                      <span className="text-slate-400">{item.count}</span>
+                      <span className="text-slate-300">{item.count}</span>
                     </div>
                   ))}
                 </div>

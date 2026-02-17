@@ -12,5 +12,5 @@ export const TrendIndicator = ({ trend, size = 16 }: TrendIndicatorProps) => {
   if (trend === 'DECLINING') {
     return <TrendingDown className="text-red-500" size={size} />;
   }
-  return <Minus className="text-gray-500" size={size} />;
+  return <Minus className="text-gray-400" size={size} />;
 };

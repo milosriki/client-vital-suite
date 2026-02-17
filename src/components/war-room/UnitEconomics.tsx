@@ -36,11 +36,11 @@ export const UnitEconomics = ({
         {/* Ad Spend Input */}
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardContent className="p-4">
-            <label className="text-xs text-zinc-500 uppercase tracking-wide">
+            <label className="text-xs text-zinc-400 uppercase tracking-wide">
               Monthly Ad Spend
             </label>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-zinc-500">AED</span>
+              <span className="text-zinc-400">AED</span>
               <Input
                 type="number"
                 value={adSpend}
@@ -55,7 +55,7 @@ export const UnitEconomics = ({
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500 uppercase tracking-wide">
+              <span className="text-xs text-zinc-400 uppercase tracking-wide">
                 CAC
               </span>
               {cac < 500 ? (
@@ -77,7 +77,7 @@ export const UnitEconomics = ({
                 )}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">Goal: &lt; AED 500</p>
+            <p className="text-xs text-zinc-400 mt-1">Goal: &lt; AED 500</p>
           </CardContent>
         </Card>
 
@@ -85,7 +85,7 @@ export const UnitEconomics = ({
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500 uppercase tracking-wide">
+              <span className="text-xs text-zinc-400 uppercase tracking-wide">
                 LTV
               </span>
               <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -109,7 +109,7 @@ export const UnitEconomics = ({
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500 uppercase tracking-wide">
+              <span className="text-xs text-zinc-400 uppercase tracking-wide">
                 LTV:CAC Ratio
               </span>
               <span className="text-xs text-amber-400">THE GOD METRIC</span>
@@ -143,7 +143,7 @@ export const UnitEconomics = ({
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500 uppercase tracking-wide">
+              <span className="text-xs text-zinc-400 uppercase tracking-wide">
                 Burn Multiple
               </span>
             </div>
@@ -156,7 +156,7 @@ export const UnitEconomics = ({
                 )}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">Net Burn / Net New ARR</p>
+            <p className="text-xs text-zinc-400 mt-1">Net Burn / Net New ARR</p>
           </CardContent>
         </Card>
       </div>

@@ -22,7 +22,7 @@ export function CEOMemory({ calibrationData }: CEOMemoryProps) {
             {calibrationData?.map((item) => (
               <div
                 key={item.id}
-                className="p-4 rounded-lg bg-black/20 border border-white/5"
+                className="p-4 rounded-lg bg-black/20 border border-white/10"
               >
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="font-medium text-white">

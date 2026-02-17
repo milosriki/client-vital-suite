@@ -75,7 +75,7 @@ const ReconciliationDashboard = () => {
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-orange-400">
             Leak Detector
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-slate-300 mt-2">
             AWS Backoffice vs HubSpot: Training Session Reconciliation
           </p>
         </div>
@@ -110,7 +110,7 @@ const ReconciliationDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
           <CardHeader className="pb-2">
-            <CardDescription className="text-slate-400 uppercase text-[10px] tracking-widest font-bold">
+            <CardDescription className="text-slate-300 uppercase text-[10px] tracking-widest font-bold">
               Total Checked
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-white">
@@ -118,7 +118,7 @@ const ReconciliationDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center text-xs text-slate-500">
+            <div className="flex items-center text-xs text-slate-400">
               <Users className="w-3 h-3 mr-1" /> AWS Master Records
             </div>
           </CardContent>
@@ -176,11 +176,11 @@ const ReconciliationDashboard = () => {
       {/* Main Comparison Ledger */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-slate-400 uppercase text-xs font-bold tracking-widest">
+          <div className="flex items-center gap-2 text-slate-300 uppercase text-xs font-bold tracking-widest">
             <Database className="w-4 h-4" /> Discrepancy Ledger
           </div>
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search by email..."
@@ -192,7 +192,7 @@ const ReconciliationDashboard = () => {
         <div className="rounded-xl border border-white/10 bg-black/40 overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+              <thead className="bg-white/5 text-slate-300 uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Client Email</th>
                   <th className="px-6 py-4">Field</th>
@@ -214,7 +214,7 @@ const ReconciliationDashboard = () => {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-6 py-12 text-center text-slate-500 italic"
+                      className="px-6 py-12 text-center text-slate-400 italic"
                     >
                       No active discrepancies. System is 100% aligned with AWS.
                     </td>
@@ -231,11 +231,11 @@ const ReconciliationDashboard = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <Badge variant="secondary" className="bg-slate-800 text-slate-400 text-[9px]">
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-300 text-[9px]">
                           {row.field}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 text-center font-mono text-slate-500 text-xs">
+                      <td className="px-6 py-4 text-center font-mono text-slate-400 text-xs">
                         {JSON.stringify(row.old)}
                       </td>
                       <td className="px-6 py-4 text-center font-mono text-blue-400 text-xs font-bold">
@@ -256,7 +256,7 @@ const ReconciliationDashboard = () => {
             </table>
           </div>
           {/* Footer */}
-          <div className="p-4 border-t border-white/5 bg-white/5 text-center text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+          <div className="p-4 border-t border-white/10 bg-white/5 text-center text-[10px] text-slate-400 uppercase tracking-widest font-bold">
             Deep Intelligence Sync via AWS RDS (enhancesch schema)
           </div>
         </div>

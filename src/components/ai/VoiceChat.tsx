@@ -323,7 +323,7 @@ export function VoiceChat({
         {/* Transcript Display */}
         {transcript && (
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-            <div className="text-xs text-slate-400 mb-1">You said:</div>
+            <div className="text-xs text-slate-300 mb-1">You said:</div>
             <div className="text-sm text-white">{transcript}</div>
           </div>
         )}
@@ -384,7 +384,7 @@ export function VoiceChat({
         </div>
 
         {/* Instructions */}
-        <div className="text-xs text-slate-400 space-y-1">
+        <div className="text-xs text-slate-300 space-y-1">
           <div>💡 Click "Start Listening" and speak your question</div>
           <div>🎤 The AI will respond with voice</div>
           <div>🔊 Adjust volume in your system settings</div>

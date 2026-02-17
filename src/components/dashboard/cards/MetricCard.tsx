@@ -47,7 +47,7 @@ export function MetricCard({
               "flex items-center gap-1 text-sm font-medium",
               delta.type === "positive" && "text-emerald-500",
               delta.type === "negative" && "text-red-500",
-              delta.type === "neutral" && "text-slate-400"
+              delta.type === "neutral" && "text-slate-300"
             )}
           >
             {delta.type === "positive" && <ArrowUpRight className="w-4 h-4" />}

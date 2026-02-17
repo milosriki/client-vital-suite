@@ -274,7 +274,7 @@ export default function ExecutiveOverview() {
             {
               key: "time",
               label: "Time",
-              render: (item) => <span className="text-slate-400">{item.time}</span>,
+              render: (item) => <span className="text-slate-300">{item.time}</span>,
             },
             {
               key: "message",
@@ -316,14 +316,14 @@ export default function ExecutiveOverview() {
                       <li key={i} className="flex justify-between items-center">
                         <span className="text-white">{i + 1}. {p.name}</span>
                         <div className="flex gap-2 items-center">
-                          <span className="text-slate-400">{p.calls} 📞</span>
+                          <span className="text-slate-300">{p.calls} 📞</span>
                           {p.booked > 0 && <span className="text-emerald-400 text-sm">{p.booked} 📅</span>}
                         </div>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-slate-500 text-sm">No calls recorded today yet</p>
+                  <p className="text-slate-400 text-sm">No calls recorded today yet</p>
                 )}
                 <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => window.location.href = "/leaderboard"}>
                   View Leaderboard →
@@ -372,7 +372,7 @@ export default function ExecutiveOverview() {
                       <li key={i} className="flex justify-between items-center">
                         <div className="truncate max-w-[60%]">
                           <span className="text-white text-sm">{lead.name}</span>
-                          <span className="text-slate-500 text-xs ml-1">({lead.stage})</span>
+                          <span className="text-slate-400 text-xs ml-1">({lead.stage})</span>
                         </div>
                         <span className={`text-xs ${lead.daysSinceActivity > 7 ? 'text-red-400' : 'text-amber-400'}`}>
                           {lead.daysSinceActivity}d silent

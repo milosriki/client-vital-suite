@@ -32,7 +32,7 @@
 
     /* Muted Context */
     --muted: 217 32% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 215 20% 75%;
 
     --secondary: 217 32% 17%;
     --secondary-foreground: 210 40% 98%;
@@ -41,8 +41,8 @@
     --destructive-foreground: 210 40% 98%;
 
     /* Contrast Borders */
-    --border: 217 32% 17%; 
-    --input: 217 32% 17%;
+    --border: 217 32% 22%; 
+    --input: 217 32% 22%;
     --ring: 38 92% 50%;
 
     --radius: 0.375rem;
@@ -61,7 +61,7 @@
     --card-foreground: 210 40% 98%;
     --primary: 38 92% 50%;
     --accent: 262 83% 58%;
-    --border: 217 32% 17%;
+    --border: 217 32% 22%;
   }
 }
 
@@ -124,7 +124,7 @@
   /* Premium Card - Glass Effect */
   .premium-card {
     @apply relative overflow-hidden rounded-xl border bg-card/50 backdrop-blur-sm;
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
     @apply transition-all duration-200 ease-out;
   }
 
@@ -139,7 +139,7 @@
   /* Stat Card */
   .stat-card {
     @apply relative overflow-hidden rounded-xl border bg-card/50 backdrop-blur-sm p-6;
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
     @apply transition-all duration-200;
   }
 
@@ -157,7 +157,7 @@
   /* Glass Effect */
   .glass {
     @apply bg-background/80 backdrop-blur-xl;
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
   }
 
   /* Nav Link */
@@ -200,7 +200,7 @@
   /* Dashboard Card */
   .card-dashboard {
     @apply relative overflow-hidden rounded-xl border bg-card/50 backdrop-blur-sm;
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
     @apply transition-all duration-200 ease-out;
   }
 

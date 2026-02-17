@@ -137,7 +137,7 @@ export default function ClientDetail() {
       return <TrendingUp className="text-green-500" size={20} />;
     if (client.health_trend === "DECLINING")
       return <TrendingDown className="text-red-500" size={20} />;
-    return <Minus className="text-gray-500" size={20} />;
+    return <Minus className="text-gray-400" size={20} />;
   };
 
   const getChurnRiskLevel = (score: number | null) => {
@@ -185,7 +185,7 @@ export default function ClientDetail() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-2">{fullName}</h1>
-              <p className="text-slate-400 mb-4">{displayEmail}</p>
+              <p className="text-slate-300 mb-4">{displayEmail}</p>
               <div className="flex items-center gap-2">
                 <Badge
                   className={`${
@@ -209,7 +209,7 @@ export default function ClientDetail() {
                 zone={client.health_zone as any}
                 size="lg"
               />
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-300">
                 Updated{" "}
                 {format(
                   new Date(client.calculated_at),
@@ -226,7 +226,7 @@ export default function ClientDetail() {
         <Card className="bg-slate-800 border-slate-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-slate-400">Health Score</p>
+              <p className="text-sm text-slate-300">Health Score</p>
               {getTrendIcon()}
             </div>
             <div className="flex items-center gap-2">
@@ -234,7 +234,7 @@ export default function ClientDetail() {
                 {client.health_score?.toFixed(0) || 0}
               </p>
             </div>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-slate-300 mt-1">
               {client.health_trend || "STABLE"}
             </p>
           </CardContent>
@@ -243,13 +243,13 @@ export default function ClientDetail() {
         <Card className="bg-slate-800 border-slate-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-slate-400">Churn Risk</p>
+              <p className="text-sm text-slate-300">Churn Risk</p>
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
             </div>
             <p className="text-3xl font-bold">
               {client.churn_risk_score?.toFixed(0) || 0}%
             </p>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-slate-300 mt-1">
               {getChurnRiskLevel(client.churn_risk_score)}
             </p>
           </CardContent>
@@ -258,13 +258,13 @@ export default function ClientDetail() {
         <Card className="bg-slate-800 border-slate-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-slate-400">Sessions Remaining</p>
+              <p className="text-sm text-slate-300">Sessions Remaining</p>
               <Calendar className="h-4 w-4 text-blue-500" />
             </div>
             <p className="text-3xl font-bold">
               {client.outstanding_sessions || 0}
             </p>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-slate-300 mt-1">
               {client.package_type || "N/A"}
             </p>
           </CardContent>
@@ -273,7 +273,7 @@ export default function ClientDetail() {
         <Card className="bg-slate-800 border-slate-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-slate-400">Days Since Last Session</p>
+              <p className="text-sm text-slate-300">Days Since Last Session</p>
               <Clock className="h-4 w-4 text-purple-500" />
             </div>
             <p className="text-3xl font-bold">
@@ -281,7 +281,7 @@ export default function ClientDetail() {
                 ? client.days_since_last_session
                 : "N/A"}
             </p>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-slate-300 mt-1">
               {client.days_since_last_session === null
                 ? ""
                 : client.days_since_last_session > 30
@@ -302,7 +302,7 @@ export default function ClientDetail() {
         <CardContent className="space-y-6">
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-400">Engagement Score</span>
+              <span className="text-sm text-slate-300">Engagement Score</span>
               <span className="text-sm font-semibold">
                 {client.engagement_score?.toFixed(0) || 0}
               </span>
@@ -320,7 +320,7 @@ export default function ClientDetail() {
 
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-400">Momentum Score</span>
+              <span className="text-sm text-slate-300">Momentum Score</span>
               <span className="text-sm font-semibold">
                 {client.momentum_score?.toFixed(0) || 0}
               </span>
@@ -338,7 +338,7 @@ export default function ClientDetail() {
 
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-slate-300">
                 Package Health Score
               </span>
               <span className="text-sm font-semibold">
@@ -358,7 +358,7 @@ export default function ClientDetail() {
 
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-400">Relationship Score</span>
+              <span className="text-sm text-slate-300">Relationship Score</span>
               <span className="text-sm font-semibold">
                 {client.relationship_score?.toFixed(0) || 0}
               </span>
@@ -376,7 +376,7 @@ export default function ClientDetail() {
 
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-400">Financial Score</span>
+              <span className="text-sm text-slate-300">Financial Score</span>
               <span className="text-sm font-semibold">
                 {client.financial_score?.toFixed(0) || 0}
               </span>
@@ -431,17 +431,17 @@ export default function ClientDetail() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-slate-400 mb-1">Assigned Coach</p>
+              <p className="text-sm text-slate-300 mb-1">Assigned Coach</p>
               <p className="font-semibold">
                 {client.assigned_coach || "Not assigned"}
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Package Type</p>
+              <p className="text-sm text-slate-300 mb-1">Package Type</p>
               <p className="font-semibold">{client.package_type || "N/A"}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Package Value</p>
+              <p className="text-sm text-slate-300 mb-1">Package Value</p>
               <p className="font-semibold">
                 {client.package_value_aed
                   ? `AED ${client.package_value_aed.toLocaleString()}`
@@ -449,11 +449,11 @@ export default function ClientDetail() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Client Segment</p>
+              <p className="text-sm text-slate-300 mb-1">Client Segment</p>
               <p className="font-semibold">{client.client_segment || "N/A"}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">
+              <p className="text-sm text-slate-300 mb-1">
                 Intervention Priority
               </p>
               <p className="font-semibold">
@@ -461,7 +461,7 @@ export default function ClientDetail() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Days Until Renewal</p>
+              <p className="text-sm text-slate-300 mb-1">Days Until Renewal</p>
               <p className="font-semibold">
                 {client.days_until_renewal !== null
                   ? client.days_until_renewal
@@ -469,19 +469,19 @@ export default function ClientDetail() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Sessions Purchased</p>
+              <p className="text-sm text-slate-300 mb-1">Sessions Purchased</p>
               <p className="font-semibold">
                 {client.sessions_purchased || "N/A"}
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">HubSpot Contact ID</p>
+              <p className="text-sm text-slate-300 mb-1">HubSpot Contact ID</p>
               <p className="font-semibold text-xs">
                 {client.hubspot_contact_id || "N/A"}
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-400 mb-1">Calculation Version</p>
+              <p className="text-sm text-slate-300 mb-1">Calculation Version</p>
               <p className="font-semibold">
                 {client.calculation_version || "N/A"}
               </p>
@@ -513,7 +513,7 @@ export default function ClientDetail() {
                       <p className="font-semibold text-lg">
                         {intervention.intervention_type}
                       </p>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-slate-300">
                         {intervention.intervention_date
                           ? format(
                               new Date(intervention.intervention_date),
@@ -545,7 +545,7 @@ export default function ClientDetail() {
 
                   {intervention.ai_recommendation && (
                     <div className="mb-2 p-3 bg-slate-900/50 rounded">
-                      <p className="text-xs text-slate-400 mb-1">
+                      <p className="text-xs text-slate-300 mb-1">
                         AI Recommendation:
                       </p>
                       <p className="text-sm text-slate-300">
@@ -556,7 +556,7 @@ export default function ClientDetail() {
 
                   {intervention.outcome && (
                     <div className="mb-2 p-3 bg-slate-900/50 rounded">
-                      <p className="text-xs text-slate-400 mb-1">Outcome:</p>
+                      <p className="text-xs text-slate-300 mb-1">Outcome:</p>
                       <p className="text-sm text-slate-300">
                         {intervention.outcome}
                       </p>
@@ -566,7 +566,7 @@ export default function ClientDetail() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm">
                     {intervention.assigned_to && (
                       <div>
-                        <p className="text-xs text-slate-400">Assigned To:</p>
+                        <p className="text-xs text-slate-300">Assigned To:</p>
                         <p className="text-slate-300">
                           {intervention.assigned_to}
                         </p>
@@ -574,7 +574,7 @@ export default function ClientDetail() {
                     )}
                     {intervention.health_score_at_trigger !== null && (
                       <div>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-slate-300">
                           Score at Trigger:
                         </p>
                         <p className="text-slate-300">
@@ -584,7 +584,7 @@ export default function ClientDetail() {
                     )}
                     {intervention.health_zone_at_trigger && (
                       <div>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-slate-300">
                           Zone at Trigger:
                         </p>
                         <Badge
@@ -605,7 +605,7 @@ export default function ClientDetail() {
                     )}
                     {intervention.intervention_type && (
                       <div className="col-span-2 md:col-span-1">
-                        <p className="text-xs text-slate-400">Trigger:</p>
+                        <p className="text-xs text-slate-300">Trigger:</p>
                         <p className="text-slate-300 text-xs">
                           {intervention.intervention_type}
                         </p>
@@ -616,7 +616,7 @@ export default function ClientDetail() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-slate-400">
+            <div className="text-center py-8 text-slate-300">
               <p>No interventions recorded for this client</p>
             </div>
           )}

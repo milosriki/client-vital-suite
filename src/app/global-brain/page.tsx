@@ -155,7 +155,7 @@ export default function GlobalBrainPage() {
             <div className="text-2xl">🧠</div>
             <div>
               <h1 className="text-2xl font-bold">PTD Global Brain</h1>
-              <p className="text-sm text-gray-400">Company-wide memory with evidence tracking</p>
+              <p className="text-sm text-gray-300">Company-wide memory with evidence tracking</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -181,10 +181,10 @@ export default function GlobalBrainPage() {
           <div className="lg:col-span-1 bg-gray-800/60 border border-gray-700 rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Threads</h2>
-              <span className="text-xs text-gray-400">{threads.length} active</span>
+              <span className="text-xs text-gray-300">{threads.length} active</span>
             </div>
             <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-              {threads.length === 0 && <p className="text-sm text-gray-500">No threads yet</p>}
+              {threads.length === 0 && <p className="text-sm text-gray-400">No threads yet</p>}
               {threads.map((t) => (
                 <button
                   key={t.id}
@@ -194,7 +194,7 @@ export default function GlobalBrainPage() {
                   }`}
                 >
                   <div className="font-semibold truncate">{t.thread_name}</div>
-                  <div className="text-xs text-gray-400">Last: {new Date(t.last_message_at).toLocaleString()}</div>
+                  <div className="text-xs text-gray-300">Last: {new Date(t.last_message_at).toLocaleString()}</div>
                 </button>
               ))}
             </div>
@@ -208,7 +208,7 @@ export default function GlobalBrainPage() {
                   key={`${msg.role}-${i}-${msg.content.slice(0, 10)}`}
                   className={`${msg.role === 'user' ? 'bg-blue-900/40 border border-blue-700 ml-4' : 'bg-gray-700 border border-gray-600 mr-4'} p-3 rounded-lg`}
                 >
-                  <div className="text-xs uppercase tracking-wide text-gray-400 mb-2">
+                  <div className="text-xs uppercase tracking-wide text-gray-300 mb-2">
                     {msg.role === 'user' ? 'You' : 'Brain'}
                   </div>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
@@ -220,7 +220,7 @@ export default function GlobalBrainPage() {
                 </div>
               ))}
               {loading && (
-                <div className="text-sm text-gray-400">Thinking...</div>
+                <div className="text-sm text-gray-300">Thinking...</div>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -256,7 +256,7 @@ export default function GlobalBrainPage() {
             {latestEvidence ? (
               <div className="text-sm space-y-2">
                 <div>
-                  <div className="text-gray-400 text-xs uppercase">Tables</div>
+                  <div className="text-gray-300 text-xs uppercase">Tables</div>
                   <ul className="list-disc list-inside text-white/90">
                     {latestEvidence.sourcesUsed?.map((s) => (
                       <li key={s}>{s}</li>
@@ -270,7 +270,7 @@ export default function GlobalBrainPage() {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">Ask a question to see evidence</p>
+              <p className="text-sm text-gray-400">Ask a question to see evidence</p>
             )}
           </div>
         </div>

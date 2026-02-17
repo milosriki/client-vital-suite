@@ -147,7 +147,7 @@ export const RevenueIntegrity = ({
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-zinc-400">Buried Leads</span>
+              <span className="text-sm text-zinc-300">Buried Leads</span>
               <Users className="h-4 w-4 text-red-400" />
             </div>
             <div className="text-4xl font-bold text-red-400 font-mono mb-2">
@@ -157,7 +157,7 @@ export const RevenueIntegrity = ({
                 buriedLeads.length
               )}
             </div>
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-zinc-400 mb-4">
               &gt; 7 days old with no activity
             </p>
             <Button
@@ -181,7 +181,7 @@ export const RevenueIntegrity = ({
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-zinc-400">Stalled Deals</span>
+              <span className="text-sm text-zinc-300">Stalled Deals</span>
               <Pause className="h-4 w-4 text-amber-400" />
             </div>
             <div className="text-4xl font-bold text-amber-400 font-mono mb-2">
@@ -191,7 +191,7 @@ export const RevenueIntegrity = ({
                 stalledDeals.length
               )}
             </div>
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-zinc-400 mb-4">
               Stuck in same stage &gt; 14 days
             </p>
             <Button
@@ -213,18 +213,18 @@ export const RevenueIntegrity = ({
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-zinc-400">Discount Abuse</span>
-              <DollarSign className="h-4 w-4 text-zinc-500" />
+              <span className="text-sm text-zinc-300">Discount Abuse</span>
+              <DollarSign className="h-4 w-4 text-zinc-400" />
             </div>
-            <div className="text-4xl font-bold text-zinc-400 font-mono mb-2">
+            <div className="text-4xl font-bold text-zinc-300 font-mono mb-2">
               {discountedDeals.length}
             </div>
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-zinc-400 mb-4">
               Deals with &gt; 20% discount
             </p>
             <Button
               disabled
-              className="w-full bg-zinc-800 text-zinc-500 border border-zinc-700"
+              className="w-full bg-zinc-800 text-zinc-400 border border-zinc-700"
             >
               Flag for Review
             </Button>

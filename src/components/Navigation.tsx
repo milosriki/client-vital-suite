@@ -288,12 +288,12 @@ export const Navigation = () => {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r border-white/5 bg-black transition-all duration-300 flex flex-col font-sans",
+        "fixed left-0 top-0 z-40 h-screen border-r border-white/10 bg-black transition-all duration-300 flex flex-col font-sans",
         isCollapsed ? "w-[72px]" : "w-64",
       )}
     >
       {/* HUD Header - Global Intelligence Bar */}
-      <div className="h-16 flex items-center px-4 border-b border-white/5 shrink-0 relative overflow-hidden group">
+      <div className="h-16 flex items-center px-4 border-b border-white/10 shrink-0 relative overflow-hidden group">
         <div
           className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-glow-sm cursor-pointer shrink-0 transition-transform active:scale-95"
           onClick={() => setIsCollapsed(!isCollapsed)}

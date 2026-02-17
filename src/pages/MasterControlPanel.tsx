@@ -183,7 +183,7 @@ export default function MasterControlPanel() {
           <CardContent className="flex-1 overflow-hidden p-0 font-mono text-xs">
             <ScrollArea className="h-full p-4">
               {logs.length === 0 ? (
-                <div className="text-slate-500 italic">
+                <div className="text-slate-400 italic">
                   No execution logs yet...
                 </div>
               ) : (
@@ -199,7 +199,7 @@ export default function MasterControlPanel() {
                         <span className="font-bold text-slate-300">
                           {log.func}
                         </span>
-                        <span className="text-slate-400 ml-auto text-[10px]">
+                        <span className="text-slate-300 ml-auto text-[10px]">
                           {getBusinessDate().toLocaleTimeString()}
                         </span>
                       </div>

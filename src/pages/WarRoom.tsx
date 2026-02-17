@@ -105,7 +105,7 @@ const WarRoom = () => {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
               CEO War Room
             </h1>
-            <p className="text-zinc-500 text-sm">Strategic Command Center</p>
+            <p className="text-zinc-400 text-sm">Strategic Command Center</p>
           </div>
         </div>
 
@@ -115,7 +115,7 @@ const WarRoom = () => {
             {autoPilotEnabled ? (
               <Zap className="h-5 w-5 text-amber-400 animate-pulse" />
             ) : (
-              <Pause className="h-5 w-5 text-zinc-500" />
+              <Pause className="h-5 w-5 text-zinc-400" />
             )}
             <span className="font-medium">Auto-Pilot</span>
           </div>

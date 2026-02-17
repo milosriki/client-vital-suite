@@ -82,7 +82,7 @@ export function SyncStatusBadge() {
     };
 
     if (!lastSync?.lastSuccessfulSync) return (
-        <Badge variant="outline" className="gap-1 text-slate-400 border-slate-700">
+        <Badge variant="outline" className="gap-1 text-slate-300 border-slate-700">
             <RefreshCw className="h-3 w-3 animate-spin" /> Checking...
         </Badge>
     );
@@ -121,23 +121,23 @@ export function SyncStatusBadge() {
                             disabled={isTriggering}
                         >
                             {isTriggering ? (
-                                <RefreshCw className="h-3 w-3 animate-spin text-slate-400" />
+                                <RefreshCw className="h-3 w-3 animate-spin text-slate-300" />
                             ) : (
-                                <Play className="h-3 w-3 text-slate-400" />
+                                <Play className="h-3 w-3 text-slate-300" />
                             )}
                         </Button>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent>
                     <p>Last sync: {new Date(lastSync.lastSuccessfulSync.started_at).toLocaleString()}</p>
-                    <p className="text-xs text-slate-400">Platform: {lastSync.lastSuccessfulSync.platform}</p>
+                    <p className="text-xs text-slate-300">Platform: {lastSync.lastSuccessfulSync.platform}</p>
                     {lastSync.hasUnresolvedErrors && (
                         <p className="text-yellow-400 text-xs mt-1">Has unresolved errors</p>
                     )}
                     {status === 'stale' && (
                         <p className="text-red-400 text-xs mt-1">Data is over 24h old!</p>
                     )}
-                    <p className="text-xs text-slate-500 mt-1">Click play to trigger manual sync</p>
+                    <p className="text-xs text-slate-400 mt-1">Click play to trigger manual sync</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>

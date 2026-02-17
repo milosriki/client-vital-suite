@@ -37,10 +37,10 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
         return (
           <Card
             key={i}
-            className="overflow-hidden border-white/5 bg-black/40 group/ad transition-all duration-300 hover:border-primary/30"
+            className="overflow-hidden border-white/10 bg-black/40 group/ad transition-all duration-300 hover:border-primary/30"
           >
             {/* Creative Preview */}
-            <div className="aspect-video relative overflow-hidden bg-muted/20 border-b border-white/5">
+            <div className="aspect-video relative overflow-hidden bg-muted/20 border-b border-white/10">
               <img
                 src={`https://pipeboard.com/api/meta/creative/${ad.ad_id}/thumbnail`}
                 alt={ad.ad_name}
@@ -79,7 +79,7 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
                 {ad.ad_name}
               </h3>
 
-              <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/5">
+              <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/10">
                 <div className="space-y-1">
                   <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest">
                     Spend

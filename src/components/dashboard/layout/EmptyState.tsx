@@ -35,7 +35,7 @@ export function EmptyState({
       )}
       <h3 className="text-lg font-semibold text-slate-300 mb-2">{title}</h3>
       {description && (
-        <p className="text-sm text-slate-400 max-w-sm mb-6">{description}</p>
+        <p className="text-sm text-slate-300 max-w-sm mb-6">{description}</p>
       )}
       {action && (
         <Button onClick={action.onClick} variant="outline">

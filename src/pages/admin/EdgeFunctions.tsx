@@ -95,7 +95,7 @@ export default function EdgeFunctionsPage() {
       case "core":
         return "bg-red-500/10 text-red-500 border-red-500/20";
       default:
-        return "bg-slate-500/10 text-slate-500 border-slate-500/20";
+        return "bg-slate-500/10 text-slate-400 border-slate-500/20";
     }
   };
 
@@ -160,7 +160,7 @@ export default function EdgeFunctionsPage() {
               <CardTitle className="text-lg font-medium break-all">
                 {func.name}
               </CardTitle>
-              <CardDescription className="text-xs font-mono mt-1 text-slate-400">
+              <CardDescription className="text-xs font-mono mt-1 text-slate-300">
                 Secrets:{" "}
                 {func.requiredSecrets.length > 0
                   ? func.requiredSecrets.join(", ")
