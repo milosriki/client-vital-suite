@@ -86,25 +86,25 @@ export default function RevenueIntelligence() {
   const stripeMetrics = [
     { 
       label: "MRR", 
-      value: data?.metrics?.mrr ? `AED ${(data.metrics.mrr / 100).toLocaleString()}` : "—", 
+      value: data?.metrics?.mrr ? `AED ${(data.metrics.mrr / 100).toLocaleString()}` : "No data — Stripe sync pending", 
       delta: { value: 0, type: "positive" as const }, 
       icon: DollarSign 
     },
     { 
       label: "ARR", 
-      value: data?.metrics?.mrr ? `AED ${((data.metrics.mrr * 12) / 100).toLocaleString()}` : "—", 
+      value: data?.metrics?.mrr ? `AED ${((data.metrics.mrr * 12) / 100).toLocaleString()}` : "No data — Stripe sync pending", 
       delta: { value: 0, type: "positive" as const }, 
       icon: TrendingUp 
     },
     { 
       label: "Churn", 
-      value: data?.metrics?.churnRate ? `${data.metrics.churnRate}%` : "—", 
+      value: data?.metrics?.churnRate ? `${data.metrics.churnRate}%` : "No data", 
       delta: { value: 0, type: "positive" as const }, 
       icon: AlertCircle 
     },
     { 
       label: "Active Subs", 
-      value: data?.metrics?.activeSubscriptions?.toString() || "—", 
+      value: data?.metrics?.activeSubscriptions?.toString() || "No data", 
       delta: { value: 0, type: "positive" as const }, 
       icon: Users 
     },

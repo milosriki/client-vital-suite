@@ -1,4 +1,5 @@
 -- assessment_truth_matrix: contacts + health scores + deals for Deep Intel Zone 7
+DROP VIEW IF EXISTS public.assessment_truth_matrix;
 CREATE OR REPLACE VIEW public.assessment_truth_matrix AS
 SELECT 
   c.id as contact_id,
@@ -34,11 +35,13 @@ SELECT
   END as truth_category
 FROM contacts c
 LEFT JOIN client_health_scores chs ON c.email = chs.email
-LEFT JOIN deals d ON c.hubspot_contact_id = d.contact_id
+LEFT JOIN deals d ON c.hubspot_contact_id = d.contact_id::text
 ORDER BY c.created_at DESC;
 
--- daily_marketing_briefs: aggregated daily marketing metrics for CEO Morning Brief (Zone 8)
-CREATE OR REPLACE VIEW public.daily_marketing_briefs AS
+-- daily_marketing_metrics_view: aggregated daily marketing metrics for CEO Morning Brief (Zone 8)
+-- NOTE: daily_marketing_briefs already exists as a table with richer schema, creating view with different name
+DROP VIEW IF EXISTS public.daily_marketing_metrics_view;
+CREATE OR REPLACE VIEW public.daily_marketing_metrics_view AS
 SELECT 
   fai.date::date as brief_date,
   COUNT(DISTINCT fai.campaign_id) as active_campaigns,

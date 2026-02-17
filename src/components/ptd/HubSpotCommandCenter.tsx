@@ -222,7 +222,7 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
                     <div className="flex items-center gap-2">
                       <Trash2 className="h-5 w-5 text-red-500" />
                       <div>
-                        <p className="text-2xl font-bold">{overview?.totals.totalContactDeletions || 0}</p>
+                        <p className="text-2xl font-bold">{overview?.totals?.totalContactDeletions || 0}</p>
                         <p className="text-sm text-muted-foreground">Deletions</p>
                       </div>
                     </div>
@@ -233,7 +233,7 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
                     <div className="flex items-center gap-2">
                       <UserX className="h-5 w-5 text-purple-500" />
                       <div>
-                        <p className="text-2xl font-bold">{overview?.totals.highRiskUsers || 0}</p>
+                        <p className="text-2xl font-bold">{overview?.totals?.highRiskUsers || 0}</p>
                         <p className="text-sm text-muted-foreground">High Risk Users</p>
                       </div>
                     </div>

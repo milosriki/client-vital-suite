@@ -73,7 +73,7 @@ export const UnitEconomics = ({
                 {isLoading ? (
                   <Skeleton className="h-9 w-24 bg-zinc-800" />
                 ) : (
-                  `AED ${cac.toFixed(0)}`
+                  cac === 0 ? "Insufficient data" : `AED ${cac.toFixed(0)}`
                 )}
               </span>
             </div>
@@ -95,7 +95,7 @@ export const UnitEconomics = ({
                 {isLoading ? (
                   <Skeleton className="h-9 w-24 bg-zinc-800" />
                 ) : (
-                  `AED ${ltv.toFixed(0)}`
+                  ltv === 0 ? "Insufficient data" : `AED ${ltv.toFixed(0)}`
                 )}
               </span>
             </div>
@@ -119,7 +119,7 @@ export const UnitEconomics = ({
                 {isLoading ? (
                   <Skeleton className="h-9 w-16 bg-zinc-800" />
                 ) : (
-                  `${ltvCacRatio.toFixed(1)}x`
+                  ltvCacRatio === 0 ? "—" : `${ltvCacRatio.toFixed(1)}x`
                 )}
               </span>
               {ltvCacRatio >= 3 ? (
@@ -152,7 +152,7 @@ export const UnitEconomics = ({
                 {isLoading ? (
                   <Skeleton className="h-9 w-16 bg-zinc-800" />
                 ) : (
-                  `${burnMultiple.toFixed(1)}x`
+                  burnMultiple === 0 ? "Insufficient data" : `${burnMultiple.toFixed(1)}x`
                 )}
               </span>
             </div>
