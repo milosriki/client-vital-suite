@@ -143,7 +143,7 @@ export default function CommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("setter_funnel_matrix")
-        .select("setter_name, total_leads, booked, held, closed_won, ghost_rate_pct");
+        .select("setter_name, total_leads, deals_created, booked, held, closed_won, closed_lost, closed_won_value, lead_to_deal_pct, held_to_close_pct, ghost_rate_pct");
       if (error) throw error;
       return data;
     },
@@ -747,9 +747,11 @@ export default function CommandCenter() {
                     <TableRow>
                       <TableHead className="text-xs">Setter</TableHead>
                       <TableHead className="text-xs text-right">Leads</TableHead>
-                      <TableHead className="text-xs text-right">Booked</TableHead>
-                      <TableHead className="text-xs text-right">Held</TableHead>
-                      <TableHead className="text-xs text-right">Closed</TableHead>
+                      <TableHead className="text-xs text-right">Deals</TableHead>
+                      <TableHead className="text-xs text-right">Won</TableHead>
+                      <TableHead className="text-xs text-right">Lost</TableHead>
+                      <TableHead className="text-xs text-right">Revenue</TableHead>
+                      <TableHead className="text-xs text-right">Close %</TableHead>
                       <TableHead className="text-xs text-right">Ghost %</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -763,13 +765,25 @@ export default function CommandCenter() {
                           {Number(s.total_leads || 0)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {Number(s.booked || 0)}
+                          {Number(s.deals_created || 0)}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {Number(s.held || 0)}
+                        <TableCell className="text-right font-bold text-emerald-400">
+                          {Number(s.closed_won || 0)}
+                        </TableCell>
+                        <TableCell className="text-right text-red-400">
+                          {Number(s.closed_lost || 0)}
                         </TableCell>
                         <TableCell className="text-right font-bold">
-                          {Number(s.closed_won || 0)}
+                          {Number(s.closed_won_value || 0) > 0
+                            ? `AED ${Number(s.closed_won_value).toLocaleString()}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={Number(s.held_to_close_pct || 0) >= 5 ? "default" : "secondary"}>
+                            {s.held_to_close_pct != null
+                              ? `${Number(s.held_to_close_pct).toFixed(1)}%`
+                              : "—"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Badge

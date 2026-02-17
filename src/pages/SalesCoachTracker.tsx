@@ -78,7 +78,7 @@ const SalesCoachTracker = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("setter_funnel_matrix")
-        .select("setter_name, total_leads, booked, held, closed_won, book_to_held_pct, ghost_rate_pct, held_to_close_pct");
+        .select("setter_name, total_leads, deals_created, booked, held, closed_won, closed_lost, closed_won_value, lead_to_deal_pct, book_to_held_pct, ghost_rate_pct, held_to_close_pct");
       if (error) throw error;
       return data;
     },
@@ -289,13 +289,13 @@ const SalesCoachTracker = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Setter</TableHead>
-                      <TableHead className="text-xs">Total Leads</TableHead>
-                      <TableHead className="text-xs">Booked</TableHead>
-                      <TableHead className="text-xs">Held</TableHead>
-                      <TableHead className="text-xs">Closed Won</TableHead>
-                      <TableHead className="text-xs">Book→Held %</TableHead>
-                      <TableHead className="text-xs">Ghost Rate %</TableHead>
-                      <TableHead className="text-xs">Held→Close %</TableHead>
+                      <TableHead className="text-xs text-right">Leads</TableHead>
+                      <TableHead className="text-xs text-right">Deals</TableHead>
+                      <TableHead className="text-xs text-right">Won</TableHead>
+                      <TableHead className="text-xs text-right">Lost</TableHead>
+                      <TableHead className="text-xs text-right">Revenue (AED)</TableHead>
+                      <TableHead className="text-xs text-right">Close %</TableHead>
+                      <TableHead className="text-xs text-right">Ghost %</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -304,18 +304,27 @@ const SalesCoachTracker = () => {
                         <TableCell className="font-medium">
                           {s.setter_name || "Unknown"}
                         </TableCell>
-                        <TableCell>{s.total_leads || 0}</TableCell>
-                        <TableCell>{s.booked || 0}</TableCell>
-                        <TableCell>{s.held || 0}</TableCell>
-                        <TableCell className="font-bold">
+                        <TableCell className="text-right">{s.total_leads || 0}</TableCell>
+                        <TableCell className="text-right">{s.deals_created || 0}</TableCell>
+                        <TableCell className="text-right font-bold text-emerald-400">
                           {s.closed_won || 0}
                         </TableCell>
-                        <TableCell>
-                          {s.book_to_held_pct != null
-                            ? `${Number(s.book_to_held_pct).toFixed(0)}%`
+                        <TableCell className="text-right text-red-400">
+                          {s.closed_lost || 0}
+                        </TableCell>
+                        <TableCell className="text-right font-bold">
+                          {Number(s.closed_won_value || 0) > 0
+                            ? Number(s.closed_won_value).toLocaleString()
                             : "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={Number(s.held_to_close_pct || 0) >= 5 ? "default" : "secondary"}>
+                            {s.held_to_close_pct != null
+                              ? `${Number(s.held_to_close_pct).toFixed(1)}%`
+                              : "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
                           <Badge
                             variant={
                               (s.ghost_rate_pct || 0) > 40
@@ -327,11 +336,6 @@ const SalesCoachTracker = () => {
                               ? `${Number(s.ghost_rate_pct).toFixed(0)}%`
                               : "—"}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {s.held_to_close_pct != null
-                            ? `${Number(s.held_to_close_pct).toFixed(0)}%`
-                            : "—"}
                         </TableCell>
                       </TableRow>
                     ))}

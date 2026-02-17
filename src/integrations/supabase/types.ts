@@ -8421,6 +8421,7 @@ export type Database = {
           booked: number | null
           closed_lost: number | null
           closed_won: number | null
+          closed_won_value: number | null
           deals_created: number | null
           ghost_rate_pct: number | null
           held: number | null
