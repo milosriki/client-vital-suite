@@ -99,50 +99,26 @@ export const Navigation = () => {
   });
 
   const NAV_GROUPS = {
-    COMMERCIAL: [
+    MAIN: [
       { path: "/command-center", label: "Command Center", icon: Crosshair },
-      { path: "/executive-dashboard", label: "Executive", icon: LayoutDashboard },
-      {
-        path: "/marketing-intelligence",
-        label: "Marketing",
-        icon: BarChart3,
-      },
+      { path: "/marketing", label: "Marketing", icon: BarChart3 },
       { path: "/sales-pipeline", label: "Pipeline", icon: TrendingUp },
-      { path: "/money-map", label: "Money Map", icon: Wallet },
-      { path: "/stripe", label: "Stripe", icon: CreditCard },
-      { path: "/lead-follow-up", label: "Lead Follow-Up", icon: UserCheck },
-      { path: "/setter-command-center", label: "Setter Command", icon: Headphones },
-      { path: "/setter-activity-today", label: "Today's Activity", icon: Activity },
-      { path: "/sales-coach-tracker", label: "Setter Funnel", icon: Target },
-    ],
-    OPERATIONS: [
+      { path: "/revenue", label: "Revenue", icon: CreditCard },
+      { path: "/attribution", label: "Attribution", icon: ShieldAlert },
       { path: "/clients", label: "Clients", icon: Users },
-      { path: "/interventions", label: "Risks", icon: AlertTriangle },
       { path: "/coaches", label: "Coaches", icon: UserCheck },
-      { path: "/leaderboard", label: "Leaderboard", icon: Award },
-      { path: "/call-tracking", label: "Call Records", icon: Phone },
-    ],
-    INTELLIGENCE: [
+      { path: "/interventions", label: "Risks", icon: AlertTriangle },
+      { path: "/global-brain", label: "AI Brain", icon: Brain },
       { path: "/ai-advisor", label: "AI Advisor", icon: BrainCircuit },
-      { path: "/skills-matrix", label: "Skill Power", icon: Zap },
+    ],
+    MORE: [
+      { path: "/sales-tracker", label: "Sales Tracker", icon: Target },
+      { path: "/calls", label: "Call Analytics", icon: Phone },
+      { path: "/skills", label: "Skills", icon: Zap },
       { path: "/war-room", label: "War Room", icon: Crown },
-      { path: "/global-brain", label: "Global Brain", icon: Brain },
-      { path: "/reconciliation", label: "Leak Detector", icon: ShieldAlert },
+      { path: "/audit", label: "Audit Trail", icon: History },
     ],
   };
-
-  const moreItems = [
-    { path: "/", label: "Legacy Dashboard", icon: LayoutDashboard },
-    { path: "/hubspot-live", label: "HubSpot Live", icon: Zap },
-    { path: "/audit-trail", label: "Audit", icon: History },
-    { path: "/ai-knowledge", label: "AI Knowledge", icon: Brain },
-    { path: "/ai-learning", label: "AI Learning", icon: Lightbulb },
-    { path: "/ai-dev", label: "AI Dev Console", icon: Cpu },
-    { path: "/observability", label: "AI Observability", icon: Activity },
-    { path: "/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/ptd-control", label: "PTD Control", icon: Settings },
-    { path: "/ultimate-ceo", label: "AI CEO", icon: Bot },
-  ];
 
   const handleSync = async () => {
     if (masterSync.isSyncing) return;
@@ -386,32 +362,7 @@ export const Navigation = () => {
           </Tooltip>
         </TooltipProvider>
 
-        {/* More Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "w-full",
-                isCollapsed ? "justify-center px-0" : "justify-start",
-              )}
-            >
-              <Settings className={cn("h-4 w-4", isCollapsed ? "" : "mr-2")} />
-              {!isCollapsed && "System"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 ml-2">
-            {moreItems.map((item) => (
-              <DropdownMenuItem key={item.path} asChild>
-                <Link to={item.path} className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* System link placeholder */}
       </div>
     </aside>
   );

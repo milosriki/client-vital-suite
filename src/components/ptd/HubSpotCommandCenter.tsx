@@ -200,7 +200,7 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
                     <div className="flex items-center gap-2">
                       <LogIn className="h-5 w-5 text-blue-500" />
                       <div>
-                        <p className="text-2xl font-bold">{overview?.totals.totalLogins || 0}</p>
+                        <p className="text-2xl font-bold">{overview?.totals?.totalLogins || 0}</p>
                         <p className="text-sm text-muted-foreground">Total Logins</p>
                       </div>
                     </div>
@@ -211,7 +211,7 @@ export default function HubSpotCommandCenter({ mode }: HubSpotCommandCenterProps
                     <div className="flex items-center gap-2">
                       <Download className="h-5 w-5 text-orange-500" />
                       <div>
-                        <p className="text-2xl font-bold">{overview?.totals.totalExports || 0}</p>
+                        <p className="text-2xl font-bold">{overview?.totals?.totalExports || 0}</p>
                         <p className="text-sm text-muted-foreground">Exports</p>
                       </div>
                     </div>

@@ -296,7 +296,7 @@ export default function SalesPipeline() {
     queryKey: ["call-records", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("call_records").select("id, caller_number, agent_name, call_status, call_outcome, duration_seconds, lead_quality, transcription, recording_url, appointment_set, created_at");
+      let query = supabase.from("call_records").select("id, caller_number, call_status, call_outcome, duration_seconds, lead_quality, transcription, recording_url, appointment_set, created_at, owner_name, call_type, direction");
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);
       }
