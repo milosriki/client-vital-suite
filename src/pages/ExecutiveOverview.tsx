@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/dashboard/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SyncButton } from "@/components/SyncButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   LineChart,
@@ -72,6 +73,7 @@ export default function ExecutiveOverview() {
         description="Your command center for all critical business metrics"
         actions={
           <>
+            <SyncButton />
             <Button
               variant="outline"
               size="sm"

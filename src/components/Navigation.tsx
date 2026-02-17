@@ -58,6 +58,7 @@ import { SystemStatusDropdown } from "@/components/dashboard/SystemStatusDropdow
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useSyncLock, SYNC_OPERATIONS } from "@/hooks/useSyncLock";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { useMasterSync } from "@/hooks/useMasterSync";
 import { QUERY_KEYS } from "@/config/queryKeys";
 import { GlobalDateRangePicker } from "@/components/GlobalDateRangePicker";
 import { useSidebar } from "@/hooks/use-sidebar";
@@ -65,9 +66,10 @@ import { useSidebar } from "@/hooks/use-sidebar";
 export const Navigation = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const { isCollapsed, setIsCollapsed } = useSidebar();
   const isMobile = useIsMobile();
+  const masterSync = useMasterSync();
+  const isSyncing = masterSync.isSyncing;
 
   // Use sync lock to prevent concurrent syncs
   const hubspotSync = useSyncLock(SYNC_OPERATIONS.HUBSPOT_SYNC);
@@ -142,68 +144,19 @@ export const Navigation = () => {
   ];
 
   const handleSync = async () => {
-    await hubspotSync.execute(
-      async () => {
-        setIsSyncing(true);
-        try {
-          const { error } = await supabase.functions.invoke(
-            "sync-hubspot-to-supabase",
-          );
-          if (error) throw error;
-          toast({
-            title: "Sync Complete",
-            description: "HubSpot data synchronized",
-          });
-        } catch (error: any) {
-          toast({
-            title: "Sync Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        } finally {
-          setIsSyncing(false);
-        }
-      },
-      { lockMessage: "HubSpot sync is already in progress" },
-    );
+    if (masterSync.isSyncing) return;
+    await masterSync.runSync();
   };
 
   const handleFullSync = async () => {
     if (
       !window.confirm(
-        "This will perform a FULL sync of all historical data (5+ years). It may take several minutes. Continue?",
+        "This will perform a FULL sync of all data sources (HubSpot, Facebook, Stripe, Attribution). May take 1-2 minutes. Continue?",
       )
     ) {
       return;
     }
-    await hubspotSync.execute(
-      async () => {
-        setIsSyncing(true);
-        try {
-          const { error } = await supabase.functions.invoke(
-            "sync-hubspot-to-supabase",
-            {
-              body: { incremental: false },
-            },
-          );
-          if (error) throw error;
-          toast({
-            title: "Full Sync Started",
-            description:
-              "Historical data sync initiated. Check logs for progress.",
-          });
-        } catch (error: any) {
-          toast({
-            title: "Sync Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        } finally {
-          setIsSyncing(false);
-        }
-      },
-      { lockMessage: "HubSpot sync is already in progress" },
-    );
+    await masterSync.runSync();
   };
 
   const NavLink = ({
@@ -421,7 +374,14 @@ export const Navigation = () => {
                   (circuitBreakerTripped ? "Sync Paused" : "Sync Data")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">HubSpot Sync Status</TooltipContent>
+            <TooltipContent side="right">
+              Sync All Sources (HubSpot + FB + Stripe)
+              {masterSync.lastSyncTime && (
+                <span className="block text-xs text-muted-foreground mt-1">
+                  Last: {masterSync.lastSyncTime.toLocaleTimeString()}
+                </span>
+              )}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
