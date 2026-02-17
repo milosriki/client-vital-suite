@@ -25,7 +25,7 @@ export function useAIAdvisorQueue() {
       const dealMap = new Map<string, number>();
       (deals || []).forEach(d => {
         const existing = dealMap.get(d.email) || 0;
-        dealMap.set(d.email, existing + (d.amount || 0));
+        dealMap.set(d.email, existing + (Number(d.amount) || 0));
       });
 
       return (data || []).map(client => {

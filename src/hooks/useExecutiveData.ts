@@ -199,7 +199,7 @@ export function useExecutiveData(filters: ExecutiveFilters) {
         }));
 
       // Revenue calculations
-      const totalRevenue = closedDeals.reduce((sum, deal) => sum + (deal.deal_value || deal.amount || 0), 0);
+      const totalRevenue = closedDeals.reduce((sum, deal) => sum + (deal.deal_value || Number(deal.amount) || 0), 0);
       const monthlyRevenue = totalRevenue; // Already filtered by date range
 
       // Calculate previous period revenue for delta
@@ -207,10 +207,10 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       midPoint.setDate(midPoint.getDate() + Math.floor((Date.now() - dateFilter.getTime()) / (2 * 24 * 60 * 60 * 1000)));
       const previousPeriodRevenue = closedDeals
         .filter(deal => new Date(deal.close_date || deal.created_at || "") < midPoint)
-        .reduce((sum, deal) => sum + (deal.deal_value || deal.amount || 0), 0);
+        .reduce((sum, deal) => sum + (deal.deal_value || Number(deal.amount) || 0), 0);
       const currentPeriodRevenue = closedDeals
         .filter(deal => new Date(deal.close_date || deal.created_at || "") >= midPoint)
-        .reduce((sum, deal) => sum + (deal.deal_value || deal.amount || 0), 0);
+        .reduce((sum, deal) => sum + (deal.deal_value || Number(deal.amount) || 0), 0);
       const revenueDelta = previousPeriodRevenue > 0
         ? ((currentPeriodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
         : 0;
@@ -225,11 +225,11 @@ export function useExecutiveData(filters: ExecutiveFilters) {
 
       // LTV calculation (simplified: avg deal value)
       const avgDealValue = closedDeals.length > 0
-        ? closedDeals.reduce((sum, d) => sum + (d.deal_value || d.amount || 0), 0) / closedDeals.length
+        ? closedDeals.reduce((sum, d) => sum + (d.deal_value || Number(d.amount) || 0), 0) / closedDeals.length
         : 0;
 
       // CAC calculation (ad spend / leads)
-      const totalAdSpend = adInsights.reduce((sum, ad) => sum + (ad.spend || 0), 0);
+      const totalAdSpend = adInsights.reduce((sum, ad) => sum + (Number(ad.spend) || 0), 0);
       const totalLeads = leads.length;
       const cac = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
 
@@ -398,7 +398,7 @@ function generateRevenueTrend(deals: DealData[], startDate: Date) {
         const closeDate = new Date(d.close_date || d.created_at || "");
         return closeDate >= weekStart && closeDate < weekEnd;
       })
-      .reduce((sum, d) => sum + (d.deal_value || d.amount || 0), 0);
+      .reduce((sum, d) => sum + (d.deal_value || Number(d.amount) || 0), 0);
 
     trend.push({
       date: (i * 7 + 7).toString(),
@@ -456,7 +456,7 @@ function formatActivityFeed(activities: ActivityData[]) {
     let status: "success" | "warning" | "info" = "info";
 
     if (activity.status === "closedwon") {
-      message = `Deal "${activity.deal_name || 'Unnamed'}" moved to Closed Won (${formatCurrency(activity.deal_value || 0)})`;
+      message = `Deal "${activity.deal_name || 'Unnamed'}" moved to Closed Won (${formatCurrency(Number(activity.deal_value) || 0)})`;
       status = "success";
     } else if (activity.stage) {
       message = `Deal "${activity.deal_name || 'Unnamed'}" updated to ${activity.stage}`;

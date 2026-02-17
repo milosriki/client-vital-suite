@@ -42,14 +42,14 @@ export function usePipelineData(dateRange: string) {
           acc[stage] = { stage, count: 0, total_value: 0 };
         }
         acc[stage].count++;
-        acc[stage].total_value += deal.deal_value || 0;
+        acc[stage].total_value += Number(deal.deal_value) || 0;
         return acc;
       }, {} as Record<string, PipelineStageData>);
 
       const stageBreakdown = Object.values(stages || {});
 
       // Calculate total pipeline value
-      const totalPipeline = deals?.reduce((sum, deal) => sum + (deal.deal_value || 0), 0) || 0;
+      const totalPipeline = deals?.reduce((sum, deal) => sum + (Number(deal.deal_value) || 0), 0) || 0;
 
       // Calculate weighted pipeline (using stage probability - simplified)
       const stageProbabilities: Record<string, number> = {
@@ -61,7 +61,7 @@ export function usePipelineData(dateRange: string) {
       };
       const weightedPipeline = deals?.reduce((sum, deal) => {
         const probability = stageProbabilities[deal.stage || ""] || 0.3;
-        return sum + (deal.deal_value || 0) * probability;
+        return sum + (Number(deal.deal_value) || 0) * probability;
       }, 0) || 0;
 
       // Calculate close rate

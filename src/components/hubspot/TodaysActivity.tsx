@@ -79,7 +79,7 @@ export function TodaysActivity({
   const totalContacts = filteredContacts.length;
   const unassignedContacts = filteredContacts.filter((c: any) => !c.owner_id).length;
   const totalDeals = filteredDeals.length;
-  const totalDealValue = filteredDeals.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+  const totalDealValue = filteredDeals.reduce((sum: number, d: any) => sum + (Number(d.amount) || 0), 0);
   const premiumContacts = filteredContacts.filter((c: any) => {
     const premiumLocations = ['marina', 'downtown', 'difc', 'jbr', 'arabian ranches', 'jumeirah'];
     return premiumLocations.some(loc => c.city?.toLowerCase().includes(loc));

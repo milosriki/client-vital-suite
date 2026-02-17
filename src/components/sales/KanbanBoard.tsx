@@ -60,7 +60,7 @@ export function KanbanBoard({ leads, onMoveCard }: KanbanBoardProps) {
   }, [leads]);
 
   const totalPipelineValue = useMemo(() => {
-    return leads.reduce((sum, l) => sum + (l.deal_value || 0), 0);
+    return leads.reduce((sum, l) => sum + (Number(l.deal_value) || 0), 0);
   }, [leads]);
 
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
@@ -127,7 +127,7 @@ export function KanbanBoard({ leads, onMoveCard }: KanbanBoardProps) {
           {STAGES.map((stage) => {
             const stageLeads = leadsByStage[stage.id] || [];
             const Icon = stage.icon;
-            const totalValue = stageLeads.reduce((sum, l) => sum + (l.deal_value || 0), 0);
+            const totalValue = stageLeads.reduce((sum, l) => sum + (Number(l.deal_value) || 0), 0);
 
             return (
               <div

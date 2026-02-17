@@ -46,7 +46,7 @@ export function PipelineHealth() {
       const stageDeals = pipelineDeals.filter((d: any) =>
         d.stage === stage.id || d.stage === stage.label
       );
-      const stageValue = stageDeals.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+      const stageValue = stageDeals.reduce((sum: number, d: any) => sum + (Number(d.amount) || 0), 0);
 
       return {
         ...stage,
@@ -56,7 +56,7 @@ export function PipelineHealth() {
     });
 
     const totalDeals = pipelineDeals.length;
-    const totalValue = pipelineDeals.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+    const totalValue = pipelineDeals.reduce((sum: number, d: any) => sum + (Number(d.amount) || 0), 0);
 
     return {
       ...pipeline,

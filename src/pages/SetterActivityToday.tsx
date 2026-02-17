@@ -111,7 +111,7 @@ const SetterActivityToday = () => {
   const connectionRate =
     totalCalls > 0 ? ((reached / totalCalls) * 100).toFixed(1) : "0";
   const totalRevenue =
-    bookingsData?.reduce((sum, b) => sum + (b.deal_value || 0), 0) || 0;
+    bookingsData?.reduce((sum, b) => sum + (Number(b.deal_value) || 0), 0) || 0;
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
@@ -348,7 +348,7 @@ const SetterActivityToday = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2 font-semibold text-emerald-500 text-sm">
-                        {(deal.deal_value || 0).toLocaleString()} AED
+                        {(Number(deal.deal_value) || 0).toLocaleString()} AED
                       </TableCell>
                       <TableCell className="py-2 text-sm">
                         {deal.owner_name || "—"}

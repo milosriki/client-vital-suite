@@ -122,11 +122,11 @@ export const useStripeTransactions = (
     );
 
     const totalRevenue = successfulTransactions.reduce(
-      (sum, t) => sum + (t.amount || 0),
+      (sum, t) => sum + (Number(t.amount) || 0),
       0,
     );
     const totalRefunded = refundedTransactions.reduce(
-      (sum, t) => sum + Math.abs(t.amount || 0),
+      (sum, t) => sum + Math.abs(Number(t.amount) || 0),
       0,
     );
     const netRevenue = totalRevenue - totalRefunded;
@@ -179,13 +179,13 @@ export const useStripeTransactions = (
       };
 
       if (t.status === "succeeded" || t.status === "paid") {
-        existing.revenue += t.amount || 0;
+        existing.revenue += Number(t.amount) || 0;
         existing.count += 1;
       } else if (
         t.status === "refunded" ||
         t.status === "partially_refunded"
       ) {
-        existing.refunds += Math.abs(t.amount || 0);
+        existing.refunds += Math.abs(Number(t.amount) || 0);
       }
 
       dailyMap.set(date, existing);

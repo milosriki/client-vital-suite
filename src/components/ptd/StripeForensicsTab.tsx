@@ -133,11 +133,11 @@ export default function StripeForensicsTab({ mode }: StripeForensicsTabProps) {
   };
 
   // Calculate metrics
-  const totalAvailable = forensicsData?.balance?.available?.reduce((sum: number, b: any) => sum + b.amount, 0) || 0;
-  const totalPending = forensicsData?.balance?.pending?.reduce((sum: number, b: any) => sum + b.amount, 0) || 0;
-  const totalPayouts = forensicsData?.payouts?.reduce((sum: number, p: any) => p.status === 'paid' ? sum + p.amount : sum, 0) || 0;
-  const totalRevenue = forensicsData?.payments?.reduce((sum: number, p: any) => p.status === 'succeeded' ? sum + p.amount : sum, 0) || 0;
-  const totalRefunds = forensicsData?.refunds?.reduce((sum: number, r: any) => sum + r.amount, 0) || 0;
+  const totalAvailable = forensicsData?.balance?.available?.reduce((sum: number, b: any) => sum + Number(b.amount), 0) || 0;
+  const totalPending = forensicsData?.balance?.pending?.reduce((sum: number, b: any) => sum + Number(b.amount), 0) || 0;
+  const totalPayouts = forensicsData?.payouts?.reduce((sum: number, p: any) => p.status === 'paid' ? sum + Number(p.amount) : sum, 0) || 0;
+  const totalRevenue = forensicsData?.payments?.reduce((sum: number, p: any) => p.status === 'succeeded' ? sum + Number(p.amount) : sum, 0) || 0;
+  const totalRefunds = forensicsData?.refunds?.reduce((sum: number, r: any) => sum + Number(r.amount), 0) || 0;
 
   if (!forensicsData && !isLoading) {
     return (

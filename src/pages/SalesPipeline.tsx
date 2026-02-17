@@ -272,11 +272,11 @@ export default function SalesPipeline() {
 
       const closedDeals = data?.filter((d) => d.status === "closed") || [];
       const totalValue = closedDeals.reduce(
-        (sum, d) => sum + (d.deal_value || 0),
+        (sum, d) => sum + (Number(d.deal_value) || 0),
         0,
       );
       const totalCollected = closedDeals.reduce(
-        (sum, d) => sum + (d.cash_collected || 0),
+        (sum, d) => sum + (Number(d.cash_collected) || 0),
         0,
       );
 

@@ -61,7 +61,7 @@ export function RevenueVsSpendChart() {
 
   const totals = useMemo(() => {
     const totalRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0);
-    const totalSpend = chartData.reduce((sum, d) => sum + d.spend, 0);
+    const totalSpend = chartData.reduce((sum, d) => sum + Number(d.spend), 0);
     const roas = totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(1) : "0.0";
     
     return {

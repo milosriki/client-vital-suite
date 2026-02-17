@@ -114,8 +114,8 @@ export default function StripeDashboardTab({ mode }: StripeDashboardTabProps) {
   };
 
   // Calculate metrics
-  const totalAvailable = stripeData?.balance?.available?.reduce((sum, b) => sum + b.amount, 0) || 0;
-  const totalPending = stripeData?.balance?.pending?.reduce((sum, b) => sum + b.amount, 0) || 0;
+  const totalAvailable = stripeData?.balance?.available?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
+  const totalPending = stripeData?.balance?.pending?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
   const activeSubscriptions = stripeData?.subscriptions?.filter(s => s.status === 'active').length || 0;
   const totalCustomers = stripeData?.customers?.length || 0;
   const recentPayments = stripeData?.payments?.slice(0, 10) || [];

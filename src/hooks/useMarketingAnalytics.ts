@@ -94,7 +94,7 @@ export const useDeepAnalysis = (dateRange: string) => {
 
       // Calculate aggregated metrics
       const calculateMetrics = (data: FacebookAdsInsight[]) => {
-        const totalSpend = data.reduce((sum, row) => sum + (row.spend || 0), 0);
+        const totalSpend = data.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
         const totalLeads = data.reduce((sum, row) => sum + (row.leads || 0), 0);
         const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
         const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
@@ -176,7 +176,7 @@ export const useDeepAnalysis = (dateRange: string) => {
 
         if (monthData) {
           const metrics = calculateMetrics(monthData);
-          const totalSpend = monthData.reduce((sum, row) => sum + (row.spend || 0), 0);
+          const totalSpend = monthData.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
           const totalLeads = monthData.reduce((sum, row) => sum + (row.leads || 0), 0);
           const revenue = monthData.reduce((sum, row) => sum + (row.purchase_value || 0), 0);
           const roas = totalSpend > 0 ? revenue / totalSpend : 0;
@@ -222,7 +222,7 @@ export const useMetaAds = (dateRange: string) => {
       // Aggregate metrics
       const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
       const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
-      const totalSpend = data.reduce((sum, row) => sum + (row.spend || 0), 0);
+      const totalSpend = data.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
       const avgFrequency = data.length > 0
         ? data.reduce((sum, row) => sum + (row.frequency || 0), 0) / data.length
         : 0;
@@ -281,13 +281,13 @@ export const useMetaAds = (dateRange: string) => {
         const existing = campaignMap.get(campaignName);
 
         if (existing) {
-          existing.spend += row.spend || 0;
+          existing.spend += Number(row.spend) || 0;
           existing.leads += row.leads || 0;
         } else {
           campaignMap.set(campaignName, {
             campaign: campaignName,
             status: "Active", // Could be derived from data if available
-            spend: row.spend || 0,
+            spend: Number(row.spend) || 0,
             leads: row.leads || 0,
             cpl: 0,
             roas: 0,
@@ -348,10 +348,10 @@ export const useMoneyMap = (dateRange: string) => {
       if (transactionsError) throw transactionsError;
 
       // Calculate totals
-      const totalSpend = adsData.reduce((sum, row) => sum + (row.spend || 0), 0);
+      const totalSpend = adsData.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
       const totalLeads = adsData.reduce((sum, row) => sum + (row.leads || 0), 0);
-      const totalRevenue = transactionsData.reduce((sum, row) => sum + (row.amount || 0), 0) / 100; // Stripe amounts are in cents
-      const totalDealValue = dealsData.reduce((sum, row) => sum + (row.deal_value || 0), 0);
+      const totalRevenue = transactionsData.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) / 100; // Stripe amounts are in cents
+      const totalDealValue = dealsData.reduce((sum, row) => sum + (Number(row.deal_value) || 0), 0);
 
       // Use stripe revenue if available, otherwise use deal value
       const actualRevenue = totalRevenue > 0 ? totalRevenue : totalDealValue;
@@ -407,12 +407,12 @@ export const useMoneyMap = (dateRange: string) => {
         const existing = campaignROIMap.get(campaignName);
 
         if (existing) {
-          existing.spend += row.spend || 0;
+          existing.spend += Number(row.spend) || 0;
           existing.leads += row.leads || 0;
         } else {
           campaignROIMap.set(campaignName, {
             campaign: campaignName,
-            spend: row.spend || 0,
+            spend: Number(row.spend) || 0,
             leads: row.leads || 0,
             revenue: 0,
           });

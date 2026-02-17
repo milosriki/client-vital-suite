@@ -117,7 +117,7 @@ export const useWarRoomData = () => {
   const totalRevenue =
     deals
       ?.filter((d) => d.status === "closed")
-      .reduce((sum, d) => sum + (d.deal_value || 0), 0) || 0;
+      .reduce((sum, d) => sum + (Number(d.deal_value) || 0), 0) || 0;
   const avgRevenuePerUser = clients?.length ? totalRevenue / clients.length : 0;
 
   const avgRetentionMonths = clients?.length
@@ -148,7 +148,7 @@ export const useWarRoomData = () => {
       );
     }) || [];
   const netNewArr = thisMonthDeals.reduce(
-    (sum, d) => sum + (d.deal_value || 0),
+    (sum, d) => sum + (Number(d.deal_value) || 0),
     0,
   );
   const burnMultiple = netNewArr > 0 ? monthlyBurn / netNewArr : 0;
@@ -174,7 +174,7 @@ export const useWarRoomData = () => {
 
   const discountedDeals =
     deals?.filter((d) => {
-      const dealValue = d.deal_value || 0;
+      const dealValue = Number(d.deal_value) || 0;
       const cashCollected = d.cash_collected || dealValue;
       return dealValue > 0 && cashCollected < dealValue * 0.9;
     }) || [];
@@ -197,7 +197,7 @@ export const useWarRoomData = () => {
           const closeDate = new Date(d.close_date || d.created_at || "");
           return closeDate >= monthStart && closeDate <= monthEnd;
         })
-        .reduce((sum, d) => sum + (d.deal_value || 0), 0);
+        .reduce((sum, d) => sum + (Number(d.deal_value) || 0), 0);
 
       revenueByMonth.push(monthRevenue);
     }
@@ -228,15 +228,15 @@ export const useWarRoomData = () => {
       ) || [];
 
     const commitValue = contractDeals.reduce(
-      (sum, d) => sum + (d.deal_value || 0) * 0.9,
+      (sum, d) => sum + (Number(d.deal_value) || 0) * 0.9,
       0,
     );
     const likelyValue = proposalDeals.reduce(
-      (sum, d) => sum + (d.deal_value || 0) * 0.6,
+      (sum, d) => sum + (Number(d.deal_value) || 0) * 0.6,
       0,
     );
     const bestCaseValue = activeDeals.reduce(
-      (sum, d) => sum + (d.deal_value || 0) * 0.3,
+      (sum, d) => sum + (Number(d.deal_value) || 0) * 0.3,
       0,
     );
 

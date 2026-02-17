@@ -76,7 +76,7 @@ export default function CommandCenter() {
         .select("spend")
         .gte("date", cutoffDate);
       if (error) throw error;
-      return (data || []).reduce((s: number, r) => s + (r.spend || 0), 0);
+      return (data || []).reduce((s: number, r) => s + (Number(r.spend) || 0), 0);
     },
   });
 
@@ -110,7 +110,7 @@ export default function CommandCenter() {
         if (bookingStages.has(d.stage || "")) bookings++;
         if (d.stage === DEAL_STAGES.CLOSED_WON) {
           closedWon++;
-          revenue += d.deal_value || 0;
+          revenue += Number(d.deal_value) || 0;
         }
       });
       return { bookings, closedWon, revenue };

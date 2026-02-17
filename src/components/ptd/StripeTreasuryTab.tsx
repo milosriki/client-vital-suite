@@ -208,7 +208,7 @@ export function StripeTreasuryTab() {
   // Calculate stats
   const stats = {
     total: allTransfers.length,
-    totalAmount: allTransfers.reduce((sum, t) => sum + t.amount, 0),
+    totalAmount: allTransfers.reduce((sum, t) => sum + Number(t.amount), 0),
     posted: allTransfers.filter(t => t.status === "posted").length,
     processing: allTransfers.filter(t => t.status === "processing").length,
     failed: allTransfers.filter(t => t.status === "failed" || t.status === "returned").length,
