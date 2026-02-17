@@ -81,13 +81,19 @@ const EnterpriseClientHealth = lazy(() => import("./pages/enterprise/ClientHealt
 const EnterpriseCoachPerformance = lazy(() => import("./pages/enterprise/CoachPerformance"));
 const EnterpriseKnowledgeBase = lazy(() => import("./pages/enterprise/KnowledgeBase"));
 
-// Suspense wrapper helper
-function SuspensePage({ children }: { children: React.ReactNode }) {
+// Suspense wrapper helpers with per-route skeleton variants
+function SuspensePage({ children, variant = "dashboard" }: { children: React.ReactNode; variant?: "dashboard" | "table" | "detail" | "cards" }) {
   return (
-    <Suspense fallback={<PageSkeleton variant="dashboard" />}>
+    <Suspense fallback={<PageSkeleton variant={variant} />}>
       {children}
     </Suspense>
   );
+}
+function SuspenseTable({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageSkeleton variant="table" />}>{children}</Suspense>;
+}
+function SuspenseDetail({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageSkeleton variant="detail" />}>{children}</Suspense>;
 }
 
 // Initialize Sentry
@@ -132,22 +138,22 @@ const router = createBrowserRouter([
       { path: "/sales-pipeline", element: <SuspensePage><SalesPipeline /></SuspensePage> },
       { path: "/stripe", element: <SuspensePage><StripeIntelligence /></SuspensePage> },
       { path: "/call-tracking", element: <SuspensePage><CallTracking /></SuspensePage> },
-      { path: "/audit-trail", element: <SuspensePage><AuditTrail /></SuspensePage> },
+      { path: "/audit-trail", element: <SuspenseTable><AuditTrail /></SuspenseTable> },
       { path: "/war-room", element: <SuspensePage><WarRoom /></SuspensePage> },
-      { path: "/ai-knowledge", element: <SuspensePage><AIKnowledge /></SuspensePage> },
-      { path: "/ai-learning", element: <SuspensePage><AILearning /></SuspensePage> },
+      { path: "/ai-knowledge", element: <SuspenseTable><AIKnowledge /></SuspenseTable> },
+      { path: "/ai-learning", element: <SuspenseTable><AILearning /></SuspenseTable> },
       { path: "/overview", element: <SuspensePage><Overview /></SuspensePage> },
-      { path: "/clients", element: <SuspensePage><Clients /></SuspensePage> },
-      { path: "/clients/:email", element: <SuspensePage><ClientDetail /></SuspensePage> },
-      { path: "/coaches", element: <SuspensePage><Coaches /></SuspensePage> },
-      { path: "/interventions", element: <SuspensePage><Interventions /></SuspensePage> },
+      { path: "/clients", element: <SuspenseTable><Clients /></SuspenseTable> },
+      { path: "/clients/:email", element: <SuspenseDetail><ClientDetail /></SuspenseDetail> },
+      { path: "/coaches", element: <SuspenseTable><Coaches /></SuspenseTable> },
+      { path: "/interventions", element: <SuspenseTable><Interventions /></SuspenseTable> },
       { path: "/analytics", element: <SuspensePage><AnalyticsPage /></SuspensePage> },
       { path: "/meta-dashboard", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
-      { path: "/hubspot-analyzer", element: <SuspensePage><HubSpotAnalyzer /></SuspensePage> },
+      { path: "/hubspot-analyzer", element: <SuspenseTable><HubSpotAnalyzer /></SuspenseTable> },
       { path: "/sales-coach-tracker", element: <SuspensePage><SalesCoachTracker /></SuspensePage> },
       { path: "/setter-activity-today", element: <SuspensePage><ErrorBoundary><SetterActivityToday /></ErrorBoundary></SuspensePage> },
       { path: "/yesterday-bookings", element: <SuspensePage><YesterdayBookings /></SuspensePage> },
-      { path: "/hubspot-live", element: <SuspensePage><HubSpotLiveData /></SuspensePage> },
+      { path: "/hubspot-live", element: <SuspenseTable><HubSpotLiveData /></SuspenseTable> },
       { path: "/money-map", element: <SuspensePage><CampaignMoneyMap /></SuspensePage> },
       { path: "/leaderboard", element: <SuspensePage><TeamLeaderboard /></SuspensePage> },
       { path: "/ai-advisor", element: <SuspensePage><AIBusinessAdvisor /></SuspensePage> },
@@ -159,7 +165,7 @@ const router = createBrowserRouter([
       { path: "/master-control", element: <SuspensePage><MasterControlPanel /></SuspensePage> },
       { path: "/attribution-leaks", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/attribution", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
-      { path: "/reconciliation", element: <SuspensePage><ReconciliationDashboard /></SuspensePage> },
+      { path: "/reconciliation", element: <SuspenseTable><ReconciliationDashboard /></SuspenseTable> },
       { path: "/marketing-intelligence", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/deep-intel", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/skills-matrix", element: <SuspensePage><SkillCommandCenter /></SuspensePage> },

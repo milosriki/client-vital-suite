@@ -917,6 +917,28 @@ function SourceTruthTab() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Attribution coverage from view_full_attribution
+  const { data: attrCoverage } = useQuery({
+    queryKey: ["attribution-coverage"],
+    queryFn: async () => {
+      const [totalRes, attributedRes, methodRes] = await Promise.all([
+        supabase.from("active_contacts" as any).select("id", { count: "exact", head: true }),
+        supabase.from("active_contacts" as any).select("id", { count: "exact", head: true }).not("attributed_ad_id", "is", null),
+        supabase.from("active_contacts" as any).select("attribution_source").not("attribution_source", "is", null),
+      ]);
+      const total = totalRes.count || 0;
+      const attributed = attributedRes.count || 0;
+      // Count by method
+      const methods: Record<string, number> = {};
+      (methodRes.data || []).forEach((r: any) => {
+        const m = r.attribution_source || "unknown";
+        methods[m] = (methods[m] || 0) + 1;
+      });
+      return { total, attributed, pct: total > 0 ? Math.round((attributed / total) * 100) : 0, methods };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   if (deepLoading || triangleLoading) return <LoadingSkeleton />;
 
   const sourceAlignment = deepData?.sourceAlignment;
@@ -945,6 +967,44 @@ function SourceTruthTab() {
                   <span className="font-mono font-bold text-lg">{count}</span>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Attribution Coverage */}
+      {attrCoverage && (
+        <Card className="bg-black/40 border-primary/20">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              <CardTitle>Attribution Coverage</CardTitle>
+            </div>
+            <CardDescription>
+              {attrCoverage.attributed} of {attrCoverage.total} active contacts have ad attribution ({attrCoverage.pct}%)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {/* Progress bar */}
+              <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all"
+                  style={{ width: `${attrCoverage.pct}%` }}
+                />
+              </div>
+              {/* Method breakdown */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(attrCoverage.methods)
+                  .sort(([, a], [, b]) => (b as number) - (a as number))
+                  .slice(0, 8)
+                  .map(([method, count]) => (
+                    <div key={method} className="flex items-center justify-between p-2 rounded bg-white/5">
+                      <span className="text-xs text-muted-foreground truncate mr-2">{method.replace(/_/g, " ")}</span>
+                      <span className="font-mono text-sm font-bold">{count as number}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           </CardContent>
         </Card>
