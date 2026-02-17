@@ -158,6 +158,7 @@ export class HubSpotManager {
     return {
       hubspot_deal_id: hubspotDeal.id,
       deal_name: props.dealname || null,
+      amount: val || null,
       deal_value: val,
       value_aed: val,
       stage: props.dealstage || null,
