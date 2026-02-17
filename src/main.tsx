@@ -80,6 +80,7 @@ const EnterpriseAIAdvisor = lazy(() => import("./pages/enterprise/AIAdvisor"));
 const EnterpriseClientHealth = lazy(() => import("./pages/enterprise/ClientHealth"));
 const EnterpriseCoachPerformance = lazy(() => import("./pages/enterprise/CoachPerformance"));
 const EnterpriseKnowledgeBase = lazy(() => import("./pages/enterprise/KnowledgeBase"));
+const LeadFollowUp = lazy(() => import("./pages/LeadFollowUp"));
 
 // Suspense wrapper helpers with per-route skeleton variants
 function SuspensePage({ children, variant = "dashboard" }: { children: React.ReactNode; variant?: "dashboard" | "table" | "detail" | "cards" }) {
@@ -155,6 +156,7 @@ const router = createBrowserRouter([
       { path: "/yesterday-bookings", element: <SuspensePage><YesterdayBookings /></SuspensePage> },
       { path: "/hubspot-live", element: <SuspenseTable><HubSpotLiveData /></SuspenseTable> },
       { path: "/money-map", element: <SuspensePage><CampaignMoneyMap /></SuspensePage> },
+      { path: "/lead-follow-up", element: <SuspenseTable><LeadFollowUp /></SuspenseTable> },
       { path: "/leaderboard", element: <SuspensePage><TeamLeaderboard /></SuspensePage> },
       { path: "/ai-advisor", element: <SuspensePage><AIBusinessAdvisor /></SuspensePage> },
       { path: "/ai-dev", element: <SuspensePage><AIDevConsole /></SuspensePage> },

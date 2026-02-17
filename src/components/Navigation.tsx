@@ -108,6 +108,7 @@ export const Navigation = () => {
       { path: "/sales-pipeline", label: "Pipeline", icon: TrendingUp },
       { path: "/money-map", label: "Money Map", icon: Wallet },
       { path: "/stripe", label: "Stripe", icon: CreditCard },
+      { path: "/lead-follow-up", label: "Lead Follow-Up", icon: UserCheck },
     ],
     OPERATIONS: [
       { path: "/clients", label: "Clients", icon: Users },
