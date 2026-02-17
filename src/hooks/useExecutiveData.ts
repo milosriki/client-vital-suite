@@ -66,15 +66,15 @@ export function useExecutiveData(filters: ExecutiveFilters) {
         // Query 1: Monthly Revenue (closed won deals in period)
         supabase
           .from("deals")
-          .select("deal_value, amount, close_date, created_at")
-          .eq("status", "closedwon")
+          .select("deal_value, amount, close_date, created_at, stage_label")
+          .eq("stage", "closedwon")
           .gte("close_date", dateFilterISO)
           .order("close_date", { ascending: false }),
 
         // Query 2: All Deals (for counts and stage breakdown)
         supabase
           .from("deals")
-          .select("id, deal_value, stage, status, created_at, close_date")
+          .select("id, deal_value, amount, stage, stage_label, status, created_at, close_date")
           .gte("created_at", dateFilterISO)
           .order("created_at", { ascending: false }),
 
@@ -112,16 +112,17 @@ export function useExecutiveData(filters: ExecutiveFilters) {
           .select("health_zone")
           .order("calculated_on", { ascending: false }),
 
-        // Query 8: Pipeline Stages (deals by stage)
+        // Query 8: Pipeline Stages (deals by stage, excluding closed)
         supabase
           .from("deals")
-          .select("stage, status, deal_value")
-          .in("status", ["open", "in_progress", "pending"]),
+          .select("stage, stage_label, deal_value, amount")
+          .eq("status", "pending")
+          .not("stage", "in", '("closedwon","closedlost")'),
 
         // Query 9: Recent Activity (for live feed)
         supabase
           .from("deals")
-          .select("id, deal_name, deal_value, stage, status, updated_at, created_at")
+          .select("id, deal_name, deal_value, amount, stage, stage_label, status, updated_at, created_at")
           .order("updated_at", { ascending: false })
           .limit(10),
 
@@ -431,7 +432,7 @@ function aggregatePipelineStages(deals: PipelineStageData[]) {
     else if (stage.includes("qualified") || stage.includes("contacted")) stages.Qualified++;
     else if (stage.includes("demo") || stage.includes("meeting")) stages.Demo++;
     else if (stage.includes("proposal") || stage.includes("negotiation")) stages.Proposal++;
-    else if (deal.status === "closedwon") stages.Closed++;
+    else if (stage.includes("closedwon") || stage.includes("closed won") || deal.stage === "closedwon") stages.Closed++;
   });
 
   return stages;
@@ -455,11 +456,11 @@ function formatActivityFeed(activities: ActivityData[]) {
     let message = "";
     let status: "success" | "warning" | "info" = "info";
 
-    if (activity.status === "closedwon") {
-      message = `Deal "${activity.deal_name || 'Unnamed'}" moved to Closed Won (${formatCurrency(Number(activity.deal_value) || 0)})`;
+    if (activity.stage === "closedwon") {
+      message = `Deal "${activity.deal_name || 'Unnamed'}" moved to Closed Won (${formatCurrency(Number(activity.deal_value || activity.amount) || 0)})`;
       status = "success";
     } else if (activity.stage) {
-      message = `Deal "${activity.deal_name || 'Unnamed'}" updated to ${activity.stage}`;
+      message = `Deal "${activity.deal_name || 'Unnamed'}" updated to ${activity.stage_label || activity.stage}`;
       status = "info";
     } else {
       message = `New activity: ${activity.deal_name || 'Deal update'}`;

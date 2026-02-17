@@ -30,7 +30,7 @@ export function usePipelineData(dateRange: string) {
       // Fetch deals grouped by stage for stage breakdown
       const { data: deals, error } = await supabase
         .from("deals")
-        .select("id, deal_name, stage, deal_value, owner_name, created_at, status, close_date")
+        .select("id, deal_name, stage, stage_label, deal_value, amount, owner_name, created_at, status, close_date")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -42,30 +42,32 @@ export function usePipelineData(dateRange: string) {
           acc[stage] = { stage, count: 0, total_value: 0 };
         }
         acc[stage].count++;
-        acc[stage].total_value += Number(deal.deal_value) || 0;
+        acc[stage].total_value += Number(deal.deal_value) || Number(deal.amount) || 0;
         return acc;
       }, {} as Record<string, PipelineStageData>);
 
       const stageBreakdown = Object.values(stages || {});
 
       // Calculate total pipeline value
-      const totalPipeline = deals?.reduce((sum, deal) => sum + (Number(deal.deal_value) || 0), 0) || 0;
+      const totalPipeline = deals?.reduce((sum, deal) => sum + (Number(deal.deal_value) || Number(deal.amount) || 0), 0) || 0;
 
       // Calculate weighted pipeline (using stage probability - simplified)
       const stageProbabilities: Record<string, number> = {
-        "Lead": 0.1,
-        "Qualified": 0.25,
-        "Demo": 0.5,
-        "Proposal": 0.75,
-        "Closed Won": 1.0,
+        "qualifiedtobuy": 0.25,
+        "decisionmakerboughtin": 0.3,
+        "122178070": 0.4,
+        "122237508": 0.5,
+        "contractsent": 0.75,
+        "closedwon": 1.0,
+        "closedlost": 0,
       };
       const weightedPipeline = deals?.reduce((sum, deal) => {
         const probability = stageProbabilities[deal.stage || ""] || 0.3;
-        return sum + (Number(deal.deal_value) || 0) * probability;
+        return sum + (Number(deal.deal_value) || Number(deal.amount) || 0) * probability;
       }, 0) || 0;
 
       // Calculate close rate
-      const closedWon = deals?.filter(d => d.stage === "Closed Won").length || 0;
+      const closedWon = deals?.filter(d => d.stage === "closedwon").length || 0;
       const total = deals?.length || 1;
       const closeRate = (closedWon / total) * 100;
 

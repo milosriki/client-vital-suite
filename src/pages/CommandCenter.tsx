@@ -110,7 +110,7 @@ export default function CommandCenter() {
         if (bookingStages.has(d.stage || "")) bookings++;
         if (d.stage === DEAL_STAGES.CLOSED_WON) {
           closedWon++;
-          revenue += Number(d.deal_value) || 0;
+          revenue += Number(d.deal_value) || Number(d.amount) || 0;
         }
       });
       return { bookings, closedWon, revenue };

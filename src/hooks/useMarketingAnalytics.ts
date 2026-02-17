@@ -351,7 +351,7 @@ export const useMoneyMap = (dateRange: string) => {
       const totalSpend = adsData.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
       const totalLeads = adsData.reduce((sum, row) => sum + (row.leads || 0), 0);
       const totalRevenue = transactionsData.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) / 100; // Stripe amounts are in cents
-      const totalDealValue = dealsData.reduce((sum, row) => sum + (Number(row.deal_value) || 0), 0);
+      const totalDealValue = dealsData.reduce((sum, row) => sum + (Number(row.deal_value) || Number(row.amount) || 0), 0);
 
       // Use stripe revenue if available, otherwise use deal value
       const actualRevenue = totalRevenue > 0 ? totalRevenue : totalDealValue;
