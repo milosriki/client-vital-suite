@@ -126,6 +126,7 @@ serve(async (req) => {
     { name: "stripe_backfill", status: "pending" },
     { name: "attribution_linking", status: "pending" },
     { name: "owner_propagation", status: "pending" },
+    { name: "dedup_contacts", status: "pending" },
   ];
 
   try {
@@ -531,6 +532,35 @@ serve(async (req) => {
       ownerStep.error = e.message;
       ownerStep.durationMs = Date.now() - stepStart;
       console.error(`❌ Owner propagation error: ${e.message}`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STEP 7: Deduplicate Contacts (by phone)
+  // ═══════════════════════════════════════════════════════════
+  const dedupStep = steps[6];
+  if (skipSteps.includes("dedup_contacts")) {
+    dedupStep.status = "skipped";
+  } else {
+    dedupStep.status = "running";
+    const stepStart = Date.now();
+    try {
+      // Call the dedup function in merge mode
+      const { data, error } = await supabase.functions.invoke("dedup-contacts", {
+        body: { mode: "merge", limit: 500 },
+      });
+      if (error) throw error;
+
+      const result = data?.data || data;
+      dedupStep.count = result?.summary?.contacts_to_merge || 0;
+      dedupStep.status = "done";
+      dedupStep.durationMs = Date.now() - stepStart;
+      console.log(`✅ Dedup: ${dedupStep.count} duplicates merged`);
+    } catch (e: any) {
+      dedupStep.status = "error";
+      dedupStep.error = e.message;
+      dedupStep.durationMs = Date.now() - stepStart;
+      console.error(`❌ Dedup error: ${e.message}`);
     }
   }
 
