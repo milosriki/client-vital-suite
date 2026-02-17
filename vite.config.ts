@@ -17,6 +17,73 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // UI primitives — loaded on every page
+          "vendor-ui": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-select",
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-scroll-area",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-toggle",
+            "@radix-ui/react-toggle-group",
+            "@radix-ui/react-label",
+            "@radix-ui/react-checkbox",
+            "@radix-ui/react-switch",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-collapsible",
+            "class-variance-authority",
+            "clsx",
+            "tailwind-merge",
+            "cmdk",
+            "sonner",
+            "lucide-react",
+          ],
+          // Charts — only loaded on chart pages
+          "vendor-charts": ["recharts"],
+          // Data layer
+          "vendor-data": [
+            "@tanstack/react-query",
+            "@tanstack/react-table",
+            "@supabase/supabase-js",
+          ],
+          // Animation — lazy loaded
+          "vendor-motion": ["framer-motion"],
+          // React core
+          "vendor-react": [
+            "react",
+            "react-dom",
+            "react-router-dom",
+          ],
+          // Forms + validation
+          "vendor-forms": [
+            "react-hook-form",
+            "@hookform/resolvers",
+            "zod",
+            "react-day-picker",
+            "date-fns",
+            "input-otp",
+          ],
+          // Analytics + monitoring (defer)
+          "vendor-analytics": [
+            "@sentry/react",
+            "@vercel/analytics",
+            "posthog-js",
+          ],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+  },
   test: {
     globals: true,
     environment: "jsdom",
