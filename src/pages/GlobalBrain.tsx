@@ -343,7 +343,7 @@ export default function GlobalBrain() {
                                 )}
                                 {item.relevance && (
                                   <span className="text-xs text-green-400">
-                                    {(item.relevance * 100).toFixed(0)}% match
+                                    {Number((item?.relevance ?? 0) * 100).toFixed(0)}% match
                                   </span>
                                 )}
                               </div>

@@ -315,7 +315,7 @@ const Interventions = () => {
                       <div>
                         <p className="text-muted-foreground">Health Score</p>
                         <p className="font-semibold">
-                          {intervention.health_score_at_trigger.toFixed(1)}
+                          {Number(intervention?.health_score_at_trigger ?? 0).toFixed(1)}
                         </p>
                       </div>
                     )}

@@ -578,7 +578,7 @@ export default function ClientDetail() {
                           Score at Trigger:
                         </p>
                         <p className="text-slate-300">
-                          {intervention.health_score_at_trigger.toFixed(0)}
+                          {Number(intervention?.health_score_at_trigger ?? 0).toFixed(0)}
                         </p>
                       </div>
                     )}

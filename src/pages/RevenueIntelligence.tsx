@@ -143,7 +143,7 @@ export default function RevenueIntelligence() {
     },
     {
       label: "Close Rate",
-      value: pipelineData?.metrics.closeRate ? `${pipelineData.metrics.closeRate.toFixed(1)}%` : "—",
+      value: pipelineData?.metrics.closeRate ? `${Number(pipelineData?.metrics?.closeRate ?? 0).toFixed(1)}%` : "—",
       delta: { value: 0, type: "neutral" as const },
       icon: Activity
     },

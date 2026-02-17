@@ -120,7 +120,7 @@ export default function ExecutiveOverview() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span>{northStarMetric.delta.value >= 0 ? "📈" : "📉"}</span>
-                  <span className="text-slate-300">Revenue <strong className={northStarMetric.delta.value >= 0 ? "text-emerald-400" : "text-red-400"}>{northStarMetric.delta.value >= 0 ? "+" : ""}{northStarMetric.delta.value.toFixed(1)}%</strong> vs previous period</span>
+                  <span className="text-slate-300">Revenue <strong className={northStarMetric.delta.value >= 0 ? "text-emerald-400" : "text-red-400"}>{northStarMetric.delta.value >= 0 ? "+" : ""}{Number(northStarMetric?.delta?.value ?? 0).toFixed(1)}%</strong> vs previous period</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-400">🔴</span>
@@ -245,7 +245,7 @@ export default function ExecutiveOverview() {
             content={
               <>
                 <p className="mb-3">
-                  🧠 Revenue trending {northStarMetric.delta.value >= 0 ? "+" : ""}{northStarMetric.delta.value.toFixed(1)}% vs previous period.
+                  🧠 Revenue trending {northStarMetric.delta.value >= 0 ? "+" : ""}{Number(northStarMetric?.delta?.value ?? 0).toFixed(1)}% vs previous period.
                   {northStarMetric.delta.value > 10 && " Consider increasing ad spend by 20% to capitalize on momentum."}
                 </p>
                 <p>

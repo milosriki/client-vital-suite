@@ -165,9 +165,9 @@ const WorkflowStrategy = () => {
       metrics: {
         executions: metric.total_executions,
         successRate: metric.total_executions > 0 ? ((metric.successful / metric.total_executions) * 100).toFixed(1) : "0.0",
-        errorRate: metric.error_rate.toFixed(1),
+        errorRate: Number(metric?.error_rate ?? 0).toFixed(1),
         avgLatency: metric.avg_latency_ms ? Math.round(metric.avg_latency_ms) : null,
-        totalCost: metric.total_cost ? metric.total_cost.toFixed(4) : null,
+        totalCost: metric?.total_cost ? Number(metric.total_cost).toFixed(4) : null,
         latestError: metric.latest_error,
       }
     };
@@ -539,7 +539,7 @@ const WorkflowStrategy = () => {
                         <Badge variant="outline">{recommendation.decision_type}</Badge>
                         {recommendation.confidence_score && (
                           <Badge variant={recommendation.confidence_score > 0.8 ? "default" : "secondary"}>
-                            {(recommendation.confidence_score * 100).toFixed(0)}% confidence
+                            {Number((recommendation?.confidence_score ?? 0) * 100).toFixed(0)}% confidence
                           </Badge>
                         )}
                         {recommendation.status && (

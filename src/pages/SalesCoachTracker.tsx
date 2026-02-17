@@ -190,7 +190,7 @@ const SalesCoachTracker = () => {
               className={`text-2xl font-bold ${pctChange >= 0 ? "text-emerald-500" : "text-destructive"}`}
             >
               {pctChange >= 0 ? "+" : ""}
-              {pctChange.toFixed(1)}%
+              {(pctChange ?? 0).toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">vs previous month</p>
           </CardContent>

@@ -121,7 +121,7 @@ export default function CommandCenter() {
   const leads = leadsCount || 0;
   const { bookings = 0, closedWon = 0, revenue = 0 } = dealStats || {};
   const roasNum = adSpend > 0 ? revenue / adSpend : 0;
-  const roas = adSpend > 0 ? roasNum.toFixed(1) : "N/A";
+  const roas = adSpend > 0 ? (roasNum ?? 0).toFixed(1) : "N/A";
   const cpl = adSpend > 0 && leads > 0 ? Math.round(adSpend / leads) : 0;
 
   // ── B: Campaign Full Funnel ──
@@ -488,7 +488,7 @@ export default function CommandCenter() {
                           {Number(r.revenue || 0).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          {Number(r.roas || 0).toFixed(1)}x
+                          {Number(r?.roas ?? 0).toFixed(1)}x
                         </TableCell>
                         <TableCell>
                           {verdictBadge(String(r.verdict || ""))}
@@ -559,7 +559,7 @@ export default function CommandCenter() {
                           <TableCell className="text-right">{Number(r.held || 0)}</TableCell>
                           <TableCell className="text-right font-bold">{Number(r.closed_won || 0)}</TableCell>
                           <TableCell className="text-right text-emerald-500 font-bold">{Number(r.revenue || 0).toLocaleString()}</TableCell>
-                          <TableCell className="text-right">{Number(r.roas || 0).toFixed(1)}x</TableCell>
+                          <TableCell className="text-right">{Number(r?.roas ?? 0).toFixed(1)}x</TableCell>
                           <TableCell>{verdictBadge(String(r.verdict || ""))}</TableCell>
                         </TableRow>
                       ))}
@@ -610,7 +610,7 @@ export default function CommandCenter() {
                           <TableCell className="text-right">{Number(r.db_leads || 0)}</TableCell>
                           <TableCell className="text-right font-bold">{Number(r.closed_won || 0)}</TableCell>
                           <TableCell className="text-right text-emerald-500 font-bold">{Number(r.revenue || 0).toLocaleString()}</TableCell>
-                          <TableCell className="text-right">{Number(r.roas || 0).toFixed(1)}x</TableCell>
+                          <TableCell className="text-right">{Number(r?.roas ?? 0).toFixed(1)}x</TableCell>
                           <TableCell className="text-right">{Number(r.video_completion_pct || 0)}%</TableCell>
                           <TableCell className="text-xs">{String(r.quality_ranking || "—")}</TableCell>
                           <TableCell>{creativeBadge(String(r.creative_verdict || ""))}</TableCell>
@@ -851,7 +851,7 @@ export default function CommandCenter() {
                                   : "bg-red-500/10 text-red-500"
                             }
                           >
-                            {(c.avg_health_score || 0).toFixed(0)}
+                            {Number(c?.avg_health_score ?? 0).toFixed(0)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right text-emerald-500">
@@ -1022,7 +1022,7 @@ export default function CommandCenter() {
                         </TableCell>
                         <TableCell className="text-sm">{c.email || "—"}</TableCell>
                         <TableCell className="text-right font-bold">
-                          {(c.health_score || 0).toFixed(0)}
+                          {Number(c?.health_score ?? 0).toFixed(0)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={c.health_zone === "RED" ? "destructive" : "secondary"}>
@@ -1033,7 +1033,7 @@ export default function CommandCenter() {
                           <Badge variant="destructive" className="text-xs">{c.health_trend}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {(c.churn_risk_score || 0).toFixed(0)}%
+                          {Number(c?.churn_risk_score ?? 0).toFixed(0)}%
                         </TableCell>
                         <TableCell className="text-right">{c.outstanding_sessions ?? "—"}</TableCell>
                       </TableRow>

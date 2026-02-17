@@ -647,7 +647,7 @@ const Overview = () => {
                           </p>
                         </div>
                         <Badge className={getHealthColor(client.health_zone)}>
-                          {client.health_score.toFixed(0)}
+                          {Number(client?.health_score ?? 0).toFixed(0)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">

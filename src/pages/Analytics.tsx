@@ -224,7 +224,7 @@ const Analytics = () => {
                       <p className="text-sm text-muted-foreground mb-2">{segment.segment}</p>
                       <p className="text-2xl font-bold">{segment.count} clients</p>
                       <p className="text-sm mt-2">
-                        Avg Score: <span className="font-semibold">{segment.avgScore.toFixed(1)}</span>
+                        Avg Score: <span className="font-semibold">{Number(segment?.avgScore ?? 0).toFixed(1)}</span>
                       </p>
                     </div>
                   ))}

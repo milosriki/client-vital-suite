@@ -328,12 +328,12 @@ export default function Observability() {
                             {data.errors} errors
                           </span>
                           <span>•</span>
-                          <span>{data.avgLatency.toFixed(0)}ms avg</span>
+                          <span>{Number(data?.avgLatency ?? 0).toFixed(0)}ms avg</span>
                         </div>
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-medium">
-                          ${data.cost.toFixed(4)}
+                          ${Number(data?.cost ?? 0).toFixed(4)}
                         </span>
                       </div>
                     </div>
@@ -365,7 +365,7 @@ export default function Observability() {
                         <span className="font-medium capitalize">
                           {provider}
                         </span>
-                        <span className="text-sm">${data.cost.toFixed(4)}</span>
+                        <span className="text-sm">${Number(data?.cost ?? 0).toFixed(4)}</span>
                       </div>
                       <div className="flex gap-4 text-xs text-muted-foreground">
                         <span>{data.count} calls</span>
