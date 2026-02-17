@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { durationToSeconds } from "@/lib/callDuration";
 import {
   startOfDay,
   endOfDay,
@@ -261,12 +262,12 @@ export const useHubSpotRealtime = (timeframe: string) => {
     const completedCalls = calls.filter(
       (c) => c.call_status === "completed",
     ).length;
-    const totalDuration = calls.reduce(
-      (sum, c) => sum + (c.duration_seconds || 0),
+    const totalDurationSec = calls.reduce(
+      (sum, c) => sum + durationToSeconds(c.duration_seconds),
       0,
     );
     const avgDuration =
-      totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
+      totalCalls > 0 ? Math.round(totalDurationSec / totalCalls) : 0;
     const appointmentsFromCalls = calls.filter((c) => c.appointment_set).length;
 
     return {

@@ -33,6 +33,7 @@ import {
   ShieldAlert,
   ChevronRight,
   ChevronLeft,
+  Headphones,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -109,6 +110,7 @@ export const Navigation = () => {
       { path: "/money-map", label: "Money Map", icon: Wallet },
       { path: "/stripe", label: "Stripe", icon: CreditCard },
       { path: "/lead-follow-up", label: "Lead Follow-Up", icon: UserCheck },
+      { path: "/setter-command-center", label: "Setter Command Center", icon: Headphones },
     ],
     OPERATIONS: [
       { path: "/clients", label: "Clients", icon: Users },

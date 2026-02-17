@@ -71,6 +71,7 @@ const ReconciliationDashboard = lazy(() => import("./pages/ReconciliationDashboa
 const MarketingIntelligence = lazy(() => import("./pages/MarketingIntelligence"));
 // MarketingDeepIntelligence archived → absorbed into MarketingIntelligence "Deep Intel" tab
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+const SetterCommandCenter = lazy(() => import("./pages/SetterCommandCenter"));
 
 // Enterprise pages — real data, production hooks
 const EnterpriseStrategy = lazy(() => import("./pages/enterprise/EnterpriseStrategy"));
@@ -153,6 +154,7 @@ const router = createBrowserRouter([
       { path: "/hubspot-analyzer", element: <SuspenseTable><HubSpotAnalyzer /></SuspenseTable> },
       { path: "/sales-coach-tracker", element: <SuspensePage><SalesCoachTracker /></SuspensePage> },
       { path: "/setter-activity-today", element: <SuspensePage><ErrorBoundary><SetterActivityToday /></ErrorBoundary></SuspensePage> },
+      { path: "/setter-command-center", element: <SuspensePage><ErrorBoundary><SetterCommandCenter /></ErrorBoundary></SuspensePage> },
       { path: "/yesterday-bookings", element: <SuspensePage><YesterdayBookings /></SuspensePage> },
       { path: "/hubspot-live", element: <SuspenseTable><HubSpotLiveData /></SuspenseTable> },
       { path: "/money-map", element: <SuspensePage><CampaignMoneyMap /></SuspensePage> },

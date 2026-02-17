@@ -1,3 +1,4 @@
+import { displayDuration } from "@/lib/callDuration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -224,7 +225,7 @@ export const HubSpotTabs = ({
                         </TableCell>
                         <TableCell>
                           {call.duration_seconds
-                            ? `${call.duration_seconds}s`
+                            ? displayDuration(call.duration_seconds)
                             : "-"}
                         </TableCell>
                         <TableCell>
