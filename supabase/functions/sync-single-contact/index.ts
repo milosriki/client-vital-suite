@@ -118,6 +118,19 @@ serve(async (req) => {
       // Attribution & Traffic — THE KEY MARKETING DATA
       first_touch_source: nullIfAbsent(p.hs_analytics_source),
       latest_traffic_source: nullIfAbsent(p.hs_analytics_source_data_1),
+      // New: audit fix #3 — 15 missing properties
+      latest_source: nullIfAbsent(p.hs_latest_source),
+      latest_source_data_1: nullIfAbsent(p.hs_latest_source_data_1),
+      latest_source_data_2: nullIfAbsent(p.hs_latest_source_data_2),
+      ip_city: nullIfAbsent(p.ip_city),
+      ip_state: nullIfAbsent(p.ip_state),
+      ip_country: nullIfAbsent(p.ip_country),
+      ip_zipcode: nullIfAbsent(p.ip_zipcode),
+      first_referrer: nullIfAbsent(p.hs_analytics_first_referrer),
+      last_referrer: nullIfAbsent(p.hs_analytics_last_referrer),
+      google_click_id: nullIfAbsent(p.hs_google_click_id),
+      fbc: nullIfAbsent(p.fbc),
+      fbp: nullIfAbsent(p.fbp),
       utm_source: nullIfAbsent(p.utm_source),
       utm_medium: nullIfAbsent(p.utm_medium),
       utm_campaign: nullIfAbsent(p.utm_campaign),
@@ -128,8 +141,8 @@ serve(async (req) => {
       // Lead Management
       custom_lifecycle_stage: nullIfAbsent(p.custom_lifecycle_stage),
       first_conversion_date: nullIfAbsent(p.first_conversion_date),
-      num_form_submissions: toNum(p.num_form_submissions),
-      num_unique_forms_submitted: toNum(p.num_unique_forms_submitted),
+      num_form_submissions: toNum(p.num_conversion_events ?? p.num_form_submissions),
+      num_unique_forms_submitted: toNum(p.num_unique_conversion_events ?? p.num_unique_forms_submitted),
       recent_conversion: nullIfAbsent(p.recent_conversion_event_name),
       recent_conversion_date: nullIfAbsent(p.recent_conversion_date),
       hubspot_team: nullIfAbsent(p.hubspot_team_id),
@@ -196,6 +209,39 @@ serve(async (req) => {
       // Metadata
       last_updated_source: 'hubspot-webhook',
     };
+
+    // ===================================================================
+    // AUTO-ATTRIBUTION: Extract hsa_cam/hsa_grp/hsa_ad/gclid from URLs
+    // ===================================================================
+    const firstUrl = contactData.first_page_seen;
+    if (firstUrl && typeof firstUrl === 'string') {
+      const extractParam = (url: string, param: string): string | null => {
+        const match = url.match(new RegExp(`${param}=([^&]+)`));
+        return match ? decodeURIComponent(match[1]) : null;
+      };
+
+      const hsaCam = extractParam(firstUrl, 'hsa_cam');
+      const hsaGrp = extractParam(firstUrl, 'hsa_grp');
+      const hsaAd = extractParam(firstUrl, 'hsa_ad');
+      const gclid = extractParam(firstUrl, 'gclid');
+      const utmCampaign = extractParam(firstUrl, 'utm_campaign');
+      const utmSource = extractParam(firstUrl, 'utm_source');
+      const utmMedium = extractParam(firstUrl, 'utm_medium');
+
+      if (hsaAd) {
+        contactData.attributed_ad_id = contactData.attributed_ad_id ?? hsaAd;
+        contactData.attributed_campaign_id = contactData.attributed_campaign_id ?? hsaCam;
+        contactData.attributed_adset_id = contactData.attributed_adset_id ?? hsaGrp;
+        contactData.attribution_source = contactData.attribution_source ?? (gclid ? 'url_gclid_extraction' : 'url_hsa_extraction');
+      }
+      if (utmCampaign && !contactData.utm_campaign) contactData.utm_campaign = utmCampaign.replace(/\+/g, ' ');
+      if (utmSource && !contactData.utm_source) contactData.utm_source = utmSource;
+      if (utmMedium && !contactData.utm_medium) contactData.utm_medium = utmMedium;
+
+      if (hsaAd || gclid) {
+        console.log(`[Sync-Single-Contact] Auto-attributed: ad=${hsaAd} campaign=${hsaCam} gclid=${gclid ? 'yes' : 'no'}`);
+      }
+    }
 
     // Gap I FIX: Only filter out `undefined` (field not in HubSpot response)
     // Keep `null` (field cleared), `0` (numeric reset), `""` (text cleared),

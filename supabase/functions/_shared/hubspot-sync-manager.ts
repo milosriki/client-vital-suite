@@ -19,10 +19,16 @@ export const HUBSPOT_PROPERTIES = {
     'hs_analytics_last_touch_converting_campaign',
     'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
     'hs_analytics_first_url', 'hs_analytics_last_url',
+    // Missing 15 properties from audit
+    'hs_latest_source', 'hs_latest_source_data_1', 'hs_latest_source_data_2',
+    'ip_city', 'ip_state', 'ip_country', 'ip_zipcode',
+    'hs_analytics_first_referrer', 'hs_analytics_last_referrer',
+    'hs_google_click_id', 'fbc', 'fbp',
 
     // Lead Management
     'num_contacted_notes', 'custom_lifecycle_stage', 'first_conversion_date',
     'num_form_submissions', 'num_unique_forms_submitted',
+    'num_conversion_events', 'num_unique_conversion_events',  // CORRECT HubSpot property names
     'recent_conversion_event_name', 'recent_conversion_date',
     'hubspot_team_id', 'hs_sa_first_engagement_descr',
     'hs_date_entered_lead', 'contact_unworked', 'hs_is_unworked',
