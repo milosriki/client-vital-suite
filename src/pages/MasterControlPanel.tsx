@@ -183,7 +183,7 @@ export default function MasterControlPanel() {
           <CardContent className="flex-1 overflow-hidden p-0 font-mono text-xs">
             <ScrollArea className="h-full p-4">
               {logs.length === 0 ? (
-                <div className="text-slate-400 italic">
+                <div className="text-slate-300 italic">
                   No execution logs yet...
                 </div>
               ) : (

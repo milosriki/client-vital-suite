@@ -115,7 +115,7 @@ const CreativeCard = ({ creative }: { creative: Creative }) => {
 
 export function CreativeGallery({ data }: { data: Creative[] }) {
   if (!data?.length)
-    return <div className="text-slate-400">No creatives found.</div>;
+    return <div className="text-slate-300">No creatives found.</div>;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

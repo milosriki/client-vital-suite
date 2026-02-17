@@ -92,7 +92,7 @@ export function SalesPipelineFeed() {
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 text-sm text-slate-400">
+                <div className="grid grid-cols-2 gap-2 text-sm text-slate-300">
                   {lead.company && (
                     <div className="flex items-center gap-2">
                       <Building className="h-3 w-3" />
@@ -115,7 +115,7 @@ export function SalesPipelineFeed() {
               </div>
             ))}
             {leads.length === 0 && (
-              <div className="p-8 text-center text-slate-400">
+              <div className="p-8 text-center text-slate-300">
                 No active leads found in the pipeline.
               </div>
             )}

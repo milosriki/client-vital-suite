@@ -118,7 +118,7 @@ const ReconciliationDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center text-xs text-slate-400">
+            <div className="flex items-center text-xs text-slate-300">
               <Users className="w-3 h-3 mr-1" /> AWS Master Records
             </div>
           </CardContent>
@@ -180,7 +180,7 @@ const ReconciliationDashboard = () => {
             <Database className="w-4 h-4" /> Discrepancy Ledger
           </div>
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
             <input
               type="text"
               placeholder="Search by email..."
@@ -214,7 +214,7 @@ const ReconciliationDashboard = () => {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-6 py-12 text-center text-slate-400 italic"
+                      className="px-6 py-12 text-center text-slate-300 italic"
                     >
                       No active discrepancies. System is 100% aligned with AWS.
                     </td>
@@ -235,7 +235,7 @@ const ReconciliationDashboard = () => {
                           {row.field}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 text-center font-mono text-slate-400 text-xs">
+                      <td className="px-6 py-4 text-center font-mono text-slate-300 text-xs">
                         {JSON.stringify(row.old)}
                       </td>
                       <td className="px-6 py-4 text-center font-mono text-blue-400 text-xs font-bold">

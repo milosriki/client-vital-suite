@@ -137,7 +137,7 @@ export function SyncStatusBadge() {
                     {status === 'stale' && (
                         <p className="text-red-400 text-xs mt-1">Data is over 24h old!</p>
                     )}
-                    <p className="text-xs text-slate-400 mt-1">Click play to trigger manual sync</p>
+                    <p className="text-xs text-slate-300 mt-1">Click play to trigger manual sync</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>

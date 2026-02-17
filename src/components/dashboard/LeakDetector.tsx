@@ -94,7 +94,7 @@ export function LeakDetector() {
       description: "No activity in 48h",
       bgColor: "bg-slate-500/10",
       borderColor: "border-slate-500/30",
-      textColor: "text-slate-400",
+      textColor: "text-slate-300",
     },
   ];
 
