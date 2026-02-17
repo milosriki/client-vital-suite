@@ -76,9 +76,9 @@ serve(async (req) => {
     const totalImpressions =
       fbData?.reduce((sum, row) => sum + (row.impressions || 0), 0) || 0;
 
-    // 3. New Leads
+    // 3. New Leads (from contacts table — HubSpot synced contacts)
     const { count: newLeads, error: leadsError } = await supabase
-      .from("leads")
+      .from("contacts")
       .select("*", { count: "exact", head: true })
       .gte("created_at", startIso);
 
@@ -139,14 +139,12 @@ serve(async (req) => {
       .eq("stage", "closedwon");
 
     // --- ZONE D: CREATIVE (Visual DNA) ---
-    // Fetch top ads with purchase_value for True ROI calc
+    // Use ad_creative_funnel view for true full-funnel metrics
     const { data: topAds } = await supabase
-      .from("facebook_ads_insights")
-      .select(
-        "ad_id, ad_name, spend, impressions, clicks, ctr, cpc, purchase_value, leads, roas",
-      )
-      .gte("date", startDateStr)
-      .order("spend", { ascending: false })
+      .from("ad_creative_funnel" as any)
+      .select("*")
+      .gt("spend", 0)
+      .order("roas", { ascending: false })
       .limit(6);
 
     // Construct Response
