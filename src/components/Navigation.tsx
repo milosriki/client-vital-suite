@@ -105,11 +105,6 @@ export const Navigation = () => {
         label: "Marketing",
         icon: BarChart3,
       },
-      {
-        path: "/deep-intel",
-        label: "Deep Intel",
-        icon: TrendingUp,
-      },
       { path: "/sales-pipeline", label: "Pipeline", icon: TrendingUp },
       { path: "/money-map", label: "Money Map", icon: Wallet },
       { path: "/stripe", label: "Stripe", icon: CreditCard },

@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Navigation } from "./Navigation";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,6 +7,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useVitalState } from "@/hooks/useVitalState";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { SkipNavigation } from "@/components/ui/skip-navigation";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
@@ -15,6 +16,8 @@ import { useSidebar } from "@/hooks/use-sidebar";
 import { cn } from "@/lib/utils";
 
 export const Layout = () => {
+  const location = useLocation();
+
   // Enable global keyboard shortcuts
   useKeyboardShortcuts();
 
@@ -48,7 +51,17 @@ export const Layout = () => {
               isCollapsed ? "lg:pl-[72px]" : "lg:pl-64"
             )}
           >
-            <Outlet />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
       </ErrorBoundary>
