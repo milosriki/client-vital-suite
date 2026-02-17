@@ -34,6 +34,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Headphones,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -110,13 +111,16 @@ export const Navigation = () => {
       { path: "/money-map", label: "Money Map", icon: Wallet },
       { path: "/stripe", label: "Stripe", icon: CreditCard },
       { path: "/lead-follow-up", label: "Lead Follow-Up", icon: UserCheck },
-      { path: "/setter-command-center", label: "Setter Command Center", icon: Headphones },
+      { path: "/setter-command-center", label: "Setter Command", icon: Headphones },
+      { path: "/setter-activity-today", label: "Today's Activity", icon: Activity },
+      { path: "/sales-coach-tracker", label: "Setter Funnel", icon: Target },
     ],
     OPERATIONS: [
       { path: "/clients", label: "Clients", icon: Users },
       { path: "/interventions", label: "Risks", icon: AlertTriangle },
       { path: "/coaches", label: "Coaches", icon: UserCheck },
       { path: "/leaderboard", label: "Leaderboard", icon: Award },
+      { path: "/call-tracking", label: "Call Records", icon: Phone },
     ],
     INTELLIGENCE: [
       { path: "/ai-advisor", label: "AI Advisor", icon: BrainCircuit },
@@ -129,7 +133,6 @@ export const Navigation = () => {
 
   const moreItems = [
     { path: "/", label: "Legacy Dashboard", icon: LayoutDashboard },
-    { path: "/call-tracking", label: "Calls", icon: Phone },
     { path: "/hubspot-live", label: "HubSpot Live", icon: Zap },
     { path: "/audit-trail", label: "Audit", icon: History },
     { path: "/ai-knowledge", label: "AI Knowledge", icon: Brain },
