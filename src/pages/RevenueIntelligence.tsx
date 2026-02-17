@@ -44,11 +44,15 @@ export default function RevenueIntelligence() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["stripe-dashboard-data", dateRange],
     queryFn: async () => {
+      const now = new Date();
+      const rangeMap: Record<string, number> = {
+        today: 1, last_7_days: 7, last_30_days: 30, this_month: 30,
+        last_quarter: 90, this_year: 365, all_time: 3650,
+      };
+      const daysBack = rangeMap[dateRange] || 30;
+      const startDate = new Date(now.getTime() - daysBack * 86400000).toISOString();
       const { data, error } = await supabase.functions.invoke("stripe-dashboard-data", {
-        body: { 
-          startDate: new Date().toISOString(), // In real app, calculate from dateRange
-          endDate: new Date().toISOString() 
-        },
+        body: { startDate, endDate: now.toISOString() },
       });
       if (error) throw error;
       return data;
@@ -486,7 +490,7 @@ export default function RevenueIntelligence() {
                 </div>
                 <div className="mt-4 pt-4 border-t border-[#1F2937] flex justify-between font-semibold">
                   <span>Total:</span>
-                  <span>274 deals / AED 847K</span>
+                  <span>{stageBreakdown.reduce((s, i) => s + (i.count || 0), 0)} deals / AED {(stageBreakdown.reduce((s, i) => s + ((i.value ?? 0) / 1000), 0)).toFixed(0)}K</span>
                 </div>
               </CardContent>
             </Card>
@@ -591,9 +595,9 @@ export default function RevenueIntelligence() {
                 <span className="text-lg font-semibold">Recent Actions</span>
               </AccordionTrigger>
               <AccordionContent className="text-sm text-slate-300 space-y-2">
-                <p>├─ Contacts created: 284 (this month)</p>
-                <p>├─ Deals created: 42</p>
-                <p>└─ Emails sent: 1,847</p>
+                <p>├─ Contacts created: {hubspotData?.recentActions?.contactsCreated ?? "—"} (this month)</p>
+                <p>├─ Deals created: {hubspotData?.recentActions?.dealsCreated ?? "—"}</p>
+                <p>└─ Emails sent: {hubspotData?.recentActions?.emailsSent ?? "—"}</p>
               </AccordionContent>
             </AccordionItem>
 
@@ -602,9 +606,9 @@ export default function RevenueIntelligence() {
                 <span className="text-lg font-semibold">Properties Audit</span>
               </AccordionTrigger>
               <AccordionContent className="text-sm text-slate-300 space-y-2">
-                <p>├─ Total properties: 247</p>
-                <p>├─ Unused properties: 18 (7.3%)</p>
-                <p>└─ Custom properties: 42</p>
+                <p>├─ Total properties: {hubspotData?.propertiesAudit?.total ?? "—"}</p>
+                <p>├─ Unused properties: {hubspotData?.propertiesAudit?.unused ?? "—"} ({hubspotData?.propertiesAudit?.total ? ((hubspotData.propertiesAudit.unused / hubspotData.propertiesAudit.total) * 100).toFixed(1) : "—"}%)</p>
+                <p>└─ Custom properties: {hubspotData?.propertiesAudit?.custom ?? "—"}</p>
               </AccordionContent>
             </AccordionItem>
 
@@ -613,9 +617,9 @@ export default function RevenueIntelligence() {
                 <span className="text-lg font-semibold">Summary & Recommendations</span>
               </AccordionTrigger>
               <AccordionContent className="text-sm text-slate-300 space-y-2">
-                <p>├─ 🟢 Overall health: GOOD</p>
-                <p>├─ ⚠️ 12 contacts missing emails - clean up recommended</p>
-                <p>└─ ✅ All workflows passing</p>
+                <p>├─ {(hubspotData?.dataQuality?.contactsWithoutEmail || 0) < 50 ? "🟢" : "🟡"} Overall health: {(hubspotData?.dataQuality?.contactsWithoutEmail || 0) < 50 ? "GOOD" : "NEEDS ATTENTION"}</p>
+                <p>├─ ⚠️ {hubspotData?.dataQuality?.contactsWithoutEmail || 0} contacts missing emails — clean up recommended</p>
+                <p>└─ {(hubspotData?.dataQuality?.orphanedDeals || 0) === 0 ? "✅" : "⚠️"} {(hubspotData?.dataQuality?.orphanedDeals || 0) === 0 ? "All deals linked to contacts" : `${hubspotData?.dataQuality?.orphanedDeals} orphaned deals found`}</p>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -655,7 +659,7 @@ export default function RevenueIntelligence() {
                     </div>
                   ))}
                 </div>
-                <Button variant="link" className="mt-4 p-0 h-auto text-primary">
+                <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => window.location.href = "/command-center"}>
                   View Details →
                 </Button>
               </CardContent>

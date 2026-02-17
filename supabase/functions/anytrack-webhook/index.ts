@@ -228,6 +228,8 @@ serve(async (req) => {
             const contactIdentifier = eventData.user_data.em || eventData.user_data.ph;
             if (contactIdentifier) {
               const identifierField = eventData.user_data.em ? "email" : "phone";
+              
+              // Strategy 1: Check attribution_events for OutboundClick with fb_ad_id
               const { data: clickAttribution } = await supabase
                 .from("attribution_events")
                 .select("fb_ad_id, fb_adset_id, fb_campaign_id, fb_campaign_name, fb_ad_name, fb_adset_name, landing_page")
@@ -237,17 +239,47 @@ serve(async (req) => {
                 .order("event_time", { ascending: false })
                 .limit(1);
 
-              if (clickAttribution?.[0]) {
-                console.log(`[AnyTrack] Linking ${event.eventName} to OutboundClick attribution for ${contactIdentifier}`);
+              let linkedAttribution = clickAttribution?.[0] || null;
+
+              // Strategy 2: Fallback to events table — find any event with location containing ad_id
+              if (!linkedAttribution) {
+                const locationField = identifierField === "email" ? "user_data->>'em'" : "user_data->>'ph'";
+                const { data: rawEvents } = await supabase
+                  .from("events")
+                  .select("meta")
+                  .filter(locationField, "eq", contactIdentifier)
+                  .filter("meta->>'location'", "ilike", "%ad_id=%")
+                  .order("event_time", { ascending: false })
+                  .limit(1);
+
+                if (rawEvents?.[0]?.meta?.location) {
+                  const extracted = parseFbParamsFromUrl(rawEvents[0].meta.location);
+                  if (extracted.ad_id) {
+                    linkedAttribution = {
+                      fb_ad_id: extracted.ad_id,
+                      fb_adset_id: extracted.adset_id,
+                      fb_campaign_id: extracted.campaign_id,
+                      fb_campaign_name: null,
+                      fb_ad_name: null,
+                      fb_adset_name: null,
+                      landing_page: rawEvents[0].meta.location,
+                    };
+                    console.log(`[AnyTrack] Found attribution from events table for ${contactIdentifier}`);
+                  }
+                }
+              }
+
+              if (linkedAttribution) {
+                console.log(`[AnyTrack] Linking ${event.eventName} to attribution for ${contactIdentifier}`);
                 await supabase
                   .from("attribution_events")
                   .update({
-                    fb_ad_id: clickAttribution[0].fb_ad_id,
-                    fb_adset_id: clickAttribution[0].fb_adset_id,
-                    fb_campaign_id: clickAttribution[0].fb_campaign_id,
-                    fb_campaign_name: clickAttribution[0].fb_campaign_name,
-                    fb_ad_name: clickAttribution[0].fb_ad_name,
-                    fb_adset_name: clickAttribution[0].fb_adset_name,
+                    fb_ad_id: linkedAttribution.fb_ad_id,
+                    fb_adset_id: linkedAttribution.fb_adset_id,
+                    fb_campaign_id: linkedAttribution.fb_campaign_id,
+                    fb_campaign_name: linkedAttribution.fb_campaign_name,
+                    fb_ad_name: linkedAttribution.fb_ad_name,
+                    fb_adset_name: linkedAttribution.fb_adset_name,
                   })
                   .eq("event_id", eventData.event_id);
 
@@ -256,8 +288,8 @@ serve(async (req) => {
                   await supabase
                     .from("contacts")
                     .update({
-                      attributed_ad_id: clickAttribution[0].fb_ad_id,
-                      attributed_campaign_id: clickAttribution[0].fb_campaign_id,
+                      attributed_ad_id: linkedAttribution.fb_ad_id,
+                      attributed_campaign_id: linkedAttribution.fb_campaign_id,
                       attribution_source: "anytrack_linked",
                     })
                     .eq("email", eventData.user_data.em);

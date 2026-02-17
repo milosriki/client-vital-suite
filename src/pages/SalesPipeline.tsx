@@ -589,10 +589,10 @@ export default function SalesPipeline() {
                     variant="danger"
                     confirmText="Confirm Lost"
                     onConfirm={() => {
-                      toast.success(
-                        `Deal ${selectedDeal.deal_name} marked as Lost.`,
-                      );
-                      // In a real app, you would call a mutation here
+                      updateDealMutation.mutate({
+                        dealId: selectedDeal.id,
+                        stage: DEAL_STAGES.CLOSED_LOST,
+                      });
                     }}
                   />
                 </div>

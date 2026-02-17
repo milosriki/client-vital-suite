@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DollarSign, TrendingUp, Users, Phone, Target, AlertCircle, Activity } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
@@ -35,6 +36,7 @@ import { QUERY_KEYS } from "@/config/queryKeys";
 export default function ExecutiveOverview() {
   const [dateRange, setDateRange] = useState("last_30_days");
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch real data from Supabase
   const { data, isLoading, error } = useExecutiveData({ dateRange });
@@ -138,7 +140,7 @@ export default function ExecutiveOverview() {
             }
             action={{
               label: "View All Alerts →",
-              onClick: () => window.location.href = "/lead-follow-up",
+              onClick: () => navigate("/interventions"),
             }}
           />
         )}
@@ -257,7 +259,7 @@ export default function ExecutiveOverview() {
             }
             action={{
               label: "Generate Report →",
-              onClick: () => window.location.href = "/setter-command-center",
+              onClick: () => navigate("/sales-tracker"),
             }}
           />
         )}
@@ -326,10 +328,10 @@ export default function ExecutiveOverview() {
                   <p className="text-slate-300 text-sm">No calls recorded today yet</p>
                 )}
                 <div className="flex gap-2 mt-4">
-                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/leaderboard"}>
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => navigate("/sales-tracker")}>
                     Leaderboard →
                   </Button>
-                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/setter-command-center"}>
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => navigate("/sales-tracker")}>
                     Setter Control →
                   </Button>
                 </div>
@@ -355,7 +357,7 @@ export default function ExecutiveOverview() {
                     <span className="text-red-400">{data?.healthDistribution?.red || 0}</span>
                   </li>
                 </ul>
-                <Button variant="link" className="mt-4 p-0 h-auto text-primary">
+                <Button variant="link" className="mt-4 p-0 h-auto text-primary" onClick={() => navigate("/enterprise/client-health")}>
                   View Details →
                 </Button>
               </CardContent>
@@ -389,10 +391,10 @@ export default function ExecutiveOverview() {
                   <p className="text-emerald-400 text-sm">✅ All leads followed up</p>
                 )}
                 <div className="flex gap-2 mt-4">
-                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/lead-follow-up"}>
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => navigate("/interventions")}>
                     Follow-Up Queue →
                   </Button>
-                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => window.location.href = "/command-center"}>
+                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => navigate("/command-center")}>
                     All Leads →
                   </Button>
                 </div>
