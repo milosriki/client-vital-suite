@@ -91,17 +91,30 @@ export function useVitalState(): VitalStateReturn {
   useEffect(() => {
     const channels: RealtimeChannel[] = [];
 
-    // Subscribe to client_health_scores changes
+    // Subscribe to client_health_scores changes (also handles churn risk alerts)
     const healthScoresChannel = supabase
       .channel('vital-health-scores')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'client_health_scores' },
-        () => {
+        (payload) => {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.clients.all });
           queryClient.invalidateQueries({ queryKey: ['client-health-scores-dashboard'] });
           queryClient.invalidateQueries({ queryKey: ['clients-analytics'] });
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.batch({}) });
+
+          // Churn risk alert (merged from useNotifications)
+          if (payload.eventType === 'UPDATE') {
+            const client = payload.new as { churn_risk_score?: number; firstname?: string; lastname?: string };
+            if (client.churn_risk_score && client.churn_risk_score > 80) {
+              toast({
+                title: '⚠️ High Churn Risk Alert',
+                description: `${client.firstname || ''} ${client.lastname || ''} has ${client.churn_risk_score.toFixed(0)}% churn risk`,
+                variant: 'destructive',
+                duration: 8000,
+              });
+            }
+          }
         }
       )
       .subscribe((status) => {
@@ -113,18 +126,30 @@ export function useVitalState(): VitalStateReturn {
       });
     channels.push(healthScoresChannel);
 
-    // Subscribe to deals changes (for revenue updates)
+    // Subscribe to deals changes (for revenue updates + large deal alerts)
     const dealsChannel = supabase
       .channel('vital-deals')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'deals' },
-        () => {
+        (payload) => {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.revenue.chart });
           queryClient.invalidateQueries({ queryKey: ['monthly-revenue'] });
           queryClient.invalidateQueries({ queryKey: ['pipeline-value'] });
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.pipeline.deals.summary() });
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.batch({}) });
+
+          // Large deal closure alert (merged from useNotifications)
+          if (payload.eventType === 'UPDATE') {
+            const deal = payload.new as { status?: string; deal_value?: number; deal_name?: string };
+            if (deal.status === 'closed' && deal.deal_value && deal.deal_value > 10000) {
+              toast({
+                title: '🎉 Large Deal Closed!',
+                description: `${deal.deal_name || 'Deal'} closed for AED ${deal.deal_value.toLocaleString()}`,
+                duration: 8000,
+              });
+            }
+          }
         }
       )
       .subscribe();
