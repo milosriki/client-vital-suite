@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { displayDuration } from "@/lib/callDuration";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -284,7 +285,7 @@ const SetterActivityToday = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2 text-sm">
-                        {call.duration ? `${Math.round(call.duration / 60)}m ${call.duration % 60}s` : "—"}
+                        {call.duration_seconds ? displayDuration(call.duration_seconds) : "—"}
                       </TableCell>
                       <TableCell className="py-2 text-sm text-muted-foreground">
                         {call.owner || call.assigned_to || "—"}

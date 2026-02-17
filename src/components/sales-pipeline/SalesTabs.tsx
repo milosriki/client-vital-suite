@@ -1,3 +1,4 @@
+import { displayDuration } from "@/lib/callDuration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -533,7 +534,7 @@ export const SalesTabs = ({
                         <TableCell>{call.call_outcome || "-"}</TableCell>
                         <TableCell>
                           {call.duration_seconds
-                            ? `${Math.floor(call.duration_seconds / 60)}m ${call.duration_seconds % 60}s`
+                            ? displayDuration(call.duration_seconds)
                             : "-"}
                         </TableCell>
                         <TableCell>
@@ -569,7 +570,7 @@ export const SalesTabs = ({
                                   </DialogTitle>
                                   <DialogDescription>
                                     {call.duration_seconds
-                                      ? `Duration: ${Math.floor(call.duration_seconds / 60)}m ${call.duration_seconds % 60}s`
+                                      ? `Duration: ${displayDuration(call.duration_seconds)}`
                                       : ""}
                                     {call.created_at
                                       ? ` • ${format(new Date(call.created_at), "MMM d, yyyy HH:mm")}`
