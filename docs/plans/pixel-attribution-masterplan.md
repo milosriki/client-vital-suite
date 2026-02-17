@@ -1,9 +1,35 @@
 # Pixel Training & Attribution Masterplan — PTD Fitness
 
+## EXACT CURRENT SETUP AUDIT
+
+### What's installed on your site (index.html)
+1. **GTM Web Container** `GTM-PH2SDZQK` ✅
+2. **Meta Pixel** `714927822471230` — hardcoded in index.html ⚠️ (should be in GTM only)
+3. **AnyTrack** — loaded via GTM (not visible in index.html directly)
+
+### What's connected
+- **AnyTrack → HubSpot**: Native integration, sends Lead/MQL/SQL/Purchase events ✅
+- **AnyTrack → Events table**: 5,696 events captured ✅  
+- **AnyTrack → Attribution events**: 1,980 events ✅
+- **AnyTrack → Meta CAPI**: Should be relaying — VERIFY in AnyTrack dashboard
+- **HubSpot → FB Ads**: Connected but lifecycle CAPI sync NOT confirmed
+- **Stape sGTM**: Account exists, NOT configured yet
+- **Calendly → HubSpot**: Connected (123 contacts with utm=leadformcalednly)
+
+### Critical gaps found
+| Gap | Impact | Fix |
+|-----|--------|-----|
+| `fbc` = 0/10,068 contacts | FB can't match events to ad clicks | Capture `_fbc` cookie, pass to HubSpot |
+| `fbp` = 0/10,068 contacts | No browser ID matching | Same — cookie capture |
+| Native lead form events have NULL user data | Can't attribute lead form leads back | Use email/phone hash matching instead |
+| Meta Pixel in index.html AND GTM | Possible double-firing | Remove from index.html |
+| Stape sGTM not set up | No server-side backup | Configure with custom domain |
+| TypeForm hidden fields missing | UTMs lost on form submit | Add hidden fields |
+
 ## Lead Entry Points (ALL Must Track)
 | Source | Type | fbclid/UTM Capture | CAPI Signal | Status |
 |--------|------|-------------------|-------------|--------|
-| **Facebook Lead Form** | Native FB | Auto (fbclid built-in) | AnyTrack relays | ⚠️ Verify |
+| **Facebook Lead Form** (native) | In-app FB form | FB owns the data — no fbclid needed, matches by internal ID | AnyTrack relays but with NULL user data! | ⚠️ Fix: use email/phone |
 | **TypeForm** `GTp9Uet7` `rgPsDS7A` | iFrame embed | Hidden fields needed | Hard — iframe isolation | ❌ Broken |
 | **Calendly** | iFrame embed | Supports Meta Pixel + UTM pass | Native pixel integration | ⚠️ Check |
 | **Native website forms** | Direct | GTM captures fbclid | Full control | ✅ Best |
@@ -83,6 +109,58 @@ Layer 3: OFFLINE/CRM (HubSpot or Direct CAPI)
     ↓ Facebook algorithm learns: "THIS is what a buyer looks like"
     ↓ Optimize for Purchase, not just Lead
 ```
+
+## Facebook Native Lead Forms — Special Case
+Native lead forms (user fills form inside Facebook/Instagram, never visits website):
+- **No pixel fires** — user never touches your site
+- **No cookies** — no fbc, fbp, nothing
+- **No GTM** — completely bypasses your website
+- **BUT Facebook already knows who they are** — they're logged in!
+
+### How native leads flow today
+```
+FB Lead Form → Facebook stores lead internally
+     ↓ (FB-HubSpot native sync OR AnyTrack relay)
+HubSpot contact created
+     ↓ properties: email, phone, name, ad_id (from HubSpot form association)
+Our events table: 5 AdLeadInitialLead events — ALL with null email/phone ❌
+```
+
+### The fix for native lead forms
+To send conversion events BACK for native leads, you DON'T need fbc/fbp.
+Facebook matches by **hashed email + phone** — and they have both from the form.
+
+**Setup:**
+1. HubSpot workflow: When deal stage = closedwon
+2. Check: does contact have `first_touch_source = PAID_SOCIAL`?
+3. If yes → send CAPI Purchase event with:
+   - `action_source: "system_generated"` (offline/CRM conversion)
+   - `event_name: "Purchase"`
+   - `value: deal_amount_aed` / `currency: "AED"`
+   - `em: sha256(email)` — Facebook matches to their user
+   - `ph: sha256(phone_e164)` — +971... format
+   - `fn: sha256(firstname)`, `ln: sha256(lastname)`
+   - `external_id: sha256(hubspot_contact_id)`
+4. Facebook matches by email/phone → attributes to original ad → algorithm learns
+
+### Why this works
+- 2,688 PAID_SOCIAL contacts have ad_id + campaign_id ✅
+- ALL native lead form users gave Facebook their email/phone (required by form)
+- Facebook can match with just email hash — no cookie needed
+- **This is actually MORE reliable than pixel matching** for offline conversions
+
+### Three paths to send it
+| Method | Tool | Effort | Reliability |
+|--------|------|--------|-------------|
+| **Stape HubSpot CRM App** | Stape | 10 min | ✅ Auto on lifecycle change |
+| **HubSpot native CAPI** | HubSpot Ads | 5 min | ✅ Built-in, lifecycle based |
+| **Webhook → sGTM** | Stape sGTM | 1 hr | ✅ Most flexible, has AED value |
+| **Our edge function** | Supabase | Custom | ✅ Full control |
+
+**Recommendation: Use ALL THREE stacked**
+- Stape HubSpot App for lifecycle events (auto)
+- HubSpot native CAPI for backup (auto)
+- Webhook → sGTM for Purchase with exact AED amount (manual trigger)
 
 ## Stape Solutions Available (What to Use)
 | Solution | Purpose | Priority |
