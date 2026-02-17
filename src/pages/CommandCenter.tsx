@@ -99,7 +99,7 @@ export default function CommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
-        .select("stage, deal_value")
+        .select("stage, stage_label, deal_value, amount")
         .gte("updated_at", cutoff);
       if (error) throw error;
       const bookingStages = new Set<string>(ACTIVE_PIPELINE_STAGES);

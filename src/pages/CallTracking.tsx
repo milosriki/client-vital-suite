@@ -53,16 +53,23 @@ export default function CallTracking() {
     },
   });
 
-  // Fetch enhanced leads for additional data
+  // Fetch contacts for additional lead data
   const { data: enhancedLeads, isLoading: loadingLeads } = useDedupedQuery({
-    queryKey: ["enhanced-leads-for-calls"],
+    queryKey: ["contacts-for-calls"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("enhanced_leads")
-        .select("phone, first_name, last_name, lead_score, ltv_prediction, campaign_name, dubai_area")
-        .not("phone", "is", null);
+        .from("contacts")
+        .select("phone, first_name, last_name, attributed_channel, attributed_campaign_id, lifecycle_stage")
+        .not("phone", "is", null)
+        .neq("status", "MERGED_DUPLICATE");
       if (error) throw error;
-      return data || [];
+      return (data || []).map(c => ({
+        ...c,
+        lead_score: null,
+        ltv_prediction: null,
+        campaign_name: c.attributed_campaign_id,
+        dubai_area: null,
+      }));
     },
   });
 
