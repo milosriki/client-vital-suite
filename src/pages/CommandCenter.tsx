@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { DEAL_STAGES, HUBSPOT_STAGE_IDS, ACTIVE_PIPELINE_STAGES } from "@/constants/dealStages";
+import { DEAL_STAGES } from "@/constants/dealStages";
 import {
   Dialog,
   DialogContent,
@@ -49,9 +49,7 @@ import {
   Palette,
   Search,
 } from "lucide-react";
-import { subDays } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
-import { getBusinessDate } from "@/lib/date-utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 type Period = "7" | "30" | "90";
@@ -59,200 +57,55 @@ type Period = "7" | "30" | "90";
 export default function CommandCenter() {
   const [period, setPeriod] = useState<Period>("30");
   const [journeySearch, setJourneySearch] = useState("");
-  const cutoff = useMemo(
-    () => subDays(getBusinessDate(), Number(period)).toISOString(),
-    [period],
-  );
-
-  // ── A: Ad Spend ──
-  const { data: adSpendData } = useDedupedQuery({
-    queryKey: ["cc-ad-spend", period],
+  // ── Single batch RPC replaces ~12 individual queries ──
+  const { data: ccData, isLoading: loadingAll } = useDedupedQuery({
+    queryKey: ["cc-batch", period],
     queryFn: async () => {
-      const cutoffDate = subDays(getBusinessDate(), Number(period))
-        .toISOString()
-        .split("T")[0];
-      const { data, error } = await supabase
-        .from("facebook_ads_insights")
-        .select("spend")
-        .gte("date", cutoffDate);
-      if (error) throw error;
-      return (data || []).reduce((s: number, r) => s + (Number(r.spend) || 0), 0);
-    },
-  });
-
-  // ── A: Leads count ──
-  const { data: leadsCount } = useDedupedQuery({
-    queryKey: ["cc-leads-count", period],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("contacts")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", cutoff);
-      if (error) throw error;
-      return count || 0;
-    },
-  });
-
-  // ── A: Bookings + Closed Won ──
-  const { data: dealStats } = useDedupedQuery({
-    queryKey: ["cc-deal-stats", period],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deals")
-        .select("stage, stage_label, deal_value, amount")
-        .gte("updated_at", cutoff);
-      if (error) throw error;
-      const bookingStages = new Set<string>(ACTIVE_PIPELINE_STAGES);
-      let bookings = 0;
-      let closedWon = 0;
-      let revenue = 0;
-      (data || []).forEach((d) => {
-        if (bookingStages.has(d.stage || "")) bookings++;
-        if (d.stage === DEAL_STAGES.CLOSED_WON) {
-          closedWon++;
-          revenue += Number(d.deal_value) || Number(d.amount) || 0;
-        }
+      const { data, error } = await supabase.rpc("get_command_center_data", {
+        p_days: Number(period),
       });
-      return { bookings, closedWon, revenue };
+      if (error) throw error;
+      return data as {
+        ad_spend: number;
+        leads_count: number;
+        deal_stats: { bookings: number; closed_won: number; revenue: number };
+        campaign_funnel: Record<string, unknown>[];
+        setter_funnel: Record<string, unknown>[];
+        coach_performance: Record<string, unknown>[];
+        no_shows: Record<string, unknown>[];
+        cold_leads: Record<string, unknown>[];
+        churn_risk: Record<string, unknown>[];
+        upcoming_assessments: Record<string, unknown>[];
+        adset_funnel: Record<string, unknown>[];
+        creative_funnel: Record<string, unknown>[];
+      };
     },
   });
 
-  const adSpend = adSpendData || 0;
-  const leads = leadsCount || 0;
-  const { bookings = 0, closedWon = 0, revenue = 0 } = dealStats || {};
+  const adSpend = ccData?.ad_spend || 0;
+  const leads = ccData?.leads_count || 0;
+  const { bookings = 0, closed_won: closedWon = 0, revenue = 0 } = ccData?.deal_stats || {};
+  const funnelData = ccData?.campaign_funnel || [];
+  const setterData = ccData?.setter_funnel || [];
+  const coachData = ccData?.coach_performance || [];
+  const noShows = ccData?.no_shows || [];
+  const coldLeads = ccData?.cold_leads || [];
+  const churnRisk = ccData?.churn_risk || [];
+  const upcomingAssessments = ccData?.upcoming_assessments || [];
+  const adsetData = ccData?.adset_funnel || [];
+  const creativeData = ccData?.creative_funnel || [];
+  const loadingFunnel = loadingAll;
+  const loadingSetters = loadingAll;
+  const loadingCoaches = loadingAll;
+  const loadingNoShows = loadingAll;
+  const loadingCold = loadingAll;
+  const loadingChurn = loadingAll;
+  const loadingAssessments = loadingAll;
+  const loadingAdsets = loadingAll;
+  const loadingCreatives = loadingAll;
   const roasNum = adSpend > 0 ? revenue / adSpend : 0;
   const roas = adSpend > 0 ? (roasNum ?? 0).toFixed(1) : "N/A";
   const cpl = adSpend > 0 && leads > 0 ? Math.round(adSpend / leads) : 0;
-
-  // ── B: Campaign Full Funnel ──
-  const { data: funnelData, isLoading: loadingFunnel } = useDedupedQuery({
-    queryKey: ["cc-campaign-funnel"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("campaign_full_funnel")
-        .select("*")
-        .order("spend", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── C1: Setter Funnel ──
-  const { data: setterData, isLoading: loadingSetters } = useDedupedQuery({
-    queryKey: ["cc-setter-funnel"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("setter_funnel_matrix")
-        .select("setter_name, total_leads, deals_created, booked, held, closed_won, closed_lost, closed_won_value, lead_to_deal_pct, held_to_close_pct, ghost_rate_pct");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── C2: Coach Performance ──
-  const { data: coachData, isLoading: loadingCoaches } = useDedupedQuery({
-    queryKey: ["cc-coach-perf"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("coach_performance")
-        .select("id, coach_name, total_clients, avg_health_score, clients_improving, clients_declining, trend, report_date")
-        .order("report_date", { ascending: false });
-      if (error) throw error;
-      const seen = new Set<string>();
-      return (data || []).filter((c) => {
-        if (seen.has(c.coach_name)) return false;
-        seen.add(c.coach_name);
-        return true;
-      });
-    },
-  });
-
-  // ── D1: No-Shows ──
-  const { data: noShows, isLoading: loadingNoShows } = useDedupedQuery({
-    queryKey: ["cc-no-shows"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assessment_truth_matrix")
-        .select("contact_name, deal_name, email, coach, assigned_coach, stage_label, stage, truth_status")
-        .in("truth_status", [
-          "BOOKED_NOT_ATTENDED",
-          "HUBSPOT_ONLY_NO_AWS_PROOF",
-        ])
-        .limit(25);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── D2: Cold Leads ──
-  const { data: coldLeads, isLoading: loadingCold } = useDedupedQuery({
-    queryKey: ["cc-cold-leads"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cold_leads")
-        .select("*")
-        .limit(25);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── D3: Churn Risk ──
-  const { data: churnRisk, isLoading: loadingChurn } = useDedupedQuery({
-    queryKey: ["cc-churn-risk"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("client_health_scores")
-        .select(
-          "email, firstname, lastname, health_score, health_zone, health_trend, churn_risk_score, outstanding_sessions",
-        )
-        .in("health_trend", ["DECLINING", "CLIFF_FALL"])
-        .order("churn_risk_score", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── E: Upcoming Assessments ──
-  const { data: upcomingAssessments, isLoading: loadingAssessments } =
-    useDedupedQuery({
-      queryKey: ["cc-upcoming-assessments"],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("upcoming_assessments")
-          .select("*")
-          .limit(25);
-        if (error) throw error;
-        return data;
-      },
-    });
-
-  // ── F: Adset Full Funnel ──
-  const { data: adsetData, isLoading: loadingAdsets } = useDedupedQuery({
-    queryKey: ["cc-adset-funnel"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("adset_full_funnel")
-        .select("*")
-        .order("spend", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── G: Creative Funnel ──
-  const { data: creativeData, isLoading: loadingCreatives } = useDedupedQuery({
-    queryKey: ["cc-creative-funnel"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ad_creative_funnel")
-        .select("*")
-        .order("spend", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // ── H: Lead Journey Search ──
   const { data: journeyData, isLoading: loadingJourney } = useDedupedQuery({
@@ -832,21 +685,21 @@ export default function CommandCenter() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {coachData.map((c) => (
-                      <TableRow key={c.id}>
+                    {coachData.map((c: Record<string, unknown>, i: number) => (
+                      <TableRow key={String(c.id ?? i)}>
                         <TableCell className="font-medium">
-                          {c.coach_name}
+                          {String(c.coach_name || "Unknown")}
                         </TableCell>
                         <TableCell className="text-right">
-                          {c.total_clients || 0}
+                          {Number(c.total_clients || 0)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Badge
                             variant="secondary"
                             className={
-                              (c.avg_health_score || 0) >= 70
+                              Number(c.avg_health_score || 0) >= 70
                                 ? "bg-emerald-500/10 text-emerald-500"
-                                : (c.avg_health_score || 0) >= 40
+                                : Number(c.avg_health_score || 0) >= 40
                                   ? "bg-yellow-500/10 text-yellow-500"
                                   : "bg-red-500/10 text-red-500"
                             }
@@ -855,14 +708,14 @@ export default function CommandCenter() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right text-emerald-500">
-                          {c.clients_improving || 0}
+                          {Number(c.clients_improving || 0)}
                         </TableCell>
                         <TableCell className="text-right text-destructive">
-                          {c.clients_declining || 0}
+                          {Number(c.clients_declining || 0)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={c.trend === "IMPROVING" ? "secondary" : c.trend === "DECLINING" ? "destructive" : "outline"}>
-                            {c.trend || "—"}
+                            {String(c.trend || "—")}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -1015,27 +868,27 @@ export default function CommandCenter() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {churnRisk.map((c, i: number) => (
+                    {churnRisk.map((c: Record<string, unknown>, i: number) => (
                       <TableRow key={i}>
                         <TableCell className="font-medium">
                           {[c.firstname, c.lastname].filter(Boolean).join(" ") || "Unknown"}
                         </TableCell>
-                        <TableCell className="text-sm">{c.email || "—"}</TableCell>
+                        <TableCell className="text-sm">{String(c.email || "—")}</TableCell>
                         <TableCell className="text-right font-bold">
                           {Number(c?.health_score ?? 0).toFixed(0)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={c.health_zone === "RED" ? "destructive" : "secondary"}>
-                            {c.health_zone}
+                            {String(c.health_zone || "—")}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="destructive" className="text-xs">{c.health_trend}</Badge>
+                          <Badge variant="destructive" className="text-xs">{String(c.health_trend || "—")}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           {Number(c?.churn_risk_score ?? 0).toFixed(0)}%
                         </TableCell>
-                        <TableCell className="text-right">{c.outstanding_sessions ?? "—"}</TableCell>
+                        <TableCell className="text-right">{c.outstanding_sessions != null ? String(c.outstanding_sessions) : "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
