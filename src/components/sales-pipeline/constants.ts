@@ -2,23 +2,29 @@ import {
   Users,
   UserCheck,
   Calendar,
+  CalendarCheck,
+  CalendarClock,
+  CalendarX,
   CheckCircle,
   Phone,
   PhoneCall,
   PhoneMissed,
   PhoneOff,
   XCircle,
+  ClipboardCheck,
 } from "lucide-react";
+import { DEAL_STAGES, HUBSPOT_STAGE_IDS } from "@/constants/dealStages";
 
-export const STATUS_CONFIG = {
-  lead: { label: "New Leads", color: "bg-blue-500", icon: Users },
-  mql: { label: "MQL (Qualified)", color: "bg-amber-500", icon: UserCheck },
-  opportunity: {
-    label: "Opportunity (Assesment)",
-    color: "bg-purple-500",
-    icon: Calendar,
-  },
-  closed_won: { label: "Closed Won", color: "bg-green-500", icon: CheckCircle },
+export const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  [DEAL_STAGES.DECISION_MAKER_BOUGHT_IN]: { label: "Called - Follow up", color: "bg-blue-500", icon: Phone },
+  [DEAL_STAGES.QUALIFIED_TO_BUY]: { label: "Assessment Scheduled", color: "bg-indigo-500", icon: CalendarCheck },
+  [HUBSPOT_STAGE_IDS.ASSESSMENT_BOOKING]: { label: "Assessment Booking", color: "bg-cyan-500", icon: Calendar },
+  [HUBSPOT_STAGE_IDS.BOOKED]: { label: "Assessment Confirmed", color: "bg-teal-500", icon: CalendarCheck },
+  [HUBSPOT_STAGE_IDS.ASSESSMENT_POSTPONED]: { label: "Assessment Postponed", color: "bg-amber-500", icon: CalendarClock },
+  [HUBSPOT_STAGE_IDS.ASSESSMENT_DONE]: { label: "Assessment Done", color: "bg-purple-500", icon: ClipboardCheck },
+  [DEAL_STAGES.CONTRACT_SENT]: { label: "Waiting Decision", color: "bg-orange-500", icon: CalendarX },
+  [DEAL_STAGES.CLOSED_WON]: { label: "Closed Won", color: "bg-green-500", icon: CheckCircle },
+  [DEAL_STAGES.CLOSED_LOST]: { label: "Closed Lost", color: "bg-red-500", icon: XCircle },
 };
 
 export const CALL_STATUS_CONFIG: Record<

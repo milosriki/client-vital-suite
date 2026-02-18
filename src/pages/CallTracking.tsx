@@ -3,9 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Phone, PhoneIncoming, Clock, Star, Calendar, TrendingUp, 
-  Flame, Users, AlertTriangle, Trophy, PhoneMissed, UserX
+  Flame, Users, AlertTriangle, Trophy, PhoneMissed, UserX, BarChart3
 } from "lucide-react";
 import { CallCard } from "@/components/call-tracking/CallCard";
 import { CallFilters } from "@/components/call-tracking/CallFilters";
@@ -13,6 +19,7 @@ import { CallCardSkeleton } from "@/components/call-tracking/CallCardSkeleton";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAnnounce } from "@/lib/accessibility";
+import { toast } from "sonner";
 
 // Normalize phone number for comparison (remove all non-digits)
 const normalizePhone = (phone: string | null) => {
@@ -27,6 +34,8 @@ export default function CallTracking() {
     status: 'all',
     location: 'all',
   });
+  const [selectedLostLead, setSelectedLostLead] = useState<any>(null);
+  const [selectedSetter, setSelectedSetter] = useState<any>(null);
 
   // Fetch call records
   const { data: callRecords, isLoading: loadingCalls } = useDedupedQuery({
@@ -461,7 +470,11 @@ export default function CallTracking() {
               ) : enrichedLostLeads.length > 0 ? (
                 <div className="space-y-2">
                   {enrichedLostLeads.map((lead) => (
-                    <Card key={lead.id} className={lead.status === 'new' ? 'border-red-500/30' : ''}>
+                    <Card
+                      key={lead.id}
+                      className={`cursor-pointer transition-colors duration-200 hover:bg-muted/30 ${lead.status === 'new' ? 'border-red-500/30' : ''}`}
+                      onClick={() => { setSelectedLostLead(lead); toast.info(`Viewing lost lead: ${lead.contact_name || lead.caller_number}`); }}
+                    >
                       <CardContent className="py-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
@@ -540,7 +553,11 @@ export default function CallTracking() {
               ) : setterLeaderboard.length > 0 ? (
                 <div className="grid gap-3">
                   {setterLeaderboard.map((setter, idx) => (
-                    <Card key={setter.id} className={idx === 0 ? 'border-yellow-500/50' : ''}>
+                    <Card
+                      key={setter.id}
+                      className={`cursor-pointer transition-colors duration-200 hover:bg-muted/30 ${idx === 0 ? 'border-yellow-500/50' : ''}`}
+                      onClick={() => { setSelectedSetter(setter); toast.info(`Viewing setter: ${setter.owner_name || 'Unknown'}`); }}
+                    >
                       <CardContent className="py-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
@@ -607,6 +624,139 @@ export default function CallTracking() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Lost Lead Detail Dialog */}
+      <Dialog open={!!selectedLostLead} onOpenChange={(open) => !open && setSelectedLostLead(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneMissed className="h-5 w-5 text-red-500" />
+              Lost Lead Detail
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLostLead && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-bold">{selectedLostLead.contact_name || selectedLostLead.caller_number}</p>
+                  {selectedLostLead.contact_name && (
+                    <p className="text-sm text-muted-foreground font-mono">{selectedLostLead.caller_number}</p>
+                  )}
+                </div>
+                <Badge variant={selectedLostLead.status === 'new' ? 'destructive' : 'secondary'}>
+                  {selectedLostLead.status}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Lead Score</p>
+                  <p className={`text-2xl font-bold ${selectedLostLead.lead_score >= 70 ? 'text-red-500' : selectedLostLead.lead_score >= 40 ? 'text-orange-500' : 'text-yellow-500'}`}>
+                    {Math.round(selectedLostLead.lead_score)}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Missed Calls</p>
+                  <p className="text-2xl font-bold">{selectedLostLead.missed_call_count}</p>
+                </div>
+              </div>
+
+              {selectedLostLead.lifecycle_stage && (
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Lifecycle Stage</p>
+                  <Badge variant="outline">{selectedLostLead.lifecycle_stage}</Badge>
+                </div>
+              )}
+
+              {selectedLostLead.assigned_owner && (
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Assigned Owner</p>
+                  <p className="font-medium">{selectedLostLead.assigned_owner}</p>
+                </div>
+              )}
+
+              {selectedLostLead.last_missed_at && (
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Last Missed Call</p>
+                  <p className="font-medium">{new Date(selectedLostLead.last_missed_at).toLocaleString()}</p>
+                </div>
+              )}
+
+              <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                <p className="text-xs text-red-400 mb-1">⚠️ Action Required</p>
+                <p className="text-sm font-medium">
+                  {selectedLostLead.lead_score >= 70
+                    ? "High-value lead — call back within 5 minutes"
+                    : selectedLostLead.lead_score >= 40
+                    ? "Warm lead — follow up within 1 hour"
+                    : "Schedule a callback within 24 hours"}
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Setter Detail Dialog */}
+      <Dialog open={!!selectedSetter} onOpenChange={(open) => !open && setSelectedSetter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-yellow-500" />
+              {selectedSetter?.owner_name || 'Unknown'} — Performance
+            </DialogTitle>
+          </DialogHeader>
+          {selectedSetter && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Total Calls</p>
+                  <p className="text-2xl font-bold">{selectedSetter.total_calls}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Answered</p>
+                  <p className="text-2xl font-bold">{selectedSetter.answered_calls}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Answer Rate</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {selectedSetter.total_calls > 0 ? Math.round((selectedSetter.answered_calls / selectedSetter.total_calls) * 100) : 0}%
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Avg Duration</p>
+                  <p className="text-2xl font-bold">
+                    {Math.floor((selectedSetter.avg_duration || 0) / 60)}:{String(Math.round((selectedSetter.avg_duration || 0) % 60)).padStart(2, '0')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Appointments Set</p>
+                  <p className="text-2xl font-bold text-purple-600">{selectedSetter.appointments_set}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Conversion Rate</p>
+                  <p className={`text-2xl font-bold ${(selectedSetter.conversion_rate || 0) >= 20 ? 'text-green-600' : (selectedSetter.conversion_rate || 0) >= 10 ? 'text-yellow-600' : 'text-red-500'}`}>
+                    {selectedSetter.conversion_rate || 0}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Lost Leads</p>
+                <p className="text-2xl font-bold text-red-500">{selectedSetter.lost_lead_count}</p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Report Date</p>
+                <p className="font-medium">{selectedSetter.date}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -214,7 +214,7 @@ export const SalesTabs = ({
                 </TableHeader>
                 <TableBody>
                   {(funnelData?.leads || []).slice(0, 50).map((lead: FunnelLead) => (
-                    <TableRow key={lead.id}>
+                    <TableRow key={lead.id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                       <TableCell className="font-medium">
                         {lead.first_name || lead.firstname}{" "}
                         {lead.last_name || lead.lastname}
@@ -320,7 +320,7 @@ export const SalesTabs = ({
                 </TableHeader>
                 <TableBody>
                   {enhancedLeads?.slice(0, 50).map((lead) => (
-                    <TableRow key={lead.id}>
+                    <TableRow key={lead.id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                       <TableCell className="font-medium">
                         {lead.first_name} {lead.last_name}
                       </TableCell>
@@ -412,7 +412,7 @@ export const SalesTabs = ({
                 </TableHeader>
                 <TableBody>
                   {contacts?.slice(0, 50).map((contact) => (
-                    <TableRow key={contact.id}>
+                    <TableRow key={contact.id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                       <TableCell className="font-medium">
                         {contact.first_name} {contact.last_name}
                       </TableCell>
@@ -458,7 +458,7 @@ export const SalesTabs = ({
 
       {/* Deals Tab */}
       <TabsContent value="deals">
-        <DealsKanban deals={dealsData?.deals || []} />
+        <DealsKanban deals={dealsData?.deals || []} onDealClick={onDealClick} />
       </TabsContent>
 
       {/* Calls Tab */}
@@ -499,7 +499,7 @@ export const SalesTabs = ({
                     );
 
                     return (
-                      <TableRow key={call.id}>
+                      <TableRow key={call.id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                         <TableCell className="font-medium">
                           <div className="flex flex-col">
                             <span>
@@ -664,7 +664,7 @@ export const SalesTabs = ({
                 </TableHeader>
                 <TableBody>
                   {appointments?.appointments?.map((apt: Appointment) => (
-                    <TableRow key={apt.id}>
+                    <TableRow key={apt.id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                       <TableCell className="font-medium">
                         {format(
                           new Date(apt.scheduled_at),
@@ -763,7 +763,7 @@ function FollowUpTab() {
             </TableHeader>
             <TableBody>
               {followups.map((f: any) => (
-                <TableRow key={f.deal_id}>
+                <TableRow key={f.deal_id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                   <TableCell>
                     <Badge className={priorityColor[f.followup_priority] || 'bg-gray-500'}>
                       {f.followup_priority}

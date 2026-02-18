@@ -434,6 +434,16 @@ function AIChat({ snapshot }: { snapshot: ReturnType<typeof useBusinessSnapshot>
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Listen for quick-action events from the bottom grid
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const prompt = (e as CustomEvent).detail;
+      if (prompt && typeof prompt === "string") sendMessage(prompt);
+    };
+    window.addEventListener("ai-quick-action", handler);
+    return () => window.removeEventListener("ai-quick-action", handler);
+  }, [sendMessage]);
+
   const handleSend = () => {
     if (!input.trim()) return;
     sendMessage(input.trim());

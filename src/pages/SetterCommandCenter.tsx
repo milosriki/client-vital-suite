@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { subDays, startOfDay, endOfDay, format } from "date-fns";
-import { Phone, Users, Timer, PhoneCall } from "lucide-react";
+import { Phone, Users, Timer, PhoneCall, Clock, TrendingUp, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -13,7 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { toast } from "sonner";
 
 const normalizePhone = (phone: string | null | undefined) =>
   phone ? phone.replace(/\D/g, "") : "";
@@ -62,6 +70,15 @@ type SpeedToLeadEntry = {
   speedMinutes: number;
 };
 
+type SetterDetail = {
+  name: string;
+  total: number;
+  connected: number;
+  totalDuration: number;
+  avgDuration: number;
+  connectionRate: number;
+};
+
 const isConnectedCall = (
   callStatus: string | null | undefined,
   callOutcome: string | null | undefined,
@@ -82,6 +99,9 @@ const getSetterName = (call: { caller_name?: string | null; owner_name?: string 
   call.caller_name || call.owner_name || "Unknown";
 
 export default function SetterCommandCenter() {
+  const [selectedSetter, setSelectedSetter] = useState<SetterDetail | null>(null);
+  const [selectedLead, setSelectedLead] = useState<SpeedToLeadEntry | null>(null);
+
   const now = new Date();
   const startOfToday = startOfDay(now);
   const endOfToday = endOfDay(now);
@@ -178,6 +198,16 @@ export default function SetterCommandCenter() {
       .sort((a, b) => b.total - a.total);
   }, [callRecords]);
 
+  // Compute today's calls per setter for detail dialog
+  const todayCallsBySetter = useMemo(() => {
+    const map = new Map<string, number>();
+    todayCalls.forEach((call) => {
+      const name = getSetterName(call);
+      map.set(name, (map.get(name) || 0) + 1);
+    });
+    return map;
+  }, [todayCalls]);
+
   const speedToLead = useMemo(() => {
     const earliestCallByPhone = new Map<string, Date>();
 
@@ -220,6 +250,16 @@ export default function SetterCommandCenter() {
   if (isLoading) {
     return <PageSkeleton variant="dashboard" />;
   }
+
+  const handleSetterClick = (setter: SetterDetail) => {
+    setSelectedSetter(setter);
+    toast.info(`Viewing details for ${setter.name}`);
+  };
+
+  const handleLeadClick = (lead: SpeedToLeadEntry) => {
+    setSelectedLead(lead);
+    toast.info(`Viewing speed-to-lead for ${lead.name}`);
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -280,14 +320,22 @@ export default function SetterCommandCenter() {
                 </TableRow>
               ) : (
                 leaderboard.map((setter) => (
-                  <TableRow key={setter.name}>
+                  <TableRow
+                    key={setter.name}
+                    className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                    onClick={() => handleSetterClick(setter)}
+                  >
                     <TableCell className="font-medium">
                       {setter.name}
                     </TableCell>
                     <TableCell>{setter.total}</TableCell>
                     <TableCell>{setter.connected}</TableCell>
                     <TableCell>{formatDuration(setter.avgDuration)}</TableCell>
-                    <TableCell>{setter.connectionRate.toFixed(1)}%</TableCell>
+                    <TableCell>
+                      <Badge variant={setter.connectionRate >= 50 ? "default" : setter.connectionRate >= 30 ? "secondary" : "destructive"} className="text-xs">
+                        {setter.connectionRate.toFixed(1)}%
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -323,7 +371,11 @@ export default function SetterCommandCenter() {
                 </TableRow>
               ) : (
                 speedToLead.map((entry) => (
-                  <TableRow key={entry.id}>
+                  <TableRow
+                    key={entry.id}
+                    className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                    onClick={() => handleLeadClick(entry)}
+                  >
                     <TableCell className="font-medium">
                       {entry.name}
                     </TableCell>
@@ -334,7 +386,11 @@ export default function SetterCommandCenter() {
                     <TableCell>
                       {format(entry.firstCallAt, "MMM d, yyyy p")}
                     </TableCell>
-                    <TableCell>{formatMinutes(entry.speedMinutes)}</TableCell>
+                    <TableCell>
+                      <Badge variant={entry.speedMinutes <= 5 ? "default" : entry.speedMinutes <= 30 ? "secondary" : "destructive"} className="text-xs">
+                        {formatMinutes(entry.speedMinutes)}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -342,6 +398,110 @@ export default function SetterCommandCenter() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Setter Detail Dialog */}
+      <Dialog open={!!selectedSetter} onOpenChange={(open) => !open && setSelectedSetter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              {selectedSetter?.name} — Performance
+            </DialogTitle>
+          </DialogHeader>
+          {selectedSetter && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Phone className="h-3.5 w-3.5" /> Calls Today
+                  </div>
+                  <p className="text-2xl font-bold">{todayCallsBySetter.get(selectedSetter.name) || 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Phone className="h-3.5 w-3.5" /> Total Calls (30d)
+                  </div>
+                  <p className="text-2xl font-bold">{selectedSetter.total}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <TrendingUp className="h-3.5 w-3.5" /> Connection Rate
+                  </div>
+                  <p className={`text-2xl font-bold ${selectedSetter.connectionRate >= 50 ? "text-emerald-500" : selectedSetter.connectionRate >= 30 ? "text-yellow-500" : "text-red-500"}`}>
+                    {selectedSetter.connectionRate.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Clock className="h-3.5 w-3.5" /> Avg Call Duration
+                  </div>
+                  <p className="text-2xl font-bold">{formatDuration(selectedSetter.avgDuration)}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <PhoneCall className="h-3.5 w-3.5" /> Connected Calls
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-lg font-bold">{selectedSetter.connected} / {selectedSetter.total}</p>
+                  <Badge variant={selectedSetter.connectionRate >= 50 ? "default" : "secondary"}>
+                    {selectedSetter.connectionRate.toFixed(1)}%
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <Timer className="h-3.5 w-3.5" /> Total Talk Time (30d)
+                </div>
+                <p className="text-lg font-bold">{formatMinutes(selectedSetter.totalDuration / 60)}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Speed-to-Lead Detail Dialog */}
+      <Dialog open={!!selectedLead} onOpenChange={(open) => !open && setSelectedLead(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5 text-primary" />
+              {selectedLead?.name} — Speed to Lead
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLead && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Lead Created</p>
+                  <p className="font-medium">{format(selectedLead.createdAt, "MMM d, yyyy p")}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">First Call</p>
+                  <p className="font-medium">{format(selectedLead.firstCallAt, "MMM d, yyyy p")}</p>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Response Time</p>
+                <p className={`text-2xl font-bold ${selectedLead.speedMinutes <= 5 ? "text-emerald-500" : selectedLead.speedMinutes <= 30 ? "text-yellow-500" : "text-red-500"}`}>
+                  {formatMinutes(selectedLead.speedMinutes)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedLead.speedMinutes <= 5 ? "⚡ Excellent — within 5 minutes" : selectedLead.speedMinutes <= 30 ? "⚠️ Acceptable — aim for under 5 min" : "🔴 Too slow — leads go cold after 30 min"}
+                </p>
+              </div>
+              {selectedLead.phone && (
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                  <p className="font-mono">{selectedLead.phone}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

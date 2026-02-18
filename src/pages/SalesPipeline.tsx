@@ -456,8 +456,8 @@ export default function SalesPipeline() {
         conversionRate={conversionRate}
       />
 
-      {/* Lead Funnel */}
-      <FunnelChart funnelData={funnelData} />
+      {/* Deal Pipeline Funnel */}
+      <FunnelChart funnelData={funnelData} deals={dealsData?.deals} />
 
       {/* Call Status Overview */}
       <CallStatusChart callRecords={callRecords} />

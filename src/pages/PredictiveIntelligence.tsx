@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -12,6 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -23,9 +30,13 @@ import {
   Users,
   Phone,
   MessageCircle,
+  ArrowUpDown,
+  Calendar,
+  Activity,
+  Shield,
 } from "lucide-react";
 import { usePredictions, type ClientPrediction } from "@/hooks/usePredictions";
-import { format } from "date-fns";
+import { toast } from "sonner";
 
 // ── KPI Card ──
 
@@ -84,10 +95,30 @@ function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
+// ── Sort types ──
+type SortField = "churn_score" | "days_since_last_session" | "revenue_at_risk";
+type SortDir = "asc" | "desc";
+
+// ── Churn row color ──
+function getChurnRowClass(score: number) {
+  if (score >= 70) return "bg-red-500/5 hover:bg-red-500/10";
+  if (score >= 40) return "bg-yellow-500/5 hover:bg-yellow-500/10";
+  return "hover:bg-muted/30";
+}
+
+function getChurnBadge(score: number) {
+  if (score >= 70) return <Badge variant="destructive" className="text-xs">Critical</Badge>;
+  if (score >= 40) return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-xs">Warning</Badge>;
+  return <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-xs">Healthy</Badge>;
+}
+
 // ── Main Page ──
 
 export default function PredictiveIntelligence() {
   const { predictions, forecast } = usePredictions();
+  const [selectedClient, setSelectedClient] = useState<ClientPrediction | null>(null);
+  const [sortField, setSortField] = useState<SortField>("churn_score");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   if (predictions.isLoading || forecast.isLoading) {
     return <PageSkeleton variant="dashboard" />;
@@ -102,6 +133,57 @@ export default function PredictiveIntelligence() {
   const highRisk = clients.filter((c) => c.churn_score > 70).length;
   const revenueAtRisk30 = fc?.at_risk_30d ?? 0;
   const pipeline90 = fc ? (fc.revenue_30d + fc.revenue_60d + fc.revenue_90d) : 0;
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === "desc" ? "asc" : "desc");
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  };
+
+  const sortedClients = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      let aVal: number, bVal: number;
+      switch (sortField) {
+        case "churn_score": aVal = a.churn_score; bVal = b.churn_score; break;
+        case "days_since_last_session": aVal = a.churn_factors.days_since_last_session; bVal = b.churn_factors.days_since_last_session; break;
+        case "revenue_at_risk": aVal = a.revenue_at_risk; bVal = b.revenue_at_risk; break;
+        default: aVal = 0; bVal = 0;
+      }
+      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+    });
+  }, [clients, sortField, sortDir]);
+
+  const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); toggleSort(field); }}
+      className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors duration-200"
+    >
+      {children}
+      <ArrowUpDown className={`h-3 w-3 ${sortField === field ? "text-primary" : "text-muted-foreground/50"}`} />
+    </button>
+  );
+
+  const handleRowClick = (client: ClientPrediction) => {
+    setSelectedClient(client);
+    toast.info(`Viewing churn details for ${client.client_name}`);
+  };
+
+  const getRecommendedAction = (c: ClientPrediction) => {
+    if (c.churn_score >= 70) {
+      if (c.churn_factors.days_since_last_session > 21) return "Urgent: Schedule a personal check-in call immediately";
+      if (c.churn_factors.future_booked === 0) return "Book a complimentary session to re-engage";
+      return "Assign to retention specialist for immediate outreach";
+    }
+    if (c.churn_score >= 40) {
+      if (c.churn_factors.decline_rate > 0.3) return "Review program fit — consider switching coach or modality";
+      if (c.churn_factors.cancel_rate > 0.2) return "Address scheduling issues — offer flexible time slots";
+      return "Send personalized progress update and milestone reminder";
+    }
+    return "Continue current engagement — monitor monthly";
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -166,18 +248,27 @@ export default function PredictiveIntelligence() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Client</TableHead>
-                  <TableHead>Churn Score</TableHead>
+                  <TableHead><SortButton field="churn_score">Churn Score</SortButton></TableHead>
                   <TableHead>Risk Factors</TableHead>
-                  <TableHead>Revenue at Risk</TableHead>
-                  <TableHead>Last Session</TableHead>
+                  <TableHead><SortButton field="revenue_at_risk">Revenue at Risk</SortButton></TableHead>
+                  <TableHead><SortButton field="days_since_last_session">Last Session</SortButton></TableHead>
                   <TableHead>Coach</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clients.map((c: ClientPrediction) => (
-                  <TableRow key={c.client_id}>
-                    <TableCell className="font-medium">{c.client_name}</TableCell>
+                {sortedClients.map((c: ClientPrediction) => (
+                  <TableRow
+                    key={c.client_id}
+                    className={`cursor-pointer transition-colors duration-200 ${getChurnRowClass(c.churn_score)}`}
+                    onClick={() => handleRowClick(c)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{c.client_name}</span>
+                        {getChurnBadge(c.churn_score)}
+                      </div>
+                    </TableCell>
                     <TableCell><ChurnBar score={c.churn_score} /></TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -206,15 +297,15 @@ export default function PredictiveIntelligence() {
                     </TableCell>
                     <TableCell className="text-sm">{c.churn_factors.coach ?? "—"}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         {c.churn_factors.phone && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 cursor-pointer" asChild>
                               <a href={`tel:${c.churn_factors.phone}`}>
                                 <Phone className="h-3.5 w-3.5" />
                               </a>
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 cursor-pointer" asChild>
                               <a
                                 href={`https://wa.me/${c.churn_factors.phone.replace(/[^0-9]/g, '')}`}
                                 target="_blank"
@@ -241,6 +332,119 @@ export default function PredictiveIntelligence() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Client Detail Dialog */}
+      <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-400" />
+              {selectedClient?.client_name} — Churn Detail
+            </DialogTitle>
+          </DialogHeader>
+          {selectedClient && (
+            <div className="space-y-4">
+              {/* Score & Badge */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Churn Score</p>
+                  <p className={`text-3xl font-bold ${selectedClient.churn_score >= 70 ? "text-red-500" : selectedClient.churn_score >= 40 ? "text-yellow-500" : "text-emerald-500"}`}>
+                    {selectedClient.churn_score}
+                  </p>
+                </div>
+                {getChurnBadge(selectedClient.churn_score)}
+              </div>
+
+              <ChurnBar score={selectedClient.churn_score} />
+
+              {/* Factors Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Calendar className="h-3.5 w-3.5" /> Days Since Last Session
+                  </div>
+                  <p className="text-lg font-bold">{selectedClient.churn_factors.days_since_last_session}d</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <DollarSign className="h-3.5 w-3.5" /> Revenue at Risk
+                  </div>
+                  <p className="text-lg font-bold text-red-400">{fmt(selectedClient.revenue_at_risk)}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Activity className="h-3.5 w-3.5" /> Sessions Ratio
+                  </div>
+                  <p className="text-lg font-bold">{(selectedClient.churn_factors.sessions_ratio * 100).toFixed(0)}%</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Calendar className="h-3.5 w-3.5" /> Future Booked
+                  </div>
+                  <p className="text-lg font-bold">{selectedClient.churn_factors.future_booked}</p>
+                </div>
+              </div>
+
+              {/* Risk Factors */}
+              <div>
+                <p className="text-sm font-medium mb-2">Risk Factors</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedClient.churn_factors.days_since_last_session > 14 && (
+                    <Badge variant="destructive" className="text-xs">{selectedClient.churn_factors.days_since_last_session}d inactive</Badge>
+                  )}
+                  {selectedClient.churn_factors.decline_rate > 0.3 && (
+                    <Badge variant="destructive" className="text-xs">Declining ({(selectedClient.churn_factors.decline_rate * 100).toFixed(0)}%)</Badge>
+                  )}
+                  {selectedClient.churn_factors.cancel_rate > 0.2 && (
+                    <Badge variant="destructive" className="text-xs">High cancels ({(selectedClient.churn_factors.cancel_rate * 100).toFixed(0)}%)</Badge>
+                  )}
+                  {selectedClient.churn_factors.future_booked === 0 && (
+                    <Badge variant="destructive" className="text-xs">No future bookings</Badge>
+                  )}
+                  {selectedClient.churn_factors.sessions_ratio < 0.2 && (
+                    <Badge variant="destructive" className="text-xs">Pack depleting</Badge>
+                  )}
+                  {selectedClient.churn_factors.remaining_sessions !== undefined && (
+                    <Badge variant="outline" className="text-xs">{selectedClient.churn_factors.remaining_sessions} sessions remaining</Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Predicted Churn Date */}
+              <div className="p-3 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <Calendar className="h-3.5 w-3.5" /> Predicted Churn Date
+                </div>
+                <p className="font-medium">{selectedClient.predicted_churn_date ? new Date(selectedClient.predicted_churn_date).toLocaleDateString() : "—"}</p>
+              </div>
+
+              {/* Recommended Action */}
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-center gap-1.5 text-xs text-primary mb-1">
+                  <Shield className="h-3.5 w-3.5" /> Recommended Action
+                </div>
+                <p className="text-sm font-medium">{getRecommendedAction(selectedClient)}</p>
+              </div>
+
+              {/* Contact Actions */}
+              {selectedClient.churn_factors.phone && (
+                <div className="flex gap-2">
+                  <Button className="flex-1 cursor-pointer" variant="outline" asChild>
+                    <a href={`tel:${selectedClient.churn_factors.phone}`}>
+                      <Phone className="h-4 w-4 mr-2" /> Call Client
+                    </a>
+                  </Button>
+                  <Button className="flex-1 cursor-pointer" variant="outline" asChild>
+                    <a href={`https://wa.me/${selectedClient.churn_factors.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

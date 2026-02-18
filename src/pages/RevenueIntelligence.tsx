@@ -86,37 +86,65 @@ export default function RevenueIntelligence() {
     todayActivity: realtimeTodayActivity
   } = useLiveData();
 
-  // Tab 1: Stripe Data - Wired to real response
+  // Tab 1: Stripe Data - Wired to real Stripe API response
+  const m = data?.metrics;
+  const totalRevAed = m?.totalRevenue ? (m.totalRevenue / 100) : 0;
+  const mrrAed = m?.mrr ? (m.mrr / 100) : 0;
+  const netRevAed = m?.netRevenue ? (m.netRevenue / 100) : 0;
+  const refundAed = m?.totalRefunded ? (m.totalRefunded / 100) : 0;
+  const payoutAed = m?.totalPayouts ? (m.totalPayouts / 100) : 0;
+  const churnRate = m?.canceledSubscriptions && m?.activeSubscriptions
+    ? Math.round((m.canceledSubscriptions / (m.activeSubscriptions + m.canceledSubscriptions)) * 100)
+    : 0;
+
   const stripeMetrics = [
     { 
-      label: "MRR", 
-      value: data?.metrics?.mrr ? `AED ${(data.metrics.mrr / 100).toLocaleString()}` : "No data — Stripe sync pending", 
+      label: "Total Revenue", 
+      value: m ? `AED ${totalRevAed.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "Loading...", 
       delta: { value: 0, type: "positive" as const }, 
       icon: DollarSign 
     },
     { 
-      label: "ARR", 
-      value: data?.metrics?.mrr ? `AED ${((data.metrics.mrr * 12) / 100).toLocaleString()}` : "No data — Stripe sync pending", 
+      label: "MRR", 
+      value: m ? `AED ${mrrAed.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "Loading...", 
       delta: { value: 0, type: "positive" as const }, 
       icon: TrendingUp 
     },
     { 
-      label: "Churn", 
-      value: data?.metrics?.churnRate ? `${data.metrics.churnRate}%` : "No data", 
-      delta: { value: 0, type: "positive" as const }, 
-      icon: AlertCircle 
+      label: "Net Revenue", 
+      value: m ? `AED ${netRevAed.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "Loading...", 
+      delta: { value: refundAed > 0 ? -Math.round((refundAed / totalRevAed) * 100) : 0, type: refundAed > 0 ? "negative" as const : "positive" as const }, 
+      icon: DollarSign 
     },
     { 
       label: "Active Subs", 
-      value: data?.metrics?.activeSubscriptions?.toString() || "No data", 
-      delta: { value: 0, type: "positive" as const }, 
+      value: m?.activeSubscriptions?.toString() || "0", 
+      delta: { value: -(m?.canceledSubscriptions || 0), type: (m?.canceledSubscriptions || 0) > 0 ? "negative" as const : "positive" as const }, 
       icon: Users 
     },
     { 
-      label: "Failed Pmt", 
-      value: data?.metrics?.failedPayments?.toString() || "0", 
-      delta: { value: 0, type: "positive" as const }, 
+      label: "Success Rate", 
+      value: m?.successRate ? `${m.successRate}%` : "0%", 
+      delta: { value: 0, type: m?.successRate && m.successRate >= 90 ? "positive" as const : "negative" as const }, 
+      icon: Activity 
+    },
+    { 
+      label: "Churn Rate", 
+      value: `${churnRate}%`, 
+      delta: { value: churnRate, type: churnRate > 10 ? "negative" as const : "positive" as const }, 
       icon: AlertCircle 
+    },
+    { 
+      label: "Failed Payments", 
+      value: m?.failedPaymentsCount?.toString() || "0", 
+      delta: { value: m?.failedPaymentsCount || 0, type: (m?.failedPaymentsCount || 0) > 0 ? "negative" as const : "positive" as const }, 
+      icon: AlertCircle 
+    },
+    { 
+      label: "Payouts", 
+      value: m ? `AED ${payoutAed.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "Loading...", 
+      delta: { value: 0, type: "positive" as const }, 
+      icon: DollarSign 
     },
   ];
 

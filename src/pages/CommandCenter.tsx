@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
@@ -57,6 +57,7 @@ import { useDailyOps } from "@/hooks/useDailyOps";
 type Period = "7" | "30" | "90";
 
 export default function CommandCenter() {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>("30");
   const [journeySearch, setJourneySearch] = useState("");
   const { data: dailyOps, isLoading: loadingDailyOps } = useDailyOps();
@@ -367,7 +368,7 @@ export default function CommandCenter() {
                     .map((r: Record<string, unknown>, i: number) => (
                       <TableRow
                         key={i}
-                        className="hover:bg-muted/30 transition-colors"
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
                       >
                         <TableCell className="font-medium max-w-[200px] truncate">
                           {String(r.campaign || "Unknown")}
@@ -453,7 +454,7 @@ export default function CommandCenter() {
                     </TableHeader>
                     <TableBody>
                       {adsetData.map((r: Record<string, unknown>, i: number) => (
-                        <TableRow key={i} className="hover:bg-muted/30 transition-colors">
+                        <TableRow key={i} className="hover:bg-muted/30 transition-colors cursor-pointer">
                           <TableCell className="text-sm max-w-[150px] truncate">{String(r.campaign_name || "—")}</TableCell>
                           <TableCell className="font-medium max-w-[180px] truncate">{String(r.adset_name || "Unknown")}</TableCell>
                           <TableCell className="text-right">{Number(r.spend || 0).toLocaleString()}</TableCell>
@@ -506,7 +507,7 @@ export default function CommandCenter() {
                     </TableHeader>
                     <TableBody>
                       {creativeData.map((r: Record<string, unknown>, i: number) => (
-                        <TableRow key={i} className="hover:bg-muted/30 transition-colors">
+                        <TableRow key={i} className="hover:bg-muted/30 transition-colors cursor-pointer">
                           <TableCell className="font-medium max-w-[200px] truncate">{String(r.ad_name || "Unknown")}</TableCell>
                           <TableCell className="text-sm max-w-[150px] truncate">{String(r.campaign_name || "—")}</TableCell>
                           <TableCell className="text-right">{Number(r.spend || 0).toLocaleString()}</TableCell>
