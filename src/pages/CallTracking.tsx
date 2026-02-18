@@ -2,9 +2,10 @@ import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Phone, PhoneIncoming, Clock, Star, Calendar, TrendingUp, 
-  Flame, Users, AlertTriangle 
+  Flame, Users, AlertTriangle, Trophy, PhoneMissed, UserX
 } from "lucide-react";
 import { CallCard } from "@/components/call-tracking/CallCard";
 import { CallFilters } from "@/components/call-tracking/CallFilters";
@@ -73,6 +74,33 @@ export default function CallTracking() {
     },
   });
 
+  // Fetch lost leads
+  const { data: lostLeads, isLoading: loadingLostLeads } = useDedupedQuery({
+    queryKey: ["lost-leads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lost_leads")
+        .select("*")
+        .order("lead_score", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch setter daily stats
+  const { data: setterStats, isLoading: loadingSetterStats } = useDedupedQuery({
+    queryKey: ["setter-daily-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("setter_daily_stats")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const isLoading = loadingCalls || loadingContacts || loadingLeads;
 
   // Create lookup maps for fast joining
@@ -122,6 +150,29 @@ export default function CallTracking() {
       };
     });
   }, [callRecords, contactsMap, leadsMap]);
+
+  // Enrich lost leads with contact names
+  const enrichedLostLeads = useMemo(() => {
+    if (!lostLeads) return [];
+    return lostLeads.map(lead => {
+      const contact = contactsMap.get(normalizePhone(lead.caller_number));
+      return {
+        ...lead,
+        contact_name: contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : null,
+      };
+    });
+  }, [lostLeads, contactsMap]);
+
+  // Get latest stats per setter for leaderboard
+  const setterLeaderboard = useMemo(() => {
+    if (!setterStats?.length) return [];
+    const latestByOwner = new Map<string, typeof setterStats[0]>();
+    for (const stat of setterStats) {
+      const key = stat.hubspot_owner_id || stat.owner_name;
+      if (!latestByOwner.has(key)) latestByOwner.set(key, stat);
+    }
+    return Array.from(latestByOwner.values()).sort((a, b) => (b.conversion_rate || 0) - (a.conversion_rate || 0));
+  }, [setterStats]);
 
   // Get unique owners and locations for filters
   const uniqueOwners = useMemo(() => {
@@ -334,42 +385,227 @@ export default function CallTracking() {
           </CardContent>
         </Card>
 
-        {/* Call Cards */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              Recent Calls
-            </h2>
-            <Badge variant="outline" className="font-normal">
-              {filteredCalls.length} calls
-            </Badge>
-          </div>
+        {/* Tabs: Calls / Lost Leads / Setter Leaderboard */}
+        <Tabs defaultValue="calls" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="calls" className="gap-2">
+              <Phone className="h-4 w-4" /> Calls
+              <Badge variant="secondary" className="ml-1">{filteredCalls.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="lost-leads" className="gap-2">
+              <UserX className="h-4 w-4" /> Lost Leads
+              {enrichedLostLeads.filter(l => l.status === 'new').length > 0 && (
+                <Badge variant="destructive" className="ml-1">{enrichedLostLeads.filter(l => l.status === 'new').length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="leaderboard" className="gap-2">
+              <Trophy className="h-4 w-4" /> Setter Leaderboard
+            </TabsTrigger>
+          </TabsList>
 
-          {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <CallCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : filteredCalls.length > 0 ? (
-            <div className="space-y-3">
-              {filteredCalls.map((call) => (
-                <CallCard key={call.id} call={call} />
-              ))}
-            </div>
-          ) : (
-            <Card className="py-12">
-              <div className="text-center text-muted-foreground">
-                <Phone className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>No call records found</p>
-                {Object.values(filters).some(v => v !== 'all') && (
-                  <p className="text-sm mt-1">Try adjusting your filters</p>
-                )}
+          {/* Calls Tab */}
+          <TabsContent value="calls">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Recent Calls
+                </h2>
+                <Badge variant="outline" className="font-normal">
+                  {filteredCalls.length} calls
+                </Badge>
               </div>
-            </Card>
-          )}
-        </div>
+
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <CallCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : filteredCalls.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredCalls.map((call) => (
+                    <CallCard key={call.id} call={call} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="py-12">
+                  <div className="text-center text-muted-foreground">
+                    <Phone className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No call records found</p>
+                    {Object.values(filters).some(v => v !== 'all') && (
+                      <p className="text-sm mt-1">Try adjusting your filters</p>
+                    )}
+                  </div>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Lost Leads Tab */}
+          <TabsContent value="lost-leads">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <UserX className="h-5 w-5 text-red-500" />
+                  Lost Leads — Uncontacted Missed Calls
+                </h2>
+              </div>
+
+              {loadingLostLeads ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <CallCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : enrichedLostLeads.length > 0 ? (
+                <div className="space-y-2">
+                  {enrichedLostLeads.map((lead) => (
+                    <Card key={lead.id} className={lead.status === 'new' ? 'border-red-500/30' : ''}>
+                      <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-full ${lead.lead_score >= 70 ? 'bg-red-100 text-red-600' : lead.lead_score >= 40 ? 'bg-orange-100 text-orange-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                              <PhoneMissed className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium">
+                                {lead.contact_name || lead.caller_number}
+                              </p>
+                              {lead.contact_name && (
+                                <p className="text-sm text-muted-foreground">{lead.caller_number}</p>
+                              )}
+                              <div className="flex gap-2 mt-1">
+                                {lead.lifecycle_stage && (
+                                  <Badge variant="outline" className="text-xs">{lead.lifecycle_stage}</Badge>
+                                )}
+                                <Badge variant={lead.status === 'new' ? 'destructive' : lead.status === 'contacted' ? 'default' : 'secondary'} className="text-xs">
+                                  {lead.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Score</span>
+                              <span className={`text-lg font-bold ${lead.lead_score >= 70 ? 'text-red-600' : lead.lead_score >= 40 ? 'text-orange-500' : 'text-yellow-500'}`}>
+                                {Math.round(lead.lead_score)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {lead.missed_call_count} missed call{lead.missed_call_count !== 1 ? 's' : ''}
+                            </p>
+                            {lead.assigned_owner && (
+                              <p className="text-xs text-muted-foreground">Owner: {lead.assigned_owner}</p>
+                            )}
+                            {lead.last_missed_at && (
+                              <p className="text-xs text-muted-foreground">
+                                Last: {new Date(lead.last_missed_at).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="py-12">
+                  <div className="text-center text-muted-foreground">
+                    <PhoneMissed className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No lost leads detected</p>
+                    <p className="text-sm mt-1">Run the lost-lead-detector to scan for missed calls</p>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Setter Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  Setter Performance Leaderboard
+                </h2>
+              </div>
+
+              {loadingSetterStats ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <CallCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : setterLeaderboard.length > 0 ? (
+                <div className="grid gap-3">
+                  {setterLeaderboard.map((setter, idx) => (
+                    <Card key={setter.id} className={idx === 0 ? 'border-yellow-500/50' : ''}>
+                      <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                              idx === 0 ? 'bg-yellow-100 text-yellow-700' :
+                              idx === 1 ? 'bg-gray-100 text-gray-600' :
+                              idx === 2 ? 'bg-orange-100 text-orange-700' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium">{setter.owner_name || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground">{setter.date}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-6 text-center">
+                            <div>
+                              <p className="text-lg font-bold">{setter.total_calls}</p>
+                              <p className="text-xs text-muted-foreground">Calls</p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-bold text-green-600">
+                                {setter.total_calls > 0 ? Math.round((setter.answered_calls / setter.total_calls) * 100) : 0}%
+                              </p>
+                              <p className="text-xs text-muted-foreground">Answer Rate</p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-bold">
+                                {Math.floor((setter.avg_duration || 0) / 60)}:{String(Math.round((setter.avg_duration || 0) % 60)).padStart(2, '0')}
+                              </p>
+                              <p className="text-xs text-muted-foreground">Avg Duration</p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-bold text-purple-600">{setter.appointments_set}</p>
+                              <p className="text-xs text-muted-foreground">Appointments</p>
+                            </div>
+                            <div>
+                              <p className={`text-lg font-bold ${(setter.conversion_rate || 0) >= 20 ? 'text-green-600' : (setter.conversion_rate || 0) >= 10 ? 'text-yellow-600' : 'text-red-500'}`}>
+                                {setter.conversion_rate || 0}%
+                              </p>
+                              <p className="text-xs text-muted-foreground">Conversion</p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-bold text-red-500">{setter.lost_lead_count}</p>
+                              <p className="text-xs text-muted-foreground">Lost Leads</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="py-12">
+                  <div className="text-center text-muted-foreground">
+                    <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No setter performance data yet</p>
+                    <p className="text-sm mt-1">Run the setter-performance function to generate stats</p>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
