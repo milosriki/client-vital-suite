@@ -153,16 +153,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Deduplicate by client_id (take highest churn score) ──
+    const deduped = new Map<string, typeof predictions[0]>();
+    for (const p of predictions) {
+      const existing = deduped.get(p.client_id);
+      if (!existing || p.churn_score > existing.churn_score) {
+        deduped.set(p.client_id, p);
+      }
+    }
+    const uniquePredictions = Array.from(deduped.values());
+
     // ── Upsert predictions ──
-    if (predictions.length > 0) {
+    if (uniquePredictions.length > 0) {
       const { error: upsertErr } = await supabase
         .from("client_predictions" as never)
-        .upsert(predictions as never, { onConflict: "client_id" });
+        .upsert(uniquePredictions as never, { onConflict: "client_id" });
       if (upsertErr) throw upsertErr;
     }
 
     return new Response(
-      JSON.stringify({ ok: true, clients_scored: predictions.length }),
+      JSON.stringify({ ok: true, clients_scored: uniquePredictions.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
