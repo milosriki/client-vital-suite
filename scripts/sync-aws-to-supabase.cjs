@@ -153,7 +153,8 @@ async function main() {
     LEFT JOIN last_session ls ON ls.id_client = p.id_client AND ls.rn = 1
     LEFT JOIN weekly_rate wr ON wr.id_client = p.id_client
     LEFT JOIN future_booked fb ON fb.id_client = p.id_client
-    WHERE p.remainingsessions >= 0
+    WHERE p.remainingsessions > 0
+      AND (p.expiry_date_utc IS NULL OR p.expiry_date_utc >= CURRENT_DATE)
     ORDER BY p.remainingsessions ASC, p.amounttotal DESC
   `);
   console.log(`  Found: ${packages.rows.length} packages`);
@@ -278,14 +279,23 @@ async function main() {
   }
 
   // Critical packages
-  const critical = packages.rows.filter(r => r.depletion_priority === 'CRITICAL' && r.last_session_date && (new Date() - new Date(r.last_session_date)) / 86400000 < 60);
-  const high = packages.rows.filter(r => r.depletion_priority === 'HIGH' && r.last_session_date && (new Date() - new Date(r.last_session_date)) / 86400000 < 60);
+  // Only count active clients: non-expired packages + trained in last 60 days
+  const isActive = (r) => r.last_session_date && (new Date() - new Date(r.last_session_date)) / 86400000 < 60;
+  const critical = packages.rows.filter(r => r.depletion_priority === 'CRITICAL' && isActive(r));
+  const high = packages.rows.filter(r => r.depletion_priority === 'HIGH' && isActive(r));
+  // Deduplicate by client name (some clients have multiple packages)
+  const dedup = (arr) => {
+    const seen = new Set();
+    return arr.filter(r => { const k = r.client_name; if (seen.has(k)) return false; seen.add(k); return true; });
+  };
+  const criticalUnique = dedup(critical);
+  const highUnique = dedup(high);
   
-  console.log(`\n🔴 PACKAGE ALERTS:`);
-  console.log(`  CRITICAL (1 left, active): ${critical.length} clients`);
-  console.log(`  HIGH (2-3 left, active): ${high.length} clients`);
+  console.log(`\n🔴 PACKAGE ALERTS (non-expired, trained last 60d, deduplicated):`);
+  console.log(`  CRITICAL (1 left): ${criticalUnique.length} clients`);
+  console.log(`  HIGH (2-3 left): ${highUnique.length} clients`);
   
-  for (const p of critical.slice(0, 15)) {
+  for (const p of criticalUnique.slice(0, 15)) {
     const futureStr = p.future_booked > 0 ? `${p.future_booked} booked` : '⚠️ NONE BOOKED';
     console.log(`  🔴 ${p.client_name} | ${p.client_phone || '-'} | ${p.remaining_sessions} left of ${p.pack_size} | Coach: ${p.last_coach} | ${p.sessions_per_week}x/wk | Future: ${futureStr}`);
   }
