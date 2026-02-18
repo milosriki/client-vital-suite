@@ -526,7 +526,13 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
     const lastMsg = history[history.length - 1];
     const result = await chat.sendMessage(lastMsg.parts[0].text);
     const response = await result.response;
-    const text = response.text();
+    let text = "";
+    try {
+      text = response.text();
+    } catch {
+      // response.text() throws when Gemini returns only function calls with no text
+      text = "";
+    }
 
     const latencyMs = Date.now() - startTime;
 

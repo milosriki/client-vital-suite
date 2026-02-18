@@ -298,156 +298,71 @@ async function buildBusinessContext(supabase: any) {
     calibration: [],
   };
 
-  // 1. Client Health Summary
-  const { data: healthData } = await supabase
-    .from("client_health_scores")
-    .select("health_zone, health_score, assigned_coach");
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-  if (healthData) {
+  // Run ALL queries in parallel (was sequential — saved ~3-4s)
+  const [healthRes, leadRes, goalsRes, calibRes, pendingRes, treasuryRes] = await Promise.all([
+    supabase.from("client_health_scores").select("health_zone, health_score"),
+    supabase.from("contacts").select("lifecycle_stage, lead_status").gte("created_at", thirtyDaysAgo),
+    supabase.from("business_goals").select("goal_name, metric_name, current_value, target_value, baseline_value, deadline").eq("status", "active"),
+    supabase.from("business_calibration").select("scenario_description, ai_recommendation, your_decision, was_ai_correct").order("learning_weight", { ascending: false }).limit(5),
+    supabase.from("prepared_actions").select("risk_level").eq("status", "prepared"),
+    supabase.from("stripe_outbound_transfers").select("amount, status").gte("created_at", twelveMonthsAgo.toISOString()).limit(50),
+  ]);
+
+  // Process health data
+  if (healthRes.data) {
     const zones = { green: 0, yellow: 0, red: 0 };
     let totalScore = 0;
-    healthData.forEach((c: any) => {
+    healthRes.data.forEach((c: any) => {
       zones[c.health_zone as keyof typeof zones]++;
       totalScore += c.health_score || 0;
     });
     context.metrics.clientHealth = {
-      total: healthData.length,
-      green: zones.green,
-      yellow: zones.yellow,
-      red: zones.red,
-      avgScore: (totalScore / healthData.length).toFixed(1),
+      total: healthRes.data.length,
+      ...zones,
+      avgScore: (totalScore / healthRes.data.length).toFixed(1),
     };
   }
 
-  // 2. Lead Pipeline (using unified schema - contacts table)
-  const { data: leadData } = await supabase
-    .from("contacts")
-    .select("lifecycle_stage, lead_status, created_at")
-    .gte(
-      "created_at",
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    );
-
-  if (leadData) {
-    const hotLeads = leadData.filter(
-      (l: any) =>
-        l.lifecycle_stage === "marketingqualifiedlead" ||
-        l.lifecycle_stage === "salesqualifiedlead",
-    ).length;
-    const warmLeads = leadData.filter(
-      (l: any) => l.lifecycle_stage === "lead",
-    ).length;
-    const coldLeads = leadData.filter(
-      (l: any) => l.lead_status === "closed" || l.lead_status === "lost",
-    ).length;
-    context.metrics.leads = {
-      total30Days: leadData.length,
-      hot: hotLeads,
-      warm: warmLeads,
-      cold: coldLeads,
-    };
+  // Process leads
+  if (leadRes.data) {
+    const hot = leadRes.data.filter((l: any) => l.lifecycle_stage === "marketingqualifiedlead" || l.lifecycle_stage === "salesqualifiedlead").length;
+    const warm = leadRes.data.filter((l: any) => l.lifecycle_stage === "lead").length;
+    context.metrics.leads = { total30Days: leadRes.data.length, hot, warm, cold: leadRes.data.length - hot - warm };
   }
 
-  // 3. Active Goals
-  const { data: goalsData } = await supabase
-    .from("business_goals")
-    .select("goal_name, metric_name, current_value, target_value, baseline_value, deadline")
-    .eq("status", "active");
-
-  if (goalsData) {
-    context.goals = goalsData.map((g: any) => ({
-      name: g.goal_name,
-      metric: g.metric_name,
-      current: g.current_value,
-      target: g.target_value,
-      progress: (
-        ((g.current_value - g.baseline_value) /
-          (g.target_value - g.baseline_value)) *
-        100
-      ).toFixed(1),
-      deadline: g.deadline,
+  // Process goals
+  if (goalsRes.data) {
+    context.goals = goalsRes.data.map((g: any) => ({
+      name: g.goal_name, current: g.current_value, target: g.target_value,
+      progress: (((g.current_value - g.baseline_value) / (g.target_value - g.baseline_value)) * 100).toFixed(1),
     }));
   }
 
-  // 4. Calibration Examples (CEO's past decisions)
-  const { data: calibrationData } = await supabase
-    .from("business_calibration")
-    .select(
-      "scenario_type, scenario_description, ai_recommendation, your_decision, was_ai_correct, learning_weight",
-    )
-    .order("learning_weight", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  if (calibrationData) {
-    context.calibration = calibrationData.map((c: any) => ({
-      scenario: c.scenario_description,
-      aiSuggested: c.ai_recommendation,
-      ceoDecided: c.your_decision,
-      aiWasCorrect: c.was_ai_correct,
+  // Process calibration (trimmed to 5)
+  if (calibRes.data) {
+    context.calibration = calibRes.data.map((c: any) => ({
+      scenario: c.scenario_description, ceoDecided: c.your_decision, aiWasCorrect: c.was_ai_correct,
     }));
   }
 
-  // 5. Pending Actions Count
-  const { data: pendingData } = await supabase
-    .from("prepared_actions")
-    .select("risk_level")
-    .eq("status", "prepared");
-
-  if (pendingData) {
+  // Process pending actions
+  if (pendingRes.data) {
     context.metrics.pendingActions = {
-      total: pendingData.length,
-      critical: pendingData.filter((a: any) => a.risk_level === "critical")
-        .length,
-      high: pendingData.filter((a: any) => a.risk_level === "high").length,
+      total: pendingRes.data.length,
+      critical: pendingRes.data.filter((a: any) => a.risk_level === "critical").length,
     };
   }
 
-  // 6. Treasury Outbound Transfers (last 12 months)
-  const twelveMonthsAgo = new Date();
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-
-  const { data: treasuryData } = await supabase
-    .from("stripe_outbound_transfers")
-    .select("stripe_id, amount, currency, status, created_at")
-    .gte("created_at", twelveMonthsAgo.toISOString())
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  if (treasuryData && treasuryData.length > 0) {
-    const totalAmount = treasuryData.reduce(
-      (sum: number, t: any) => sum + (t.amount || 0),
-      0,
-    );
-    const posted = treasuryData.filter(
-      (t: any) => t.status === "posted",
-    ).length;
-    const processing = treasuryData.filter(
-      (t: any) => t.status === "processing",
-    ).length;
-    const failed = treasuryData.filter(
-      (t: any) => t.status === "failed" || t.status === "returned",
-    ).length;
-
-    context.metrics.treasury = {
-      totalTransfers12Months: treasuryData.length,
-      totalAmount: totalAmount,
-      posted,
-      processing,
-      failed,
-      recentTransfers: treasuryData.slice(0, 5).map((t: any) => ({
-        id: t.stripe_id,
-        amount: t.amount,
-        currency: t.currency,
-        status: t.status,
-        created: t.created_at,
-      })),
-    };
-  } else {
-    context.metrics.treasury = {
-      totalTransfers12Months: 0,
-      message: "No treasury transfers found",
-    };
+  // Process treasury
+  if (treasuryRes.data && treasuryRes.data.length > 0) {
+    const totalAmount = treasuryRes.data.reduce((s: number, t: any) => s + (t.amount || 0), 0);
+    const posted = treasuryRes.data.filter((t: any) => t.status === "posted").length;
+    const failed = treasuryRes.data.filter((t: any) => t.status === "failed" || t.status === "returned").length;
+    context.metrics.treasury = { totalTransfers: treasuryRes.data.length, totalAmount, posted, failed };
   }
 
   return context;
@@ -661,35 +576,72 @@ async function generateWithAI(
   try {
     const constitutionalFraming = getConstitutionalSystemMessage();
 
-    // RAG: Recall relevant memories before responding
+    // RAG: Recall relevant memories (with 3s timeout to avoid blocking)
     let brainContext = "";
     try {
-      brainContext = await brain.buildContext(query, {
+      const brainPromise = brain.buildContext(query, {
         includeMemories: true,
         includeFacts: true,
-        includePatterns: true,
-        memoryLimit: 3,
+        includePatterns: false,
+        memoryLimit: 2,
       });
+      const timeoutPromise = new Promise<string>((_, reject) => setTimeout(() => reject("brain_timeout"), 3000));
+      brainContext = await Promise.race([brainPromise, timeoutPromise]) as string;
     } catch (e) {
-      console.warn("[ATLAS] Brain recall failed (non-fatal):", e);
+      console.warn("[ATLAS] Brain recall skipped:", e);
     }
 
-    const systemPrompt = `${constitutionalFraming}\n\n${persona.systemPrompt}\n\n${ANTI_HALLUCINATION_RULES}\n\n${UNIFIED_SCHEMA_PROMPT}\n\n${AGENT_ALIGNMENT_PROMPT}\n\n${LEAD_LIFECYCLE_PROMPT}\n\n${ULTIMATE_TRUTH_PROMPT}\n\n${ROI_MANAGERIAL_PROMPT}\n\n${HUBSPOT_WORKFLOWS_PROMPT}\n\nBUSINESS CONTEXT:\n${JSON.stringify(context, null, 2)}${brainContext ? `\n\n## RECALLED KNOWLEDGE:\n${brainContext}` : ""}`;
+    // Decide if we need tools or can answer from context alone
+    const q = query.toLowerCase();
+    const needsTools = q.includes("specific client") || q.includes("lead ") || q.includes("stripe") || 
+      q.includes("campaign") || q.includes("coach ") || q.includes("call ") || q.includes("search") ||
+      q.includes("find ") || q.includes("look up") || q.includes("detail");
 
-    // Filter tools appropriate for this intelligence persona
-    const intelligenceTools = tools.filter((t) =>
+    // Build lean system prompt — size matters for Gemini latency
+    let systemPrompt: string;
+
+    if (!needsTools) {
+      // FAST PATH: minimal prompt for context-answerable queries (~1K tokens vs ~4K)
+      systemPrompt = `You are ATLAS, the CEO intelligence advisor for PTD Fitness Dubai. Be direct, use specific numbers, format as INSIGHT → EVIDENCE → ACTION. All currency in AED.
+
+LIVE DATA:
+${JSON.stringify(context)}
+${brainContext ? `\nMEMORY:\n${brainContext}` : ""}
+
+Answer using ONLY the data above. Cite sources. If data is missing, say so.`;
+    } else {
+      // TOOL PATH: full prompt for complex queries
+      const relevantPrompts: string[] = [persona.systemPrompt, ANTI_HALLUCINATION_RULES];
+      
+      if (persona.name === "ATLAS" || persona.name === "SHERLOCK") {
+        relevantPrompts.push(UNIFIED_SCHEMA_PROMPT);
+      }
+      if (persona.name === "HUNTER") {
+        relevantPrompts.push(LEAD_LIFECYCLE_PROMPT, HUBSPOT_WORKFLOWS_PROMPT);
+      }
+      if (persona.name === "REVENUE") {
+        relevantPrompts.push(ROI_MANAGERIAL_PROMPT);
+      }
+
+      relevantPrompts.push(`LIVE DATA:\n${JSON.stringify(context)}`);
+      relevantPrompts.push(`Use LIVE DATA first. Only call tools for data not already provided.`);
+      if (brainContext) relevantPrompts.push(`MEMORY:\n${brainContext}`);
+
+      systemPrompt = relevantPrompts.join("\n\n");
+    }
+
+    // Filter tools appropriate for this intelligence persona (only if needed)
+    const intelligenceTools = needsTools ? tools.filter((t) =>
       [
         "intelligence_control",
         "client_control",
         "revenue_intelligence",
         "command_center_control",
         "universal_search",
-        "meta_creative_analysis",
         "marketing_truth_engine",
         "stripe_control",
-        "callgear_control",
       ].includes(t.name),
-    );
+    ) : [];
 
     const messages: {
       role: "system" | "user" | "assistant";
@@ -699,13 +651,17 @@ async function generateWithAI(
       { role: "user", content: query },
     ];
 
-    const MAX_LOOPS = 5;
-    const MAX_TOOL_RESULT_CHARS = 3000;
+    const MAX_LOOPS = 3;
+    const MAX_TOOL_RESULT_CHARS = 2000;
 
+    // Force single model (no cascade) + reduced output for speed
     let currentResponse = await unifiedAI.chat(messages, {
-      max_tokens: 4000,
+      max_tokens: 2000,
       temperature: 0.7,
       tools: intelligenceTools,
+      model: "gemini-2.0-flash",
+      agentType: "atlas",
+      functionName: "ptd-ultimate-intelligence",
     });
 
     let loopCount = 0;
@@ -743,13 +699,16 @@ async function generateWithAI(
       });
       messages.push({
         role: "user",
-        content: `Tool results (Loop ${loopCount}):\n\n${toolResults.join("\n\n---\n\n")}\n\nUse these results for an accurate, data-driven answer.`,
+        content: `Tool results:\n\n${toolResults.join("\n\n---\n\n")}\n\nNow answer the original question using ONLY these results. Do NOT call more tools. Give specific numbers.`,
       });
 
       currentResponse = await unifiedAI.chat(messages, {
-        max_tokens: 4000,
+        max_tokens: 2000,
         temperature: 0.7,
         tools: intelligenceTools,
+        model: "gemini-2.0-flash",
+        agentType: "atlas",
+        functionName: "ptd-ultimate-intelligence",
       });
     }
 
