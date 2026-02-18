@@ -460,6 +460,26 @@ export const tools: ToolDefinition[] = [
       required: ["action"],
     },
   },
+  // CAPACITY CHECK — Lisa uses this before booking
+  {
+    name: "check_capacity",
+    description:
+      "Check coach capacity for a zone/segment before booking. Returns capacity %, available slots, and whether the segment is near-full (>85%). Use before confirming any assessment booking.",
+    input_schema: {
+      type: "object",
+      properties: {
+        zone: {
+          type: "string",
+          description: "Area/zone to check capacity for (e.g. 'Marina', 'Downtown', 'Abu Dhabi'). If omitted, returns all zones.",
+        },
+        coach_name: {
+          type: "string",
+          description: "Optional: check specific coach capacity",
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // WhatsApp Safe Tools
@@ -470,4 +490,5 @@ export const LISA_SAFE_TOOLS = new Set([
   "sales_flow_control", // Essential for calendar checks
   "lead_control", // Essential for checking her own score of the lead
   "get_success_stories", // Social Proof
+  "check_capacity", // Capacity awareness before booking
 ]);

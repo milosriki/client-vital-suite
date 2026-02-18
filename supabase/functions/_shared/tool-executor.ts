@@ -124,6 +124,11 @@ export async function executeSharedTool(
       return await executeErrorTools(supabase, toolName, input);
     }
 
+    // 12b. Capacity Check (Lisa booking awareness)
+    if (toolName === "check_capacity") {
+      return await executeCapacityCheck(supabase, input);
+    }
+
     // 13. Command Center Tools
     if (["command_center_control"].includes(toolName)) {
       return await executeCommandCenterTools(supabase, toolName, input);
@@ -380,4 +385,56 @@ async function executeUniversalSearch(supabase: any, input: any) {
   };
 
   return JSON.stringify(result, null, 2);
+}
+
+// ============= CAPACITY CHECK (Lisa Booking Awareness) =============
+async function executeCapacityCheck(supabase: any, input: any): Promise<string> {
+  const { zone, coach_name } = input || {};
+
+  try {
+    // Query segment capacity hud view
+    let query = supabase.from("view_segment_capacity_hud").select("*");
+    if (zone) {
+      query = query.ilike("segment_zone", `%${zone}%`);
+    }
+    if (coach_name) {
+      query = query.ilike("coach_name", `%${coach_name}%`);
+    }
+    const { data: segments, error: segErr } = await query.limit(20);
+
+    if (segErr) {
+      console.error("Capacity check error:", segErr);
+      // Fallback to capacity_vs_spend view
+      const { data: fallback } = await supabase
+        .from("view_capacity_vs_spend")
+        .select("*")
+        .limit(10);
+      return JSON.stringify({
+        status: "fallback",
+        message: "Used capacity vs spend view",
+        data: fallback || [],
+      });
+    }
+
+    // Determine near-full segments (>85%)
+    const results = (segments || []).map((s: any) => ({
+      ...s,
+      near_full: (s.utilization_pct || s.capacity_pct || 0) > 85,
+    }));
+
+    const nearFullZones = results.filter((r: any) => r.near_full);
+
+    return JSON.stringify({
+      status: "ok",
+      total_segments: results.length,
+      near_full_count: nearFullZones.length,
+      segments: results,
+      warning: nearFullZones.length > 0
+        ? `⚠️ ${nearFullZones.length} zone(s) above 85% capacity. Consider alternative zones or waitlist.`
+        : "✅ All checked zones have availability.",
+    });
+  } catch (e) {
+    console.error("Capacity check failed:", e);
+    return JSON.stringify({ status: "error", message: String(e) });
+  }
 }
