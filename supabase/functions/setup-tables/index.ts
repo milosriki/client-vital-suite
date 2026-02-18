@@ -59,8 +59,10 @@ Deno.serve(async (req) => {
     await sql`ALTER TABLE client_packages_live ENABLE ROW LEVEL SECURITY`;
     results.push("RLS enabled on client_packages_live");
 
-    await sql.unsafe(`CREATE POLICY IF NOT EXISTS "anon_read_cpl" ON client_packages_live FOR SELECT TO anon USING (true)`).catch(() => {});
-    await sql.unsafe(`CREATE POLICY IF NOT EXISTS "service_write_cpl" ON client_packages_live FOR ALL TO service_role USING (true)`).catch(() => {});
+    await sql.unsafe(`DROP POLICY IF EXISTS "anon_read_cpl" ON client_packages_live`).catch(() => {});
+    await sql.unsafe(`CREATE POLICY "anon_read_cpl" ON client_packages_live FOR SELECT TO anon USING (true)`);
+    await sql.unsafe(`DROP POLICY IF EXISTS "service_write_cpl" ON client_packages_live`).catch(() => {});
+    await sql.unsafe(`CREATE POLICY "service_write_cpl" ON client_packages_live FOR ALL TO service_role USING (true)`);
     results.push("Policies created on client_packages_live");
 
     await sql`
@@ -84,8 +86,10 @@ Deno.serve(async (req) => {
     results.push("training_sessions_live created");
 
     await sql`ALTER TABLE training_sessions_live ENABLE ROW LEVEL SECURITY`;
-    await sql.unsafe(`CREATE POLICY IF NOT EXISTS "anon_read_tsl" ON training_sessions_live FOR SELECT TO anon USING (true)`).catch(() => {});
-    await sql.unsafe(`CREATE POLICY IF NOT EXISTS "service_write_tsl" ON training_sessions_live FOR ALL TO service_role USING (true)`).catch(() => {});
+    await sql.unsafe(`DROP POLICY IF EXISTS "anon_read_tsl" ON training_sessions_live`).catch(() => {});
+    await sql.unsafe(`CREATE POLICY "anon_read_tsl" ON training_sessions_live FOR SELECT TO anon USING (true)`);
+    await sql.unsafe(`DROP POLICY IF EXISTS "service_write_tsl" ON training_sessions_live`).catch(() => {});
+    await sql.unsafe(`CREATE POLICY "service_write_tsl" ON training_sessions_live FOR ALL TO service_role USING (true)`);
     results.push("training_sessions_live + policies created");
 
     // Indexes

@@ -112,6 +112,7 @@ export const Navigation = () => {
       { path: "/global-brain", label: "AI Brain", icon: Brain },
       { path: "/ai-advisor", label: "AI Advisor", icon: BrainCircuit },
       { path: "/daily-ops", label: "Daily Ops", icon: Activity },
+      { path: "/client-activity", label: "Client Activity", icon: Users },
     ],
     MORE: [
       { path: "/sales-tracker", label: "Sales Tracker", icon: Target },
