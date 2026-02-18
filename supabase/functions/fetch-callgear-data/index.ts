@@ -211,6 +211,32 @@ async function syncCallToHubSpot(
   return data.id;
 }
 
+function normalizeUAEPhone(phone: string): string {
+  if (!phone) return '';
+  let cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  if (cleaned.startsWith('00')) cleaned = '+' + cleaned.substring(2);
+  if (cleaned.startsWith('0') && !cleaned.startsWith('00')) cleaned = '+971' + cleaned.substring(1);
+  if (!cleaned.startsWith('+')) cleaned = '+' + cleaned;
+  return cleaned;
+}
+
+function parsePtdOutcome(tags: any[], isLost: boolean, finishReason: string): string {
+  if (tags && Array.isArray(tags) && tags.length > 0) {
+    const tagStr = tags.map((t: any) => (typeof t === 'string' ? t : t.name || t.tag_name || '')).join(' ').toLowerCase();
+    if (tagStr.includes('not processed')) return 'Not Processed';
+    if (tagStr.includes('processed')) return 'Processed';
+    if (tagStr.includes('not_interested') || tagStr.includes('not interested')) return 'Not Interested';
+    if (tagStr.includes('interested')) return 'Interested';
+    if (tagStr.includes('booked') || tagStr.includes('appointment')) return 'Assessment Booked';
+    if (tagStr.includes('callback') || tagStr.includes('call back')) return 'Callback Requested';
+    if (tagStr.includes('wrong')) return 'Wrong Number';
+  }
+  if (isLost) return 'Lost Call';
+  const fr = (finishReason || '').toLowerCase();
+  if (fr === 'answered' || fr === 'completed') return 'Completed - No Tag';
+  return 'Unknown';
+}
+
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {
@@ -314,42 +340,52 @@ serve(async (req) => {
     // Fetch staff mapping from Supabase
     const { data: staffData } = await supabase
       .from("staff")
-      .select("full_name, hubspot_owner_id")
+      .select("name, hubspot_owner_id")
       .not("hubspot_owner_id", "is", null);
 
-    // Employee Mapping Configuration
+    // Employee Mapping Configuration — complete HubSpot owner IDs
     const OWNER_MAPPING: Record<string, string> = {
-      Yehia: "78722672",
-      James: "80616467",
-      Mazen: "82655976",
-      Matthew: "452974662",
-      Tea: "48899890",
-      Milos: "48877837",
+      "Yehia": "78722672",
+      "James": "80616467",
+      "Mazen": "82655976",
+      "Matthew": "452974662",
+      "Tea": "48899890",
+      "Milos": "48877837",
+      "Marko Antic": "49635184",
+      "Marko Katanic": "83968361",
+      "Marko Savicevic": "527299598",
+      "Philips": "85674007",
+      "Sanja": "79521059",
+      "Rhanilyn": "78112417",
+      "Anil": "77782374",
+      "Rebecca": "87154383",
+      "Ashal": "87925091",
+      "Marija": "498087079",
+      "Andre": "81100166",
+      "Nevena": "48899839",
+      "Filip": "51592904",
     };
 
     // Merge database staff into mapping
     if (staffData) {
-      staffData.forEach((staff) => {
-        if (staff.full_name && staff.hubspot_owner_id) {
-          // Map first name
-          const firstName = staff.full_name.split(" ")[0];
+      staffData.forEach((staff: any) => {
+        const staffName = staff.name;
+        if (staffName && staff.hubspot_owner_id) {
+          const firstName = staffName.split(" ")[0];
           if (firstName) {
             OWNER_MAPPING[firstName] = staff.hubspot_owner_id;
           }
-          // Map full name
-          OWNER_MAPPING[staff.full_name] = staff.hubspot_owner_id;
+          OWNER_MAPPING[staffName] = staff.hubspot_owner_id;
         }
       });
     }
 
-    const getHubSpotOwnerId = (employees: any): string | null => {
-      if (!employees) return null;
+    const getHubSpotOwnerId = (employees: any): { ownerId: string | null; ownerName: string | null } => {
+      if (!employees) return { ownerId: null, ownerName: null };
 
-      // Handle array of employees (CallGear usually returns array)
       const employeeList = Array.isArray(employees) ? employees : [employees];
 
       for (const emp of employeeList) {
-        // Check for name property or string
         const name =
           typeof emp === "string"
             ? emp
@@ -357,17 +393,33 @@ serve(async (req) => {
 
         if (!name) continue;
 
-        // Check for exact or partial match
+        const nameLower = name.toLowerCase();
+
+        // Priority 1: Full-name exact match
         for (const [key, id] of Object.entries(OWNER_MAPPING)) {
-          if (name.toLowerCase().includes(key.toLowerCase())) {
-            return id;
+          if (key.includes(" ") && nameLower === key.toLowerCase()) {
+            return { ownerId: id, ownerName: key };
+          }
+        }
+
+        // Priority 2: Full-name contains match (for "Marko Antic" in "Marko Antic - Sales")
+        for (const [key, id] of Object.entries(OWNER_MAPPING)) {
+          if (key.includes(" ") && nameLower.includes(key.toLowerCase())) {
+            return { ownerId: id, ownerName: key };
+          }
+        }
+
+        // Priority 3: First-name partial match (skip multi-word keys to avoid "Marko" matching wrong Marko)
+        for (const [key, id] of Object.entries(OWNER_MAPPING)) {
+          if (!key.includes(" ") && nameLower.includes(key.toLowerCase())) {
+            return { ownerId: id, ownerName: key };
           }
         }
       }
-      return null;
+      return { ownerId: null, ownerName: null };
     };
 
-    const calls = data.result?.calls || [];
+    const calls = data.result?.data || data.result?.calls || [];
     console.log(`Received ${calls.length} calls from CallGear`);
 
     // Map CallGear data to call_records schema and upsert
@@ -375,14 +427,17 @@ serve(async (req) => {
       const isLost = call.is_lost === true || call.is_lost === 1;
       const talkDuration = call.talk_duration || 0;
       const totalDuration = call.total_duration || talkDuration;
-      const ownerId = getHubSpotOwnerId(call.employees);
+      const { ownerId, ownerName } = getHubSpotOwnerId(call.employees);
+      const rawPhone = call.contact_phone_number || "unknown";
+      const callerNumber = rawPhone !== "unknown" ? normalizeUAEPhone(rawPhone) : "unknown";
+      const ptdOutcome = parsePtdOutcome(call.tags, isLost, call.finish_reason);
 
       return {
         provider_call_id: call.id?.toString() || null,
         call_status: mapCallStatus(call.finish_reason, isLost),
         call_direction: call.direction === "in" ? "inbound" : "outbound",
         call_outcome: mapCallOutcome(call.finish_reason, isLost),
-        caller_number: call.contact_phone_number || "unknown",
+        caller_number: callerNumber,
         started_at: call.start_time || null,
         ended_at: call.finish_time || null,
         duration_seconds: totalDuration,
@@ -390,11 +445,13 @@ serve(async (req) => {
         caller_city: call.city || null,
         caller_country: call.country || null,
         caller_state: call.region || null,
-        hubspot_owner_id: ownerId, // Mapped Owner ID
-        // Additional metadata
+        hubspot_owner_id: ownerId,
+        owner_name: ownerName,
+        is_lost: isLost,
+        ptd_outcome: ptdOutcome,
+        call_type: null as string | null, // will be set after duplicate check below
         transcription_status: call.call_records?.[0] ? "available" : null,
-        is_lost: isLost, // Add is_lost for sync logic
-        keywords: call.tags ? JSON.stringify(call.tags) : null,
+        keywords: call.tags ? call.tags : null,
         ai_summary: call.comment || null,
       };
     });
@@ -405,12 +462,21 @@ serve(async (req) => {
     const errors: any[] = [];
 
     for (const callData of mappedCalls) {
-      // Extract is_lost to keep clean call object for DB
-      const { is_lost, ...call } = callData;
+      const call = callData;
 
       if (!call.provider_call_id) {
         errors.push({ call, error: "Missing provider_call_id" });
         continue;
+      }
+
+      // Determine call_type: discovery vs follow_up
+      if (call.caller_number && call.caller_number !== "unknown") {
+        const { count } = await supabase
+          .from("call_records")
+          .select("id", { count: "exact", head: true })
+          .eq("caller_number", call.caller_number)
+          .neq("provider_call_id", call.provider_call_id);
+        call.call_type = (count && count > 0) ? "follow_up" : "discovery";
       }
 
       // Check if call already exists
