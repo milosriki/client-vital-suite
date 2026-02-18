@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -125,9 +126,11 @@ export const SalesFilters = ({
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => {}}>
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
             <Button
               variant="destructive"
               onClick={() => syncFromHubspot.mutate(true)}

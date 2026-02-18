@@ -21,8 +21,7 @@ export function CoachLeaderboard() {
       const { data, error } = await supabase
         .from('coach_performance')
         .select('coach_name, performance_score, total_clients')
-        .order('performance_score', { ascending: false })
-        .limit(3);
+        .order('performance_score', { ascending: false });
       
       if (error) throw error;
       return data as CoachPerformance[];
