@@ -225,20 +225,15 @@ serve(async (req) => {
       needs_attention: coaches.filter(c => c.performance_score < 50).map(c => c.coach_name)
     };
 
-    return apiError("INTERNAL_ERROR", JSON.stringify({
+    return apiSuccess({
       success: true,
       duration_ms: duration,
       summary,
       coaches
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
   } catch (error: unknown) {
     console.error("[Coach Analyzer] Error:", error);
-    return apiSuccess({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Unknown error", 500);
   }
 });
