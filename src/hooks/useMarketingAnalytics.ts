@@ -329,19 +329,20 @@ export const useMoneyMap = (dateRange: string) => {
 
       if (adsError) throw adsError;
 
-      // Fetch deals data
+      // Fetch closed-won deals (real revenue source — deal_value is in AED)
       const { data: dealsData, error: dealsError } = await supabase
         .from("deals")
-        .select("*")
+        .select("deal_value, amount, stage, created_at")
         .gte("created_at", startDate)
         .lte("created_at", endDate);
 
       if (dealsError) throw dealsError;
 
-      // Fetch stripe transactions
+      // Fetch stripe transactions (may be empty until backfill runs)
       const { data: transactionsData, error: transactionsError } = await supabase
         .from("stripe_transactions")
-        .select("*")
+        .select("amount, status, created_at")
+        .eq("status", "succeeded")
         .gte("created_at", startDate)
         .lte("created_at", endDate);
 
@@ -350,15 +351,20 @@ export const useMoneyMap = (dateRange: string) => {
       // Calculate totals
       const totalSpend = adsData.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
       const totalLeads = adsData.reduce((sum, row) => sum + (row.leads || 0), 0);
-      const totalRevenue = transactionsData.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) / 100; // Stripe amounts are in cents
-      const totalDealValue = dealsData.reduce((sum, row) => sum + (Number(row.deal_value) || Number(row.amount) || 0), 0);
-
+      
+      // Closed won deals — revenue in AED (not cents)
+      const wonStages = ["closedwon", "1070353735"];
+      const closedDeals = dealsData.filter((d) => wonStages.includes(d.stage || ""));
+      const totalDealValue = closedDeals.reduce((sum, d) => sum + (Number(d.deal_value) || Number(d.amount) || 0), 0);
+      
+      // Stripe revenue (amounts already in AED for this account)
+      const totalStripeRevenue = transactionsData.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+      
       // Use stripe revenue if available, otherwise use deal value
-      const actualRevenue = totalRevenue > 0 ? totalRevenue : totalDealValue;
+      const actualRevenue = totalStripeRevenue > 0 ? totalStripeRevenue : totalDealValue;
       const totalROI = totalSpend > 0 ? actualRevenue / totalSpend : 0;
       const trueCac = totalLeads > 0 ? totalSpend / totalLeads : 0;
-      const closedDeals = dealsData.filter((d) => d.stage === "closedwon" || d.stage === "closed_won").length;
-      const ltv = closedDeals > 0 ? actualRevenue / closedDeals : 0;
+      const ltv = closedDeals.length > 0 ? actualRevenue / closedDeals.length : 0;
       const ltvCacRatio = trueCac > 0 ? ltv / trueCac : 0;
 
       const metrics = [

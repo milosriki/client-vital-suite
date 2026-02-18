@@ -49,34 +49,38 @@ interface LossRecord {
   area: string | null;
 }
 
-// HubSpot deal stage → name mapping
+// HubSpot deal stage → name mapping (verified from HubSpot Pipelines API 2026-02-18)
 const STAGE_NAMES: Record<string, string> = {
-  "122178070": "New Lead",
-  "122237508": "Assessment Booked",
-  "122237276": "Assessment Completed",
-  "122221229": "Booking Process",
-  qualifiedtobuy: "Qualified to Buy",
-  decisionmakerboughtin: "Decision Maker Bought In",
-  contractsent: "Contract Sent",
-  "2900542": "Payment Pending",
-  "987633705": "Onboarding",
-  closedwon: "Closed Won",
-  "1063991961": "Closed Lost",
-  "1064059180": "On Hold",
+  "decisionmakerboughtin": "Called - Follow up",
+  "qualifiedtobuy": "Assessment Scheduled",
+  "122178070": "Assessment Booking Process",
+  "122237508": "Assessment Confirmed",
+  "122221229": "Assessment Postponed",
+  "987633705": "Rebook",
+  "122237276": "Canceled - Follow up",
+  "2900542": "Assessment Done - Follow up",
+  "contractsent": "Assessment Done - Waiting Decision",
+  "closedwon": "Closed Won",
+  "closedlost": "Closed Lost",
+  "1063991961": "Not Qualified",
+  "1064059180": "Call (AI Agent)",
+  "1064059183": "Messaging (AI Agent)",
+  "966318643": "Reached - Booked",
 };
 
 const STAGE_NUMBERS: Record<string, number> = {
-  "122178070": 1,
-  "122237508": 4,
-  "122237276": 5,
-  "122221229": 7,
-  qualifiedtobuy: 8,
-  decisionmakerboughtin: 9,
-  "2900542": 10,
-  "987633705": 11,
-  closedwon: 12,
-  "1063991961": -1,
-  "1064059180": -2,
+  "decisionmakerboughtin": 0,
+  "qualifiedtobuy": 1,
+  "122178070": 2,
+  "122237508": 3,
+  "122221229": 4,
+  "987633705": 5,
+  "122237276": 6,
+  "2900542": 7,
+  "contractsent": 8,
+  "closedwon": 9,
+  "closedlost": -1,
+  "1063991961": -2,
 };
 
 serve(async (req) => {

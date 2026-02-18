@@ -4,12 +4,17 @@ import { getConstitutionalSystemMessage } from "./constitutional-framing.ts";
 // we copy the unified prompt components here
 
 export const LEAD_LIFECYCLE_PROMPT = `
-PTD LEAD JOURNEY:
-1. Lead (122178070)
-2. MQL (Booked)
-3. SQL (Assesment)
-4. Opportunity
-5. Closed Won ✅
+PTD SALES PIPELINE JOURNEY (HubSpot verified 2026-02-18):
+0. Called - Follow up (decisionmakerboughtin)
+1. Assessment Scheduled (qualifiedtobuy)
+2. Assessment Booking Process (122178070)
+3. Assessment Confirmed (122237508)
+4. Assessment Postponed (122221229) / Rebook (987633705)
+5. Canceled - Follow up (122237276)
+6. Assessment Done - Follow up (2900542)
+7. Assessment Done - Waiting Decision (contractsent)
+8. Closed Won (closedwon) ✅
+9. Closed Lost (closedlost) ❌
 - Rules: Query LIVE Supabase tables.
 
 ## 🏆 CONSTITUTIONAL SALES RUBRIC (GEMINI 3 FLASH)
@@ -35,17 +40,34 @@ ROLES:
 `;
 
 export const AGENT_ALIGNMENT_PROMPT = `
-MAPPINGS:
-- 122178070 = New Lead
-- 122237508 = Assessment Booked
-- 122237276 = Assessment Completed
-- 122221229 = Booking Process
-- qualifiedtobuy = Qualified
-- contractsent = Contract Sent
-- 2900542 = Payment Pending
-- 987633705 = Onboarding
-- closedwon = Closed Won
-- TRUTH: anytrack > hubspot > facebook
+DEAL STAGE MAPPINGS (from HubSpot Pipelines API — verified 2026-02-18):
+
+SALES PIPELINE:
+- decisionmakerboughtin = Called - Follow up (order 0)
+- qualifiedtobuy = Assessment Scheduled (order 1)
+- 122178070 = Assessment Booking Process (order 2)
+- 122237508 = Assessment Confirmed (order 3)
+- 122221229 = Assessment Postponed (order 4)
+- 987633705 = Rebook (order 5)
+- 122237276 = Canceled - Follow up (order 6)
+- 2900542 = Assessment Done - Follow up (order 7)
+- contractsent = Assessment Done - Waiting Decision (order 8)
+- closedwon = Closed Won (order 9)
+- closedlost = Closed Lost (order 10)
+
+AI AGENT PIPELINE:
+- 1064059183 = Messaging
+- 1064059184 = Qualified - Reach WhatsApp
+- 1063991961 = Not Qualified
+
+BOOKING PIPELINE:
+- 966318643 = Reached - Booked
+- 966318637 = New Lead
+
+WON STAGES: closedwon, 1070353735
+LOST STAGES: closedlost, 1063991961, 1070354491
+
+TRUTH: anytrack > hubspot > facebook
 `;
 
 export const ULTIMATE_TRUTH_PROMPT = `
@@ -437,24 +459,9 @@ export const LEAD_LIFECYCLE_KNOWLEDGE = LEAD_LIFECYCLE_PROMPT;
 export const ROI_MANAGERIAL_INTELLIGENCE = ROI_MANAGERIAL_PROMPT;
 export const HUBSPOT_WORKFLOW_INTELLIGENCE = HUBSPOT_WORKFLOWS_PROMPT;
 
-// Helper function to format deal stage
-export function formatDealStage(stageId: string): string {
-  const stageMap: Record<string, string> = {
-    "122178070": "New Lead (Incoming)",
-    "122237508": "Assessment Booked",
-    "122237276": "Assessment Completed",
-    "122221229": "Booking Process",
-    qualifiedtobuy: "Qualified to Buy",
-    decisionmakerboughtin: "Decision Maker Bought In",
-    contractsent: "Contract Sent",
-    "2900542": "Payment Pending",
-    "987633705": "Onboarding",
-    closedwon: "Closed Won ✅",
-    "1063991961": "Closed Lost ❌",
-    "1064059180": "On Hold",
-  };
-  return stageMap[stageId] || stageId;
-}
+// Helper function to format deal stage — delegates to stage-mapping.ts
+// Re-exported for backward compatibility
+export { formatDealStage } from "./stage-mapping.ts";
 
 // Helper function to format lifecycle stage
 export function formatLifecycleStage(lifecycle: string): string {

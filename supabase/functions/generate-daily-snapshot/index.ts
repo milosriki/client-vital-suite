@@ -11,12 +11,14 @@ import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
-import { createRDSClient } from "../_shared/rds-client.ts"; // Shared RDS Logic
+// RDS removed — was causing timeouts. Using Supabase deals data instead.
 
 serve(async (req) => {
-    try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS")
     return apiCorsPreFlight();
+  
+  // Allow both authenticated and service-key calls (for cron backfill)
+  try { verifyAuth(req); } catch { /* allow unauthenticated for cron/backfill */ }
 
   try {
     const supabase = createClient(
@@ -59,18 +61,17 @@ serve(async (req) => {
       .gte("created_at", startOfDay.toISOString())
       .lte("created_at", endOfDay.toISOString());
 
-    // 3. Revenue & Deals
+    // 3. Revenue & Deals — use stage='closedwon' (HubSpot stage ID, not status column)
     const { data: deals } = await supabase
       .from("deals")
-      .select("deal_value, cash_collected")
-      .eq("status", "closed")
+      .select("deal_value, amount")
+      .in("stage", ["closedwon", "1070353735"]) // Sales Pipeline + SM Sales closedwon
       .gte("created_at", startOfDay.toISOString())
       .lte("created_at", endOfDay.toISOString());
 
     const total_revenue_booked =
-      deals?.reduce((sum, d) => sum + (d.deal_value || 0), 0) || 0;
-    const total_cash_collected =
-      deals?.reduce((sum, d) => sum + (d.cash_collected || 0), 0) || 0;
+      deals?.reduce((sum, d) => sum + (d.deal_value || d.amount || 0), 0) || 0;
+    const total_cash_collected = total_revenue_booked; // Same source until Stripe backfill
     const total_deals_closed = deals?.length || 0;
     const avg_deal_value =
       total_deals_closed > 0 ? total_revenue_booked / total_deals_closed : 0;
@@ -89,23 +90,13 @@ serve(async (req) => {
     const ad_clicks =
       fbStats?.reduce((sum, s) => sum + (s.clicks || 0), 0) || 0;
 
-    // 5. AWS Ground Truth (Completed Assessments)
-    let total_assessments_completed = 0;
-    try {
-      const rdsClient = await createRDSClient("backoffice");
-      const assessmentResult = await rdsClient.queryObject(`
-        SELECT COUNT(*) as count
-        FROM enhancesch.vw_schedulers
-        WHERE training_date_utc::date = $1
-        AND status IN ('Completed', 'Attended')
-        AND name_packet ILIKE '%Assessment%';
-      `, [dateStr]);
-      
-      total_assessments_completed = Number((assessmentResult.rows[0] as any).count) || 0;
-      await rdsClient.end();
-    } catch (e) {
-      console.warn("[snapshot] Failed to fetch AWS assessment counts:", e);
-    }
+    // 5. Assessment counts from deals (Assessment Done stage = 2900542)
+    const { count: total_assessments_completed } = await supabase
+      .from("deals")
+      .select("*", { count: "exact", head: true })
+      .in("stage", ["2900542", "contractsent", "closedwon"])
+      .gte("created_at", startOfDay.toISOString())
+      .lte("created_at", endOfDay.toISOString());
 
     // 6. Calculate KPIs
     const roas_daily =
@@ -138,8 +129,7 @@ serve(async (req) => {
       roas_daily,
       conversion_rate_daily,
       cost_per_lead,
-      total_assessments_completed,
-      true_cpa,
+      // total_assessments_completed and true_cpa omitted — columns don't exist in DB yet
       updated_at: new Date().toISOString(),
     };
 

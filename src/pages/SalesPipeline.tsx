@@ -1,7 +1,7 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { DEAL_STAGES } from "@/constants/dealStages";
+import { DEAL_STAGES, STAGE_LABELS } from "@/constants/dealStages";
 import { subDays } from "date-fns";
 import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
@@ -507,7 +507,7 @@ export default function SalesPipeline() {
                       variant="outline"
                       className="mt-1 capitalize text-base"
                     >
-                      {selectedDeal.stage}
+                      {STAGE_LABELS[selectedDeal.stage] || selectedDeal.stage}
                     </Badge>
                   </div>
                 </div>

@@ -62,7 +62,7 @@ function useBusinessSnapshot() {
         supabase.from("contacts").select("id, email, lifecycle_stage, lead_status, hubspot_owner_id, created_at", { count: "exact" }).gte("created_at", start),
         supabase.from("call_records").select("id, call_type, duration, is_lost, owner_name, created_at").gte("created_at", start),
         supabase.from("facebook_ads_insights").select("spend, impressions, clicks, leads, ctr, cpc, roas, campaign_name, date").gte("date", start),
-        supabase.from("client_health_scores").select("health_score, health_zone, sessions_remaining, deal_value_aed, assigned_coach").order("calculated_at", { ascending: false }).limit(500),
+        supabase.from("client_health_scores").select("health_score, health_zone, outstanding_sessions, package_value_aed, assigned_coach").order("calculated_at", { ascending: false }).limit(500),
         supabase.from("coach_performance").select("*").limit(50),
       ]);
 
@@ -85,19 +85,27 @@ function useBusinessSnapshot() {
       const avgCpl = totalFbLeads > 0 ? totalAdSpend / totalFbLeads : 0;
       const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
 
-      // Health zones
-      const criticalClients = health.filter(h => h.health_zone === "critical").length;
-      const warningClients = health.filter(h => h.health_zone === "warning").length;
-      const healthyClients = health.filter(h => h.health_zone === "healthy").length;
+      // Health zones (DB uses uppercase: RED, YELLOW, GREEN, PURPLE)
+      const criticalClients = health.filter(h => h.health_zone === "RED").length;
+      const warningClients = health.filter(h => h.health_zone === "YELLOW").length;
+      const healthyClients = health.filter(h => h.health_zone === "GREEN" || h.health_zone === "PURPLE").length;
       const revenueAtRisk = health
-        .filter(h => h.health_zone === "critical" || h.health_zone === "warning")
-        .reduce((s, h) => s + (Number(h.deal_value_aed) || 0), 0);
+        .filter(h => h.health_zone === "RED" || h.health_zone === "YELLOW")
+        .reduce((s, h) => s + (Number(h.package_value_aed) || 0), 0);
 
-      // Conversion funnel
-      const assessments = deals.filter(d => d.stage === "appointmentscheduled" || d.stage === "appointment_scheduled").length;
-      const proposals = deals.filter(d => d.stage === "decisionmakerboughtin" || d.stage === "qualifiedtobuy").length;
+      // Conversion funnel — using real HubSpot stage IDs
+      // Assessments = Assessment Confirmed (122237508) + Assessment Done (2900542)
+      const assessments = deals.filter(d => 
+        d.stage === "122237508" || d.stage === "2900542" || d.stage === "contractsent"
+      ).length;
+      // Proposals = Assessment Scheduled (qualifiedtobuy) + Called-Follow up (decisionmakerboughtin)
+      const proposals = deals.filter(d => 
+        d.stage === "qualifiedtobuy" || d.stage === "decisionmakerboughtin"
+      ).length;
       const closedCount = closedWon.length;
-      const lostDeals = deals.filter(d => d.stage === "closedlost" || d.stage === "closed_lost").length;
+      const lostDeals = deals.filter(d => 
+        d.stage === "closedlost" || d.stage === "1063991961" || d.stage === "1070354491"
+      ).length;
       const closeRate = (assessments + proposals) > 0 ? (closedCount / (assessments + proposals + closedCount + lostDeals)) * 100 : 0;
 
       // Top campaigns

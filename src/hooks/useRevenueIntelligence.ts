@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { formatDealStage } from "@/lib/stage-mapping";
 
 // ============================================================================
 // Tab 2: Pipeline Data Hook
@@ -85,7 +86,7 @@ export function usePipelineData(dateRange: string) {
 
       // Get active deals for table
       const activeDeals = deals
-        ?.filter(d => d.status !== "closed_lost" && d.stage !== "Closed Won")
+        ?.filter(d => d.stage !== "closedlost" && d.stage !== "closedwon")
         .slice(0, 10)
         .map(deal => {
           const daysInStage = deal.created_at
@@ -93,7 +94,7 @@ export function usePipelineData(dateRange: string) {
             : 0;
           return {
             company: deal.deal_name || "Unknown",
-            stage: deal.stage || "Unknown",
+            stage: formatDealStage(deal.stage),
             value: deal.deal_value,
             owner: deal.owner_name || "Unassigned",
             days: daysInStage,
@@ -101,14 +102,21 @@ export function usePipelineData(dateRange: string) {
           };
         }) || [];
 
-      // Calculate conversion funnel data
-      const funnelStages = ["Lead", "Qualified", "Demo", "Proposal", "Closed Won"];
-      const funnelData = funnelStages.map((stageName, index) => {
-        const count = deals?.filter(d => d.stage === stageName).length || 0;
+      // Calculate conversion funnel data — using real HubSpot stage IDs
+      const funnelStages = [
+        { id: "decisionmakerboughtin", name: "Called - Follow up" },
+        { id: "qualifiedtobuy", name: "Assessment Scheduled" },
+        { id: "122237508", name: "Assessment Confirmed" },
+        { id: "2900542", name: "Assessment Done" },
+        { id: "contractsent", name: "Waiting Decision" },
+        { id: "closedwon", name: "Closed Won" },
+      ];
+      const funnelData = funnelStages.map(({ id, name }) => {
+        const count = deals?.filter(d => d.stage === id).length || 0;
         const total = deals?.length || 1;
         const percentage = ((count / total) * 100).toFixed(1);
         return {
-          name: stageName,
+          name,
           value: count,
           label: `${count} (${percentage}%)`,
         };
