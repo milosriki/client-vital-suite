@@ -166,6 +166,39 @@ export async function executeSharedTool(
       });
     }
 
+    // 14b. Attribution Intelligence (queries view_atlas_lead_dna)
+    if (toolName === "attribution_intelligence") {
+      const { action, filter, limit: maxResults } = input;
+      const lim = maxResults || 20;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const sb = createClient(supabaseUrl, serviceKey);
+      
+      let query = sb.from("view_atlas_lead_dna").select("*");
+      
+      if (action === "get_lead_dna" && filter) {
+        query = query.ilike("email", `%${filter}%`).limit(5);
+      } else if (action === "get_ad_performance") {
+        query = query.not("fb_ad_id", "is", null).order("total_revenue", { ascending: false }).limit(lim);
+      } else if (action === "get_setter_performance") {
+        // Use setter_funnel_matrix view instead
+        const { data } = await sb.from("setter_funnel_matrix").select("*").limit(lim);
+        return JSON.stringify({ action, results: data || [], count: data?.length || 0 });
+      } else if (action === "get_coach_performance") {
+        const { data } = await sb.from("coach_performance").select("*").order("performance_score", { ascending: false }).limit(lim);
+        return JSON.stringify({ action, results: data || [], count: data?.length || 0 });
+      } else if (action === "get_revenue_attribution") {
+        query = query.not("total_revenue", "is", null).gt("total_revenue", 0).order("total_revenue", { ascending: false }).limit(lim);
+      } else {
+        query = query.limit(lim);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw new Error(`Attribution query failed: ${error.message}`);
+      return JSON.stringify({ action, filter, results: data || [], count: data?.length || 0 });
+    }
+
     // 15. The Truth Engine
     if (toolName === "marketing_truth_engine") {
       // Call the data-reconciler edge function

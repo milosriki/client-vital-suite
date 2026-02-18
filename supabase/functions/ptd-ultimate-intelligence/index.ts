@@ -624,8 +624,13 @@ async function generateWithAI(
     // Only need tools for specific lookups (not overview/summary queries)
     const needsTools = (q.includes("specific client") || q.includes("lead ") || q.includes("stripe") || 
       q.includes("campaign") || q.includes("coach ") || q.includes("call ") || q.includes("search") ||
-      q.includes("find ") || q.includes("look up") || q.includes("detail")) &&
-      !q.includes("overview") && !q.includes("summary") && !q.includes("priorities") && !q.includes("health");
+      q.includes("find ") || q.includes("look up") || q.includes("detail") || q.includes("mrr") ||
+      q.includes("revenue") || q.includes("money") || q.includes("ad ") || q.includes("ads") ||
+      q.includes("roas") || q.includes("spend") || q.includes("attribution") || q.includes("setter") ||
+      q.includes("funnel") || q.includes("churn") || q.includes("subscription") || q.includes("payment") ||
+      q.includes("which") || q.includes("best") || q.includes("worst") || q.includes("top") ||
+      q.includes("bottom") || q.includes("compare")) &&
+      !q.includes("who are you") && !q.includes("what can you do");
 
     // Gemini-optimized prompt format (from prompt-engineer skill + Context7 best practices)
     const contextJson = JSON.stringify(context);
@@ -636,7 +641,7 @@ async function generateWithAI(
       systemPrompt = `**System Context:** You are ATLAS, CEO intelligence advisor for PTD Fitness Dubai.
 **Primary Objective:** Answer the user's question using ONLY the live data below. Be direct.
 **Output Structure:** INSIGHT → EVIDENCE (cite source) → ACTION. All currency in AED. Use specific numbers.
-**Quality Constraints:** Never say "I need to query" or "I will use". Just answer. If data is missing, state what's missing.
+**Quality Constraints:** NEVER ask clarifying questions — default to last 30 days if no time period specified, all coaches/setters if none specified. Never say "I need to query" or "I will use". Just answer with specific numbers. If data is missing, state what's missing.
 
 **Live Business Data:**
 ${contextJson}
@@ -650,7 +655,14 @@ ${ANTI_HALLUCINATION_RULES}
 LIVE BUSINESS DATA:
 ${contextJson}
 
-Use live data first. Call tools for anything not in the data above. Format: INSIGHT → EVIDENCE → ACTION.
+ABSOLUTE RULES:
+1. NEVER ask clarifying questions or list tool options to the user. NEVER say "which action should I use" or "should I use X or Y".
+2. Pick the best tool and action yourself. Default to last 30 days if no time period specified. Default to all if no filter specified.
+3. For revenue/money/ad questions: use attribution_intelligence with action=get_revenue_attribution.
+4. For setter questions: use attribution_intelligence with action=get_setter_performance.
+5. For coach questions: use attribution_intelligence with action=get_coach_performance.
+6. For specific lead questions: use attribution_intelligence with action=get_lead_dna.
+7. Call tools immediately. Give answers with specific numbers. Format: INSIGHT → EVIDENCE → ACTION.
 ${brainContext ? `\nRECALLED KNOWLEDGE:\n${brainContext}` : ""}
 ${persona.name === "HUNTER" ? LEAD_LIFECYCLE_PROMPT : ""}
 ${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
@@ -661,6 +673,7 @@ ${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
       [
         "intelligence_control", "client_control", "revenue_intelligence",
         "command_center_control", "universal_search", "marketing_truth_engine", "stripe_control",
+        "attribution_intelligence",
       ].includes(t.name),
     ) : [];
 

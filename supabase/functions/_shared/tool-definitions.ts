@@ -437,6 +437,29 @@ export const tools: ToolDefinition[] = [
       required: ["date_range"],
     },
   },
+  {
+    name: "attribution_intelligence",
+    description: "Query the full lead-to-revenue attribution chain. Traces leads from Facebook ad through calls, deals, and payments. Actions: get_ad_performance (ad/campaign ROI with real revenue), get_setter_performance (funnel by setter), get_coach_performance (client outcomes by coach), get_revenue_attribution (which campaigns drove actual Stripe payments), get_lead_dna (single lead full trace by email).",
+    parameters: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["get_ad_performance", "get_setter_performance", "get_coach_performance", "get_revenue_attribution", "get_lead_dna"],
+          description: "What to analyze. Default: get_revenue_attribution",
+        },
+        filter: {
+          type: "string",
+          description: "Optional: email for lead lookup, campaign_name, setter name, or coach name",
+        },
+        limit: {
+          type: "number",
+          description: "Max results. Default 20.",
+        },
+      },
+      required: ["action"],
+    },
+  },
 ];
 
 // WhatsApp Safe Tools
