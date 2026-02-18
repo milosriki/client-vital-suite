@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
@@ -51,19 +52,22 @@ import {
 } from "lucide-react";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { useDailyOps } from "@/hooks/useDailyOps";
 
 type Period = "7" | "30" | "90";
 
 export default function CommandCenter() {
   const [period, setPeriod] = useState<Period>("30");
   const [journeySearch, setJourneySearch] = useState("");
+  const { data: dailyOps, isLoading: loadingDailyOps } = useDailyOps();
   // ── Single batch RPC replaces ~12 individual queries ──
   const { data: ccData, isLoading: loadingAll } = useDedupedQuery({
     queryKey: ["cc-batch", period],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_command_center_data", {
-        p_days: Number(period),
-      });
+      const { data, error } = await supabase.rpc(
+        "get_command_center_data" as never,
+        { p_days: Number(period) } as never,
+      );
       if (error) throw error;
       return data as {
         ad_spend: number;
@@ -212,6 +216,52 @@ export default function CommandCenter() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* ── Daily Ops Quick View ── */}
+      <Link to="/daily-ops" className="block">
+        <Card className="border-dashed transition-colors hover:border-foreground/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-sm font-semibold">Daily Ops</CardTitle>
+              <CardDescription>Latest ops snapshot overview</CardDescription>
+            </div>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loadingDailyOps ? (
+              <p className="text-sm text-muted-foreground">Loading daily ops...</p>
+            ) : dailyOps ? (
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Sessions Today</p>
+                  <p className="text-lg font-semibold">
+                    {Number(dailyOps.sessions_today || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Packages Critical</p>
+                  <p className="text-lg font-semibold text-destructive">
+                    {Number(dailyOps.packages_critical || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Clients Decreasing</p>
+                  <p className="text-lg font-semibold text-destructive">
+                    {Number(dailyOps.clients_decreasing || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No ops snapshot available.
+              </p>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              View full Daily Ops →
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* ── Section A: Money Chain KPIs ── */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">

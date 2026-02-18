@@ -1,4 +1,4 @@
-import { parseAIResponse, ParsedResponse } from "../supabase/functions/_shared/response-parser.ts";
+import { parseAIResponse, ParsedResponse } from "../supabase/functions/_shared/response-parser";
 
 describe("Response Parser", () => {
   // ---------------------------------------------------------------

@@ -37,8 +37,8 @@ describe("TruthTriangle", () => {
     render(
       <TruthTriangle
         hubspotValue={baseValue}
-        stripeValue={baseValue + 500} // 0.5% difference
-        metaValue={baseValue - 500} // 0.5% difference
+        stripeValue={baseValue + 450} // 0.45% difference
+        metaValue={baseValue - 450} // 0.45% difference
       />
     );
 

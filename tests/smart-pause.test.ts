@@ -1,4 +1,4 @@
-import { calculateSmartPause } from "../supabase/functions/_shared/smart-pause.ts";
+import { calculateSmartPause } from "../supabase/functions/_shared/smart-pause";
 
 /**
  * Helper: run calculateSmartPause N times and return the average.

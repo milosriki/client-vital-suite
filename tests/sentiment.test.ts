@@ -1,4 +1,4 @@
-import { SentimentTriage, SentimentResult } from "../supabase/functions/_shared/sentiment.ts";
+import { SentimentTriage, SentimentResult } from "../supabase/functions/_shared/sentiment";
 
 describe("Sentiment Triage", () => {
   // ── RISK Detection ────────────────────────────────────────────────

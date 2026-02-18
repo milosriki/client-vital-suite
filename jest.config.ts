@@ -4,6 +4,10 @@ export default {
   testEnvironment: "jsdom",
   roots: ["<rootDir>/tests", "<rootDir>/supabase/functions"],
   testMatch: ["**/*.test.ts", "**/*.test.tsx"],
+  testPathIgnorePatterns: [
+    "<rootDir>/supabase/functions/_shared/",
+    "<rootDir>/tests/functions/",
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },

@@ -159,7 +159,16 @@ export const useDeepAnalysis = (dateRange: string) => {
       ];
 
       // Cohort analysis - group by month
-      const cohortAnalysis = [];
+      type CohortAnalysisEntry = {
+        month: string;
+        leads: number;
+        conv: number;
+        revenue: number;
+        roas: number;
+        cac: number;
+        trend: string;
+      };
+      const cohortAnalysis: CohortAnalysisEntry[] = [];
       for (let i = 0; i < 5; i++) {
         const monthStart = new Date(endDate);
         monthStart.setMonth(monthStart.getMonth() - i);

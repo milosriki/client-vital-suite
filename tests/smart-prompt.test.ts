@@ -1,4 +1,4 @@
-import { buildSmartPrompt, ConversationContext, InternalThought } from "../supabase/functions/_shared/smart-prompt.ts";
+import { buildSmartPrompt, ConversationContext, InternalThought } from "../supabase/functions/_shared/smart-prompt";
 
 /**
  * Returns a default ConversationContext merged with any provided overrides.

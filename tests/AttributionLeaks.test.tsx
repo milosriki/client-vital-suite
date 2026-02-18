@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import AttributionLeaks from "../src/pages/AttributionLeaks";
+import AttributionLeaks from "../src/pages/_archived/AttributionLeaks";
 import { supabase } from "../src/integrations/supabase/client";
 
 // Mock the supabase client

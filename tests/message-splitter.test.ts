@@ -2,7 +2,7 @@ import {
   splitMessage,
   MessageBubble,
   SplitOptions,
-} from "../supabase/functions/_shared/message-splitter.ts";
+} from "../supabase/functions/_shared/message-splitter";
 
 describe("Message Splitter v1.0", () => {
   // -------------------------------------------------------

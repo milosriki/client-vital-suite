@@ -3,7 +3,7 @@
 // Parses the LLM output into thought + reply
 // ================================================================
 
-import { InternalThought } from "./smart-prompt.ts";
+import { InternalThought } from "./smart-prompt";
 
 export interface ParsedResponse {
   thought: InternalThought | null;
@@ -16,7 +16,7 @@ export function parseAIResponse(raw: string): ParsedResponse {
   let reply = "";
 
   // Extract internal monologue
-  const thoughtMatch = raw.match(/---THOUGHT_START---(.*?)---THOUGHT_END---/s);
+  const thoughtMatch = raw.match(/---THOUGHT_START---([\s\S]*?)---THOUGHT_END---/);
   if (thoughtMatch) {
     try {
       const cleaned = thoughtMatch[1].trim();
@@ -27,13 +27,15 @@ export function parseAIResponse(raw: string): ParsedResponse {
   }
 
   // Extract visible reply
-  const replyMatch = raw.match(/---REPLY_START---(.*?)---REPLY_END---/s);
+  const replyMatch = raw.match(/---REPLY_START---([\s\S]*?)---REPLY_END---/);
   if (replyMatch) {
     reply = replyMatch[1].trim();
   } else {
     // Fallback: if the model didn't follow format, use the whole thing
     // but strip the thought block if present
-    reply = raw.replace(/---THOUGHT_START---.*?---THOUGHT_END---/s, "").trim();
+    reply = raw
+      .replace(/---THOUGHT_START---[\s\S]*?---THOUGHT_END---/, "")
+      .trim();
   }
 
   // Safety: ensure reply isn't empty

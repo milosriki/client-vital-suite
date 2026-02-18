@@ -35,6 +35,7 @@ import {
   ChevronLeft,
   Headphones,
   Target,
+  TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -113,10 +114,13 @@ export const Navigation = () => {
       { path: "/ai-advisor", label: "AI Advisor", icon: BrainCircuit },
       { path: "/daily-ops", label: "Daily Ops", icon: Activity },
       { path: "/client-activity", label: "Client Activity", icon: Users },
+      { path: "/predictions", label: "Predictions", icon: TrendingDown },
+      { path: "/alert-center", label: "Alert Center", icon: AlertTriangle },
     ],
     MORE: [
       { path: "/sales-tracker", label: "Sales Tracker", icon: Target },
       { path: "/calls", label: "Call Analytics", icon: Phone },
+      { path: "/setter-command-center", label: "Setter Command", icon: Phone },
       { path: "/skills", label: "Skills", icon: Zap },
       { path: "/war-room", label: "War Room", icon: Crown },
       { path: "/audit", label: "Audit Trail", icon: History },

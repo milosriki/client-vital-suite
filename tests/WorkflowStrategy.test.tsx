@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import WorkflowStrategy from "@/pages/WorkflowStrategy";
+import WorkflowStrategy from "@/pages/_archived/WorkflowStrategy";
 import { supabase } from "@/integrations/supabase/client";
 import "@testing-library/jest-dom";
 

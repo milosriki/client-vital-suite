@@ -72,6 +72,7 @@ const Interventions = lazyWithRetry(() => import("./pages/Interventions"));
 const SalesCoachTracker = lazyWithRetry(() => import("./pages/SalesCoachTracker"));
 const SalesPipeline = lazyWithRetry(() => import("./pages/SalesPipeline"));
 const CallTracking = lazyWithRetry(() => import("./pages/CallTracking"));
+const SetterCommandCenter = lazyWithRetry(() => import("./pages/SetterCommandCenter"));
 const AuditTrail = lazyWithRetry(() => import("./pages/AuditTrail"));
 const WarRoom = lazyWithRetry(() => import("./pages/WarRoom"));
 const GlobalBrain = lazyWithRetry(() => import("./pages/GlobalBrain"));
@@ -81,6 +82,8 @@ const CommandCenter = lazyWithRetry(() => import("./pages/CommandCenter"));
 const BusinessIntelligenceAI = lazyWithRetry(() => import("./pages/BusinessIntelligenceAI"));
 const DailyOps = lazyWithRetry(() => import("./pages/DailyOps"));
 const ClientActivity = lazyWithRetry(() => import("./pages/ClientActivity"));
+const PredictiveIntelligence = lazyWithRetry(() => import("./pages/PredictiveIntelligence"));
+const AlertCenter = lazyWithRetry(() => import("./pages/AlertCenter"));
 
 // Enterprise pages — real data, production hooks
 const EnterpriseStrategy = lazyWithRetry(() => import("./pages/enterprise/EnterpriseStrategy"));
@@ -156,11 +159,14 @@ const router = createBrowserRouter([
       { path: "/ai-advisor", element: <SuspensePage><EnterpriseAIAdvisor /></SuspensePage> },
       { path: "/sales-tracker", element: <SuspensePage><SalesCoachTracker /></SuspensePage> },
       { path: "/calls", element: <SuspensePage><CallTracking /></SuspensePage> },
+      { path: "/setter-command-center", element: <SuspensePage><SetterCommandCenter /></SuspensePage> },
       { path: "/skills", element: <SuspensePage><SkillCommandCenter /></SuspensePage> },
       { path: "/war-room", element: <SuspensePage><WarRoom /></SuspensePage> },
       { path: "/intelligence", element: <SuspensePage><BusinessIntelligenceAI /></SuspensePage> },
       { path: "/daily-ops", element: <SuspensePage><DailyOps /></SuspensePage> },
       { path: "/client-activity", element: <SuspenseTable><ClientActivity /></SuspenseTable> },
+      { path: "/predictions", element: <SuspensePage><PredictiveIntelligence /></SuspensePage> },
+      { path: "/alert-center", element: <SuspenseTable><AlertCenter /></SuspenseTable> },
       { path: "/audit", element: <SuspenseTable><AuditTrail /></SuspenseTable> },
 
       // Enterprise pages
