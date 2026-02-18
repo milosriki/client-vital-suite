@@ -23,7 +23,7 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from("capi_events_enriched" as any)
-        .select("send_status, count")
+        .select("send_status")
         .eq("mode", mode) as any);
       
       if (error) throw error;
@@ -35,7 +35,16 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
         failed: 0,
       };
 
-      // TODO: Aggregate counts properly
+      if (data) {
+        for (const row of data as any[]) {
+          const status = row.send_status as string;
+          if (status === 'pending') stats.pending++;
+          else if (status === 'enriched') stats.enriched++;
+          else if (status === 'sent') stats.sent++;
+          else if (status === 'failed') stats.failed++;
+        }
+      }
+
       return stats;
     },
     staleTime: Infinity, // Real-time updates via subscriptions
