@@ -78,6 +78,7 @@ const GlobalBrain = lazyWithRetry(() => import("./pages/GlobalBrain"));
 const SkillCommandCenter = lazyWithRetry(() => import("./pages/SkillCommandCenter"));
 const MarketingIntelligence = lazyWithRetry(() => import("./pages/MarketingIntelligence"));
 const CommandCenter = lazyWithRetry(() => import("./pages/CommandCenter"));
+const BusinessIntelligenceAI = lazyWithRetry(() => import("./pages/BusinessIntelligenceAI"));
 
 // Enterprise pages — real data, production hooks
 const EnterpriseStrategy = lazyWithRetry(() => import("./pages/enterprise/EnterpriseStrategy"));
@@ -155,6 +156,7 @@ const router = createBrowserRouter([
       { path: "/calls", element: <SuspensePage><CallTracking /></SuspensePage> },
       { path: "/skills", element: <SuspensePage><SkillCommandCenter /></SuspensePage> },
       { path: "/war-room", element: <SuspensePage><WarRoom /></SuspensePage> },
+      { path: "/intelligence", element: <SuspensePage><BusinessIntelligenceAI /></SuspensePage> },
       { path: "/audit", element: <SuspenseTable><AuditTrail /></SuspenseTable> },
 
       // Enterprise pages

@@ -100,6 +100,7 @@ export const Navigation = () => {
 
   const NAV_GROUPS = {
     MAIN: [
+      { path: "/intelligence", label: "AI Intelligence", icon: Lightbulb },
       { path: "/command-center", label: "Command Center", icon: Crosshair },
       { path: "/marketing", label: "Marketing", icon: BarChart3 },
       { path: "/sales-pipeline", label: "Pipeline", icon: TrendingUp },
