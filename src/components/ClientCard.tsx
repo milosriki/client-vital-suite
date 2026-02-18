@@ -5,15 +5,20 @@ import { Eye } from "lucide-react";
 
 interface ClientCardProps {
   client: {
+    id?: number;
     firstname: string | null;
     lastname: string | null;
     email: string | null;
     health_score: number;
     health_zone: string;
+    health_trend?: string | null;
+    churn_risk_score?: number | null;
     sessions_last_7d: number;
     sessions_last_30d: number;
     outstanding_sessions: number;
     assigned_coach: string | null;
+    client_segment?: string | null;
+    intervention_priority?: string | null;
   };
   onViewDetails: () => void;
 }
@@ -46,10 +51,21 @@ export const ClientCard = ({ client, onViewDetails }: ClientCardProps) => {
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
           <Badge className={getHealthColor(client.health_zone)}>
             {client.health_zone}
           </Badge>
+          {client.health_trend && (
+            <Badge variant="outline" className="text-xs">
+              {client.health_trend === 'DECLINING' ? '↓' : client.health_trend === 'IMPROVING' ? '↑' : '→'} {client.health_trend}
+            </Badge>
+          )}
+          {client.intervention_priority === 'CRITICAL' && (
+            <Badge variant="destructive" className="text-xs">⚠ CRITICAL</Badge>
+          )}
+          {client.client_segment && (
+            <Badge variant="secondary" className="text-xs">{client.client_segment}</Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-4 text-sm">

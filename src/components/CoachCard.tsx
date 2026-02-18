@@ -5,13 +5,19 @@ import { Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
 interface CoachCardProps {
   coach: {
     coach_name: string;
-    total_clients: number;
-    avg_client_health: number;
-    red_clients: number;
-    yellow_clients: number;
-    green_clients: number;
-    purple_clients: number;
-    trend: string | null;
+    total_clients: number | null;
+    active_clients?: number;
+    avg_client_health: number | null;
+    clients_red: number | null;
+    clients_yellow: number | null;
+    clients_green: number | null;
+    clients_purple: number | null;
+    health_trend: string | null;
+    performance_score?: number | null;
+    at_risk_revenue_aed?: number | null;
+    coach_rank?: number | null;
+    strengths?: string;
+    weaknesses?: string;
   };
   onViewClients: () => void;
 }
@@ -23,7 +29,8 @@ const getScoreColor = (score: number) => {
 };
 
 const getTrendIcon = (trend: string | null) => {
-  switch (trend) {
+  const t = trend?.toLowerCase();
+  switch (t) {
     case 'improving':
       return <TrendingUp className="h-5 w-5 text-green-500" />;
     case 'declining':
@@ -34,7 +41,12 @@ const getTrendIcon = (trend: string | null) => {
 };
 
 export const CoachCard = ({ coach, onViewClients }: CoachCardProps) => {
-  const total = coach.red_clients + coach.yellow_clients + coach.green_clients + coach.purple_clients;
+  const red = red ?? 0;
+  const yellow = yellow ?? 0;
+  const green = green ?? 0;
+  const purple = purple ?? 0;
+  const total = red + yellow + green + purple;
+  const avgHealth = coach.avg_client_health ?? 0;
   
   return (
     <Card className="card-hover">
@@ -44,71 +56,74 @@ export const CoachCard = ({ coach, onViewClients }: CoachCardProps) => {
             <h3 className="font-semibold text-xl mb-1">{coach.coach_name}</h3>
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
-              <span>{coach.total_clients} clients</span>
+              <span>{coach.total_clients ?? 0} clients</span>
+              {coach.coach_rank && (
+                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                  Rank #{coach.coach_rank}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {getTrendIcon(coach.trend)}
+            {getTrendIcon(coach.health_trend)}
           </div>
         </div>
 
         <div className="mb-4">
           <p className="text-sm text-muted-foreground mb-1">Average Health Score</p>
-          <p className={`text-3xl font-bold ${getScoreColor(coach.avg_client_health)}`}>
-            {coach.avg_client_health.toFixed(1)}
+          <p className={`text-3xl font-bold ${getScoreColor(avgHealth)}`}>
+            {avgHealth.toFixed(1)}
           </p>
         </div>
 
+        {/* At-risk revenue warning */}
+        {(coach.at_risk_revenue_aed ?? 0) > 0 && (
+          <div className="mb-3 text-xs bg-red-500/10 text-red-400 rounded px-2 py-1">
+            ⚠ AED {(coach.at_risk_revenue_aed ?? 0).toLocaleString()} at risk
+          </div>
+        )}
+
         {/* Mini distribution bar */}
-        <div className="h-3 flex rounded-full overflow-hidden mb-4 shadow-sm">
-          {coach.red_clients > 0 && (
-            <div
-              className="bg-red-500"
-              style={{ width: `${(coach.red_clients / total) * 100}%` }}
-              title={`RED: ${coach.red_clients}`}
-            />
-          )}
-          {coach.yellow_clients > 0 && (
-            <div
-              className="bg-yellow-500"
-              style={{ width: `${(coach.yellow_clients / total) * 100}%` }}
-              title={`YELLOW: ${coach.yellow_clients}`}
-            />
-          )}
-          {coach.green_clients > 0 && (
-            <div
-              className="bg-green-500"
-              style={{ width: `${(coach.green_clients / total) * 100}%` }}
-              title={`GREEN: ${coach.green_clients}`}
-            />
-          )}
-          {coach.purple_clients > 0 && (
-            <div
-              className="bg-purple-500"
-              style={{ width: `${(coach.purple_clients / total) * 100}%` }}
-              title={`PURPLE: ${coach.purple_clients}`}
-            />
-          )}
-        </div>
+        {total > 0 && (
+          <div className="h-3 flex rounded-full overflow-hidden mb-4 shadow-sm">
+            {red > 0 && (
+              <div className="bg-red-500" style={{ width: `${(red / total) * 100}%` }} title={`RED: ${red}`} />
+            )}
+            {yellow > 0 && (
+              <div className="bg-yellow-500" style={{ width: `${(yellow / total) * 100}%` }} title={`YELLOW: ${yellow}`} />
+            )}
+            {green > 0 && (
+              <div className="bg-green-500" style={{ width: `${(green / total) * 100}%` }} title={`GREEN: ${green}`} />
+            )}
+            {purple > 0 && (
+              <div className="bg-purple-500" style={{ width: `${(purple / total) * 100}%` }} title={`PURPLE: ${purple}`} />
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-4 gap-2 mb-4 text-xs text-center">
           <div>
-            <p className="text-red-500 font-semibold">{coach.red_clients}</p>
+            <p className="text-red-500 font-semibold">{red}</p>
             <p className="text-muted-foreground">RED</p>
           </div>
           <div>
-            <p className="text-yellow-500 font-semibold">{coach.yellow_clients}</p>
+            <p className="text-yellow-500 font-semibold">{yellow}</p>
             <p className="text-muted-foreground">YLW</p>
           </div>
           <div>
-            <p className="text-green-500 font-semibold">{coach.green_clients}</p>
+            <p className="text-green-500 font-semibold">{green}</p>
             <p className="text-muted-foreground">GRN</p>
           </div>
           <div>
-            <p className="text-purple-500 font-semibold">{coach.purple_clients}</p>
+            <p className="text-purple-500 font-semibold">{purple}</p>
             <p className="text-muted-foreground">PUR</p>
           </div>
         </div>
+
+        {/* Weaknesses hint */}
+        {coach.weaknesses && (
+          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{coach.weaknesses}</p>
+        )}
 
         <Button onClick={onViewClients} className="w-full">
           View Clients

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ClientCard } from "@/components/ClientCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const Clients = () => {
   const [searchParams] = useSearchParams();
@@ -27,6 +29,20 @@ const Clients = () => {
     searchTerm: searchTerm,
     page,
     pageSize
+  });
+
+  const { data: coaches } = useQuery({
+    queryKey: ['client-coaches'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('client_health_scores')
+        .select('assigned_coach')
+        .not('assigned_coach', 'is', null)
+        .order('assigned_coach');
+      const unique = [...new Set((data || []).map(d => d.assigned_coach).filter(Boolean))];
+      return unique as string[];
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   const clients = clientsData?.data || [];
@@ -93,10 +109,21 @@ const Clients = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Zones</SelectItem>
-                  <SelectItem value="Green">Green</SelectItem>
-                  <SelectItem value="Yellow">Yellow</SelectItem>
-                  <SelectItem value="Red">Red</SelectItem>
-                  <SelectItem value="Purple">Purple</SelectItem>
+                  <SelectItem value="GREEN">Green</SelectItem>
+                  <SelectItem value="YELLOW">Yellow</SelectItem>
+                  <SelectItem value="RED">Red</SelectItem>
+                  <SelectItem value="PURPLE">Purple</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={coachFilter} onValueChange={setCoachFilter}>
+                <SelectTrigger className="w-full sm:w-[150px] bg-background/50 border-white/10">
+                  <SelectValue placeholder="Coach" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Coaches</SelectItem>
+                  {(coaches || []).map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={segmentFilter} onValueChange={setSegmentFilter}>
@@ -124,9 +151,9 @@ const Clients = () => {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {clients.map((client) => (
                   <ClientCard 
-                    key={client.client_id} 
+                    key={client.email || client.id} 
                     client={client} 
-                    onViewDetails={() => navigate(`/clients/${client.client_id}`)}
+                    onViewDetails={() => navigate(`/clients/${encodeURIComponent(client.email || '')}`)}
                   />
                 ))}
               </div>
