@@ -199,8 +199,8 @@ function CommandCenterTab({
           <XRayTooltip
             title="True ROAS"
             insights={[
-              { label: "Cash Collected", value: `AED ${data.zone_a.metrics.cash_collected.toLocaleString()}`, color: "text-emerald-400" },
-              { label: "Ad Spend", value: `AED ${data.zone_a.metrics.ad_spend.toLocaleString()}`, color: "text-rose-400" },
+              { label: "Cash Collected", value: `AED ${(data?.zone_a?.metrics?.cash_collected ?? 0).toLocaleString()}`, color: "text-emerald-400" },
+              { label: "Ad Spend", value: `AED ${(data?.zone_a?.metrics?.ad_spend ?? 0).toLocaleString()}`, color: "text-rose-400" },
               { label: "Formula", value: "Cash / Ad Spend" },
             ]}
             summary="True ROAS = total Stripe cash collected ÷ total Meta ad spend. Target: > 3.0x for profitable scaling."
@@ -210,7 +210,7 @@ function CommandCenterTab({
               value={`${Number(data?.zone_a?.metrics?.true_roas ?? 0).toFixed(2)}x`}
               subtext="Revenue / Ad Spend"
               icon={Target}
-              trend={deltas?.roas?.trend || (data.zone_a.metrics.true_roas > 3) ? "up" : "down"}
+              trend={(deltas?.roas?.trend || (data?.zone_a?.metrics?.true_roas ?? 0) > 3) ? "up" : "down"}
               color="text-emerald-500"
               pulsing
             />
@@ -225,7 +225,7 @@ function CommandCenterTab({
           >
             <PulseCard
               title="Cash Collected"
-              value={`AED ${data.zone_a.metrics.cash_collected.toLocaleString()}`}
+              value={`AED ${(data?.zone_a?.metrics?.cash_collected ?? 0).toLocaleString()}`}
               subtext="Stripe Succeeded"
               icon={DollarSign}
               color="text-green-500"
@@ -243,7 +243,7 @@ function CommandCenterTab({
             >
               <PulseCard
                 title="Ad Spend"
-                value={`AED ${data.zone_a.metrics.ad_spend.toLocaleString()}`}
+                value={`AED ${(data?.zone_a?.metrics?.ad_spend ?? 0).toLocaleString()}`}
                 subtext="Meta Ads"
                 icon={Zap}
                 color="text-blue-500"
@@ -262,7 +262,7 @@ function CommandCenterTab({
             >
               <PulseCard
                 title="New Leads"
-                value={data.zone_a.metrics.new_leads.toString() || "0"}
+                value={(data?.zone_a?.metrics?.new_leads ?? 0).toString() || "0"}
                 subtext="HubSpot + Organic"
                 icon={Users}
                 color="text-indigo-500"
@@ -273,26 +273,26 @@ function CommandCenterTab({
           <XRayTooltip
             title="Cost Per Lead"
             insights={[
-              { label: "Total Spend", value: `AED ${data.zone_a.metrics.ad_spend.toLocaleString()}`, color: "text-rose-400" },
-              { label: "Total Leads", value: (data.zone_a.metrics.new_leads || 0).toString(), color: "text-amber-400" },
+              { label: "Total Spend", value: `AED ${(data?.zone_a?.metrics?.ad_spend ?? 0).toLocaleString()}`, color: "text-rose-400" },
+              { label: "Total Leads", value: (data?.zone_a?.metrics?.new_leads || 0).toString(), color: "text-amber-400" },
               { label: "Formula", value: "Spend ÷ Leads" },
-              { label: "Target CPL", value: "< AED 30", color: (data.zone_a.metrics.cpl || 0) > 30 ? "text-rose-400" : "text-emerald-400" },
+              { label: "Target CPL", value: "< AED 30", color: (Number(data?.zone_a?.metrics?.cpl ?? 0) || 0) > 30 ? "text-rose-400" : "text-emerald-400" },
             ]}
-            summary={`CPL = Ad Spend ÷ New Leads. ${(data.zone_a.metrics.cpl || 0) > 50 ? "⚠️ Above AED 50 threshold — review campaign targeting." : "Within acceptable range."}`}
+            summary={`CPL = Ad Spend ÷ New Leads. ${(Number(data?.zone_a?.metrics?.cpl ?? 0) || 0) > 50 ? "⚠️ Above AED 50 threshold — review campaign targeting." : "Within acceptable range."}`}
           >
             <PulseCard
               title="Cost Per Lead"
               value={`AED ${Number(data?.zone_a?.metrics?.cpl ?? 0).toFixed(2)}`}
               subtext="Target: < AED 30"
               icon={ShoppingCart}
-              color={data.zone_a.metrics.cpl > 50 ? "text-red-500" : "text-purple-500"}
+              color={Number(data?.zone_a?.metrics?.cpl ?? 0) > 50 ? "text-red-500" : "text-purple-500"}
               pulsing
             />
           </XRayTooltip>
           <XRayTooltip
             title="Integrity Score"
             insights={[
-              { label: "Verified Rev", value: `AED ${data.zone_a.metrics.cash_collected.toLocaleString()}`, color: "text-emerald-400" },
+              { label: "Verified Rev", value: `AED ${(data?.zone_a?.metrics?.cash_collected ?? 0).toLocaleString()}`, color: "text-emerald-400" },
               { label: "Claimed Rev", value: "Dependent on Ad Source", color: "text-amber-400" },
               { label: "Leak Score", value: `${((1 - Number(data?.zone_a?.metrics?.integrity_score || 1)) * 100).toFixed(1)}%`, color: "text-rose-400" },
             ]}
@@ -325,7 +325,7 @@ function CommandCenterTab({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {data.zone_b.recent_activity.map((deal, i) => (
+                {(data?.zone_b?.recent_activity ?? []).map((deal, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
@@ -344,7 +344,7 @@ function CommandCenterTab({
                     </div>
                   </div>
                 ))}
-                {(!data.zone_b.recent_activity || data.zone_b.recent_activity.length === 0) && (
+                {(!data?.zone_b?.recent_activity || data?.zone_b?.recent_activity.length === 0) && (
                   <div className="text-center text-muted-foreground py-10">No recent deals found.</div>
                 )}
               </div>
@@ -366,15 +366,15 @@ function CommandCenterTab({
             </CardHeader>
             <CardContent>
               <div className="space-y-6 relative">
-                <FunnelStep label="Impressions" value={data.zone_c.funnel.impressions || 0} icon={Eye} color="bg-blue-100 dark:bg-blue-900/20" />
+                <FunnelStep label="Impressions" value={data?.zone_c?.funnel?.impressions || 0} icon={Eye} color="bg-blue-100 dark:bg-blue-900/20" />
                 <div className="flex justify-center"><ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" /></div>
-                <FunnelStep label="Clicks" value={data.zone_c.funnel.clicks || 0} icon={MousePointer} color="bg-indigo-100 dark:bg-indigo-900/20" />
+                <FunnelStep label="Clicks" value={data?.zone_c?.funnel?.clicks || 0} icon={MousePointer} color="bg-indigo-100 dark:bg-indigo-900/20" />
                 <div className="flex justify-center"><ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" /></div>
-                <FunnelStep label="Leads" value={data.zone_c.funnel.leads || 0} icon={Users} color="bg-purple-100 dark:bg-purple-900/20" />
+                <FunnelStep label="Leads" value={data?.zone_c?.funnel?.leads || 0} icon={Users} color="bg-purple-100 dark:bg-purple-900/20" />
                 <div className="flex justify-center"><ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" /></div>
-                <FunnelStep label="Appointments" value={data.zone_c.funnel.appointments || 0} icon={Calendar} color="bg-pink-100 dark:bg-pink-900/20" />
+                <FunnelStep label="Appointments" value={data?.zone_c?.funnel?.appointments || 0} icon={Calendar} color="bg-pink-100 dark:bg-pink-900/20" />
                 <div className="flex justify-center"><ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" /></div>
-                <FunnelStep label="Sales" value={data.zone_c.funnel.sales || 0} icon={DollarSign} color="bg-green-100 dark:bg-green-900/20" isLast />
+                <FunnelStep label="Sales" value={data?.zone_c?.funnel?.sales || 0} icon={DollarSign} color="bg-green-100 dark:bg-green-900/20" isLast />
               </div>
             </CardContent>
           </Card>
@@ -394,8 +394,8 @@ function CommandCenterTab({
         </div>
         <div className="mt-4">
           <VisualDNA
-            ads={data.zone_d.top_performers || []}
-            integrityScore={data.zone_a.metrics.integrity_score || 1.0}
+            ads={data?.zone_d?.top_performers || []}
+            integrityScore={data?.zone_a?.metrics?.integrity_score || 1.0}
           />
         </div>
       </section>
@@ -625,19 +625,19 @@ function DeepIntelTab() {
           <CardHeader>
             <CardTitle>Assessment Truth Matrix</CardTitle>
             <CardDescription>
-              HubSpot vs AWS verification — {assessmentTruth.accuracy}% accuracy ({assessmentTruth.total} checked)
+              HubSpot vs AWS verification — {assessmentTruth?.accuracy ?? 0}% accuracy ({assessmentTruth?.total ?? 0} checked)
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 mb-4">
-              {Object.entries(assessmentTruth.counts).map(([status, count]) => (
+              {Object.entries(assessmentTruth?.counts ?? {}).map(([status, count]) => (
                 <div key={status} className="flex justify-between items-center p-2 rounded bg-white/5 text-sm">
                   <span className="truncate text-muted-foreground">{status.replace(/_/g, " ").toLowerCase()}</span>
                   <span className="font-mono font-bold ml-2">{count}</span>
                 </div>
               ))}
             </div>
-            {assessmentTruth.recent.length > 0 && (
+            {(assessmentTruth?.recent?.length ?? 0) > 0 && (
               <div className="overflow-x-auto max-h-[200px] overflow-y-auto">
                 <table className="w-full text-xs">
                   <thead>
@@ -648,7 +648,7 @@ function DeepIntelTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {assessmentTruth.recent.slice(0, 8).map((row, i) => (
+                    {(assessmentTruth?.recent ?? []).slice(0, 8).map((row, i) => (
                       <tr key={i} className="border-b border-white/10">
                         <td className="py-1 px-2">{row.first_name} {row.last_name?.[0]}.</td>
                         <td className="py-1 px-2 text-muted-foreground">{row.coach || "—"}</td>

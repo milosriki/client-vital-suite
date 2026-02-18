@@ -41,10 +41,10 @@ const getTrendIcon = (trend: string | null) => {
 };
 
 export const CoachCard = ({ coach, onViewClients }: CoachCardProps) => {
-  const red = red ?? 0;
-  const yellow = yellow ?? 0;
-  const green = green ?? 0;
-  const purple = purple ?? 0;
+  const red = coach.clients_red ?? 0;
+  const yellow = coach.clients_yellow ?? 0;
+  const green = coach.clients_green ?? 0;
+  const purple = coach.clients_purple ?? 0;
   const total = red + yellow + green + purple;
   const avgHealth = coach.avg_client_health ?? 0;
   

@@ -54,13 +54,19 @@ export interface AIOptions {
 // ============================================================================
 
 // Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
-// Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
-const MODEL_CASCADE = [
-  "gemini-3-flash-preview", // Primary: Latest Flash Model (User Requested)
-  "gemini-2.0-flash", // Fallback: High Speed, Low Cost
-  "gemini-1.5-flash", // Secondary: Ultra Low Cost
-  "gemini-3-pro-preview", // Fallback only for complex tasks
+const GEMINI_CASCADE = [
+  "gemini-3-flash-preview",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
 ] as const;
+
+// DeepSeek fallback when Gemini fails entirely
+const DEEPSEEK_MODELS = [
+  "deepseek-chat",        // DeepSeek V3 — fast, cheap
+  "deepseek-reasoner",    // DeepSeek R1 — reasoning
+] as const;
+
+const MODEL_CASCADE = [...GEMINI_CASCADE] as const;
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
@@ -81,11 +87,14 @@ export class UnifiedAIClient {
   private supabaseKey: string;
   private tokenBudget = { totalTokens: 0, totalCost: 0 };
 
+  private deepseekKey: string | undefined;
+
   constructor() {
     this.googleKey =
       Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY") ||
       Deno.env.get("GEMINI_API_KEY") ||
       Deno.env.get("GOOGLE_API_KEY");
+    this.deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
     this.supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     this.supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   }
@@ -207,26 +216,35 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       messages = await this.compactConversation(messages, targetMessageCount);
     }
 
-    // Try each model in the cascade
-    for (let i = 0; i < MODEL_CASCADE.length; i++) {
-      const modelName = MODEL_CASCADE[i];
-      try {
-        console.log(`[UnifiedAI] Trying model: ${modelName}`);
-        return await this.callGeminiWithRetry(messages, options, modelName);
-      } catch (error) {
-        console.warn(
-          `[UnifiedAI] Model ${modelName} failed:`,
-          (error as Error).message,
-        );
-        if (i === MODEL_CASCADE.length - 1) {
-          console.error("[UnifiedAI] ❌ All models exhausted");
-          throw error;
+    // Try Gemini cascade first
+    let lastError: Error | undefined;
+    if (this.googleKey) {
+      for (let i = 0; i < GEMINI_CASCADE.length; i++) {
+        const modelName = GEMINI_CASCADE[i];
+        try {
+          console.log(`[UnifiedAI] Trying Gemini: ${modelName}`);
+          return await this.callGeminiWithRetry(messages, options, modelName);
+        } catch (error) {
+          lastError = error as Error;
+          console.warn(`[UnifiedAI] ${modelName} failed:`, lastError.message);
         }
-        console.log(`[UnifiedAI] Falling back to ${MODEL_CASCADE[i + 1]}...`);
       }
     }
 
-    throw new Error("All models in cascade failed");
+    // Fallback to DeepSeek when Gemini exhausted
+    if (this.deepseekKey) {
+      for (const dsModel of DEEPSEEK_MODELS) {
+        try {
+          console.log(`[UnifiedAI] Falling back to DeepSeek: ${dsModel}`);
+          return await this.callDeepSeek(messages, options, dsModel);
+        } catch (error) {
+          lastError = error as Error;
+          console.warn(`[UnifiedAI] DeepSeek ${dsModel} failed:`, lastError.message);
+        }
+      }
+    }
+
+    throw lastError || new Error("All AI providers exhausted (Gemini + DeepSeek)");
   }
 
   /**
@@ -431,6 +449,103 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
   // ==========================================================================
   // PROVIDER IMPLEMENTATIONS
   // ==========================================================================
+
+  /**
+   * DeepSeek API (OpenAI-compatible endpoint)
+   * Docs: https://api-docs.deepseek.com
+   */
+  private async callDeepSeek(
+    messages: ChatMessage[],
+    options: AIOptions,
+    modelName: string = "deepseek-chat",
+  ): Promise<AIResponse> {
+    const startTime = Date.now();
+
+    const body: Record<string, unknown> = {
+      model: modelName,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      max_tokens: options.max_tokens || 4096,
+      temperature: options.temperature ?? 0.7,
+      stream: false,
+    };
+
+    if (options.jsonMode) {
+      body.response_format = { type: "json_object" };
+    }
+
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.deepseekKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`DeepSeek ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content || "";
+    const latencyMs = Date.now() - startTime;
+
+    const inputTokens = data.usage?.prompt_tokens || 0;
+    const outputTokens = data.usage?.completion_tokens || 0;
+    const totalTokens = inputTokens + outputTokens;
+
+    // DeepSeek pricing: $0.27/M input, $1.10/M output (V3)
+    const inputCost = modelName === "deepseek-reasoner" ? 0.55 : 0.27;
+    const outputCost = modelName === "deepseek-reasoner" ? 2.19 : 1.10;
+    const costUsd = (inputTokens * inputCost + outputTokens * outputCost) / 1_000_000;
+
+    this.tokenBudget.totalTokens += totalTokens;
+    this.tokenBudget.totalCost += costUsd;
+
+    console.log(
+      `[UnifiedAI] 📊 DeepSeek: in=${inputTokens} out=${outputTokens} | $${costUsd.toFixed(6)} | ${latencyMs}ms`,
+    );
+
+    // Log metrics (fire-and-forget)
+    try {
+      const sb = createClient(this.supabaseUrl, this.supabaseKey);
+      sb.from("ai_execution_metrics").insert({
+        correlation_id: options?.correlationId || crypto.randomUUID(),
+        function_name: options?.functionName || "unified-ai-client",
+        run_type: "chain",
+        provider: "deepseek",
+        model: modelName,
+        latency_ms: latencyMs,
+        tokens_in: inputTokens,
+        tokens_out: outputTokens,
+        cost_usd_est: costUsd,
+        status: "success",
+        http_status: 200,
+        metadata: { agent_type: options?.agentType || "default" },
+        tags: ["deepseek", options?.agentType || "default"],
+      }).then(() => {}).catch(() => {});
+    } catch { /* telemetry must never break agents */ }
+
+    // Extract thinking from DeepSeek R1
+    let thought: string | undefined;
+    let cleanContent = content;
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+    if (thinkMatch) {
+      thought = thinkMatch[1].trim();
+      cleanContent = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    }
+
+    return {
+      content: cleanContent,
+      thought,
+      provider: "gemini" as const, // Keep interface compat — TODO: add "deepseek" to type
+      model: modelName,
+      tokens_used: totalTokens,
+      cost_usd: costUsd,
+    };
+  }
 
   private async callGemini(
     messages: ChatMessage[],
