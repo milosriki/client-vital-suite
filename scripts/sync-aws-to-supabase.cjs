@@ -359,16 +359,29 @@ async function main() {
 
     try {
       const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/aws_ops_snapshot`, {
-        method: 'POST',
+      // Try PATCH first (update existing), fall back to POST (insert new)
+      let res = await fetch(`${SUPABASE_URL}/rest/v1/aws_ops_snapshot?snapshot_date=eq.${snapshot.snapshot_date}`, {
+        method: 'PATCH',
         headers: {
           'apikey': key,
           'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,on_conflict=snapshot_date',
+          'Prefer': 'return=minimal',
         },
         body: JSON.stringify(snapshot),
       });
+      if (!res.ok) {
+        // Fall back to insert
+        res = await fetch(`${SUPABASE_URL}/rest/v1/aws_ops_snapshot`, {
+          method: 'POST',
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(snapshot),
+        });
+      }
       if (res.ok) {
         console.log('✅ Snapshot synced to Supabase (aws_ops_snapshot)');
       } else {
