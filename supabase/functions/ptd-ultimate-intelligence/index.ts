@@ -737,7 +737,42 @@ ${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
       });
     }
 
-    const text = currentResponse.content || "No response generated.";
+    const rawText = currentResponse.content || "No response generated.";
+
+    // === CONFIDENCE SCORING (Phase 3.4) ===
+    const toolCallCount = loopCount; // number of tool-call loops executed
+    const hasBusinessContext = contextJson.length > 50;
+    const isVague = /i don.t have data|i.m not sure|cannot determine|no data available/i.test(rawText);
+
+    let confidenceScore: number;
+    if (toolCallCount > 0) {
+      confidenceScore = 85;
+    } else if (hasBusinessContext && !isVague) {
+      confidenceScore = 70;
+    } else {
+      confidenceScore = 50;
+    }
+
+    // Boost if response has specific numbers backed by tool results
+    if (toolCallCount > 0 && /AED\s*[\d,]+/.test(rawText)) {
+      confidenceScore = 92;
+    }
+
+    let text = rawText;
+    if (confidenceScore < 70) {
+      text += "\n\n⚠️ Low confidence — limited data available for this query.";
+    }
+
+    // Log to ai_execution_metrics (fire-and-forget)
+    const usage = currentResponse.usage || {};
+    supabase.from("ai_execution_metrics").insert({
+      function_name: "ptd-ultimate-intelligence",
+      model: "gemini-2.0-flash",
+      tokens_in: usage.prompt_tokens || 0,
+      tokens_out: usage.completion_tokens || 0,
+      latency_ms: 0,
+      metadata: { confidence: confidenceScore, tools_used: toolCallCount, persona: persona.name },
+    }).then(() => {}).catch((e: any) => console.warn("[ATLAS] Metrics log failed:", e));
 
     // Store interaction in brain for future recall (fire-and-forget)
     brain.learn({ query, response: text, source: `atlas-${persona.name}` }).catch((e) =>

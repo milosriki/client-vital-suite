@@ -303,6 +303,43 @@ serve(async (req) => {
       });
     }
 
+    // === CROSS-SOURCE DISCREPANCY DETECTION (Phase 3.5) ===
+    // Query view_truth_triangle for latest month and check for >10% gaps
+    try {
+      const { data: truthData } = await supabase
+        .from("view_truth_triangle")
+        .select("*")
+        .order("month", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (truthData) {
+        const { meta_ad_spend, hubspot_deal_value, stripe_gross_revenue, month } = truthData;
+        const pairs = [
+          { a: "meta_ad_spend", b: "hubspot_deal_value", va: meta_ad_spend, vb: hubspot_deal_value },
+          { a: "hubspot_deal_value", b: "stripe_gross_revenue", va: hubspot_deal_value, vb: stripe_gross_revenue },
+          { a: "meta_ad_spend", b: "stripe_gross_revenue", va: meta_ad_spend, vb: stripe_gross_revenue },
+        ];
+
+        for (const { a, b, va, vb } of pairs) {
+          if (va > 0 && vb > 0) {
+            const pctDiff = Math.abs(va - vb) / Math.max(va, vb) * 100;
+            if (pctDiff > 10) {
+              await supabase.from("sync_errors").insert({
+                source: "data-reconciler",
+                error_type: "discrepancy",
+                error_message: `${a} vs ${b} gap ${pctDiff.toFixed(1)}% for ${month}`,
+                error_details: { month, [a]: va, [b]: vb, pct_diff: pctDiff, detected_at: new Date().toISOString() },
+              }).then(() => console.log(`[data-reconciler] Discrepancy logged: ${a} vs ${b} ${pctDiff.toFixed(1)}%`))
+                .catch((e: any) => console.warn("[data-reconciler] Failed to log discrepancy:", e));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[data-reconciler] Truth triangle check failed (non-fatal):", e);
+    }
+
     return apiSuccess({
         success: true,
         period: date_range,
