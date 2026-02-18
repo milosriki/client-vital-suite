@@ -392,6 +392,76 @@ async function main() {
     } catch (e) {
       console.log('⚠️ Supabase sync failed: ' + e.message);
     }
+
+    // ========================================
+    // SYNC client_packages_live (full table)
+    // ========================================
+    console.log('\n📦 Syncing client_packages_live...');
+    try {
+      const pkgRows = packages.rows.map(r => ({
+        package_id: r.package_id,
+        client_id: r.client_id,
+        client_name: r.client_name,
+        client_email: r.client_email,
+        client_phone: r.client_phone,
+        package_name: r.package_name,
+        pack_size: r.pack_size,
+        remaining_sessions: r.remaining_sessions,
+        package_value: r.package_value,
+        expiry_date: r.expiry_date,
+        purchase_date: r.purchase_date,
+        last_coach: r.last_coach,
+        last_session_date: r.last_session_date,
+        sessions_per_week: r.sessions_per_week,
+        future_booked: r.future_booked,
+        next_session_date: r.next_session_date,
+        depletion_priority: r.depletion_priority,
+        days_until_depleted: r.days_until_depleted,
+        synced_at: new Date().toISOString(),
+      }));
+      // Delete all existing and re-insert (full refresh)
+      const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+      await fetch(`${SUPABASE_URL}/rest/v1/client_packages_live?id=not.is.null`, {
+        method: 'DELETE',
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+      });
+      await supabaseUpsert('client_packages_live', pkgRows, 'package_id');
+      console.log(`✅ client_packages_live: ${pkgRows.length} rows synced`);
+    } catch (e) {
+      console.log('⚠️ client_packages_live sync failed: ' + e.message);
+    }
+
+    // ========================================
+    // SYNC training_sessions_live (last 90 days)
+    // ========================================
+    console.log('\n🏋️ Syncing training_sessions_live...');
+    try {
+      const sessRows = sessions.rows.map(r => ({
+        rds_id: r.rds_id,
+        client_id: r.client_id,
+        client_name: r.client_name,
+        coach_id: r.coach_id,
+        coach_name: r.coach_name,
+        training_date: r.training_date,
+        status: r.status,
+        session_type: r.session_type,
+        client_email: r.client_email,
+        time_slot: r.time_slot,
+        package_code: r.package_code,
+        location: r.location,
+        synced_at: new Date().toISOString(),
+      }));
+      const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+      // Delete old and re-insert
+      await fetch(`${SUPABASE_URL}/rest/v1/training_sessions_live?id=not.is.null`, {
+        method: 'DELETE',
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+      });
+      await supabaseUpsert('training_sessions_live', sessRows, 'rds_id');
+      console.log(`✅ training_sessions_live: ${sessRows.length} rows synced`);
+    } catch (e) {
+      console.log('⚠️ training_sessions_live sync failed: ' + e.message);
+    }
   }
 
   await rds.end();
