@@ -70,6 +70,45 @@ const MODEL_CASCADE = [...GEMINI_CASCADE] as const;
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
+const LLM_TIMEOUT_MS = 30_000; // 30s per request
+
+// ── Circuit Breaker (per llm-app-patterns skill §5.3) ──
+const circuitState = {
+  failures: 0,
+  lastFailure: 0,
+  isOpen: false,
+  openUntil: 0,
+  THRESHOLD: 5,      // failures before opening
+  COOLDOWN_MS: 60_000, // 60s cooldown
+};
+
+function checkCircuit(): boolean {
+  if (!circuitState.isOpen) return true; // closed = allow
+  if (Date.now() > circuitState.openUntil) {
+    // Half-open: allow one request
+    circuitState.isOpen = false;
+    circuitState.failures = 0;
+    console.log("[UnifiedAI] ⚡ Circuit breaker: half-open, allowing request");
+    return true;
+  }
+  console.warn(`[UnifiedAI] 🔴 Circuit breaker OPEN until ${new Date(circuitState.openUntil).toISOString()}`);
+  return false;
+}
+
+function recordSuccess(): void {
+  circuitState.failures = 0;
+  circuitState.isOpen = false;
+}
+
+function recordFailure(): void {
+  circuitState.failures++;
+  circuitState.lastFailure = Date.now();
+  if (circuitState.failures >= circuitState.THRESHOLD) {
+    circuitState.isOpen = true;
+    circuitState.openUntil = Date.now() + circuitState.COOLDOWN_MS;
+    console.error(`[UnifiedAI] 🔴 Circuit breaker OPENED — ${circuitState.failures} consecutive failures`);
+  }
+}
 
 // Agent-specific token budgets (output tokens)
 const AGENT_TOKEN_BUDGETS = {
@@ -216,6 +255,11 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       messages = await this.compactConversation(messages, targetMessageCount);
     }
 
+    // Circuit breaker check (per llm-app-patterns skill)
+    if (!checkCircuit()) {
+      throw new Error("Circuit breaker OPEN — AI temporarily unavailable. Retry in 60s.");
+    }
+
     // Try Gemini cascade first
     let lastError: Error | undefined;
     if (this.googleKey) {
@@ -223,7 +267,9 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
         const modelName = GEMINI_CASCADE[i];
         try {
           console.log(`[UnifiedAI] Trying Gemini: ${modelName}`);
-          return await this.callGeminiWithRetry(messages, options, modelName);
+          const result = await this.callGeminiWithRetry(messages, options, modelName);
+          recordSuccess();
+          return result;
         } catch (error) {
           lastError = error as Error;
           console.warn(`[UnifiedAI] ${modelName} failed:`, lastError.message);
@@ -236,7 +282,9 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       for (const dsModel of DEEPSEEK_MODELS) {
         try {
           console.log(`[UnifiedAI] Falling back to DeepSeek: ${dsModel}`);
-          return await this.callDeepSeek(messages, options, dsModel);
+          const result = await this.callDeepSeek(messages, options, dsModel);
+          recordSuccess();
+          return result;
         } catch (error) {
           lastError = error as Error;
           console.warn(`[UnifiedAI] DeepSeek ${dsModel} failed:`, lastError.message);
@@ -244,6 +292,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       }
     }
 
+    recordFailure();
     throw lastError || new Error("All AI providers exhausted (Gemini + DeepSeek)");
   }
 
@@ -473,6 +522,9 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       body.response_format = { type: "json_object" };
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
     const res = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
@@ -480,7 +532,8 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
         Authorization: `Bearer ${this.deepseekKey}`,
       },
       body: JSON.stringify(body),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");

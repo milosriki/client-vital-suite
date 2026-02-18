@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthProvider";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { cn } from "@/lib/utils";
+import { DataFreshnessBanner } from "@/components/DataFreshnessBanner";
 
 export const Layout = () => {
   const location = useLocation();
@@ -40,6 +41,7 @@ export const Layout = () => {
     <>
       <SkipNavigation />
       <Navigation />
+      <DataFreshnessBanner />
       <ErrorBoundary>
         <div className="min-h-screen bg-background gradient-mesh font-sans antialiased">
           <main
