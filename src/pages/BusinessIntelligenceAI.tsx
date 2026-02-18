@@ -192,12 +192,23 @@ LIVE BUSINESS DATA (Last 30 Days):
 - Top Campaigns: ${snapshot.topCampaigns.map(c => `${c.name}: AED ${c.spend.toFixed(0)} spend, ${c.leads} leads, CPL AED ${c.cpl.toFixed(0)}`).join(" | ")}
 ` : "No data loaded yet.";
 
-      const { data, error } = await supabase.functions.invoke("business-intelligence", {
-        body: {
-          message: prompt,
-          context,
-          agent: "ceo-advisor",
-          systemPrompt: `You are the PTD Fitness CEO AI Advisor — the most strategic business intelligence agent.
+      // Try smart-ai-advisor first (has full DB context with names/phones), fallback to business-intelligence
+      let data: any, error: any;
+      try {
+        const smartResult = await supabase.functions.invoke("smart-ai-advisor", {
+          body: { message: prompt + "\n\nADDITIONAL CONTEXT FROM DASHBOARD:\n" + context },
+        });
+        data = smartResult.data;
+        error = smartResult.error;
+        if (error) throw error;
+      } catch {
+        // Fallback to legacy business-intelligence
+        const legacyResult = await supabase.functions.invoke("business-intelligence", {
+          body: {
+            message: prompt,
+            context,
+            agent: "ceo-advisor",
+            systemPrompt: `You are the PTD Fitness CEO AI Advisor — the most strategic business intelligence agent.
 Company: PTD Fitness — premium mobile personal training, Dubai & Abu Dhabi.
 Clients: Executives & professionals 40+. Packages: 3,520–41,616 AED.
 
@@ -214,8 +225,11 @@ RULES:
 8. When analyzing campaigns, compare CPL to benchmark (target: < AED 150).
 9. When analyzing health scores, flag clients with < 3 sessions remaining as CHURN RISK.
 10. Calculate opportunity cost of missed calls and lost leads.`,
-        },
-      });
+          },
+        });
+        data = legacyResult.data;
+        error = legacyResult.error;
+      }
 
       if (error) throw error;
 
