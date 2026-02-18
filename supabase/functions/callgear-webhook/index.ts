@@ -89,13 +89,9 @@ serve(async (req) => {
       recording_url: payload.recording_url || null,
       keywords: payload.tags || null,
       ai_summary: payload.comment || null,
-      metadata: {
-        webhook_event: payload.event,
-        employee_name: payload.employee_name,
-        virtual_phone_number: payload.virtual_phone_number,
-        talk_duration: payload.talk_duration,
-        total_duration: payload.total_duration,
-      },
+      owner_name: payload.employee_name || null,
+      is_lost: payload.event === 'lost_call' || callOutcome === 'no_answer',
+      ptd_outcome: payload.event === 'lost_call' ? 'Lost Call' : null,
     };
 
     // Upsert by provider_call_id
