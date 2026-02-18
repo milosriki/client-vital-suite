@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DEAL_STAGES } from "@/constants/dealStages";
 import {
@@ -16,6 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign,
@@ -27,13 +34,22 @@ import {
   UserCheck,
   Ghost,
   Target,
+  BarChart3,
+  Mail,
+  Activity,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { getBusinessDate } from "@/lib/date-utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { toast } from "sonner";
 
 const SalesCoachTracker = () => {
+  const [selectedDeal, setSelectedDeal] = useState<any>(null);
+  const [selectedSetter, setSelectedSetter] = useState<any>(null);
+  const [selectedNoShow, setSelectedNoShow] = useState<any>(null);
+  const [selectedCoach, setSelectedCoach] = useState<any>(null);
+
   const now = getBusinessDate();
   const currentMonthStart = startOfMonth(now);
   const currentMonthEnd = endOfMonth(now);
@@ -235,7 +251,11 @@ const SalesCoachTracker = () => {
               </TableHeader>
               <TableBody>
                 {currentDeals.slice(0, 15).map((deal) => (
-                  <TableRow key={deal.id}>
+                  <TableRow
+                    key={deal.id}
+                    className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                    onClick={() => { setSelectedDeal(deal); toast.info(`Viewing deal: ${deal.deal_name || 'Untitled'}`); }}
+                  >
                     <TableCell className="font-medium">
                       {deal.deal_name || "Untitled Deal"}
                     </TableCell>
@@ -300,7 +320,11 @@ const SalesCoachTracker = () => {
                   </TableHeader>
                   <TableBody>
                     {setterFunnel.map((s: any, i: number) => (
-                      <TableRow key={i}>
+                      <TableRow
+                        key={i}
+                        className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                        onClick={() => { setSelectedSetter(s); toast.info(`Viewing setter: ${s.setter_name || 'Unknown'}`); }}
+                      >
                         <TableCell className="font-medium">
                           {s.setter_name || "Unknown"}
                         </TableCell>
@@ -379,7 +403,11 @@ const SalesCoachTracker = () => {
                   </TableHeader>
                   <TableBody>
                     {noShows.map((ns: any, i: number) => (
-                      <TableRow key={i}>
+                      <TableRow
+                        key={i}
+                        className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                        onClick={() => { setSelectedNoShow(ns); toast.info(`Viewing no-show: ${ns.contact_name || ns.first_name || 'Unknown'}`); }}
+                      >
                         <TableCell className="font-medium">
                           {ns.contact_name ||
                             ns.first_name ||
@@ -449,7 +477,11 @@ const SalesCoachTracker = () => {
                   </TableHeader>
                   <TableBody>
                     {coachPerf.map((cp: any) => (
-                      <TableRow key={cp.id}>
+                      <TableRow
+                        key={cp.id}
+                        className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                        onClick={() => { setSelectedCoach(cp); toast.info(`Viewing coach: ${cp.coach_name}`); }}
+                      >
                         <TableCell className="font-medium">
                           {cp.coach_name}
                         </TableCell>
@@ -497,6 +529,232 @@ const SalesCoachTracker = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Deal Detail Dialog */}
+      <Dialog open={!!selectedDeal} onOpenChange={(open) => !open && setSelectedDeal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-emerald-500" />
+              Deal Detail
+            </DialogTitle>
+          </DialogHeader>
+          {selectedDeal && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-lg font-bold">{selectedDeal.deal_name || "Untitled Deal"}</p>
+                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 mt-1">Closed Won</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Deal Value</p>
+                  <p className="text-2xl font-bold text-emerald-500">{(selectedDeal.deal_value || 0).toLocaleString()} AED</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Closed Date</p>
+                  <p className="text-lg font-medium">
+                    {selectedDeal.updated_at ? format(new Date(selectedDeal.updated_at), "MMM dd, yyyy") : "—"}
+                  </p>
+                </div>
+              </div>
+              {selectedDeal.contact_id && (
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Contact ID</p>
+                  <p className="font-mono text-sm">{selectedDeal.contact_id}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Setter Funnel Detail Dialog */}
+      <Dialog open={!!selectedSetter} onOpenChange={(open) => !open && setSelectedSetter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              {selectedSetter?.setter_name || "Unknown"} — Funnel Detail
+            </DialogTitle>
+          </DialogHeader>
+          {selectedSetter && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Total Leads</p>
+                  <p className="text-2xl font-bold">{selectedSetter.total_leads || 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Deals Created</p>
+                  <p className="text-2xl font-bold">{selectedSetter.deals_created || 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Booked</p>
+                  <p className="text-2xl font-bold">{selectedSetter.booked || 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Held</p>
+                  <p className="text-2xl font-bold">{selectedSetter.held || 0}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                  <p className="text-xs text-emerald-400 mb-1">Closed Won</p>
+                  <p className="text-2xl font-bold text-emerald-500">{selectedSetter.closed_won || 0}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {Number(selectedSetter.closed_won_value || 0) > 0 ? `${Number(selectedSetter.closed_won_value).toLocaleString()} AED` : "—"}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                  <p className="text-xs text-red-400 mb-1">Closed Lost</p>
+                  <p className="text-2xl font-bold text-red-500">{selectedSetter.closed_lost || 0}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Lead→Deal</p>
+                  <p className="font-bold">{selectedSetter.lead_to_deal_pct != null ? `${Number(selectedSetter.lead_to_deal_pct).toFixed(1)}%` : "—"}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Book→Held</p>
+                  <p className="font-bold">{selectedSetter.book_to_held_pct != null ? `${Number(selectedSetter.book_to_held_pct).toFixed(1)}%` : "—"}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Held→Close</p>
+                  <p className="font-bold">{selectedSetter.held_to_close_pct != null ? `${Number(selectedSetter.held_to_close_pct).toFixed(1)}%` : "—"}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Ghost Rate</p>
+                <Badge variant={(selectedSetter.ghost_rate_pct || 0) > 40 ? "destructive" : "secondary"}>
+                  {selectedSetter.ghost_rate_pct != null ? `${Number(selectedSetter.ghost_rate_pct).toFixed(0)}%` : "—"}
+                </Badge>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* No-Show Detail Dialog */}
+      <Dialog open={!!selectedNoShow} onOpenChange={(open) => !open && setSelectedNoShow(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ghost className="h-5 w-5 text-destructive" />
+              No-Show Detail
+            </DialogTitle>
+          </DialogHeader>
+          {selectedNoShow && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-lg font-bold">
+                  {selectedNoShow.contact_name || selectedNoShow.first_name || selectedNoShow.deal_name || "Unknown"}
+                </p>
+                <Badge variant="destructive" className="mt-1">
+                  {selectedNoShow.truth_status === "BOOKED_NOT_ATTENDED" ? "No-Show" : "Unverified"}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                {selectedNoShow.email && (
+                  <div className="p-3 rounded-lg bg-muted/30">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Mail className="h-3.5 w-3.5" /> Email
+                    </div>
+                    <p className="font-medium">{selectedNoShow.email}</p>
+                  </div>
+                )}
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Coach</p>
+                  <p className="font-medium">{selectedNoShow.coach || selectedNoShow.assigned_coach || "—"}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Stage</p>
+                  <p className="font-medium">{selectedNoShow.stage_label || selectedNoShow.deal_stage || selectedNoShow.stage || "—"}</p>
+                </div>
+                {(selectedNoShow.utm_campaign || selectedNoShow.source_campaign) && (
+                  <div className="p-3 rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Campaign</p>
+                    <p className="font-medium">{selectedNoShow.utm_campaign || selectedNoShow.source_campaign}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                <p className="text-xs text-red-400 mb-1">⚠️ Follow-Up Required</p>
+                <p className="text-sm font-medium">Reach out to reschedule assessment. Check if there were booking issues or if lead has gone cold.</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Coach Detail Dialog */}
+      <Dialog open={!!selectedCoach} onOpenChange={(open) => !open && setSelectedCoach(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              {selectedCoach?.coach_name} — Performance
+            </DialogTitle>
+          </DialogHeader>
+          {selectedCoach && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Total Clients</p>
+                  <p className="text-2xl font-bold">{selectedCoach.total_clients || 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-1">Avg Health Score</p>
+                  <p className={`text-2xl font-bold ${(selectedCoach.avg_health_score || 0) >= 70 ? "text-emerald-500" : (selectedCoach.avg_health_score || 0) >= 40 ? "text-yellow-500" : "text-red-500"}`}>
+                    {(selectedCoach.avg_health_score || 0).toFixed(0)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                  <p className="text-xs text-emerald-400 mb-1">Clients Improving</p>
+                  <p className="text-2xl font-bold text-emerald-500">{selectedCoach.clients_improving || 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                  <p className="text-xs text-red-400 mb-1">Clients Declining</p>
+                  <p className="text-2xl font-bold text-red-500">{selectedCoach.clients_declining || 0}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Trend</p>
+                <Badge variant={selectedCoach.trend === "IMPROVING" ? "secondary" : selectedCoach.trend === "DECLINING" ? "destructive" : "outline"} className="text-sm">
+                  {selectedCoach.trend || "—"}
+                </Badge>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Report Date</p>
+                <p className="font-medium">
+                  {selectedCoach.report_date ? format(new Date(selectedCoach.report_date), "MMM dd, yyyy") : "—"}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-xs text-primary mb-1">📊 Insight</p>
+                <p className="text-sm font-medium">
+                  {(selectedCoach.clients_declining || 0) > (selectedCoach.clients_improving || 0)
+                    ? "More clients declining than improving — review coaching approach"
+                    : (selectedCoach.avg_health_score || 0) >= 70
+                    ? "Strong performance — clients are healthy and engaged"
+                    : "Mixed results — focus on at-risk clients"}
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
