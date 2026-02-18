@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { TruthTriangle } from "@/components/analytics/TruthTriangle";
 import { MarketingDashboardData } from "@/types/marketing";
 import {
   Card,
@@ -1052,7 +1053,16 @@ function SourceTruthTab() {
         </Card>
       )}
 
-      {/* Truth Triangle */}
+      {/* Truth Triangle Visual */}
+      {triangleData && triangleData.length > 0 && (
+        <TruthTriangle
+          metaValue={triangleData[0].meta_ad_spend ?? 0}
+          hubspotValue={triangleData[0].hubspot_deal_value ?? 0}
+          stripeValue={triangleData[0].stripe_gross_revenue ?? 0}
+        />
+      )}
+
+      {/* Truth Triangle Chart */}
       {triangleData && triangleData.length > 0 && (
         <Card className="bg-black/40 border-emerald-500/20">
           <CardHeader>
@@ -1070,9 +1080,9 @@ function SourceTruthTab() {
                     contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }}
                     formatter={(value: number) => `AED ${value?.toLocaleString() ?? 0}`}
                   />
-                  <Bar dataKey="meta_spend" name="Meta Spend" fill={CHART_COLORS.danger} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="meta_ad_spend" name="Meta Spend" fill={CHART_COLORS.danger} radius={[4, 4, 0, 0]} />
                   <Bar dataKey="hubspot_deal_value" name="HubSpot Deals" fill={CHART_COLORS.revenue} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="stripe_cash" name="Stripe Cash" fill={CHART_COLORS.growth} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="stripe_gross_revenue" name="Stripe Cash" fill={CHART_COLORS.growth} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1090,9 +1100,9 @@ function SourceTruthTab() {
                   {triangleData.map((row: any, i: number) => (
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{row.month}</td>
-                      <td className="py-2 px-3 text-right font-mono text-rose-400">AED {row.meta_spend?.toLocaleString() ?? 0}</td>
+                      <td className="py-2 px-3 text-right font-mono text-rose-400">AED {row.meta_ad_spend?.toLocaleString() ?? 0}</td>
                       <td className="py-2 px-3 text-right font-mono text-amber-400">AED {row.hubspot_deal_value?.toLocaleString() ?? 0}</td>
-                      <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {row.stripe_cash?.toLocaleString() ?? 0}</td>
+                      <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {row.stripe_gross_revenue?.toLocaleString() ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>

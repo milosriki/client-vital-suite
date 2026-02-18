@@ -43,13 +43,13 @@ Deno.serve(async (req: Request) => {
     const contactMap = new Map((contacts || []).map(c => [c.id, c]));
 
     // Map deals to loss_analysis entries matching actual schema
-    // Filter out deals without a matching contact email (contact_email is NOT NULL)
+    // Use contact email if available, otherwise generate from deal id
     const entries = lostDeals
       .map(deal => {
         const contact = contactMap.get(deal.contact_id);
-        if (!contact?.email) return null;
+        const email = contact?.email || `deal-${deal.hubspot_deal_id || deal.id}@no-contact.local`;
         return {
-          contact_email: contact.email,
+          contact_email: email,
           hubspot_contact_id: deal.contact_id ? String(deal.contact_id) : null,
           deal_id: deal.hubspot_deal_id || String(deal.id),
           last_stage_reached: deal.stage_label || deal.stage || 'Unknown',
