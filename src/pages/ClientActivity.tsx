@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { format, differenceInDays } from "date-fns";
+import { addDays, format, differenceInDays } from "date-fns";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -34,6 +35,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { useClientActivity, type ClientPackage } from "@/hooks/useClientActivity";
+import { formatCurrency } from "@/lib/ceo-utils";
 
 // ── Helpers ──
 
@@ -70,6 +72,13 @@ function formatDate(dateStr: string | null): string {
   return format(new Date(dateStr), "MMM d, yyyy");
 }
 
+function projectedRenewalLabel(daysUntilDepleted: number | null): string {
+  if (daysUntilDepleted === null || Number.isNaN(daysUntilDepleted)) return "—";
+  const projected = addDays(new Date(), daysUntilDepleted);
+  const formatted = format(projected, "MMM d, yyyy");
+  return daysUntilDepleted < 0 ? `Past due (${formatted})` : formatted;
+}
+
 function downloadCSV(rows: ClientPackage[]) {
   const headers = [
     "Client Name", "Phone", "Package", "Remaining", "Total",
@@ -77,7 +86,7 @@ function downloadCSV(rows: ClientPackage[]) {
     "Next Session", "Priority",
   ];
   const csvRows = rows.map((r) => [
-    r.client_name, r.phone, r.package_name,
+    r.client_name, r.client_phone, r.package_name,
     String(r.remaining_sessions), String(r.total_sessions),
     r.last_coach, r.last_session_date ?? "",
     String(r.sessions_per_week), String(r.future_booked),
@@ -149,11 +158,24 @@ export default function ClientActivity() {
         (r) =>
           r.client_name?.toLowerCase().includes(q) ||
           r.last_coach?.toLowerCase().includes(q) ||
-          r.phone?.toLowerCase().includes(q),
+          r.client_phone?.toLowerCase().includes(q),
       );
     }
     return rows;
   }, [packages, search, priorityFilter]);
+
+  const renewals = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const aDays = a.days_until_depleted ?? Number.POSITIVE_INFINITY;
+      const bDays = b.days_until_depleted ?? Number.POSITIVE_INFINITY;
+      return aDays - bDays;
+    });
+  }, [filtered]);
+
+  const pipelineTotal = useMemo(
+    () => renewals.reduce((sum, r) => sum + (Number(r.package_value) || 0), 0),
+    [renewals],
+  );
 
   const criticalCount = packages.filter((r) => r.depletion_priority === "CRITICAL").length;
   const highCount = packages.filter((r) => r.depletion_priority === "HIGH").length;
@@ -225,86 +247,180 @@ export default function ClientActivity() {
         </Select>
       </div>
 
-      {/* Table */}
-      <Card>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Package</TableHead>
-                <TableHead className="text-center">Remaining/Total</TableHead>
-                <TableHead>Last Coach</TableHead>
-                <TableHead>Last Session</TableHead>
-                <TableHead className="text-center">Sess/Wk</TableHead>
-                <TableHead className="text-center">Booked</TableHead>
-                <TableHead>Next Session</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground py-12">
-                    No clients found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((row) => (
-                  <TableRow key={row.id} className={ROW_BG[row.depletion_priority] ?? ""}>
-                    <TableCell className="font-medium">{row.client_name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{row.phone}</TableCell>
-                    <TableCell className="text-xs">{row.package_name}</TableCell>
-                    <TableCell className="text-center">
-                      <span className={remainingColor(row.remaining_sessions)}>
-                        {row.remaining_sessions}
-                      </span>
-                      <span className="text-muted-foreground">/{row.total_sessions}</span>
-                    </TableCell>
-                    <TableCell className="text-xs">{row.last_coach}</TableCell>
-                    <TableCell className="text-xs">
-                      <div>{formatDate(row.last_session_date)}</div>
-                      <div className="text-muted-foreground">{daysAgoLabel(row.last_session_date)}</div>
-                    </TableCell>
-                    <TableCell className="text-center">{row.sessions_per_week}</TableCell>
-                    <TableCell className="text-center">{row.future_booked}</TableCell>
-                    <TableCell className="text-xs">{formatDate(row.next_session_date)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={PRIORITY_COLORS[row.depletion_priority] ?? ""}>
-                        {row.depletion_priority}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {row.phone && (
-                          <>
-                            <a href={`tel:${row.phone}`} target="_blank" rel="noreferrer">
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <Phone className="h-3.5 w-3.5" />
-                              </Button>
-                            </a>
-                            <a
-                              href={`https://wa.me/${row.phone.replace(/[^0-9]/g, "")}`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400">
-                                <MessageCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            </a>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
+      {/* Tabs */}
+      <Tabs defaultValue="activity" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="renewals">Renewals</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="activity">
+          <Card>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Package</TableHead>
+                    <TableHead className="text-center">Remaining/Total</TableHead>
+                    <TableHead>Last Coach</TableHead>
+                    <TableHead>Last Session</TableHead>
+                    <TableHead className="text-center">Sess/Wk</TableHead>
+                    <TableHead className="text-center">Booked</TableHead>
+                    <TableHead>Next Session</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-12">
+                        No clients found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map((row) => (
+                      <TableRow key={row.id} className={ROW_BG[row.depletion_priority] ?? ""}>
+                        <TableCell className="font-medium">{row.client_name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{row.client_phone}</TableCell>
+                        <TableCell className="text-xs">{row.package_name}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={remainingColor(row.remaining_sessions)}>
+                            {row.remaining_sessions}
+                          </span>
+                          <span className="text-muted-foreground">/{row.total_sessions}</span>
+                        </TableCell>
+                        <TableCell className="text-xs">{row.last_coach}</TableCell>
+                        <TableCell className="text-xs">
+                          <div>{formatDate(row.last_session_date)}</div>
+                          <div className="text-muted-foreground">{daysAgoLabel(row.last_session_date)}</div>
+                        </TableCell>
+                        <TableCell className="text-center">{row.sessions_per_week}</TableCell>
+                        <TableCell className="text-center">{row.future_booked}</TableCell>
+                        <TableCell className="text-xs">{formatDate(row.next_session_date)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={PRIORITY_COLORS[row.depletion_priority] ?? ""}>
+                            {row.depletion_priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {row.client_phone && (
+                              <>
+                                <a href={`tel:${row.client_phone}`} target="_blank" rel="noreferrer">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <Phone className="h-3.5 w-3.5" />
+                                  </Button>
+                                </a>
+                                <a
+                                  href={`https://wa.me/${row.client_phone.replace(/[^0-9]/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400">
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                  </Button>
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="renewals" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <KpiCard title="Pipeline Total" value={formatCurrency(pipelineTotal)} icon={RefreshCw} color="emerald" />
+            <KpiCard title="Renewals Count" value={renewals.length} icon={Users} color="blue" />
+          </div>
+
+          <Card>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Package</TableHead>
+                    <TableHead className="text-center">Remaining</TableHead>
+                    <TableHead className="text-center">Days Left</TableHead>
+                    <TableHead>Projected Renewal</TableHead>
+                    <TableHead>Projected Revenue</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {renewals.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                        No renewals found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    renewals.map((row) => (
+                      <TableRow key={row.id} className={ROW_BG[row.depletion_priority] ?? ""}>
+                        <TableCell className="font-medium">{row.client_name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{row.client_phone}</TableCell>
+                        <TableCell className="text-xs">{row.package_name}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={remainingColor(row.remaining_sessions)}>
+                            {row.remaining_sessions}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {row.days_until_depleted ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {projectedRenewalLabel(row.days_until_depleted)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {formatCurrency(Number(row.package_value) || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={PRIORITY_COLORS[row.depletion_priority] ?? ""}>
+                            {row.depletion_priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {row.client_phone && (
+                              <>
+                                <a href={`tel:${row.client_phone}`} target="_blank" rel="noreferrer">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <Phone className="h-3.5 w-3.5" />
+                                  </Button>
+                                </a>
+                                <a
+                                  href={`https://wa.me/${row.client_phone.replace(/[^0-9]/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400">
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                  </Button>
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

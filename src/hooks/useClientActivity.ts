@@ -4,16 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 export interface ClientPackage {
   id: string;
   client_name: string;
-  phone: string;
+  client_phone: string;
+  client_email: string;
   package_name: string;
   remaining_sessions: number;
   total_sessions: number;
+  package_value: number | null;
   last_coach: string;
   last_session_date: string;
   sessions_per_week: number;
   future_booked: number;
   next_session_date: string | null;
   depletion_priority: string;
+  days_until_depleted: number | null;
   synced_at: string;
 }
 
