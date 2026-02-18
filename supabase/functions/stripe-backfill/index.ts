@@ -19,71 +19,90 @@ serve(async (req) => {
     );
     const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
-    const { days = 30 } = await req.json().catch(() => ({ days: 30 }));
+    const body = await req.json().catch(() => ({}));
+    const {
+      days = 30,
+      only = "all", // "all" | "customers" | "payments" | "invoices" | "subscriptions"
+      startAfterDays = 0, // skip recent N days (for windowed calls)
+    } = body;
+
     const startDate = Math.floor(Date.now() / 1000) - (days * 86400);
+    const endDate = startAfterDays > 0
+      ? Math.floor(Date.now() / 1000) - (startAfterDays * 86400)
+      : undefined;
 
-    console.log(`[stripe-backfill] Pulling last ${days} days of data...`);
+    console.log(`[stripe-backfill] mode=${only} days=${days} startAfterDays=${startAfterDays}`);
 
-    // Step 1: Pull all customers (to build cust_id → email map)
+    const results: any = {};
+
+    // Step 1: Pull all customers (build cust_id → email map) — only for "all" or "customers" mode
     const customerMap: Record<string, string> = {};
-    let custHasMore = true;
-    let custStartingAfter: string | undefined;
-    let custCount = 0;
+    if (only === "all" || only === "customers") {
+      let custHasMore = true;
+      let custStartingAfter: string | undefined;
+      let custCount = 0;
 
-    while (custHasMore) {
-      const params: any = { limit: 100 };
-      if (custStartingAfter) params.starting_after = custStartingAfter;
-
-      const customers = await stripe.customers.list(params);
-      for (const c of customers.data) {
-        if (c.email) {
-          customerMap[c.id] = c.email.toLowerCase();
-          custCount++;
+      while (custHasMore) {
+        const params: any = { limit: 100 };
+        if (custStartingAfter) params.starting_after = custStartingAfter;
+        const customers = await stripe.customers.list(params);
+        for (const c of customers.data) {
+          if (c.email) {
+            customerMap[c.id] = c.email.toLowerCase();
+            custCount++;
+          }
+        }
+        custHasMore = customers.has_more;
+        if (customers.data.length > 0) {
+          custStartingAfter = customers.data[customers.data.length - 1].id;
         }
       }
-      custHasMore = customers.has_more;
-      if (customers.data.length > 0) {
-        custStartingAfter = customers.data[customers.data.length - 1].id;
-      }
+      console.log(`[stripe-backfill] Found ${custCount} customers with email`);
+      results.customers_found = custCount;
     }
-    console.log(`[stripe-backfill] Found ${custCount} customers with email`);
 
-    // Step 2: Pull payment intents (last N days)
-    let piCount = 0, piLinked = 0;
-    let piHasMore = true;
-    let piStartingAfter: string | undefined;
-
-    while (piHasMore) {
-      const params: any = {
-        created: { gte: startDate },
-        limit: 100,
-        expand: ['data.latest_charge'],
-      };
-      if (piStartingAfter) params.starting_after = piStartingAfter;
-
-      const paymentIntents = await stripe.paymentIntents.list(params);
-
-      for (const pi of paymentIntents.data) {
-        const charge = pi.latest_charge as any;
-        const email = charge?.receipt_email
-          || charge?.billing_details?.email
-          || (pi.customer ? customerMap[pi.customer as string] : null);
-
-        // Find contact
-        let contactId: string | null = null;
-        if (email) {
-          const { data: contact } = await supabase
-            .from("contacts")
-            .select("id")
-            .eq("email", email.toLowerCase())
-            .limit(1)
-            .single();
-          contactId = contact?.id || null;
-          if (contactId) piLinked++;
+    // Pre-load contact email→id map for fast lookups
+    const contactMap: Record<string, string> = {};
+    if (only === "all" || only === "payments") {
+      const { data: contacts } = await supabase
+        .from("contacts")
+        .select("id, email")
+        .not("email", "is", null);
+      if (contacts) {
+        for (const c of contacts) {
+          if (c.email) contactMap[c.email.toLowerCase()] = c.id;
         }
+      }
+      console.log(`[stripe-backfill] Loaded ${Object.keys(contactMap).length} contacts`);
+    }
 
-        await supabase.from("stripe_transactions").upsert(
-          {
+    // Step 2: Pull payment intents
+    if (only === "all" || only === "payments") {
+      let piCount = 0, piLinked = 0;
+      let piHasMore = true;
+      let piStartingAfter: string | undefined;
+      let batch: any[] = [];
+
+      while (piHasMore) {
+        const params: any = {
+          created: endDate ? { gte: startDate, lt: endDate } : { gte: startDate },
+          limit: 100,
+          expand: ['data.latest_charge'],
+        };
+        if (piStartingAfter) params.starting_after = piStartingAfter;
+
+        const paymentIntents = await stripe.paymentIntents.list(params);
+
+        for (const pi of paymentIntents.data) {
+          const charge = pi.latest_charge as any;
+          const email = (charge?.receipt_email
+            || charge?.billing_details?.email
+            || (pi.customer && customerMap[pi.customer as string] ? customerMap[pi.customer as string] : null))?.toLowerCase() || null;
+
+          const contactId = email ? (contactMap[email] || null) : null;
+          if (contactId) piLinked++;
+
+          batch.push({
             stripe_id: pi.id,
             charge_id: charge?.id || null,
             customer_id: pi.customer || null,
@@ -92,41 +111,50 @@ serve(async (req) => {
             status: pi.status === 'succeeded' ? 'succeeded' : pi.status === 'canceled' ? 'cancelled' : pi.status,
             payment_method: pi.payment_method || null,
             description: pi.description || charge?.description || null,
-            customer_email: email?.toLowerCase() || null,
+            customer_email: email,
             contact_id: contactId,
             metadata: pi.metadata,
             created_at: new Date(pi.created * 1000).toISOString(),
-          },
-          { onConflict: "stripe_id" },
-        );
-        piCount++;
-      }
+          });
+          piCount++;
 
-      piHasMore = paymentIntents.has_more;
-      if (paymentIntents.data.length > 0) {
-        piStartingAfter = paymentIntents.data[paymentIntents.data.length - 1].id;
+          if (batch.length >= 50) {
+            await supabase.from("stripe_transactions").upsert(batch, { onConflict: "stripe_id" });
+            batch = [];
+          }
+        }
+
+        piHasMore = paymentIntents.has_more;
+        if (paymentIntents.data.length > 0) {
+          piStartingAfter = paymentIntents.data[paymentIntents.data.length - 1].id;
+        }
       }
+      if (batch.length > 0) {
+        await supabase.from("stripe_transactions").upsert(batch, { onConflict: "stripe_id" });
+      }
+      results.payment_intents = piCount;
+      results.payment_intents_linked = piLinked;
     }
 
-    // Step 3: Pull invoices (last N days)
-    let invCount = 0;
-    let invHasMore = true;
-    let invStartingAfter: string | undefined;
+    // Step 3: Pull invoices
+    if (only === "all" || only === "invoices") {
+      let invCount = 0;
+      let invHasMore = true;
+      let invStartingAfter: string | undefined;
+      let batch: any[] = [];
 
-    while (invHasMore) {
-      const params: any = {
-        created: { gte: startDate },
-        limit: 100,
-      };
-      if (invStartingAfter) params.starting_after = invStartingAfter;
+      while (invHasMore) {
+        const params: any = {
+          created: endDate ? { gte: startDate, lt: endDate } : { gte: startDate },
+          limit: 100,
+        };
+        if (invStartingAfter) params.starting_after = invStartingAfter;
 
-      const invoices = await stripe.invoices.list(params);
+        const invoices = await stripe.invoices.list(params);
 
-      for (const inv of invoices.data) {
-        const email = inv.customer_email || (inv.customer ? customerMap[inv.customer as string] : null);
-
-        await supabase.from("stripe_invoices").upsert(
-          {
+        for (const inv of invoices.data) {
+          const email = inv.customer_email || (inv.customer ? customerMap[inv.customer as string] : null);
+          batch.push({
             stripe_id: inv.id,
             customer_id: inv.customer || null,
             subscription_id: inv.subscription || null,
@@ -138,32 +166,41 @@ serve(async (req) => {
             customer_email: email?.toLowerCase() || null,
             metadata: inv.metadata,
             created_at: new Date(inv.created * 1000).toISOString(),
-          },
-          { onConflict: "stripe_id" },
-        );
-        invCount++;
-      }
+          });
+          invCount++;
 
-      invHasMore = invoices.has_more;
-      if (invoices.data.length > 0) {
-        invStartingAfter = invoices.data[invoices.data.length - 1].id;
+          if (batch.length >= 50) {
+            await supabase.from("stripe_invoices").upsert(batch, { onConflict: "stripe_id" });
+            batch = [];
+          }
+        }
+
+        invHasMore = invoices.has_more;
+        if (invoices.data.length > 0) {
+          invStartingAfter = invoices.data[invoices.data.length - 1].id;
+        }
       }
+      if (batch.length > 0) {
+        await supabase.from("stripe_invoices").upsert(batch, { onConflict: "stripe_id" });
+      }
+      results.invoices = invCount;
     }
 
-    // Step 4: Pull subscriptions (active)
-    let subCount = 0;
-    let subHasMore = true;
-    let subStartingAfter: string | undefined;
+    // Step 4: Pull subscriptions
+    if (only === "all" || only === "subscriptions") {
+      let subCount = 0;
+      let subHasMore = true;
+      let subStartingAfter: string | undefined;
+      let batch: any[] = [];
 
-    while (subHasMore) {
-      const params: any = { limit: 100, status: 'all' };
-      if (subStartingAfter) params.starting_after = subStartingAfter;
+      while (subHasMore) {
+        const params: any = { limit: 100, status: 'all' };
+        if (subStartingAfter) params.starting_after = subStartingAfter;
 
-      const subs = await stripe.subscriptions.list(params);
+        const subs = await stripe.subscriptions.list(params);
 
-      for (const sub of subs.data) {
-        await supabase.from("stripe_subscriptions").upsert(
-          {
+        for (const sub of subs.data) {
+          batch.push({
             stripe_id: sub.id,
             customer_id: sub.customer || null,
             status: sub.status,
@@ -172,30 +209,30 @@ serve(async (req) => {
             cancel_at_period_end: sub.cancel_at_period_end,
             metadata: sub.metadata,
             updated_at: new Date().toISOString(),
-          },
-          { onConflict: "stripe_id" },
-        );
-        subCount++;
-      }
+          });
+          subCount++;
 
-      subHasMore = subs.has_more;
-      if (subs.data.length > 0) {
-        subStartingAfter = subs.data[subs.data.length - 1].id;
+          if (batch.length >= 50) {
+            await supabase.from("stripe_subscriptions").upsert(batch, { onConflict: "stripe_id" });
+            batch = [];
+          }
+        }
+
+        subHasMore = subs.has_more;
+        if (subs.data.length > 0) {
+          subStartingAfter = subs.data[subs.data.length - 1].id;
+        }
       }
+      if (batch.length > 0) {
+        await supabase.from("stripe_subscriptions").upsert(batch, { onConflict: "stripe_id" });
+      }
+      results.subscriptions = subCount;
     }
 
-    const summary = {
-      customers_found: custCount,
-      payment_intents: piCount,
-      payment_intents_linked: piLinked,
-      invoices: invCount,
-      subscriptions: subCount,
-      days_backfilled: days,
-    };
+    results.days_backfilled = days;
+    console.log(`[stripe-backfill] Complete:`, JSON.stringify(results));
 
-    console.log(`[stripe-backfill] Complete:`, JSON.stringify(summary));
-
-    return apiSuccess(summary);
+    return apiSuccess(results);
   } catch (error: any) {
     console.error("[stripe-backfill] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {

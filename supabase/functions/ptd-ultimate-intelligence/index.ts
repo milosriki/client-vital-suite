@@ -8,13 +8,21 @@ import {
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { run } from "https://esm.sh/langsmith";
+// LangSmith imports — gracefully degrade if unavailable
+let RunTree: any = null;
+let _run: any = null;
+try {
+  const langsmith = await import("https://esm.sh/langsmith@0.1.40");
+  RunTree = langsmith.RunTree;
+  _run = langsmith.run;
+} catch {
+  console.warn("[ptd-ultimate-intelligence] LangSmith unavailable — tracing disabled");
+}
 import {
   handleError,
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
-import { RunTree } from "https://esm.sh/langsmith";
 import {
   LEAD_LIFECYCLE_PROMPT,
   UNIFIED_SCHEMA_PROMPT,
@@ -566,13 +574,18 @@ serve(async (req: Request) => {
 
     // 3. Generate Response
     let response;
-    const parentRun = new RunTree({
-      name: "ptd_ultimate_intelligence",
-      run_type: "chain",
-      inputs: { query, persona: selectedPersona },
-      project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
-    });
-    await parentRun.postRun();
+    let parentRun: any = null;
+    if (RunTree) {
+      try {
+        parentRun = new RunTree({
+          name: "ptd_ultimate_intelligence",
+          run_type: "chain",
+          inputs: { query, persona: selectedPersona },
+          project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
+        });
+        await parentRun.postRun();
+      } catch { parentRun = null; }
+    }
 
     try {
       // Unify generation logic - all personas use UnifiedAI (Gemini)
@@ -584,8 +597,10 @@ serve(async (req: Request) => {
         supabase,
       );
 
-      await parentRun.end({ outputs: { response } });
-      await parentRun.patchRun();
+      if (parentRun) {
+        await parentRun.end({ outputs: { response } }).catch(() => {});
+        await parentRun.patchRun().catch(() => {});
+      }
 
       // Save assistant response if session_id is present
       if (session_id) {
@@ -597,8 +612,10 @@ serve(async (req: Request) => {
         });
       }
     } catch (error: unknown) {
-      await parentRun.end({ error: error.message });
-      await parentRun.patchRun();
+      if (parentRun) {
+        await parentRun.end({ error: (error as Error).message }).catch(() => {});
+        await parentRun.patchRun().catch(() => {});
+      }
       throw error;
     }
 
@@ -629,12 +646,17 @@ async function generateWithAI(
   parentRun: any,
   supabase: any,
 ) {
-  const childRun = await parentRun.createChild({
-    name: "unified_ai_call",
-    run_type: "llm",
-    inputs: { query, model: "gemini-flash" },
-  });
-  await childRun.postRun();
+  let childRun: any = null;
+  if (parentRun?.createChild) {
+    try {
+      childRun = await parentRun.createChild({
+        name: "unified_ai_call",
+        run_type: "llm",
+        inputs: { query, model: "gemini-flash" },
+      });
+      await childRun.postRun();
+    } catch { childRun = null; }
+  }
 
   try {
     const constitutionalFraming = getConstitutionalSystemMessage();
@@ -738,12 +760,16 @@ async function generateWithAI(
       console.warn("[ATLAS] Brain learn failed (non-fatal):", e)
     );
 
-    await childRun.end({ outputs: { response: text } });
-    await childRun.patchRun();
+    if (childRun) {
+      await childRun.end({ outputs: { response: text } }).catch(() => {});
+      await childRun.patchRun().catch(() => {});
+    }
     return text;
   } catch (error: unknown) {
-    await childRun.end({ error: error.message });
-    await childRun.patchRun();
+    if (childRun) {
+      await childRun.end({ error: (error as Error).message }).catch(() => {});
+      await childRun.patchRun().catch(() => {});
+    }
     throw error;
   }
 }
