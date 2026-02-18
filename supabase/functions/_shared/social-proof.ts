@@ -8,55 +8,55 @@ export interface SocialProof {
   program_type: string;
 }
 
+/**
+ * Fetches social proof from both the social_proof table and agent_knowledge (success_story category).
+ * Merges results and returns a shuffled subset.
+ */
 export async function getSocialProof(
   supabaseClient: ReturnType<typeof createClient>,
   goalType?: string | null,
   limit: number = 2,
 ): Promise<SocialProof[]> {
   try {
+    // Source 1: social_proof table (legacy)
     let query = supabaseClient
       .from("social_proof")
       .select("client_name, goal_type, quote, rating, program_type");
 
     if (goalType) {
-      // Basic fuzzy matching for goal types
-      if (
-        goalType.includes("weight") ||
-        goalType.includes("fat") ||
-        goalType.includes("lose")
-      ) {
+      if (goalType.includes("weight") || goalType.includes("fat") || goalType.includes("lose")) {
         query = query.eq("goal_type", "weight_loss");
-      } else if (
-        goalType.includes("muscle") ||
-        goalType.includes("build") ||
-        goalType.includes("strength")
-      ) {
+      } else if (goalType.includes("muscle") || goalType.includes("build") || goalType.includes("strength")) {
         query = query.eq("goal_type", "muscle_gain");
-      } else if (
-        goalType.includes("pain") ||
-        goalType.includes("injury") ||
-        goalType.includes("rehab")
-      ) {
+      } else if (goalType.includes("pain") || goalType.includes("injury") || goalType.includes("rehab")) {
         query = query.eq("goal_type", "injury_recovery");
-      } else {
-        // If goal is ambiguous or general, don't filter strictly or fallback to general_fitness
-        // query = query.eq("goal_type", "general_fitness"); // Optional: strict fallback
       }
     }
 
-    // Randomize results (Postgres random() requires extension or workaround, using limit/shuffle in app for simplicity with small set)
-    // For now, just taking limit. In production, a stored proc for random sample is better.
-    const { data, error } = await query.limit(10); // Fetch a few more to shuffle in memory
+    const { data: legacyData } = await query.limit(10);
 
-    if (error) {
-      console.error("❌ Failed to fetch social proof:", error);
-      return [];
-    }
+    // Source 2: agent_knowledge success stories (real data)
+    const { data: knowledgeData } = await supabaseClient
+      .from("agent_knowledge")
+      .select("title, content, structured_data")
+      .eq("category", "success_story")
+      .limit(10);
 
-    if (!data || data.length === 0) return [];
+    // Merge: convert knowledge entries to SocialProof format
+    const knowledgeProofs: SocialProof[] = (knowledgeData || []).map((k: any) => ({
+      client_name: k.structured_data?.client_name || "PTD Client",
+      goal_type: k.structured_data?.goal_type || "general_fitness",
+      quote: k.content || k.title,
+      rating: k.structured_data?.rating || 5,
+      program_type: k.structured_data?.program_type || "personal_training",
+    }));
 
-    // Simple shuffle
-    const shuffled = data.sort(() => 0.5 - Math.random());
+    const allProofs = [...(legacyData || []), ...knowledgeProofs];
+
+    if (allProofs.length === 0) return [];
+
+    // Shuffle and return
+    const shuffled = allProofs.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, limit);
   } catch (err) {
     console.error("❌ Social proof fetch error:", err);
