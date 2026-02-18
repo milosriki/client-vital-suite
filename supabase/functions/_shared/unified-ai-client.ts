@@ -36,6 +36,8 @@ export interface AIOptions {
   temperature?: number;
   max_tokens?: number;
   tools?: ToolDefinition[];
+  toolMode?: "AUTO" | "ANY" | "NONE"; // Gemini function calling mode (Context7: functionCallingConfig)
+  allowedFunctionNames?: string[]; // Restrict which tools can be called
   jsonMode?: boolean;
   thinkingLevel?: "low" | "high"; // Gemini 3: Control reasoning depth
   thoughtSignature?: string; // Gemini 3: Pass back for context
@@ -501,8 +503,9 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       }
     }
 
-    // Handle Tools
+    // Handle Tools + toolConfig (Context7: functionCallingConfig mode ANY/NONE/AUTO)
     let toolsConfig: any = undefined;
+    let toolConfigObj: any = undefined;
     if (options.tools && options.tools.length > 0) {
       toolsConfig = [
         {
@@ -516,7 +519,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
     }
 
     const chat = model.startChat({
-      history: history.slice(0, -1), // All but last message as history
+      history: history.slice(0, -1),
       systemInstruction: systemInstruction
         ? { parts: [{ text: systemInstruction }] }
         : undefined,

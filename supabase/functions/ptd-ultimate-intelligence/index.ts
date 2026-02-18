@@ -303,8 +303,10 @@ async function buildBusinessContext(supabase: any) {
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
   // Run ALL queries in parallel (was sequential — saved ~3-4s)
+  // IMPORTANT: health_scores has 4280 rows but 99.7% are leads, not active clients
+  // Filter to ACTIVE clients: sessions_purchased > 0 (meaning they bought a package)
   const [healthRes, leadRes, goalsRes, calibRes, pendingRes, treasuryRes] = await Promise.all([
-    supabase.from("client_health_scores").select("health_zone, health_score"),
+    supabase.from("client_health_scores").select("health_zone, health_score").gt("sessions_purchased", 0),
     supabase.from("contacts").select("lifecycle_stage, lead_status").gte("created_at", thirtyDaysAgo),
     supabase.from("business_goals").select("goal_name, metric_name, current_value, target_value, baseline_value, deadline").eq("status", "active"),
     supabase.from("business_calibration").select("scenario_description, ai_recommendation, your_decision, was_ai_correct").order("learning_weight", { ascending: false }).limit(5),
@@ -363,6 +365,26 @@ async function buildBusinessContext(supabase: any) {
     const posted = treasuryRes.data.filter((t: any) => t.status === "posted").length;
     const failed = treasuryRes.data.filter((t: any) => t.status === "failed" || t.status === "returned").length;
     context.metrics.treasury = { totalTransfers: treasuryRes.data.length, totalAmount, posted, failed };
+  }
+
+  // Add Stripe revenue metrics from business_goals (avoids calling Stripe API)
+  // MRR and revenue targets are tracked in business_goals table
+  if (goalsRes.data) {
+    const mrrGoal = goalsRes.data.find((g: any) => g.metric_name?.toLowerCase().includes("mrr"));
+    const churnGoal = goalsRes.data.find((g: any) => g.metric_name?.toLowerCase().includes("churn"));
+    if (mrrGoal) {
+      context.metrics.revenue = {
+        currentMRR_AED: mrrGoal.current_value,
+        targetMRR_AED: mrrGoal.target_value,
+        gap_AED: mrrGoal.target_value - mrrGoal.current_value,
+      };
+    }
+    if (churnGoal) {
+      context.metrics.churn = {
+        currentRate: churnGoal.current_value,
+        targetRate: churnGoal.target_value,
+      };
+    }
   }
 
   return context;
@@ -591,57 +613,52 @@ async function generateWithAI(
       console.warn("[ATLAS] Brain recall skipped:", e);
     }
 
-    // Decide if we need tools or can answer from context alone
+    // Classify query: does it need tool calls or can context answer it?
     const q = query.toLowerCase();
-    const needsTools = q.includes("specific client") || q.includes("lead ") || q.includes("stripe") || 
+    // Only need tools for specific lookups (not overview/summary queries)
+    const needsTools = (q.includes("specific client") || q.includes("lead ") || q.includes("stripe") || 
       q.includes("campaign") || q.includes("coach ") || q.includes("call ") || q.includes("search") ||
-      q.includes("find ") || q.includes("look up") || q.includes("detail");
+      q.includes("find ") || q.includes("look up") || q.includes("detail")) &&
+      !q.includes("overview") && !q.includes("summary") && !q.includes("priorities") && !q.includes("health");
 
-    // Build lean system prompt — size matters for Gemini latency
+    // Gemini-optimized prompt format (from prompt-engineer skill + Context7 best practices)
+    const contextJson = JSON.stringify(context);
     let systemPrompt: string;
 
     if (!needsTools) {
-      // FAST PATH: minimal prompt for context-answerable queries (~1K tokens vs ~4K)
-      systemPrompt = `You are ATLAS, the CEO intelligence advisor for PTD Fitness Dubai. Be direct, use specific numbers, format as INSIGHT → EVIDENCE → ACTION. All currency in AED.
+      // FAST PATH: mode=NONE, minimal prompt (~500 tokens)
+      systemPrompt = `**System Context:** You are ATLAS, CEO intelligence advisor for PTD Fitness Dubai.
+**Primary Objective:** Answer the user's question using ONLY the live data below. Be direct.
+**Output Structure:** INSIGHT → EVIDENCE (cite source) → ACTION. All currency in AED. Use specific numbers.
+**Quality Constraints:** Never say "I need to query" or "I will use". Just answer. If data is missing, state what's missing.
 
-LIVE DATA:
-${JSON.stringify(context)}
-${brainContext ? `\nMEMORY:\n${brainContext}` : ""}
-
-Answer using ONLY the data above. Cite sources. If data is missing, say so.`;
+**Live Business Data:**
+${contextJson}
+${brainContext ? `\n**Memory:**\n${brainContext}` : ""}`;
     } else {
-      // TOOL PATH: full prompt for complex queries
-      const relevantPrompts: string[] = [persona.systemPrompt, ANTI_HALLUCINATION_RULES];
-      
-      if (persona.name === "ATLAS" || persona.name === "SHERLOCK") {
-        relevantPrompts.push(UNIFIED_SCHEMA_PROMPT);
-      }
-      if (persona.name === "HUNTER") {
-        relevantPrompts.push(LEAD_LIFECYCLE_PROMPT, HUBSPOT_WORKFLOWS_PROMPT);
-      }
-      if (persona.name === "REVENUE") {
-        relevantPrompts.push(ROI_MANAGERIAL_PROMPT);
-      }
+      // TOOL PATH: persona prompt + anti-hallucination + live data
+      systemPrompt = `${persona.systemPrompt}
 
-      relevantPrompts.push(`LIVE DATA:\n${JSON.stringify(context)}`);
-      relevantPrompts.push(`Use LIVE DATA first. Only call tools for data not already provided.`);
-      if (brainContext) relevantPrompts.push(`MEMORY:\n${brainContext}`);
+${ANTI_HALLUCINATION_RULES}
 
-      systemPrompt = relevantPrompts.join("\n\n");
+LIVE BUSINESS DATA:
+${contextJson}
+
+Use live data first. Call tools for anything not in the data above. Format: INSIGHT → EVIDENCE → ACTION.
+${brainContext ? `\nRECALLED KNOWLEDGE:\n${brainContext}` : ""}
+${persona.name === "HUNTER" ? LEAD_LIFECYCLE_PROMPT : ""}
+${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
     }
 
-    // Filter tools appropriate for this intelligence persona (only if needed)
+    // Select tools for the persona (Context7: functionCallingConfig controls behavior)
     const intelligenceTools = needsTools ? tools.filter((t) =>
       [
-        "intelligence_control",
-        "client_control",
-        "revenue_intelligence",
-        "command_center_control",
-        "universal_search",
-        "marketing_truth_engine",
-        "stripe_control",
+        "intelligence_control", "client_control", "revenue_intelligence",
+        "command_center_control", "universal_search", "marketing_truth_engine", "stripe_control",
       ].includes(t.name),
     ) : [];
+
+    console.log(`[ATLAS] needsTools=${needsTools}, tools=${intelligenceTools.length}, toolNames=${intelligenceTools.map(t=>t.name).join(",")}`);
 
     const messages: {
       role: "system" | "user" | "assistant";
@@ -654,11 +671,12 @@ Answer using ONLY the data above. Cite sources. If data is missing, say so.`;
     const MAX_LOOPS = 3;
     const MAX_TOOL_RESULT_CHARS = 2000;
 
-    // Force single model (no cascade) + reduced output for speed
+    // First call: mode=ANY forces tool call (no "I need to..." text), mode=NONE skips tools
     let currentResponse = await unifiedAI.chat(messages, {
       max_tokens: 2000,
-      temperature: 0.7,
+      temperature: 0.4,
       tools: intelligenceTools,
+      // toolMode: needsTools ? "ANY" : undefined, // Disabled: SDK may not support
       model: "gemini-2.0-flash",
       agentType: "atlas",
       functionName: "ptd-ultimate-intelligence",
@@ -683,29 +701,30 @@ Answer using ONLY the data above. Cite sources. If data is missing, say so.`;
           const toolResult =
             typeof rawResult === "string"
               ? rawResult.length > MAX_TOOL_RESULT_CHARS
-                ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) +
-                  `\n... [truncated]`
+                ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) + `\n...[truncated]`
                 : rawResult
               : JSON.stringify(rawResult).slice(0, MAX_TOOL_RESULT_CHARS);
-          toolResults.push(`Tool '${toolCall.name}' Result:\n${toolResult}`);
+          toolResults.push(`${toolCall.name}: ${toolResult}`);
         } catch (err: any) {
-          toolResults.push(`Tool '${toolCall.name}' failed: ${err.message}`);
+          toolResults.push(`${toolCall.name}: ERROR - ${err.message}`);
         }
       }
 
       messages.push({
         role: "assistant",
-        content: currentResponse.content || "(Calling tools...)",
+        content: currentResponse.content || "(tool call)",
       });
       messages.push({
         role: "user",
-        content: `Tool results:\n\n${toolResults.join("\n\n---\n\n")}\n\nNow answer the original question using ONLY these results. Do NOT call more tools. Give specific numbers.`,
+        content: `Tool results:\n${toolResults.join("\n---\n")}\n\nAnswer NOW with these results. No more tool calls. Specific numbers only.`,
       });
 
+      // Subsequent calls: mode=AUTO (allow text response after getting tool results)
       currentResponse = await unifiedAI.chat(messages, {
         max_tokens: 2000,
-        temperature: 0.7,
+        temperature: 0.4,
         tools: intelligenceTools,
+        toolMode: "AUTO",
         model: "gemini-2.0-flash",
         agentType: "atlas",
         functionName: "ptd-ultimate-intelligence",

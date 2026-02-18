@@ -129,7 +129,44 @@ export async function executeSharedTool(
       return await executeCommandCenterTools(supabase, toolName, input);
     }
 
-    // 14. The Truth Engine
+    // 14. Revenue Intelligence (calls stripe-dashboard-data, extracts metrics only)
+    if (toolName === "revenue_intelligence") {
+      const { period } = input;
+      const functionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/stripe-dashboard-data`;
+      console.log(`💰 Calling Revenue Intelligence: period=${period}`);
+      
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ period: period || "last_30d" }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Stripe dashboard failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      // Extract ONLY the metrics object (raw response is 100KB+ of invoices)
+      const m = data?.metrics || data?.data?.metrics || {};
+      return JSON.stringify({
+        mrr_aed: m.mrr ? (m.mrr / 100).toFixed(0) : "unknown",
+        total_revenue_aed: m.totalRevenue ? (m.totalRevenue / 100).toFixed(0) : "unknown",
+        net_revenue_aed: m.netRevenue ? (m.netRevenue / 100).toFixed(0) : "unknown",
+        total_refunded_aed: m.totalRefunded ? (m.totalRefunded / 100).toFixed(0) : "unknown",
+        paying_customers: m.payingCustomersCount || 0,
+        active_subscriptions: m.activeSubscriptions || 0,
+        canceled_subscriptions: m.canceledSubscriptions || 0,
+        success_rate_pct: m.successRate || 0,
+        currency: "AED",
+        period: period || "last_30d",
+        source: "stripe_live_api",
+      });
+    }
+
+    // 15. The Truth Engine
     if (toolName === "marketing_truth_engine") {
       // Call the data-reconciler edge function
       const { date_range } = input;

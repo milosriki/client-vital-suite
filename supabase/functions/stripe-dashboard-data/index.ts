@@ -309,48 +309,32 @@ serve(async (req) => {
       ? convertToAED(balance.pending[0].amount, balance.pending[0].currency)
       : 0;
 
+    // Limit chartData to last 90 days
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+    const chartData90 = chartData.filter(d => d.date >= ninetyDaysAgoStr);
+
     return apiSuccess({
-        balance: {
-          ...balance,
-          available: [{ amount: balanceAvailableAED, currency: "aed" }],
-          pending: [{ amount: balancePendingAED, currency: "aed" }],
-          _original: balance, // Keep original for reference
-        },
-        customers: customersData,
-        payingCustomers,
-        subscriptions: subscriptionsData,
-        payments: paymentsData,
-        charges: chargesData,
-        payouts: payoutsData,
-        refunds: refundsData,
-        products: products.data || [],
-        invoices: invoices.data || [],
-        account: account,
-        treasuryTransfers: treasuryTransfers.data || [],
-        observability: {
-          langsmithConfigured,
-        },
         metrics: {
-          // All amounts in AED (fils - smallest unit)
           totalRevenue,
-          totalRefunded,
+          mrr,
           netRevenue,
+          totalRefunded,
           totalPayouts,
-          successfulPaymentsCount: successfulPayments.length,
-          failedPaymentsCount: failedPayments.length,
           payingCustomersCount: payingCustomers.length,
           activeSubscriptions: activeSubscriptions.length,
           canceledSubscriptions: canceledSubscriptions.length,
           trialSubscriptions: trialSubscriptions.length,
-          mrr,
+          successfulPaymentsCount: successfulPayments.length,
+          failedPaymentsCount: failedPayments.length,
           successRate: paymentsData.length > 0
             ? Math.round((successfulPayments.length / paymentsData.length) * 100)
             : 100,
-          currency: "aed", // All amounts normalized to AED
+          currency: "aed",
         },
-        chartData,
+        chartData: chartData90,
         dateRange: { startDate, endDate },
-        currency: "aed", // Global currency indicator
       });
   } catch (error: unknown) {
     console.error("Error in stripe-dashboard-data:", error);
