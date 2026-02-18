@@ -481,7 +481,13 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { query, persona_override, session_id } = await req.json();
+    const body = await req.json();
+    const query = body.query || body.message || body.prompt || "";
+    const { persona_override, session_id } = body;
+
+    if (!query || typeof query !== "string" || query.trim().length === 0) {
+      return apiError("Missing 'query' field in request body", 400);
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
