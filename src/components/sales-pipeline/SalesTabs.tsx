@@ -1,5 +1,6 @@
 import { displayDuration } from "@/lib/callDuration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -27,7 +28,9 @@ import {
   FileText,
   Phone,
   Play,
+  RotateCcw,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { STATUS_CONFIG, CALL_STATUS_CONFIG } from "./constants";
 import { DealsKanban } from "./DealsKanban";
@@ -165,7 +168,7 @@ export const SalesTabs = ({
 }: SalesTabsProps) => {
   return (
     <Tabs defaultValue="leads" className="space-y-4">
-      <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+      <TabsList className="grid grid-cols-7 w-full max-w-4xl">
         <TabsTrigger value="leads">
           Leads ({funnelData?.total || 0})
         </TabsTrigger>
@@ -182,6 +185,10 @@ export const SalesTabs = ({
           Calls ({callRecords?.total || 0})
         </TabsTrigger>
         <TabsTrigger value="appointments">Appointments</TabsTrigger>
+        <TabsTrigger value="followup" className="text-orange-400">
+          <RotateCcw className="h-4 w-4 mr-1" />
+          Follow Up
+        </TabsTrigger>
       </TabsList>
 
       {/* Leads Tab */}
@@ -697,6 +704,104 @@ export const SalesTabs = ({
           </CardContent>
         </Card>
       </TabsContent>
+      <TabsContent value="followup">
+        <FollowUpTab />
+      </TabsContent>
     </Tabs>
   );
 };
+
+// --- Follow Up Tab (lost deals for re-engagement) ---
+function FollowUpTab() {
+  const { data: followups, isLoading } = useQuery({
+    queryKey: ['lost-deal-followups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('view_lost_deal_followups' as any)
+        .select('*')
+        .in('followup_priority', ['HOT', 'WARM', 'COOL'])
+        .order('days_since_lost', { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const priorityColor: Record<string, string> = {
+    HOT: 'bg-red-500 text-white',
+    WARM: 'bg-orange-500 text-white',
+    COOL: 'bg-blue-500 text-white',
+  };
+
+  if (isLoading) return <Card className="p-8 text-center text-muted-foreground">Loading lost deals...</Card>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <RotateCcw className="h-5 w-5 text-orange-400" />
+          Lost Deal Follow-Ups ({followups?.length || 0})
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Deals lost in the last 90 days with contact info — sorted by urgency
+        </p>
+      </CardHeader>
+      <CardContent>
+        {!followups?.length ? (
+          <p className="text-center text-muted-foreground py-8">No lost deals with contact info in the last 90 days</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Priority</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Deal</TableHead>
+                <TableHead>Days Ago</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Last Call</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {followups.map((f: any) => (
+                <TableRow key={f.deal_id}>
+                  <TableCell>
+                    <Badge className={priorityColor[f.followup_priority] || 'bg-gray-500'}>
+                      {f.followup_priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">
+                        {[f.contact_first_name, f.contact_last_name].filter(Boolean).join(' ') || '—'}
+                      </p>
+                      {f.contact_email && (
+                        <p className="text-xs text-muted-foreground">{f.contact_email}</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate text-sm">{f.deal_name}</TableCell>
+                  <TableCell>
+                    <span className={f.days_since_lost <= 14 ? 'text-red-400 font-semibold' : ''}>
+                      {f.days_since_lost}d
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {f.contact_phone ? (
+                      <a href={`tel:${f.contact_phone.replace(/\s/g, '')}`} className="text-cyan-400 hover:underline flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {f.contact_phone}
+                      </a>
+                    ) : '—'}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {f.last_call_date ? format(new Date(f.last_call_date), 'MMM d') : 'Never'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
