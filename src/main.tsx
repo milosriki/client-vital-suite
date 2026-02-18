@@ -79,11 +79,13 @@ const GlobalBrain = lazyWithRetry(() => import("./pages/GlobalBrain"));
 const SkillCommandCenter = lazyWithRetry(() => import("./pages/SkillCommandCenter"));
 const MarketingIntelligence = lazyWithRetry(() => import("./pages/MarketingIntelligence"));
 const CommandCenter = lazyWithRetry(() => import("./pages/CommandCenter"));
+const CoachLocations = lazyWithRetry(() => import("./pages/CoachLocations"));
 const BusinessIntelligenceAI = lazyWithRetry(() => import("./pages/BusinessIntelligenceAI"));
 const DailyOps = lazyWithRetry(() => import("./pages/DailyOps"));
 const ClientActivity = lazyWithRetry(() => import("./pages/ClientActivity"));
 const PredictiveIntelligence = lazyWithRetry(() => import("./pages/PredictiveIntelligence"));
 const AlertCenter = lazyWithRetry(() => import("./pages/AlertCenter"));
+const MetaAds = lazyWithRetry(() => import("./pages/MetaAds"));
 
 // Enterprise pages — real data, production hooks
 const EnterpriseStrategy = lazyWithRetry(() => import("./pages/enterprise/EnterpriseStrategy"));
@@ -168,6 +170,8 @@ const router = createBrowserRouter([
       { path: "/predictions", element: <SuspensePage><PredictiveIntelligence /></SuspensePage> },
       { path: "/alert-center", element: <SuspenseTable><AlertCenter /></SuspenseTable> },
       { path: "/audit", element: <SuspenseTable><AuditTrail /></SuspenseTable> },
+      { path: "/coach-locations", element: <SuspensePage><CoachLocations /></SuspensePage> },
+      { path: "/meta-ads", element: <SuspensePage><MetaAds /></SuspensePage> },
 
       // Enterprise pages
       { path: "/enterprise/strategy", element: <SuspensePage><EnterpriseStrategy /></SuspensePage> },

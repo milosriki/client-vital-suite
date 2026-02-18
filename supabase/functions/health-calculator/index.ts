@@ -7,7 +7,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
-import { createRDSClient } from "../_shared/rds-client.ts"; // Shared RDS Logic
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
@@ -119,73 +118,101 @@ interface HealthScoreResult {
 }
 
 // ============================================
-// RDS DATA FETCHING (SOURCE OF TRUTH)
+// SUPABASE DATA FETCHING (SOURCE OF TRUTH)
+// Uses training_sessions_live + client_packages_live
 // ============================================
 
-async function fetchRDSData(
+async function fetchSupabaseSessionData(
+  supabase: any,
   emails: string[],
 ): Promise<Record<string, RDSSessionData>> {
   if (emails.length === 0) return {};
 
-  const client = await createRDSClient("powerbi");
-  try {
-    const placeholders = emails.map((_, i) => `$${i + 1}`).join(",");
-    const query = `
-      SELECT 
-        m.email,
-        COALESCE(p.remainingsessions, 0) as remaining_sessions,
-        COALESCE(p.packsize, 0) as total_purchased,
-        (SELECT MAX(s.training_date_utc) 
-         FROM enhancesch.vw_schedulers s 
-         WHERE s.id_client = m.id_client 
-         AND s.status IN ('Completed', 'Attended')
-        ) as last_session_date,
-        (SELECT COUNT(*) 
-         FROM enhancesch.vw_schedulers s 
-         WHERE s.id_client = m.id_client 
-         AND s.training_date_utc > NOW() - INTERVAL '7 days'
-         AND s.status IN ('Completed', 'Attended')
-        ) as sessions_last_7d,
-        (SELECT COUNT(*) 
-         FROM enhancesch.vw_schedulers s 
-         WHERE s.id_client = m.id_client 
-         AND s.training_date_utc > NOW() - INTERVAL '30 days'
-         AND s.status IN ('Completed', 'Attended')
-        ) as sessions_last_30d,
-        (SELECT COUNT(*) 
-         FROM enhancesch.vw_schedulers s 
-         WHERE s.id_client = m.id_client 
-         AND s.training_date_utc > NOW() - INTERVAL '90 days'
-         AND s.status IN ('Completed', 'Attended')
-        ) as sessions_last_90d
-      FROM enhancesch.vw_client_master m
-      LEFT JOIN enhancesch.vw_client_packages p ON m.id_client = p.id_client
-      WHERE m.email IN (${placeholders})
-    `;
+  const now = new Date();
+  const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
+  const d30 = new Date(now.getTime() - 30 * 86400000).toISOString();
+  const d90 = new Date(now.getTime() - 90 * 86400000).toISOString();
 
-    const result = await client.queryObject(query, emails);
-    const map: Record<string, RDSSessionData> = {};
-    for (const row of result.rows as any[]) {
-      if (row.email) {
-        map[row.email.toLowerCase()] = {
-          email: row.email,
-          remaining_sessions: Number(row.remaining_sessions),
-          total_purchased: Number(row.total_purchased),
-          last_session_date: row.last_session_date
-            ? new Date(row.last_session_date).toISOString()
-            : null,
-          sessions_last_7d: Number(row.sessions_last_7d),
-          sessions_last_30d: Number(row.sessions_last_30d),
-          sessions_last_90d: Number(row.sessions_last_90d),
-        };
+  try {
+    // Fetch all completed/attended sessions from last 90 days
+    const completedStatuses = ['Completed', 'Attended'];
+    let allSessions: any[] = [];
+    let from = 0;
+    const BATCH = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from("training_sessions_live")
+        .select("client_email, training_date, status")
+        .gte("training_date", d90)
+        .lte("training_date", now.toISOString())
+        .in("status", completedStatuses)
+        .range(from, from + BATCH - 1);
+      if (error) { console.error("[Health] Sessions fetch error:", error); break; }
+      if (!data || data.length === 0) break;
+      allSessions = allSessions.concat(data);
+      if (data.length < BATCH) break;
+      from += BATCH;
+    }
+
+    // Aggregate sessions by email
+    const sessionMap: Record<string, { last: string | null; s7: number; s30: number; s90: number }> = {};
+    for (const s of allSessions) {
+      const email = (s.client_email || "").toLowerCase();
+      if (!email) continue;
+      if (!sessionMap[email]) sessionMap[email] = { last: null, s7: 0, s30: 0, s90: 0 };
+      const entry = sessionMap[email];
+      const td = s.training_date;
+      entry.s90++;
+      if (td >= d30) entry.s30++;
+      if (td >= d7) entry.s7++;
+      if (!entry.last || td > entry.last) entry.last = td;
+    }
+
+    // Fetch package data - all rows (218 rows fits easily)
+    const { data: packages, error: pkgErr } = await supabase
+      .from("client_packages_live")
+      .select("client_email, remaining_sessions, pack_size, last_session_date");
+    if (pkgErr) console.error("[Health] Packages fetch error:", pkgErr);
+
+    // Aggregate packages by email (client may have multiple packages)
+    const pkgMap: Record<string, { remaining: number; total: number; lastDate: string | null }> = {};
+    for (const p of (packages || [])) {
+      const email = (p.client_email || "").toLowerCase();
+      if (!email) continue;
+      if (!pkgMap[email]) pkgMap[email] = { remaining: 0, total: 0, lastDate: null };
+      pkgMap[email].remaining += Number(p.remaining_sessions || 0);
+      pkgMap[email].total += Number(p.pack_size || 0);
+      if (p.last_session_date && (!pkgMap[email].lastDate || p.last_session_date > pkgMap[email].lastDate)) {
+        pkgMap[email].lastDate = p.last_session_date;
       }
     }
-    return map;
+
+    // Build result map for requested emails
+    const result: Record<string, RDSSessionData> = {};
+    const emailSet = new Set(emails.map(e => e.toLowerCase()));
+
+    // Include all emails that have data in either sessions or packages
+    const allEmails = new Set([...Object.keys(sessionMap), ...Object.keys(pkgMap)]);
+    for (const email of allEmails) {
+      if (emailSet.size > 0 && !emailSet.has(email)) continue;
+      const sess = sessionMap[email] || { last: null, s7: 0, s30: 0, s90: 0 };
+      const pkg = pkgMap[email] || { remaining: 0, total: 0, lastDate: null };
+      result[email] = {
+        email,
+        remaining_sessions: pkg.remaining,
+        total_purchased: pkg.total,
+        last_session_date: sess.last || pkg.lastDate,
+        sessions_last_7d: sess.s7,
+        sessions_last_30d: sess.s30,
+        sessions_last_90d: sess.s90,
+      };
+    }
+
+    console.log(`[Health] Supabase data: ${allSessions.length} sessions, ${(packages||[]).length} packages, ${Object.keys(result).length} clients mapped`);
+    return result;
   } catch (e) {
-    console.error("[Health Calculator] RDS Fetch Error:", e);
+    console.error("[Health Calculator] Supabase Session Fetch Error:", e);
     return {};
-  } finally {
-    await client.end();
   }
 }
 
@@ -514,114 +541,193 @@ export async function handleRequest(req: Request) {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 1. Fetch Candidates (Supabase)
-    const BATCH_SIZE = 100;
-    let allContacts: any[] = [];
-    let from = 0;
-    let hasMore = true;
+    // ── STRATEGY: Use client_packages_live as PRIMARY source (active clients) ──
+    // Then ENRICH with contacts table + training_sessions_live
+    // This ensures we score ALL active paying clients, not just HubSpot "customer" tagged ones
 
-    while (hasMore) {
-      let query = supabase
-        .from("contacts")
-        .select("id, email, hubspot_contact_id, first_name, last_name, last_paid_session_date, sessions_last_7d, sessions_last_30d, sessions_last_90d, outstanding_sessions, sessions_purchased, assigned_coach, next_session_is_booked, future_booked_sessions")
-        .eq("lifecycle_stage", "customer");
-      
-      if (client_emails.length > 0) {
-        query = query.in("email", client_emails);
-      }
+    // 1. Fetch ALL active packages (source of truth for who is a paying client)
+    const { data: packages, error: pkgErr } = await supabase
+      .from("client_packages_live")
+      .select("*");
+    if (pkgErr) throw pkgErr;
+    console.log(`[Health] ${packages?.length || 0} active packages from client_packages_live`);
 
-      const { data: contacts, error } = await query
-        .range(from, from + BATCH_SIZE - 1);
+    // 2. Fetch ALL training sessions for session counts
+    const { data: sessions, error: sessErr } = await supabase
+      .from("training_sessions_live")
+      .select("client_name,client_email,coach_name,training_date,status");
+    if (sessErr) throw sessErr;
 
-      if (error) throw error;
-      if (!contacts || contacts.length === 0) {
-        hasMore = false;
+    // 3. Build session stats per client email (lowercase)
+    const now = new Date();
+    const d7 = new Date(now.getTime() - 7 * 86400000);
+    const d30 = new Date(now.getTime() - 30 * 86400000);
+    const d90 = new Date(now.getTime() - 90 * 86400000);
+    // Count as "done": Completed, Attended, Started, Active
+    // Also count "Confirmed" if the session date is in the PAST (it happened, status just wasn't updated)
+    // "Cancelled-Rebooked" counts as activity signal (client is engaged enough to reschedule)
+    const alwaysCountStatuses = ["Completed", "Attended", "Started", "Active"];
+    const pastDateStatuses = ["Confirmed"]; // Count these only if training_date < now
+    const cancelledButEngaged = ["Cancelled-Rebooked"]; // Weak signal — count at 50% weight
+
+    const sessionStats: Record<string, { s7: number; s30: number; s90: number; lastDate: string | null; futureConfirmed: number }> = {};
+    for (const s of sessions || []) {
+      const key = (s.client_email || s.client_name || "").toLowerCase().trim();
+      if (!key) continue;
+      if (!sessionStats[key]) sessionStats[key] = { s7: 0, s30: 0, s90: 0, lastDate: null, futureConfirmed: 0 };
+      const st = sessionStats[key];
+      const td = new Date(s.training_date);
+      if (isNaN(td.getTime())) continue;
+
+      const isPast = td <= now;
+      const isFuture = td > now;
+      let weight = 0;
+
+      if (alwaysCountStatuses.includes(s.status)) {
+        weight = 1;
+      } else if (pastDateStatuses.includes(s.status) && isPast) {
+        weight = 1; // Confirmed + past date = it happened
+      } else if (pastDateStatuses.includes(s.status) && isFuture) {
+        st.futureConfirmed++; // Track for commitment score
+        continue;
+      } else if (cancelledButEngaged.includes(s.status)) {
+        weight = 0.5; // Engagement signal but not a completed session
       } else {
-        allContacts = [...allContacts, ...contacts];
-        from += BATCH_SIZE;
-        if (contacts.length < BATCH_SIZE) hasMore = false;
+        continue; // Skip pure cancellations
       }
-      
-      // Safety limit to avoid infinite loops or memory issues
-      if (from >= 5000) break;
+
+      if (td >= d7) st.s7 += weight;
+      if (td >= d30) st.s30 += weight;
+      if (td >= d90) st.s90 += weight;
+      if (weight >= 1 && (!st.lastDate || td.toISOString() > st.lastDate)) st.lastDate = td.toISOString();
     }
 
-    // 2. Fetch Truth (RDS)
-    const emails = allContacts?.map((c) => c.email).filter(Boolean) || [];
-    console.log(`Fetching RDS truth for ${emails.length} clients...`);
-    const rdsMap = await fetchRDSData(emails);
+    // 4. Optionally enrich from contacts table (for HubSpot fields: future_booked_sessions, assigned_coach)
+    const contactMap: Record<string, any> = {};
+    const { data: contacts } = await supabase
+      .from("contacts")
+      .select("email, hubspot_contact_id, first_name, last_name, assigned_coach, next_session_is_booked, future_booked_sessions")
+      .eq("lifecycle_stage", "customer");
+    for (const c of contacts || []) {
+      if (c.email) contactMap[c.email.toLowerCase()] = c;
+    }
 
-    // 3. Process
+    // 5. Process each active package client
     const results: any[] = [];
     const upserts: any[] = [];
+    const processedEmails = new Set<string>();
 
-    for (const c of allContacts || []) {
-      if (!c.email) continue;
-      const rds = rdsMap[c.email.toLowerCase()];
+    for (const pkg of packages || []) {
+      const email = (pkg.client_email || "").toLowerCase().trim();
+      if (!email || processedEmails.has(email)) continue;
+      if (client_emails.length > 0 && !client_emails.includes(email)) continue;
+      processedEmails.add(email);
 
-      // FUSION MAP
+      const stats = sessionStats[email] || sessionStats[(pkg.client_name || "").toLowerCase().trim()] || { s7: 0, s30: 0, s90: 0, lastDate: null };
+      const contact = contactMap[email] || {};
+
       const clientData: ClientData = {
-        id: c.hubspot_contact_id || c.id,
-        email: c.email,
-        firstname: c.first_name,
-        lastname: c.last_name,
-        last_paid_session_date:
-          rds?.last_session_date || c.last_paid_session_date,
-        of_sessions_conducted__last_7_days_: rds
-          ? String(rds.sessions_last_7d)
-          : String(c.sessions_last_7d || 0),
-        of_conducted_sessions__last_30_days_: rds
-          ? String(rds.sessions_last_30d)
-          : String(c.sessions_last_30d || 0),
-        of_sessions_conducted__last_90_days_: rds
-          ? String(rds.sessions_last_90d)
-          : String(c.sessions_last_90d || 0),
-        outstanding_sessions: rds
-          ? String(rds.remaining_sessions)
-          : String(c.outstanding_sessions || 0),
-        sessions_purchased: rds
-          ? String(rds.total_purchased)
-          : String(c.sessions_purchased || 0),
-        // Keep other HubSpot fields
-        assigned_coach: c.assigned_coach,
-        next_session_is_booked: c.next_session_is_booked,
-        of_future_booked_sessions: c.future_booked_sessions,
+        id: contact.hubspot_contact_id || pkg.client_id || email,
+        email: email,
+        firstname: pkg.client_name?.split(" ")[0] || contact.first_name || null,
+        lastname: pkg.client_name?.split(" ").slice(1).join(" ") || contact.last_name || null,
+        last_paid_session_date: stats.lastDate || pkg.last_session_date,
+        of_sessions_conducted__last_7_days_: String(stats.s7),
+        of_conducted_sessions__last_30_days_: String(stats.s30),
+        of_sessions_conducted__last_90_days_: String(stats.s90),
+        outstanding_sessions: String(pkg.remaining_sessions || 0),
+        sessions_purchased: String(pkg.pack_size || 0),
+        assigned_coach: pkg.last_coach || contact.assigned_coach,
+        next_session_is_booked: pkg.next_session_date ? "true" : (contact.next_session_is_booked || null),
+        of_future_booked_sessions: String(Math.max(pkg.future_booked || 0, stats.futureConfirmed || 0, contact.future_booked_sessions || 0)),
       };
 
-      const res = calculateHealthScoreV3(clientData, !!rds);
+      const hasRealData = stats.s7 > 0 || stats.s30 > 0 || stats.s90 > 0;
+      const res = calculateHealthScoreV3(clientData, hasRealData);
 
       results.push(res);
       upserts.push({
-        email: c.email,
-        firstname: c.first_name,
-        lastname: c.last_name,
-        hubspot_contact_id: c.hubspot_contact_id,
+        email: email,
+        firstname: clientData.firstname,
+        lastname: clientData.lastname,
+        hubspot_contact_id: contact.hubspot_contact_id || null,
         health_score: res.healthScore,
         health_zone: res.healthZone,
-        churn_risk_score: res.churnPrediction.probability30d,
-        health_trend: res.momentumAnalysis.status,
+        churn_risk_score: Math.round(res.churnPrediction.probability30d),
+        health_trend: (() => {
+          // Map momentum status to DB CHECK constraint values (DECLINING, STABLE, IMPROVING)
+          const s = res.momentumAnalysis.status;
+          if (s === "ACCELERATING" || s === "RECOVERING") return "IMPROVING";
+          if (s === "DECLINING" || s === "CLIFF_FALL") return "DECLINING";
+          return "STABLE"; // NO_DATA, STABLE
+        })(),
         calculated_at: new Date().toISOString(),
-        calculation_version: "v4.0-Calibration",
-        audit_source: res.dataConfidence.source,
-        last_paid_session_date: clientData.last_paid_session_date, // Sync truth back
-        sessions_last_7d: Number(
-          clientData.of_sessions_conducted__last_7_days_,
-        ),
-        sessions_last_30d: Number(
-          clientData.of_conducted_sessions__last_30_days_,
-        ),
+        calculation_version: "v5.0-PackageDriven",
+        sessions_last_7d: Math.round(stats.s7),
+        sessions_last_30d: Math.round(stats.s30),
+        assigned_coach: clientData.assigned_coach,
+        engagement_score: res.dimensions.engagement.score,
+        momentum_score: res.dimensions.momentum.score,
+        package_health_score: res.dimensions.packageHealth.score,
+        momentum_indicator: (() => {
+          // CHECK constraint allows: STABLE, ACCELERATING, DECLINING
+          const s = res.momentumAnalysis.status;
+          if (s === "ACCELERATING" || s === "RECOVERING") return "ACCELERATING";
+          if (s === "DECLINING" || s === "CLIFF_FALL") return "DECLINING";
+          return "STABLE";
+        })(),
+        intervention_priority: res.healthZone === "RED" ? "CRITICAL" : res.healthZone === "YELLOW" ? "HIGH" : "NONE",
+        outstanding_sessions: pkg.remaining_sessions || 0,
+        sessions_purchased: pkg.pack_size || 0,
       });
     }
 
-    // 4. Write
+    // 6. Write — use service role, upsert by email
+    let writeSuccess = 0;
+    let writeErrors: string[] = [];
     if (upserts.length) {
-      const { error: wErr } = await supabase
+      // Try batch first
+      const { error: batchErr } = await supabase
         .from("client_health_scores")
         .upsert(upserts, { onConflict: "email" });
-      if (wErr) console.error("Write error:", wErr);
+      
+      if (batchErr) {
+        console.error(`[Health] Batch upsert failed:`, JSON.stringify(batchErr));
+        writeErrors.push(`Batch: ${batchErr.message}`);
+        
+        // Fallback: individual writes
+        for (const row of upserts) {
+          const { error: singleErr } = await supabase
+            .from("client_health_scores")
+            .upsert(row, { onConflict: "email" });
+          if (singleErr) {
+            writeErrors.push(`${row.email}: ${singleErr.message}`);
+          } else {
+            writeSuccess++;
+          }
+        }
+        console.log(`[Health] Individual writes: ${writeSuccess} ok, ${writeErrors.length - 1} failed`);
+      } else {
+        writeSuccess = upserts.length;
+        console.log(`[Health] Batch upsert OK: ${writeSuccess} rows`);
+      }
     }
 
-    return apiSuccess({ success: true, processed: results.length, results });
+    // Zone summary
+    const zones: Record<string, number> = {};
+    for (const r of results) {
+      zones[r.healthZone] = (zones[r.healthZone] || 0) + 1;
+    }
+    console.log(`[Health] Processed ${results.length} clients. Zones:`, JSON.stringify(zones));
+
+    return apiSuccess({ 
+      success: true, 
+      processed: results.length, 
+      written: writeSuccess,
+      writeErrors: writeErrors.slice(0, 5),
+      zones,
+      results: results.slice(0, 5) // Limit response size
+    });
   } catch (e) {
     console.error(e);
     return apiError("INTERNAL_ERROR", JSON.stringify({ error: String(e) }), 500);
