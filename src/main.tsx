@@ -33,31 +33,60 @@ import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import "./index.css";
 
+// Chunk load error recovery — handles stale deployments
+function lazyWithRetry(importFn: () => Promise<any>) {
+  return lazy(() =>
+    importFn().catch((error: Error) => {
+      // If chunk fails to load (stale deployment), reload the page once
+      if (
+        error.message.includes("dynamically imported module") ||
+        error.message.includes("Failed to fetch") ||
+        error.message.includes("Loading chunk") ||
+        error.name === "ChunkLoadError"
+      ) {
+        const hasReloaded = sessionStorage.getItem("chunk_reload");
+        if (!hasReloaded) {
+          sessionStorage.setItem("chunk_reload", "1");
+          window.location.reload();
+          return { default: () => null } as any;
+        }
+        sessionStorage.removeItem("chunk_reload");
+      }
+      throw error;
+    })
+  );
+}
+
+// Clear reload flag on successful load
+if (sessionStorage.getItem("chunk_reload")) {
+  sessionStorage.removeItem("chunk_reload");
+}
+
 // Lazy-loaded page imports — route-level code splitting
-const ExecutiveOverview = lazy(() => import("./pages/ExecutiveOverview"));
-const RevenueIntelligence = lazy(() => import("./pages/RevenueIntelligence"));
-const Clients = lazy(() => import("./pages/Clients"));
-const ClientDetail = lazy(() => import("./pages/ClientDetail"));
-const Coaches = lazy(() => import("./pages/Coaches"));
-const Interventions = lazy(() => import("./pages/Interventions"));
-const SalesCoachTracker = lazy(() => import("./pages/SalesCoachTracker"));
-const SalesPipeline = lazy(() => import("./pages/SalesPipeline"));
-const CallTracking = lazy(() => import("./pages/CallTracking"));
-const AuditTrail = lazy(() => import("./pages/AuditTrail"));
-const WarRoom = lazy(() => import("./pages/WarRoom"));
-const GlobalBrain = lazy(() => import("./pages/GlobalBrain"));
-const SkillCommandCenter = lazy(() => import("./pages/SkillCommandCenter"));
-const MarketingIntelligence = lazy(() => import("./pages/MarketingIntelligence"));
-const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+const ExecutiveOverview = lazyWithRetry(() => import("./pages/ExecutiveOverview"));
+const RevenueIntelligence = lazyWithRetry(() => import("./pages/RevenueIntelligence"));
+const Clients = lazyWithRetry(() => import("./pages/Clients"));
+const ClientDetail = lazyWithRetry(() => import("./pages/ClientDetail"));
+const Coaches = lazyWithRetry(() => import("./pages/Coaches"));
+const Interventions = lazyWithRetry(() => import("./pages/Interventions"));
+const SalesCoachTracker = lazyWithRetry(() => import("./pages/SalesCoachTracker"));
+const SalesPipeline = lazyWithRetry(() => import("./pages/SalesPipeline"));
+const CallTracking = lazyWithRetry(() => import("./pages/CallTracking"));
+const AuditTrail = lazyWithRetry(() => import("./pages/AuditTrail"));
+const WarRoom = lazyWithRetry(() => import("./pages/WarRoom"));
+const GlobalBrain = lazyWithRetry(() => import("./pages/GlobalBrain"));
+const SkillCommandCenter = lazyWithRetry(() => import("./pages/SkillCommandCenter"));
+const MarketingIntelligence = lazyWithRetry(() => import("./pages/MarketingIntelligence"));
+const CommandCenter = lazyWithRetry(() => import("./pages/CommandCenter"));
 
 // Enterprise pages — real data, production hooks
-const EnterpriseStrategy = lazy(() => import("./pages/enterprise/EnterpriseStrategy"));
-const EnterpriseCallAnalytics = lazy(() => import("./pages/enterprise/CallAnalytics"));
-const EnterpriseSystemObservability = lazy(() => import("./pages/enterprise/SystemObservability"));
-const EnterpriseAIAdvisor = lazy(() => import("./pages/enterprise/AIAdvisor"));
-const EnterpriseClientHealth = lazy(() => import("./pages/enterprise/ClientHealth"));
-const EnterpriseCoachPerformance = lazy(() => import("./pages/enterprise/CoachPerformance"));
-const EnterpriseKnowledgeBase = lazy(() => import("./pages/enterprise/KnowledgeBase"));
+const EnterpriseStrategy = lazyWithRetry(() => import("./pages/enterprise/EnterpriseStrategy"));
+const EnterpriseCallAnalytics = lazyWithRetry(() => import("./pages/enterprise/CallAnalytics"));
+const EnterpriseSystemObservability = lazyWithRetry(() => import("./pages/enterprise/SystemObservability"));
+const EnterpriseAIAdvisor = lazyWithRetry(() => import("./pages/enterprise/AIAdvisor"));
+const EnterpriseClientHealth = lazyWithRetry(() => import("./pages/enterprise/ClientHealth"));
+const EnterpriseCoachPerformance = lazyWithRetry(() => import("./pages/enterprise/CoachPerformance"));
+const EnterpriseKnowledgeBase = lazyWithRetry(() => import("./pages/enterprise/KnowledgeBase"));
 
 // Suspense wrapper helpers with per-route skeleton variants
 function SuspensePage({ children, variant = "dashboard" }: { children: React.ReactNode; variant?: "dashboard" | "table" | "detail" | "cards" }) {
