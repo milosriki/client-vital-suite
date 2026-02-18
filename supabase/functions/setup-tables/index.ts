@@ -100,6 +100,29 @@ Deno.serve(async (req) => {
     await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_tsl_coach ON training_sessions_live(coach_name)`).catch(() => {});
     results.push("Indexes created");
 
+    // Session depletion alerts
+    await sql`
+      CREATE TABLE IF NOT EXISTS session_depletion_alerts (
+        id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        client_name text,
+        client_phone text,
+        client_email text,
+        package_id text NOT NULL UNIQUE,
+        remaining_sessions integer,
+        last_coach text,
+        priority text,
+        alert_status text DEFAULT 'pending',
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now()
+      )
+    `;
+    await sql`ALTER TABLE session_depletion_alerts ENABLE ROW LEVEL SECURITY`;
+    await sql.unsafe(`DROP POLICY IF EXISTS "anon_read_sda" ON session_depletion_alerts`).catch(() => {});
+    await sql.unsafe(`CREATE POLICY "anon_read_sda" ON session_depletion_alerts FOR SELECT TO anon USING (true)`);
+    await sql.unsafe(`DROP POLICY IF EXISTS "service_write_sda" ON session_depletion_alerts`).catch(() => {});
+    await sql.unsafe(`CREATE POLICY "service_write_sda" ON session_depletion_alerts FOR ALL TO service_role USING (true)`);
+    results.push("session_depletion_alerts created");
+
     await sql.end();
   } catch (e) {
     await sql.end();

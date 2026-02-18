@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,98 +8,54 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "GET" && req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
 
-  const dbUrl = Deno.env.get("SUPABASE_DB_URL");
-  if (!dbUrl) {
-    return new Response(JSON.stringify({ error: "No SUPABASE_DB_URL" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
-  const sql = postgres(dbUrl, { max: 1 });
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } }
+  );
 
   try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS session_depletion_alerts (
-        id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-        client_name text,
-        client_phone text,
-        client_email text,
-        package_id text NOT NULL UNIQUE,
-        remaining_sessions integer,
-        last_coach text,
-        priority text CHECK (priority IN ('CRITICAL','HIGH')),
-        alert_status text DEFAULT 'pending' CHECK (alert_status IN ('pending','contacted','renewed','churned')),
-        created_at timestamptz DEFAULT now(),
-        updated_at timestamptz DEFAULT now()
-      )
-    `;
+    // Get at-risk packages with no future bookings
+    const { data: atRisk, error: fetchErr } = await supabase
+      .from("client_packages_live")
+      .select("client_name, client_phone, client_email, package_id, remaining_sessions, last_coach, depletion_priority")
+      .in("depletion_priority", ["CRITICAL", "HIGH"])
+      .eq("future_booked", 0);
 
-    await sql`ALTER TABLE session_depletion_alerts ENABLE ROW LEVEL SECURITY`;
-    await sql.unsafe(`DROP POLICY IF EXISTS "anon_read_sda" ON session_depletion_alerts`).catch(() => {});
-    await sql.unsafe(`CREATE POLICY "anon_read_sda" ON session_depletion_alerts FOR SELECT TO anon USING (true)`);
-    await sql.unsafe(`DROP POLICY IF EXISTS "service_write_sda" ON session_depletion_alerts`).catch(() => {});
-    await sql.unsafe(`CREATE POLICY "service_write_sda" ON session_depletion_alerts FOR ALL TO service_role USING (true)`);
+    if (fetchErr) throw fetchErr;
+    if (!atRisk?.length) {
+      return new Response(JSON.stringify({ ok: true, upserted: 0, message: "No at-risk packages" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_sda_status ON session_depletion_alerts(alert_status)`).catch(() => {});
-    await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_sda_priority ON session_depletion_alerts(priority)`).catch(() => {});
-    await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_sda_created_at ON session_depletion_alerts(created_at DESC)`).catch(() => {});
-
-    const alerts = await sql`
-      INSERT INTO session_depletion_alerts (
-        client_name,
-        client_phone,
-        client_email,
-        package_id,
-        remaining_sessions,
-        last_coach,
-        priority,
-        alert_status,
-        created_at,
-        updated_at
-      )
-      SELECT
-        client_name,
-        client_phone,
-        client_email,
-        package_id,
-        remaining_sessions,
-        last_coach,
-        depletion_priority,
-        'pending',
-        now(),
-        now()
-      FROM client_packages_live
-      WHERE depletion_priority IN ('CRITICAL','HIGH')
-        AND future_booked = 0
-      ON CONFLICT (package_id) DO UPDATE SET
-        client_name = EXCLUDED.client_name,
-        client_phone = EXCLUDED.client_phone,
-        client_email = EXCLUDED.client_email,
-        remaining_sessions = EXCLUDED.remaining_sessions,
-        last_coach = EXCLUDED.last_coach,
-        priority = EXCLUDED.priority,
-        updated_at = now()
-      RETURNING id
-    `;
-
-    await sql.end();
+    // Upsert alerts one by one (session_depletion_alerts table)
+    let upserted = 0;
+    for (const pkg of atRisk) {
+      const { error } = await supabase
+        .from("session_depletion_alerts")
+        .upsert({
+          client_name: pkg.client_name,
+          client_phone: pkg.client_phone,
+          client_email: pkg.client_email,
+          package_id: pkg.package_id,
+          remaining_sessions: pkg.remaining_sessions,
+          last_coach: pkg.last_coach,
+          priority: pkg.depletion_priority,
+          alert_status: "pending",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "package_id" });
+      
+      if (!error) upserted++;
+    }
 
     return new Response(
-      JSON.stringify({ ok: true, upserted: alerts.length }),
+      JSON.stringify({ ok: true, upserted, total_at_risk: atRisk.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
-    await sql.end();
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
