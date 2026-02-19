@@ -192,17 +192,16 @@ LIVE BUSINESS DATA (Last 30 Days):
 - Top Campaigns: ${snapshot.topCampaigns.map(c => `${c.name}: AED ${c.spend.toFixed(0)} spend, ${c.leads} leads, CPL AED ${c.cpl.toFixed(0)}`).join(" | ")}
 ` : "No data loaded yet.";
 
-      // Try smart-ai-advisor first (has full DB context with names/phones), fallback to business-intelligence
+      // Call smart-ai-advisor first; only fall back to business-intelligence if it fails
       let data: any, error: any;
-      try {
-        const smartResult = await supabase.functions.invoke("smart-ai-advisor", {
-          body: { message: prompt + "\n\nADDITIONAL CONTEXT FROM DASHBOARD:\n" + context },
-        });
-        data = smartResult.data;
-        error = smartResult.error;
-        if (error) throw error;
-      } catch {
-        // Fallback to legacy business-intelligence
+      const smartResult = await supabase.functions.invoke("smart-ai-advisor", {
+        body: { message: prompt + "\n\nADDITIONAL CONTEXT FROM DASHBOARD:\n" + context },
+      });
+      data = smartResult.data;
+      error = smartResult.error;
+
+      if (error) {
+        console.warn("smart-ai-advisor failed, falling back to business-intelligence:", error);
         const legacyResult = await supabase.functions.invoke("business-intelligence", {
           body: {
             message: prompt,

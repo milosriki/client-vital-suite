@@ -248,6 +248,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ok: true,
           stats: {
             total_memories: memories.count || 0,
+            total_knowledge_chunks: memories.count || 0,
             total_facts: facts.count || 0,
             total_patterns: patterns.count || 0,
           },

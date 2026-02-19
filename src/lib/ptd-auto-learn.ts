@@ -397,15 +397,31 @@ export async function autoLearnFromApp() {
 
 // Background learning manager
 let learningInterval: ReturnType<typeof setInterval> | null = null;
+let consecutiveFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 5;
 
 export function startBackgroundLearning() {
   if (learningInterval) return;
+  consecutiveFailures = 0;
   
   // Learn immediately
-  autoLearnFromApp();
+  autoLearnFromApp()
+    .then(() => { consecutiveFailures = 0; })
+    .catch(() => { consecutiveFailures++; });
   
   // Then every hour
-  learningInterval = setInterval(autoLearnFromApp, 60 * 60 * 1000);
+  learningInterval = setInterval(async () => {
+    try {
+      await autoLearnFromApp();
+      consecutiveFailures = 0;
+    } catch {
+      consecutiveFailures++;
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        console.warn(`⚠️ Auto-learn stopped after ${MAX_CONSECUTIVE_FAILURES} consecutive failures`);
+        stopBackgroundLearning();
+      }
+    }
+  }, 60 * 60 * 1000);
 }
 
 export function stopBackgroundLearning() {

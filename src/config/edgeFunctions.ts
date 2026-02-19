@@ -9,13 +9,6 @@ export interface EdgeFunction {
 
 export const ALL_EDGE_FUNCTIONS: EdgeFunction[] = [
   {
-    name: "agent-analyst",
-    hasIndex: true,
-    hasSecrets: true,
-    isScheduled: false,
-    hasCors: true,
-  },
-  {
     name: "agent-orchestrator",
     hasIndex: true,
     hasSecrets: true,
@@ -562,14 +555,7 @@ export const ALL_EDGE_FUNCTIONS: EdgeFunction[] = [
     hasCors: false,
   },
   {
-    name: "ptd-self-developer",
-    hasIndex: true,
-    hasSecrets: true,
-    isScheduled: false,
-    hasCors: true,
-  },
-  {
-    name: "ptd-self-learn",
+    name: "ptd-self-developer", // Note: redirects to smart-ai-advisor
     hasIndex: true,
     hasSecrets: true,
     isScheduled: false,
@@ -602,13 +588,6 @@ export const ALL_EDGE_FUNCTIONS: EdgeFunction[] = [
     hasSecrets: true,
     isScheduled: false,
     hasCors: true,
-  },
-  {
-    name: "run-migration",
-    hasIndex: true,
-    hasSecrets: true,
-    isScheduled: false,
-    hasCors: false,
   },
   {
     name: "sales-aggression",
