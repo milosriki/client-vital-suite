@@ -18,7 +18,7 @@ export default function MetaAdsDashboard() {
     loadBudgetRecs,
     loadCrossValidation,
     tokenStats,
-  } = useMetaAds({ dailyBudget: 10 });
+  } = useMetaAds({ dailyBudget: 10, defaultAccountId: 'act_349832333681399' });
 
   const [timeRange, setTimeRange] = useState<TimeRange>('last_7d');
   const [activeTab, setActiveTab] = useState<'campaigns' | 'alerts' | 'budget' | 'crossval' | 'tokens'>('campaigns');

@@ -55,7 +55,7 @@ export default function MetaAdsChat() {
     stopStreaming,
     clearChat,
     tokenStats,
-  } = useMetaAds({ dailyBudget: 10 });
+  } = useMetaAds({ dailyBudget: 10, defaultAccountId: 'act_349832333681399' });
 
   const [input, setInput] = useState('');
   const [selectedTask, setSelectedTask] = useState<TaskType>('chat');
