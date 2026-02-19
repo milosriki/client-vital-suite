@@ -86,6 +86,7 @@ const ClientActivity = lazyWithRetry(() => import("./pages/ClientActivity"));
 const PredictiveIntelligence = lazyWithRetry(() => import("./pages/PredictiveIntelligence"));
 const AlertCenter = lazyWithRetry(() => import("./pages/AlertCenter"));
 const MetaAds = lazyWithRetry(() => import("./pages/MetaAds"));
+const ConversionFunnel = lazyWithRetry(() => import("./pages/ConversionFunnel"));
 
 // Enterprise pages — real data, production hooks
 const EnterpriseStrategy = lazyWithRetry(() => import("./pages/enterprise/EnterpriseStrategy"));
@@ -168,6 +169,7 @@ const router = createBrowserRouter([
       { path: "/daily-ops", element: <SuspensePage><DailyOps /></SuspensePage> },
       { path: "/client-activity", element: <SuspenseTable><ClientActivity /></SuspenseTable> },
       { path: "/predictions", element: <SuspensePage><PredictiveIntelligence /></SuspensePage> },
+      { path: "/conversion-funnel", element: <SuspensePage><ConversionFunnel /></SuspensePage> },
       { path: "/alert-center", element: <SuspenseTable><AlertCenter /></SuspenseTable> },
       { path: "/audit", element: <SuspenseTable><AuditTrail /></SuspenseTable> },
       { path: "/coach-locations", element: <SuspensePage><CoachLocations /></SuspensePage> },
