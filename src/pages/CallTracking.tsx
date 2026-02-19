@@ -11,17 +11,21 @@ import {
 } from "@/components/ui/dialog";
 import { 
   Phone, PhoneIncoming, Clock, Star, Calendar, TrendingUp, 
-  Flame, Users, AlertTriangle, Trophy, PhoneMissed, UserX, BarChart3
+  Flame, Users, AlertTriangle, Trophy, PhoneMissed, UserX, BarChart3,
+  PieChart, Grid3X3
 } from "lucide-react";
 import { CallCard } from "@/components/call-tracking/CallCard";
 import { CallFilters } from "@/components/call-tracking/CallFilters";
 import { CallCardSkeleton } from "@/components/call-tracking/CallCardSkeleton";
+import { CallIntelligenceKPIs } from "@/components/call-tracking/CallIntelligenceKPIs";
+import { DailyTrends } from "@/components/call-tracking/DailyTrends";
+import { HourlyHeatmap } from "@/components/call-tracking/HourlyHeatmap";
+import { OwnerPerformance } from "@/components/call-tracking/OwnerPerformance";
+import { OutcomeAnalysis } from "@/components/call-tracking/OutcomeAnalysis";
+import { TimeRangeFilter } from "@/components/call-tracking/TimeRangeFilter";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
-import { EmptyState } from "@/components/ui/empty-state";
-import { useAnnounce } from "@/lib/accessibility";
 import { toast } from "sonner";
 
-// Normalize phone number for comparison (remove all non-digits)
 const normalizePhone = (phone: string | null) => {
   if (!phone) return '';
   return phone.replace(/\D/g, '');
@@ -36,8 +40,54 @@ export default function CallTracking() {
   });
   const [selectedLostLead, setSelectedLostLead] = useState<any>(null);
   const [selectedSetter, setSelectedSetter] = useState<any>(null);
+  const [timeRange, setTimeRange] = useState(30);
 
-  // Fetch call records
+  const cutoffDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - timeRange);
+    return d.toISOString();
+  }, [timeRange]);
+
+  // ── Intelligence queries (time-range filtered) ──
+  const { data: intelligenceRecords, isLoading: loadingIntel } = useDedupedQuery({
+    queryKey: ["call-intelligence", timeRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("call_records")
+        .select("id, call_status, call_outcome, duration_seconds, created_at, started_at, hubspot_owner_id, caller_number, call_direction, appointment_set")
+        .gte("created_at", cutoffDate)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Deals for outcome cross-reference
+  const { data: deals } = useDedupedQuery({
+    queryKey: ["deals-for-intelligence"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deals")
+        .select("id, contact_id, owner_name, status, created_at");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Contacts for phone→deal linking and owner names
+  const { data: contacts, isLoading: loadingContacts } = useDedupedQuery({
+    queryKey: ["contacts-for-calls"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, phone, first_name, last_name, city, location, neighborhood, lifecycle_stage, lead_status, owner_name, latest_traffic_source, call_attempt_count")
+        .not("phone", "is", null);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Full call records for the Calls tab
   const { data: callRecords, isLoading: loadingCalls } = useDedupedQuery({
     queryKey: ["call-records-enriched"],
     queryFn: async () => {
@@ -50,20 +100,7 @@ export default function CallTracking() {
     },
   });
 
-  // Fetch contacts for enrichment
-  const { data: contacts, isLoading: loadingContacts } = useDedupedQuery({
-    queryKey: ["contacts-for-calls"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("phone, first_name, last_name, city, location, neighborhood, lifecycle_stage, lead_status, owner_name, latest_traffic_source, call_attempt_count")
-        .not("phone", "is", null);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch contacts for additional lead data
+  // Enhanced leads
   const { data: enhancedLeads, isLoading: loadingLeads } = useDedupedQuery({
     queryKey: ["contacts-for-calls"],
     queryFn: async () => {
@@ -75,15 +112,15 @@ export default function CallTracking() {
       if (error) throw error;
       return (data || []).map(c => ({
         ...c,
-        lead_score: null,
-        ltv_prediction: null,
+        lead_score: null as number | null,
+        ltv_prediction: null as number | null,
         campaign_name: c.attributed_campaign_id,
-        dubai_area: null,
+        dubai_area: null as string | null,
       }));
     },
   });
 
-  // Fetch lost leads
+  // Lost leads
   const { data: lostLeads, isLoading: loadingLostLeads } = useDedupedQuery({
     queryKey: ["lost-leads"],
     queryFn: async () => {
@@ -96,7 +133,7 @@ export default function CallTracking() {
     },
   });
 
-  // Fetch setter daily stats
+  // Setter daily stats
   const { data: setterStats, isLoading: loadingSetterStats } = useDedupedQuery({
     queryKey: ["setter-daily-stats"],
     queryFn: async () => {
@@ -112,35 +149,150 @@ export default function CallTracking() {
 
   const isLoading = loadingCalls || loadingContacts || loadingLeads;
 
-  // Create lookup maps for fast joining
+  // ── Lookup maps ──
   const contactsMap = useMemo(() => {
-    const map = new Map<string, typeof contacts[0]>();
-    contacts?.forEach(c => {
-      if (c.phone) map.set(normalizePhone(c.phone), c);
-    });
+    const map = new Map<string, (typeof contacts extends (infer T)[] | undefined ? T : never)>();
+    contacts?.forEach(c => { if (c.phone) map.set(normalizePhone(c.phone), c); });
     return map;
   }, [contacts]);
 
   const leadsMap = useMemo(() => {
-    const map = new Map<string, typeof enhancedLeads[0]>();
-    enhancedLeads?.forEach(l => {
-      if (l.phone) map.set(normalizePhone(l.phone), l);
-    });
+    const map = new Map<string, (typeof enhancedLeads extends (infer T)[] | undefined ? T : never)>();
+    enhancedLeads?.forEach(l => { if (l.phone) map.set(normalizePhone(l.phone), l); });
     return map;
   }, [enhancedLeads]);
 
-  // Enrich call records with contact and lead data
+  // Contact ID → phone map for deal linking
+  const contactIdToPhone = useMemo(() => {
+    const map = new Map<string, string>();
+    contacts?.forEach(c => { if (c.id && c.phone) map.set(c.id, normalizePhone(c.phone)); });
+    return map;
+  }, [contacts]);
+
+  // Deal phones set
+  const dealPhones = useMemo(() => {
+    const s = new Set<string>();
+    deals?.forEach(d => {
+      if (d.contact_id) {
+        const phone = contactIdToPhone.get(d.contact_id);
+        if (phone) s.add(phone);
+      }
+    });
+    return s;
+  }, [deals, contactIdToPhone]);
+
+  // ── KPI calculations ──
+  const kpiData = useMemo(() => {
+    const records = intelligenceRecords || [];
+    const total = records.length;
+    const answered = records.filter(r => r.call_status === "completed" || r.call_status === "answered").length;
+    const answeredRecords = records.filter(r => r.call_status === "completed" || r.call_status === "answered");
+    const avgDuration = answeredRecords.length > 0
+      ? answeredRecords.reduce((s, r) => s + (r.duration_seconds || 0), 0) / answeredRecords.length
+      : 0;
+    const missed = total - answered;
+    // No wait_time column in schema, show 0
+    return {
+      totalCalls: total,
+      answeredRate: total > 0 ? (answered / total) * 100 : 0,
+      avgDuration,
+      missedCalls: missed,
+      avgWaitTime: 0,
+    };
+  }, [intelligenceRecords]);
+
+  // ── Daily trends ──
+  const dailyTrends = useMemo(() => {
+    const records = intelligenceRecords || [];
+    const byDay = new Map<string, { total: number; answered: number }>();
+    records.forEach(r => {
+      const date = (r.created_at || "").slice(0, 10);
+      if (!date) return;
+      const entry = byDay.get(date) || { total: 0, answered: 0 };
+      entry.total++;
+      if (r.call_status === "completed" || r.call_status === "answered") entry.answered++;
+      byDay.set(date, entry);
+    });
+    return Array.from(byDay.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({
+        date,
+        total: d.total,
+        answered: d.answered,
+        answeredRate: d.total > 0 ? (d.answered / d.total) * 100 : 0,
+      }));
+  }, [intelligenceRecords]);
+
+  // ── Hourly heatmap ──
+  const heatmapData = useMemo(() => {
+    const grid = Array.from({ length: 7 }, () => Array(24).fill(0) as number[]);
+    (intelligenceRecords || []).forEach(r => {
+      const dt = r.created_at ? new Date(r.created_at) : null;
+      if (!dt) return;
+      const dow = (dt.getDay() + 6) % 7; // Mon=0
+      const hour = dt.getHours();
+      grid[dow][hour]++;
+    });
+    return grid;
+  }, [intelligenceRecords]);
+
+  // ── Owner performance ──
+  const ownerPerformance = useMemo(() => {
+    const records = intelligenceRecords || [];
+    const byOwner = new Map<string, { total: number; answered: number; duration: number; appointments: number }>();
+    records.forEach(r => {
+      const owner = r.hubspot_owner_id || "Unknown";
+      const entry = byOwner.get(owner) || { total: 0, answered: 0, duration: 0, appointments: 0 };
+      entry.total++;
+      const isAnswered = r.call_status === "completed" || r.call_status === "answered";
+      if (isAnswered) {
+        entry.answered++;
+        entry.duration += r.duration_seconds || 0;
+      }
+      if (r.appointment_set) entry.appointments++;
+      byOwner.set(owner, entry);
+    });
+    return Array.from(byOwner.entries()).map(([owner, d]) => ({
+      owner,
+      totalCalls: d.total,
+      answered: d.answered,
+      missed: d.total - d.answered,
+      avgDuration: d.answered > 0 ? d.duration / d.answered : 0,
+      conversionRate: d.total > 0 ? (d.appointments / d.total) * 100 : 0,
+    }));
+  }, [intelligenceRecords]);
+
+  // ── Outcome analysis ──
+  const outcomeAnalysis = useMemo(() => {
+    const records = intelligenceRecords || [];
+    const byOutcome = new Map<string, { count: number; phones: Set<string> }>();
+    records.forEach(r => {
+      const outcome = r.call_outcome || "Unknown";
+      const entry = byOutcome.get(outcome) || { count: 0, phones: new Set<string>() };
+      entry.count++;
+      if (r.caller_number) entry.phones.add(normalizePhone(r.caller_number));
+      byOutcome.set(outcome, entry);
+    });
+    const total = records.length || 1;
+    return Array.from(byOutcome.entries())
+      .map(([outcome, d]) => ({
+        outcome,
+        count: d.count,
+        percentage: (d.count / total) * 100,
+        dealsLinked: Array.from(d.phones).filter(p => dealPhones.has(p)).length,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [intelligenceRecords, dealPhones]);
+
+  // ── Enriched calls for Calls tab ──
   const enrichedCalls = useMemo(() => {
     if (!callRecords) return [];
-    
     return callRecords.map(call => {
       const normalizedPhone = normalizePhone(call.caller_number);
       const contact = contactsMap.get(normalizedPhone);
       const lead = leadsMap.get(normalizedPhone);
-
       return {
         ...call,
-        // Contact data
         first_name: contact?.first_name || lead?.first_name || null,
         last_name: contact?.last_name || lead?.last_name || null,
         city: contact?.city || null,
@@ -151,7 +303,6 @@ export default function CallTracking() {
         owner_name: contact?.owner_name || null,
         latest_traffic_source: contact?.latest_traffic_source || null,
         call_attempt_count: contact?.call_attempt_count || null,
-        // Lead data
         lead_score: lead?.lead_score || null,
         ltv_prediction: lead?.ltv_prediction || null,
         campaign_name: lead?.campaign_name || null,
@@ -160,7 +311,6 @@ export default function CallTracking() {
     });
   }, [callRecords, contactsMap, leadsMap]);
 
-  // Enrich lost leads with contact names
   const enrichedLostLeads = useMemo(() => {
     if (!lostLeads) return [];
     return lostLeads.map(lead => {
@@ -172,18 +322,16 @@ export default function CallTracking() {
     });
   }, [lostLeads, contactsMap]);
 
-  // Get latest stats per setter for leaderboard
   const setterLeaderboard = useMemo(() => {
     if (!setterStats?.length) return [];
-    const latestByOwner = new Map<string, typeof setterStats[0]>();
+    const latestByOwner = new Map<string, (typeof setterStats)[0]>();
     for (const stat of setterStats) {
-      const key = stat.hubspot_owner_id || stat.owner_name;
+      const key = (stat as any).hubspot_owner_id || (stat as any).owner_name;
       if (!latestByOwner.has(key)) latestByOwner.set(key, stat);
     }
-    return Array.from(latestByOwner.values()).sort((a, b) => (b.conversion_rate || 0) - (a.conversion_rate || 0));
+    return Array.from(latestByOwner.values()).sort((a, b) => ((b as any).conversion_rate || 0) - ((a as any).conversion_rate || 0));
   }, [setterStats]);
 
-  // Get unique owners and locations for filters
   const uniqueOwners = useMemo(() => {
     const owners = new Set<string>();
     enrichedCalls.forEach(c => { if (c.owner_name) owners.add(c.owner_name); });
@@ -199,37 +347,27 @@ export default function CallTracking() {
     return Array.from(locs).filter(Boolean).sort();
   }, [enrichedCalls]);
 
-  // Apply filters
   const filteredCalls = useMemo(() => {
     return enrichedCalls.filter(call => {
-      // Owner filter
       if (filters.owner !== 'all' && call.owner_name !== filters.owner) return false;
-      
-      // Quality filter
       if (filters.quality !== 'all') {
         const score = call.lead_score || 0;
         if (filters.quality === 'hot' && score < 80) return false;
         if (filters.quality === 'warm' && (score < 60 || score >= 80)) return false;
         if (filters.quality === 'cold' && score >= 60) return false;
       }
-      
-      // Status filter
       if (filters.status !== 'all') {
         if (filters.status === 'completed' && call.call_status !== 'completed') return false;
         if (filters.status === 'missed' && !['missed', 'no_answer'].includes(call.call_status)) return false;
         if (filters.status === 'initiated' && call.call_status !== 'initiated') return false;
       }
-      
-      // Location filter
       if (filters.location !== 'all') {
         if (call.city !== filters.location && call.dubai_area !== filters.location) return false;
       }
-      
       return true;
     });
   }, [enrichedCalls, filters]);
 
-  // Calculate stats
   const getDurationInSeconds = (ms: number | null | undefined) => {
     if (!ms) return 0;
     return ms > 1000 ? Math.round(ms / 1000) : ms;
@@ -273,112 +411,22 @@ export default function CallTracking() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Call Tracking</h1>
-          <p className="text-muted-foreground">Monitor call performance with enriched lead data</p>
+        {/* Header with time range */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Call Intelligence</h1>
+            <p className="text-muted-foreground">Real-time call analytics & performance insights</p>
+          </div>
+          <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
         </div>
 
-        {/* Stats Grid - Enhanced */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <Phone className="h-6 w-6 text-primary" />
-                <div>
-                  <p className="text-xl font-bold">{stats.totalCalls}</p>
-                  <p className="text-xs text-muted-foreground">Total Calls</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <PhoneIncoming className="h-6 w-6 text-green-500" />
-                <div>
-                  <p className="text-xl font-bold">{stats.completedCalls}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <Clock className="h-6 w-6 text-blue-500" />
-                <div>
-                  <p className="text-xl font-bold">{Math.floor(stats.avgDuration / 60)}:{String(stats.avgDuration % 60).padStart(2, '0')}</p>
-                  <p className="text-xs text-muted-foreground">Avg Duration</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <Star className="h-6 w-6 text-yellow-500" />
-                <div>
-                  <p className="text-xl font-bold">{stats.avgScore}</p>
-                  <p className="text-xs text-muted-foreground">Avg Score</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-6 w-6 text-purple-500" />
-                <div>
-                  <p className="text-xl font-bold">{stats.appointmentsSet}</p>
-                  <p className="text-xs text-muted-foreground">Appointments</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <Flame className="h-6 w-6 text-orange-500" />
-                <div>
-                  <p className="text-xl font-bold">{stats.hotLeadsCalled}</p>
-                  <p className="text-xs text-muted-foreground">Hot Leads</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-emerald-500" />
-                <div>
-                  <p className="text-xl font-bold">{stats.conversionRate}%</p>
-                  <p className="text-xs text-muted-foreground">Conversion</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-6 w-6 text-sky-500" />
-                <div>
-                  <p className="text-xl font-bold">{stats.avgLeadScore}</p>
-                  <p className="text-xs text-muted-foreground">Avg Lead Score</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-orange-500/30">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-6 w-6 text-orange-500" />
-                <div>
-                  <p className="text-xl font-bold text-orange-500">{stats.unworkedLeads}</p>
-                  <p className="text-xs text-muted-foreground">Unworked</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* KPI Cards */}
+        <CallIntelligenceKPIs data={kpiData} isLoading={loadingIntel} />
+
+        {/* Daily Trends + Heatmap */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <DailyTrends data={dailyTrends} isLoading={loadingIntel} />
+          <HourlyHeatmap data={heatmapData} isLoading={loadingIntel} />
         </div>
 
         {/* Filters */}
@@ -394,21 +442,27 @@ export default function CallTracking() {
           </CardContent>
         </Card>
 
-        {/* Tabs: Calls / Lost Leads / Setter Leaderboard */}
+        {/* Tabs */}
         <Tabs defaultValue="calls" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="calls" className="gap-2">
+            <TabsTrigger value="calls" className="gap-2 cursor-pointer">
               <Phone className="h-4 w-4" /> Calls
               <Badge variant="secondary" className="ml-1">{filteredCalls.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="lost-leads" className="gap-2">
+            <TabsTrigger value="lost-leads" className="gap-2 cursor-pointer">
               <UserX className="h-4 w-4" /> Lost Leads
-              {enrichedLostLeads.filter(l => l.status === 'new').length > 0 && (
-                <Badge variant="destructive" className="ml-1">{enrichedLostLeads.filter(l => l.status === 'new').length}</Badge>
+              {enrichedLostLeads.filter(l => (l as any).status === 'new').length > 0 && (
+                <Badge variant="destructive" className="ml-1">{enrichedLostLeads.filter(l => (l as any).status === 'new').length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="leaderboard" className="gap-2">
+            <TabsTrigger value="leaderboard" className="gap-2 cursor-pointer">
               <Trophy className="h-4 w-4" /> Setter Leaderboard
+            </TabsTrigger>
+            <TabsTrigger value="owner-performance" className="gap-2 cursor-pointer">
+              <Users className="h-4 w-4" /> Owner Performance
+            </TabsTrigger>
+            <TabsTrigger value="outcomes" className="gap-2 cursor-pointer">
+              <PieChart className="h-4 w-4" /> Outcomes
             </TabsTrigger>
           </TabsList>
 
@@ -427,15 +481,18 @@ export default function CallTracking() {
 
               {isLoading ? (
                 <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <CallCardSkeleton key={i} />
-                  ))}
+                  {[...Array(5)].map((_, i) => <CallCardSkeleton key={i} />)}
                 </div>
               ) : filteredCalls.length > 0 ? (
                 <div className="space-y-3">
-                  {filteredCalls.map((call) => (
+                  {filteredCalls.slice(0, 50).map((call) => (
                     <CallCard key={call.id} call={call} />
                   ))}
+                  {filteredCalls.length > 50 && (
+                    <p className="text-center text-sm text-muted-foreground py-4">
+                      Showing 50 of {filteredCalls.length} calls
+                    </p>
+                  )}
                 </div>
               ) : (
                 <Card className="py-12">
@@ -463,13 +520,11 @@ export default function CallTracking() {
 
               {loadingLostLeads ? (
                 <div className="space-y-3">
-                  {[...Array(3)].map((_, i) => (
-                    <CallCardSkeleton key={i} />
-                  ))}
+                  {[...Array(3)].map((_, i) => <CallCardSkeleton key={i} />)}
                 </div>
               ) : enrichedLostLeads.length > 0 ? (
                 <div className="space-y-2">
-                  {enrichedLostLeads.map((lead) => (
+                  {enrichedLostLeads.map((lead: any) => (
                     <Card
                       key={lead.id}
                       className={`cursor-pointer transition-colors duration-200 hover:bg-muted/30 ${lead.status === 'new' ? 'border-red-500/30' : ''}`}
@@ -482,19 +537,11 @@ export default function CallTracking() {
                               <PhoneMissed className="h-5 w-5" />
                             </div>
                             <div>
-                              <p className="font-medium">
-                                {lead.contact_name || lead.caller_number}
-                              </p>
-                              {lead.contact_name && (
-                                <p className="text-sm text-muted-foreground">{lead.caller_number}</p>
-                              )}
+                              <p className="font-medium">{lead.contact_name || lead.caller_number}</p>
+                              {lead.contact_name && <p className="text-sm text-muted-foreground">{lead.caller_number}</p>}
                               <div className="flex gap-2 mt-1">
-                                {lead.lifecycle_stage && (
-                                  <Badge variant="outline" className="text-xs">{lead.lifecycle_stage}</Badge>
-                                )}
-                                <Badge variant={lead.status === 'new' ? 'destructive' : lead.status === 'contacted' ? 'default' : 'secondary'} className="text-xs">
-                                  {lead.status}
-                                </Badge>
+                                {lead.lifecycle_stage && <Badge variant="outline" className="text-xs">{lead.lifecycle_stage}</Badge>}
+                                <Badge variant={lead.status === 'new' ? 'destructive' : lead.status === 'contacted' ? 'default' : 'secondary'} className="text-xs">{lead.status}</Badge>
                               </div>
                             </div>
                           </div>
@@ -505,17 +552,9 @@ export default function CallTracking() {
                                 {Math.round(lead.lead_score)}
                               </span>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {lead.missed_call_count} missed call{lead.missed_call_count !== 1 ? 's' : ''}
-                            </p>
-                            {lead.assigned_owner && (
-                              <p className="text-xs text-muted-foreground">Owner: {lead.assigned_owner}</p>
-                            )}
-                            {lead.last_missed_at && (
-                              <p className="text-xs text-muted-foreground">
-                                Last: {new Date(lead.last_missed_at).toLocaleString()}
-                              </p>
-                            )}
+                            <p className="text-sm text-muted-foreground">{lead.missed_call_count} missed call{lead.missed_call_count !== 1 ? 's' : ''}</p>
+                            {lead.assigned_owner && <p className="text-xs text-muted-foreground">Owner: {lead.assigned_owner}</p>}
+                            {lead.last_missed_at && <p className="text-xs text-muted-foreground">Last: {new Date(lead.last_missed_at).toLocaleString()}</p>}
                           </div>
                         </div>
                       </CardContent>
@@ -527,7 +566,6 @@ export default function CallTracking() {
                   <div className="text-center text-muted-foreground">
                     <PhoneMissed className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No lost leads detected</p>
-                    <p className="text-sm mt-1">Run the lost-lead-detector to scan for missed calls</p>
                   </div>
                 </Card>
               )}
@@ -546,13 +584,11 @@ export default function CallTracking() {
 
               {loadingSetterStats ? (
                 <div className="space-y-3">
-                  {[...Array(3)].map((_, i) => (
-                    <CallCardSkeleton key={i} />
-                  ))}
+                  {[...Array(3)].map((_, i) => <CallCardSkeleton key={i} />)}
                 </div>
               ) : setterLeaderboard.length > 0 ? (
                 <div className="grid gap-3">
-                  {setterLeaderboard.map((setter, idx) => (
+                  {setterLeaderboard.map((setter: any, idx: number) => (
                     <Card
                       key={setter.id}
                       className={`cursor-pointer transition-colors duration-200 hover:bg-muted/30 ${idx === 0 ? 'border-yellow-500/50' : ''}`}
@@ -616,11 +652,20 @@ export default function CallTracking() {
                   <div className="text-center text-muted-foreground">
                     <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No setter performance data yet</p>
-                    <p className="text-sm mt-1">Run the setter-performance function to generate stats</p>
                   </div>
                 </Card>
               )}
             </div>
+          </TabsContent>
+
+          {/* Owner Performance Tab */}
+          <TabsContent value="owner-performance">
+            <OwnerPerformance data={ownerPerformance} isLoading={loadingIntel} />
+          </TabsContent>
+
+          {/* Outcome Analysis Tab */}
+          <TabsContent value="outcomes">
+            <OutcomeAnalysis data={outcomeAnalysis} isLoading={loadingIntel} />
           </TabsContent>
         </Tabs>
       </div>
@@ -647,7 +692,6 @@ export default function CallTracking() {
                   {selectedLostLead.status}
                 </Badge>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Lead Score</p>
@@ -660,28 +704,24 @@ export default function CallTracking() {
                   <p className="text-2xl font-bold">{selectedLostLead.missed_call_count}</p>
                 </div>
               </div>
-
               {selectedLostLead.lifecycle_stage && (
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Lifecycle Stage</p>
                   <Badge variant="outline">{selectedLostLead.lifecycle_stage}</Badge>
                 </div>
               )}
-
               {selectedLostLead.assigned_owner && (
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Assigned Owner</p>
                   <p className="font-medium">{selectedLostLead.assigned_owner}</p>
                 </div>
               )}
-
               {selectedLostLead.last_missed_at && (
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Last Missed Call</p>
                   <p className="font-medium">{new Date(selectedLostLead.last_missed_at).toLocaleString()}</p>
                 </div>
               )}
-
               <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
                 <p className="text-xs text-red-400 mb-1">⚠️ Action Required</p>
                 <p className="text-sm font-medium">
@@ -730,7 +770,6 @@ export default function CallTracking() {
                   </p>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Appointments Set</p>
@@ -743,12 +782,10 @@ export default function CallTracking() {
                   </p>
                 </div>
               </div>
-
               <div className="p-3 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Lost Leads</p>
                 <p className="text-2xl font-bold text-red-500">{selectedSetter.lost_lead_count}</p>
               </div>
-
               <div className="p-3 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Report Date</p>
                 <p className="font-medium">{selectedSetter.date}</p>

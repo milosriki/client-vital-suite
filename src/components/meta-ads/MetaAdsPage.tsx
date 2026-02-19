@@ -52,6 +52,9 @@ export default function MetaAdsPage() {
           <TabsTrigger value="audience" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200" onClick={loadAudience}>
             <Users className="w-3.5 h-3.5" /> Audience
           </TabsTrigger>
+          <TabsTrigger value="attribution" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <Link2 className="w-3.5 h-3.5" /> Attribution
+          </TabsTrigger>
           <TabsTrigger value="settings" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
             <Settings className="w-3.5 h-3.5" /> Settings
           </TabsTrigger>
@@ -79,6 +82,10 @@ export default function MetaAdsPage() {
             isLoading={dashboard.isLoading}
             onRefresh={loadAudience}
           />
+        </TabsContent>
+
+        <TabsContent value="attribution">
+          <MetaAdsAttribution />
         </TabsContent>
 
         <TabsContent value="settings">
