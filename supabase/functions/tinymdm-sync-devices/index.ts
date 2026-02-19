@@ -34,6 +34,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Fetch users list for name mapping
+    const usersResp = await fetchTinyMDM("/users?per_page=1000");
+    const userMap = new Map<string, string>();
+    for (const u of (usersResp.results || [])) {
+      if (u.id && u.name) userMap.set(u.id, u.name.trim());
+    }
+
     // Fetch all devices (paginate up to 1000)
     const devicesResp = await fetchTinyMDM("/devices?per_page=1000");
     const deviceList = devicesResp.results || [];
@@ -42,7 +49,8 @@ serve(async (req) => {
     for (const d of deviceList) {
       const deviceId = String(d.id);
       const deviceName = d.nickname || d.name || "";
-      const coachName = deviceName.replace(/[-_](phone|device|tablet|mdm)/gi, "").trim();
+      // Resolve coach name from user_id → users list, fallback to nickname/device name
+      const coachName = (d.user_id && userMap.get(d.user_id)) || deviceName.replace(/[-_](phone|device|tablet|mdm)/gi, "").trim();
       
       // Get latest GPS position
       const positions = d.geolocation_positions || [];
