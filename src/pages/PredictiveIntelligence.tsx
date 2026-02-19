@@ -215,7 +215,7 @@ export default function PredictiveIntelligence() {
       let aVal: number, bVal: number;
       switch (sortField) {
         case "churn_score": aVal = a.churn_score; bVal = b.churn_score; break;
-        case "days_since_last_session": aVal = a.churn_factors.days_since_last_session; bVal = b.churn_factors.days_since_last_session; break;
+        case "days_since_last_session": aVal = a.churn_factors?.days_since_last_session ?? 0; bVal = b.churn_factors?.days_since_last_session ?? 0; break;
         case "revenue_at_risk": aVal = a.revenue_at_risk; bVal = b.revenue_at_risk; break;
         default: aVal = 0; bVal = 0;
       }
@@ -516,7 +516,7 @@ export default function PredictiveIntelligence() {
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                     <Calendar className="h-3.5 w-3.5" /> Days Since Last Session
                   </div>
-                  <p className="text-lg font-bold">{selectedClient.churn_factors.days_since_last_session}d</p>
+                  <p className="text-lg font-bold">{selectedClient.churn_factors?.days_since_last_session ?? 0}d</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
@@ -528,13 +528,13 @@ export default function PredictiveIntelligence() {
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                     <Activity className="h-3.5 w-3.5" /> Sessions Ratio
                   </div>
-                  <p className="text-lg font-bold">{(selectedClient.churn_factors.sessions_ratio * 100).toFixed(0)}%</p>
+                  <p className="text-lg font-bold">{((selectedClient.churn_factors?.sessions_ratio ?? 0) * 100).toFixed(0)}%</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                     <Calendar className="h-3.5 w-3.5" /> Future Booked
                   </div>
-                  <p className="text-lg font-bold">{selectedClient.churn_factors.future_booked}</p>
+                  <p className="text-lg font-bold">{selectedClient.churn_factors?.future_booked ?? 0}</p>
                 </div>
               </div>
 

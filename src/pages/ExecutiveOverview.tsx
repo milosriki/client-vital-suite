@@ -128,7 +128,7 @@ export default function ExecutiveOverview() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-400">🔴</span>
-                  <span><strong className="text-white">{data?.raw?.deals.filter(d => !d.close_date && Date.now() - new Date(d.created_at || "").getTime() > 30 * 24 * 60 * 60 * 1000).length || 0}</strong> <span className="text-slate-300">deals stuck &gt;30 days — review pipeline</span></span>
+                  <span><strong className="text-white">{(data?.raw?.deals ?? []).filter(d => !d.close_date && Date.now() - new Date(d.created_at || "").getTime() > 30 * 24 * 60 * 60 * 1000).length || 0}</strong> <span className="text-slate-300">deals stuck &gt;30 days — review pipeline</span></span>
                 </li>
                 {(data?.staleLeads?.length || 0) > 0 && (
                   <li className="flex items-start gap-2">
@@ -253,7 +253,7 @@ export default function ExecutiveOverview() {
                   {northStarMetric.delta.value > 10 && " Consider increasing ad spend by 20% to capitalize on momentum."}
                 </p>
                 <p>
-                  🎯 {data?.raw?.leads.filter(l => Date.now() - new Date(l.created_at || "").getTime() < 24 * 60 * 60 * 1000).length || 0} new leads need follow-up within 24h
+                  🎯 {(data?.raw?.leads ?? []).filter(l => Date.now() - new Date(l.created_at || "").getTime() < 24 * 60 * 60 * 1000).length || 0} new leads need follow-up within 24h
                 </p>
               </>
             }

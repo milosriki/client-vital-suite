@@ -238,7 +238,7 @@ export default function RevenueIntelligence() {
   ];
 
   // Group sync errors by type for workflow-like display
-  const errorsByType = hubspotData?.syncErrors.reduce((acc, error) => {
+  const errorsByType = (hubspotData?.syncErrors ?? []).reduce((acc, error) => {
     const type = error.error_type || "Unknown";
     if (!acc[type]) {
       acc[type] = { name: type, status: "Error", runs: 0, success: 0, errors: 0, lastRun: error.created_at || "" };
