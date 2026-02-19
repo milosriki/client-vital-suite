@@ -27,7 +27,7 @@ export function useTruthTriangle() {
         .select("*")
         .order("month", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

@@ -26,7 +26,7 @@ export function useClientHealthScores(options: UseClientHealthScoresOptions = {}
         .select('calculated_on')
         .order('calculated_on', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!latestDate?.calculated_on) {
         return { data: [], count: 0 };

@@ -249,7 +249,7 @@ export default function PredictiveIntelligence() {
         .select("client_email")
         .eq("client_name", clientName)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const email = (pkg as any)?.client_email;
       if (!email) {

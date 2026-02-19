@@ -66,7 +66,7 @@ export function useDailyOps() {
         .select("*")
         .order("snapshot_date", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

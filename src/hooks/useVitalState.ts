@@ -59,7 +59,7 @@ export function useVitalState(): VitalStateReturn {
         .eq('status', 'success')
         .order('completed_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       // Get active error count
       const { count: errorCount } = await supabase

@@ -75,7 +75,7 @@ const AlertCenter = () => {
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (!latest?.calculated_on) return [];
       const { data, error } = await (supabase as any)
         .from("client_health_scores")

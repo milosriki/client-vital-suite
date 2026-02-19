@@ -191,7 +191,7 @@ export async function requestExecution(
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     })
     .select('key')
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
 
@@ -209,7 +209,7 @@ export async function approveExecution(requestKey: string): Promise<any> {
     .from('agent_context')
     .select('value')
     .eq('key', requestKey)
-    .single();
+    .maybeSingle();
 
   if (!request) throw new Error('Request not found');
 
@@ -410,7 +410,7 @@ export async function runMonitoringScan(): Promise<{
     .select('*')
     .order('started_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   const metrics = {
     total_clients: healthStats?.length || 0,

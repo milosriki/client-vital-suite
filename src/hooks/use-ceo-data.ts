@@ -175,7 +175,7 @@ export function useCEOData() {
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!latestDate?.calculated_on)
         return {
@@ -303,7 +303,7 @@ export function useCEOData() {
         .from("prepared_actions")
         .select("action_type, prepared_payload")
         .eq("id", actionId)
-        .single();
+        .maybeSingle();
 
       const { error } = await supabase.functions.invoke("ptd-execute-action", {
         body: {

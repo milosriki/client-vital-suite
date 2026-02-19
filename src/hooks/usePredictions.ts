@@ -56,7 +56,7 @@ export function usePredictions() {
         .select("*")
         .order("forecast_date", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data as unknown as RevenueForecast;
     },
