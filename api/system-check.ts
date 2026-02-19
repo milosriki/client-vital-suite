@@ -1,4 +1,3 @@
-import { requireAuth } from './_middleware/auth';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -10,7 +9,7 @@ interface HealthCheck {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!requireAuth(req, res)) return;
+  const _authKey = process.env.PTD_INTERNAL_ACCESS_KEY; if (_authKey && (req.headers["x-ptd-key"] as string) !== _authKey && (req.headers["authorization"] as string) !== _authKey) { res.status(401).json({ error: "Unauthorized" }); return; }
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
