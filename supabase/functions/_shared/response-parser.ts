@@ -3,7 +3,7 @@
 // Parses the LLM output into thought + reply
 // ================================================================
 
-import { InternalThought } from "./smart-prompt";
+import { InternalThought } from "./smart-prompt.ts";
 
 export interface ParsedResponse {
   thought: InternalThought | null;
