@@ -1,254 +1,545 @@
-import { useState, useMemo } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
-import { TrendingUp, TrendingDown, DollarSign, Eye, MousePointer, Target, Loader2, RefreshCw, BarChart3 } from "lucide-react";
-import { fetchCampaigns, analyzeBudget } from "@/lib/metaAdsApi";
-import { supabase } from "@/integrations/supabase/client";
-import { useDedupedQuery } from "@/hooks/useDedupedQuery";
-import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { useEffect, useState } from 'react';
+import { useMetaAds, type TokenStats } from '@/hooks/useMetaAds';
+import { updateCampaignStatus } from '@/lib/metaAdsApi';
+import type { CampaignData, PerformanceAlert, BudgetRecommendation, TimeRange, CrossValidationMetrics } from '@/types/metaAds';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DollarSign, TrendingUp, TrendingDown, AlertTriangle, RefreshCw,
+  Pause, Play, Download, Zap, Target, BarChart3, Users, ArrowUpDown,
+  CheckCircle, XCircle, Info,
+} from 'lucide-react';
 
-function MetricCard({ title, value, trend, trendUp, icon: Icon, color }: {
-  title: string; value: string; trend: string; trendUp: boolean;
-  icon: typeof DollarSign; color: string;
-}) {
+export default function MetaAdsDashboard() {
+  const {
+    dashboard,
+    loadDashboard,
+    loadBudgetRecs,
+    loadCrossValidation,
+    tokenStats,
+  } = useMetaAds({ dailyBudget: 10 });
+
+  const [timeRange, setTimeRange] = useState<TimeRange>('last_7d');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'alerts' | 'budget' | 'crossval' | 'tokens'>('campaigns');
+
+  useEffect(() => {
+    loadDashboard(timeRange, ['campaigns', 'alerts']);
+  }, [timeRange, loadDashboard]);
+
+  const timeRanges: Array<{ label: string; value: TimeRange }> = [
+    { label: 'Today', value: 'today' },
+    { label: '7 Days', value: 'last_7d' },
+    { label: '14 Days', value: 'last_14d' },
+    { label: '30 Days', value: 'last_30d' },
+    { label: 'This Month', value: 'this_month' },
+  ];
+
   return (
-    <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-slate-500">{title}</span>
-        <div className={`p-2 rounded-lg ${color}`}>
-          <Icon className="w-4 h-4" />
+    <div className="space-y-4">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Meta Ads Dashboard</h2>
+          <p className="text-xs text-zinc-500">
+            {dashboard.lastUpdated
+              ? `Updated ${dashboard.lastUpdated.toLocaleTimeString()}`
+              : 'Not loaded yet'}
+            {dashboard.isLoading && ' \u2022 Loading...'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-zinc-900 rounded-lg border border-zinc-800 p-0.5">
+            {timeRanges.map((tr) => (
+              <button
+                key={tr.value}
+                onClick={() => setTimeRange(tr.value)}
+                className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+                  timeRange === tr.value
+                    ? 'bg-zinc-700 text-zinc-100'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {tr.label}
+              </button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadDashboard(timeRange, ['campaigns', 'alerts', 'budget'])}
+            disabled={dashboard.isLoading}
+            className="gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${dashboard.isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
-      <div className="text-2xl font-bold text-slate-800">{value}</div>
-      <div className={`flex items-center gap-1 mt-1 text-xs ${trendUp ? "text-emerald-600" : "text-red-500"}`}>
-        {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-        {trend}
+
+      {/* Summary Cards */}
+      <SummaryCards campaigns={dashboard.campaigns} alerts={dashboard.alerts} tokenStats={tokenStats} />
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-zinc-800 pb-px">
+        {([
+          { key: 'campaigns' as const, label: 'Campaigns', icon: BarChart3 },
+          { key: 'alerts' as const, label: `Alerts${dashboard.alerts.length > 0 ? ` (${dashboard.alerts.length})` : ''}`, icon: AlertTriangle },
+          { key: 'budget' as const, label: 'Budget Recs', icon: DollarSign },
+          { key: 'crossval' as const, label: 'Cross-Validation', icon: Target },
+          { key: 'tokens' as const, label: `Tokens ($${tokenStats.todayCost.toFixed(2)})`, icon: Zap },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => {
+              setActiveTab(tab.key);
+              if (tab.key === 'budget' && dashboard.budgetRecs.length === 0) loadBudgetRecs();
+              if (tab.key === 'crossval' && !dashboard.crossValidation) loadCrossValidation();
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-all border-b-2 cursor-pointer ${
+              activeTab === tab.key
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {dashboard.error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg">
+          {dashboard.error}
+        </div>
+      )}
+
+      {activeTab === 'campaigns' && <CampaignsTable campaigns={dashboard.campaigns} isLoading={dashboard.isLoading} />}
+      {activeTab === 'alerts' && <AlertsList alerts={dashboard.alerts} />}
+      {activeTab === 'budget' && <BudgetRecsList recs={dashboard.budgetRecs} isLoading={dashboard.isLoading} />}
+      {activeTab === 'crossval' && <CrossValidationPanel data={dashboard.crossValidation} isLoading={dashboard.isLoading} />}
+      {activeTab === 'tokens' && <TokenStatsPanel stats={tokenStats} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUMMARY CARDS
+// ═══════════════════════════════════════════════════════════
+function SummaryCards({
+  campaigns,
+  alerts,
+  tokenStats,
+}: {
+  campaigns: CampaignData[];
+  alerts: PerformanceAlert[];
+  tokenStats: TokenStats;
+}) {
+  const totalSpend = campaigns.reduce((s, c) => s + (c.spend || 0), 0);
+  const totalConversions = campaigns.reduce((s, c) => s + (c.conversions || 0), 0);
+  const avgCPA = totalConversions > 0 ? totalSpend / totalConversions : 0;
+  const activeCampaigns = campaigns.filter(c => c.status === 'ACTIVE').length;
+  const criticalAlerts = alerts.filter(a => a.severity === 'critical').length;
+
+  const cards = [
+    { label: 'Total Spend', value: `${totalSpend.toLocaleString()} AED`, sub: `${activeCampaigns} active`, icon: DollarSign, alert: false },
+    { label: 'Conversions', value: totalConversions.toLocaleString(), sub: `CPA: ${avgCPA.toFixed(0)} AED`, icon: Target, alert: avgCPA > 500 },
+    { label: 'Alerts', value: alerts.length.toString(), sub: `${criticalAlerts} critical`, icon: AlertTriangle, alert: criticalAlerts > 0 },
+    { label: 'API Cost', value: `$${tokenStats.todayCost.toFixed(3)}`, sub: `${tokenStats.todayQueries} queries`, icon: Zap, alert: false },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {cards.map((card) => (
+        <Card key={card.label} className={`${card.alert ? 'border-red-500/30' : ''}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-zinc-500">{card.label}</p>
+              <card.icon className={`w-4 h-4 ${card.alert ? 'text-red-400' : 'text-zinc-500'}`} />
+            </div>
+            <p className={`text-xl font-semibold ${card.alert ? 'text-red-400' : 'text-zinc-100'}`}>
+              {card.value}
+            </p>
+            <p className="text-xs text-zinc-500 mt-0.5">{card.sub}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMPAIGNS TABLE
+// ═══════════════════════════════════════════════════════════
+function CampaignsTable({ campaigns, isLoading }: { campaigns: CampaignData[]; isLoading: boolean }) {
+  const [sortKey, setSortKey] = useState<keyof CampaignData>('spend');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  if (isLoading && campaigns.length === 0) {
+    return <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => (
+      <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-14 animate-pulse" />
+    ))}</div>;
+  }
+
+  if (campaigns.length === 0) {
+    return <div className="text-center py-8 text-sm text-zinc-500">No campaign data. Click Refresh to load.</div>;
+  }
+
+  const sorted = [...campaigns].sort((a, b) => {
+    const aVal = a[sortKey] ?? 0;
+    const bVal = b[sortKey] ?? 0;
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
+    }
+    return sortDir === 'desc' ? String(bVal).localeCompare(String(aVal)) : String(aVal).localeCompare(String(bVal));
+  });
+
+  const toggleSort = (key: keyof CampaignData) => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const handleToggleStatus = async (campaign: CampaignData) => {
+    setTogglingId(campaign.campaign_id);
+    try {
+      const newStatus = campaign.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+      await updateCampaignStatus(campaign.campaign_id, newStatus);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const exportCSV = () => {
+    const headers = ['Campaign', 'Status', 'Spend (AED)', 'Conversions', 'CPA (AED)', 'ROAS', 'CTR %', 'Impressions'];
+    const rows = sorted.map(c => [c.campaign_name, c.status, c.spend, c.conversions, c.cpa?.toFixed(0), c.roas?.toFixed(2), c.ctr?.toFixed(2), c.impressions]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'meta-ads-campaigns.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </Button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-zinc-900/60">
+              {[
+                { key: 'campaign_name' as keyof CampaignData, label: 'Campaign' },
+                { key: 'status' as keyof CampaignData, label: 'Status' },
+                { key: 'spend' as keyof CampaignData, label: 'Spend' },
+                { key: 'conversions' as keyof CampaignData, label: 'Conv' },
+                { key: 'cpa' as keyof CampaignData, label: 'CPA' },
+                { key: 'roas' as keyof CampaignData, label: 'ROAS' },
+                { key: 'ctr' as keyof CampaignData, label: 'CTR' },
+              ].map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => toggleSort(col.key)}
+                  className="px-3 py-2.5 text-left text-xs font-medium text-zinc-400 cursor-pointer hover:text-zinc-200 transition-colors"
+                >
+                  <span className="flex items-center gap-1">
+                    {col.label}
+                    {sortKey === col.key && <ArrowUpDown className="w-3 h-3 text-blue-400" />}
+                  </span>
+                </th>
+              ))}
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-400">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((c, i) => (
+              <tr key={c.campaign_id || i} className="border-t border-zinc-800/50 hover:bg-zinc-900/40 transition-colors">
+                <td className="px-3 py-2.5 text-xs text-zinc-200 font-medium truncate max-w-[200px]">{c.campaign_name}</td>
+                <td className="px-3 py-2.5">
+                  <Badge variant={c.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-[10px]">
+                    {c.status}
+                  </Badge>
+                </td>
+                <td className="px-3 py-2.5 text-xs text-zinc-300">{c.spend?.toLocaleString()} AED</td>
+                <td className="px-3 py-2.5 text-xs text-zinc-300">{c.conversions?.toLocaleString()}</td>
+                <td className="px-3 py-2.5 text-xs">
+                  <span className={c.cpa > 500 ? 'text-red-400 font-medium' : 'text-zinc-200'}>
+                    {c.cpa?.toFixed(0)} AED
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-xs">
+                  <span className={c.roas < 2 ? 'text-red-400 font-medium' : c.roas > 3 ? 'text-emerald-400 font-medium' : 'text-zinc-200'}>
+                    {c.roas?.toFixed(2)}x
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-xs text-zinc-300">{c.ctr?.toFixed(2)}%</td>
+                <td className="px-3 py-2.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleStatus(c)}
+                    disabled={togglingId === c.campaign_id}
+                    className="h-7 px-2 cursor-pointer"
+                  >
+                    {c.status === 'ACTIVE'
+                      ? <Pause className="w-3.5 h-3.5 text-amber-400" />
+                      : <Play className="w-3.5 h-3.5 text-emerald-400" />
+                    }
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-export default function MetaAdsDashboard() {
-  const [aiInsight, setAiInsight] = useState<string | null>(null);
-  const [loading, setLoading] = useState<string | null>(null);
+// ═══════════════════════════════════════════════════════════
+// ALERTS LIST
+// ═══════════════════════════════════════════════════════════
+function AlertsList({ alerts }: { alerts: PerformanceAlert[] }) {
+  if (alerts.length === 0) return <div className="text-center py-8 text-sm text-zinc-500">No alerts. Campaigns are within targets.</div>;
 
-  // Fetch real data from Supabase facebook_ads_insights
-  const { data: adsData, isLoading: adsLoading } = useDedupedQuery({
-    queryKey: ["meta-ads-insights-dashboard"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("facebook_ads_insights")
-        .select("*")
-        .order("date", { ascending: false })
-        .limit(90);
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const severityOrder = { critical: 0, warning: 1, info: 2 };
+  const sorted = [...alerts].sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // Calculate KPIs from real data
-  const kpis = useMemo(() => {
-    if (!adsData || adsData.length === 0) {
-      return { totalSpend: 0, avgRoas: 0, totalImpressions: 0, totalConversions: 0 };
-    }
-    const totalSpend = adsData.reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0);
-    const totalImpressions = adsData.reduce((s: number, r: any) => s + (Number(r.impressions) || 0), 0);
-    const totalLeads = adsData.reduce((s: number, r: any) => s + (Number(r.leads) || 0), 0);
-    const totalClicks = adsData.reduce((s: number, r: any) => s + (Number(r.clicks) || 0), 0);
-    const totalPurchaseValue = adsData.reduce((s: number, r: any) => s + (Number(r.purchase_value) || 0), 0);
-    const avgRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
-    const cpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
-    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
-    return { totalSpend, avgRoas, totalImpressions, totalLeads, totalClicks, cpl, ctr };
-  }, [adsData]);
-
-  // Build daily chart data from real data
-  const dailyData = useMemo(() => {
-    if (!adsData || adsData.length === 0) return [];
-    // Aggregate by date
-    const byDate = new Map<string, { spend: number; conversions: number }>();
-    for (const row of adsData) {
-      const date = row.date;
-      if (!date) continue;
-      const existing = byDate.get(date) || { spend: 0, conversions: 0 };
-      existing.spend += Number(row.spend) || 0;
-      existing.conversions += Number(row.conversions) || 0;
-      byDate.set(date, existing);
-    }
-    return Array.from(byDate.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, d]) => ({
-        date: format(new Date(date), "MMM d"),
-        spend: Math.round(d.spend),
-        conversions: Math.round(d.conversions),
-      }));
-  }, [adsData]);
-
-  const handleFetchCampaigns = async () => {
-    setLoading("campaigns");
-    try {
-      const result = await fetchCampaigns("last_30d");
-      setAiInsight(result);
-    } catch (e) {
-      setAiInsight(`Error: ${(e as Error).message}`);
-    } finally {
-      setLoading(null);
-    }
+  const severityIcon = { critical: XCircle, warning: AlertTriangle, info: Info };
+  const severityColor = {
+    critical: 'border-red-500/30 bg-red-500/5',
+    warning: 'border-amber-500/30 bg-amber-500/5',
+    info: 'border-blue-500/30 bg-blue-500/5',
   };
-
-  const handleAnalyzeBudget = async () => {
-    setLoading("budget");
-    try {
-      const result = await analyzeBudget();
-      setAiInsight(result);
-    } catch (e) {
-      setAiInsight(`Error: ${(e as Error).message}`);
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  if (adsLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-80 rounded-xl" />
-          <Skeleton className="h-80 rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
-  const hasData = adsData && adsData.length > 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Meta Ads Performance</h2>
-          <p className="text-slate-500 text-sm">
-            PTD Fitness — Real data from {adsData?.length || 0} insights
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleFetchCampaigns}
-            disabled={!!loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm"
-          >
-            {loading === "campaigns" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Fetch Campaigns
-          </button>
-          <button
-            onClick={handleAnalyzeBudget}
-            disabled={!!loading}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
-          >
-            {loading === "budget" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
-            Optimize Budget
-          </button>
-        </div>
-      </div>
-
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Total Spend"
-          value={`AED ${kpis.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-          trend={hasData ? "From real data" : "No data"}
-          trendUp={hasData}
-          icon={DollarSign}
-          color="bg-blue-100 text-blue-600"
-        />
-        <MetricCard
-          title="Avg ROAS"
-          value={`${kpis.avgRoas.toFixed(2)}x`}
-          trend={kpis.avgRoas >= 2 ? "Above target" : "Below 2x target"}
-          trendUp={kpis.avgRoas >= 2}
-          icon={TrendingUp}
-          color="bg-purple-100 text-purple-600"
-        />
-        <MetricCard
-          title="Impressions"
-          value={kpis.totalImpressions >= 1000000
-            ? `${(kpis.totalImpressions / 1000000).toFixed(1)}M`
-            : `${(kpis.totalImpressions / 1000).toFixed(0)}K`}
-          trend={hasData ? "Total period" : "No data"}
-          trendUp={hasData}
-          icon={Eye}
-          color="bg-indigo-100 text-indigo-600"
-        />
-        <MetricCard
-          title="Leads"
-          value={kpis.totalLeads.toLocaleString()}
-          trend={kpis.cpl > 0 ? `AED ${kpis.cpl.toFixed(0)} CPL` : "No leads"}
-          trendUp={kpis.totalLeads > 0}
-          icon={MousePointer}
-          color="bg-emerald-100 text-emerald-600"
-        />
-      </div>
-
-      {/* Charts */}
-      {!hasData ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <BarChart3 className="h-8 w-8 mb-3 opacity-50" />
-          <p className="text-sm">No ads insights data available</p>
-          <p className="text-xs mt-1">Click "Fetch Campaigns" to sync data from Meta</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">Daily Spend (AED)</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dailyData}>
-                  <defs>
-                    <linearGradient id="metaSpend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                  <Tooltip contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
-                  <Area type="monotone" dataKey="spend" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#metaSpend)" name="Spend (AED)" />
-                </AreaChart>
-              </ResponsiveContainer>
+    <div className="space-y-2">
+      {sorted.map((alert, i) => {
+        const Icon = severityIcon[alert.severity];
+        return (
+          <div key={i} className={`border rounded-xl px-4 py-3 ${severityColor[alert.severity]}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm font-medium text-zinc-200">{alert.campaign_name}</span>
+                  <Badge variant="outline" className="text-[10px]">{alert.alert_type.replace(/_/g, ' ')}</Badge>
+                </div>
+                <p className="text-xs text-zinc-400">{alert.recommendation}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-sm font-semibold text-zinc-200">{typeof alert.value === 'number' ? alert.value.toFixed(1) : alert.value}</p>
+                <p className="text-xs text-zinc-500">target: {typeof alert.threshold === 'number' ? alert.threshold.toFixed(1) : alert.threshold}</p>
+              </div>
             </div>
           </div>
+        );
+      })}
+    </div>
+  );
+}
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">Daily Conversions</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                  <Tooltip cursor={{ fill: "#f1f5f9" }} contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
-                  <Bar dataKey="conversions" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Conversions" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+// ═══════════════════════════════════════════════════════════
+// BUDGET RECOMMENDATIONS
+// ═══════════════════════════════════════════════════════════
+function BudgetRecsList({ recs, isLoading }: { recs: BudgetRecommendation[]; isLoading: boolean }) {
+  if (isLoading && recs.length === 0) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => (
+    <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-14 animate-pulse" />
+  ))}</div>;
+  if (recs.length === 0) return <div className="text-center py-8 text-sm text-zinc-500">No recommendations yet. Loading...</div>;
+
+  return (
+    <div className="space-y-2">
+      {recs.map((rec, i) => {
+        const change = rec.recommended_daily_budget - rec.current_daily_budget;
+        const changePercent = rec.current_daily_budget > 0 ? ((change / rec.current_daily_budget) * 100).toFixed(0) : '---';
+        const isIncrease = change > 0;
+        return (
+          <Card key={i}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-zinc-200">{rec.campaign_name}</span>
+                <span className={`text-sm font-semibold flex items-center gap-1 ${isIncrease ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {isIncrease ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                  {changePercent}%
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-zinc-400">
+                <span>Current: {rec.current_daily_budget.toLocaleString()} AED/day</span>
+                <span className="text-zinc-600">&rarr;</span>
+                <span className="text-zinc-200 font-medium">{rec.recommended_daily_budget.toLocaleString()} AED/day</span>
+              </div>
+              <p className="text-xs text-zinc-500 mt-1.5">{rec.reason}</p>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CROSS-VALIDATION PANEL
+// ═══════════════════════════════════════════════════════════
+function CrossValidationPanel({ data, isLoading }: { data: CrossValidationMetrics | null; isLoading: boolean }) {
+  if (isLoading || !data) {
+    return <div className="text-center py-8 text-sm text-zinc-500">Loading cross-validation data...</div>;
+  }
+
+  const metrics = [
+    {
+      label: 'CPA / CPL',
+      meta: `${data.meta_reported.cpa.toFixed(0)} AED`,
+      real: `${data.real.real_cpl.toFixed(0)} AED`,
+      diff: data.discrepancy.cpa_diff_percent,
+      goodWhenLower: true,
+    },
+    {
+      label: 'ROAS',
+      meta: `${data.meta_reported.roas.toFixed(2)}x`,
+      real: `${data.real.real_roas.toFixed(2)}x`,
+      diff: data.discrepancy.roas_diff_percent,
+      goodWhenLower: false,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Target className="w-4 h-4 text-blue-400" />
+            Meta-Reported vs Real Metrics (Last 30 Days)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-4 text-center text-xs">
+            <div className="text-zinc-500 font-medium">Metric</div>
+            <div className="text-zinc-500 font-medium">Meta Reported</div>
+            <div className="text-zinc-500 font-medium">Real (HubSpot/Stripe)</div>
           </div>
-        </div>
+          {metrics.map((m) => (
+            <div key={m.label} className="grid grid-cols-3 gap-4 text-center items-center">
+              <div className="text-sm text-zinc-300 font-medium">{m.label}</div>
+              <div className="text-sm text-zinc-400">{m.meta}</div>
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm text-zinc-100 font-semibold">{m.real}</span>
+                <Badge variant={Math.abs(m.diff) > 20 ? 'destructive' : 'secondary'} className="text-[10px]">
+                  {m.diff > 0 ? '+' : ''}{m.diff.toFixed(0)}%
+                </Badge>
+              </div>
+            </div>
+          ))}
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800">
+            <Card>
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-zinc-500">HubSpot New Contacts</p>
+                <p className="text-lg font-semibold text-zinc-100">{data.real.hubspot_new_contacts}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-zinc-500">Stripe Revenue</p>
+                <p className="text-lg font-semibold text-zinc-100">{data.real.stripe_revenue.toLocaleString()} AED</p>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOKEN STATS PANEL
+// ═══════════════════════════════════════════════════════════
+function TokenStatsPanel({ stats }: { stats: TokenStats }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Queries Today', value: stats.todayQueries.toString() },
+          { label: 'Input Tokens', value: stats.todayInputTokens.toLocaleString() },
+          { label: 'Output Tokens', value: stats.todayOutputTokens.toLocaleString() },
+          { label: 'Total Cost', value: `$${stats.todayCost.toFixed(4)}` },
+        ].map((item) => (
+          <Card key={item.label}>
+            <CardContent className="p-4">
+              <p className="text-xs text-zinc-500 mb-1">{item.label}</p>
+              <p className="text-lg font-semibold text-zinc-100">{item.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Budget bar */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-zinc-400">Daily Budget</span>
+            <span className="text-xs text-zinc-300">
+              ${stats.todayCost.toFixed(3)} / ${stats.dailyBudget.toFixed(2)}
+            </span>
+          </div>
+          <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${Math.min(100, (stats.todayCost / stats.dailyBudget) * 100)}%`,
+                backgroundColor: stats.isOverBudget ? '#ef4444' : (stats.todayCost / stats.dailyBudget) > 0.7 ? '#f59e0b' : '#22c55e',
+              }}
+            />
+          </div>
+          <p className="text-xs text-zinc-500 mt-1">${stats.remainingBudget.toFixed(3)} remaining</p>
+        </CardContent>
+      </Card>
+
+      {/* 7-day trend */}
+      {stats.last7Days.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-zinc-400 mb-3">Last 7 Days</p>
+            <div className="flex items-end gap-1.5 h-20">
+              {stats.last7Days.map((day, i) => {
+                const maxCost = Math.max(...stats.last7Days.map(d => d.cost), 0.01);
+                const height = Math.max(4, (day.cost / maxCost) * 100);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className="w-full bg-blue-500/40 rounded-t transition-all hover:bg-blue-500/60 cursor-pointer"
+                      style={{ height: `${height}%` }}
+                      title={`${day.date}: $${day.cost.toFixed(4)} (${day.queries} queries)`}
+                    />
+                    <span className="text-[10px] text-zinc-600">{day.date.split(' ')[0]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* AI Insight Panel */}
-      {aiInsight && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Target className="w-5 h-5 text-indigo-600" />
-            <h3 className="font-semibold text-slate-800">AI Analysis</h3>
-          </div>
-          <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{aiInsight}</div>
-        </div>
+      {/* Model distribution */}
+      {Object.keys(stats.byModel).length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-zinc-400 mb-2">Model Usage Today</p>
+            <div className="space-y-1.5">
+              {Object.entries(stats.byModel).map(([model, data]) => (
+                <div key={model} className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-300">{model}</span>
+                  <span className="text-zinc-500">{data.queries} queries \u2022 ${data.cost.toFixed(4)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
