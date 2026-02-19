@@ -17,6 +17,15 @@ export interface CampaignData {
   roas: number;
   cpa: number;
   daily_budget?: number;
+  reach?: number;
+  frequency?: number;
+  link_clicks?: number;
+  landing_page_views?: number;
+  lead_form_submissions?: number;
+  messaging_conversations?: number;
+  quality_ranking?: string;
+  engagement_rate_ranking?: string;
+  conversion_rate_ranking?: string;
 }
 
 export interface AdSetData {
@@ -26,15 +35,29 @@ export interface AdSetData {
   campaign_name: string;
   status: string;
   spend: number;
+  impressions?: number;
+  clicks?: number;
   conversions: number;
   cpa: number;
   roas: number;
+  ctr?: number;
   daily_budget: number;
+  reach: number;
+  frequency: number;
+  link_clicks: number;
+  landing_page_views: number;
+  lead_form_submissions: number;
+  messaging_conversations: number;
+  quality_ranking: string;
+  engagement_rate_ranking: string;
+  conversion_rate_ranking: string;
+  raw_actions: Record<string, unknown>[];
 }
 
 export interface AdData {
   ad_id: string;
   ad_name: string;
+  adset_id?: string;
   adset_name: string;
   campaign_name: string;
   spend: number;
@@ -49,7 +72,7 @@ export interface AdData {
 export interface PerformanceAlert {
   campaign_id: string;
   campaign_name: string;
-  alert_type: 'high_cpa' | 'low_roas' | 'high_spend_low_conv' | 'budget_exhausted' | 'improving' | 'declining';
+  alert_type: 'high_cpa' | 'low_roas' | 'high_spend_low_conv' | 'budget_exhausted' | 'improving' | 'declining' | 'high_frequency' | 'low_quality' | 'budget_pacing';
   severity: 'critical' | 'warning' | 'info';
   metric: string;
   value: number;
@@ -89,6 +112,28 @@ export interface CrossValidationMetrics {
     cpa_diff_percent: number;
     roas_diff_percent: number;
   };
+}
+
+export interface MetricThreshold {
+  good: number;
+  warning: number;
+  label: string;
+  format: 'currency' | 'percentage' | 'number' | 'ranking';
+  direction: 'lower-is-better' | 'higher-is-better';
+}
+
+export interface AlertConfig {
+  metric: string;
+  threshold: number;
+  severity: 'critical' | 'warning' | 'info';
+  action: string;
+}
+
+export interface EntityMapping {
+  entity_type: string;
+  entity_name: string;
+  meta_id: string;
+  brand: 'ptd_fitness' | 'personal_trainers_dubai';
 }
 
 export interface UsageStats {
@@ -169,3 +214,5 @@ export interface CreateCampaignParams {
   status?: 'ACTIVE' | 'PAUSED';
   account_id?: string;
 }
+
+export type BrandFilter = 'all' | 'ptd_fitness' | 'personal_trainers_dubai';

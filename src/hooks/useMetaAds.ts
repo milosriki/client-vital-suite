@@ -2,7 +2,7 @@
 // useMetaAds — React Hook for Meta Ads AI Integration
 // ═══════════════════════════════════════════════════════════
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   queryMetaAds,
   streamMetaAds,
@@ -12,16 +12,22 @@ import {
   fetchAudienceBreakdown,
   fetchTopCreatives,
   fetchCrossValidation,
+  fetchAdSets,
+  fetchAds,
+  fetchEntities,
 } from '@/lib/metaAdsApi';
 import { tokenTracker, estimateCost, selectModel, selectToolProfile } from '@/lib/tokenOptimizer';
 import type {
   TaskType,
   ToolProfile,
   CampaignData,
+  AdSetData,
+  AdData,
   PerformanceAlert,
   BudgetRecommendation,
   AudienceBreakdown,
   CrossValidationMetrics,
+  EntityMapping,
   UsageStats,
 } from '@/types/metaAds';
 
@@ -45,6 +51,9 @@ export interface DashboardData {
   audience: AudienceBreakdown;
   topCreatives: Array<Record<string, unknown>>;
   crossValidation: CrossValidationMetrics | null;
+  adSets: AdSetData[];
+  ads: AdData[];
+  entities: EntityMapping[];
   lastUpdated: Date | null;
   isLoading: boolean;
   error: string | null;
@@ -62,6 +71,62 @@ export interface TokenStats {
   byModel: Record<string, { cost: number; queries: number }>;
 }
 
+// ─── Alert generation from campaign data ──────────────────
+function generateAlerts(campaigns: CampaignData[]): PerformanceAlert[] {
+  const alerts: PerformanceAlert[] = [];
+  for (const c of campaigns) {
+    if ((c.cpa ?? 0) > 400) {
+      alerts.push({
+        campaign_id: c.campaign_id,
+        campaign_name: c.campaign_name,
+        alert_type: 'high_cpa',
+        severity: 'critical',
+        metric: 'CPA',
+        value: c.cpa ?? 0,
+        threshold: 400,
+        recommendation: `CPA is ${(c.cpa ?? 0).toFixed(0)} AED. Consider pausing low-performing ad sets or refreshing creatives.`,
+      });
+    }
+    if ((c.roas ?? 0) < 2.0 && (c.spend ?? 0) > 0) {
+      alerts.push({
+        campaign_id: c.campaign_id,
+        campaign_name: c.campaign_name,
+        alert_type: 'low_roas',
+        severity: 'critical',
+        metric: 'ROAS',
+        value: c.roas ?? 0,
+        threshold: 2.0,
+        recommendation: `ROAS is ${(c.roas ?? 0).toFixed(2)}x. Review targeting and creative performance.`,
+      });
+    }
+    if ((c.frequency ?? 0) > 2.5) {
+      alerts.push({
+        campaign_id: c.campaign_id,
+        campaign_name: c.campaign_name,
+        alert_type: 'high_frequency',
+        severity: 'warning',
+        metric: 'Frequency',
+        value: c.frequency ?? 0,
+        threshold: 2.5,
+        recommendation: `Frequency is ${(c.frequency ?? 0).toFixed(1)}. Expand audience or refresh creatives to reduce ad fatigue.`,
+      });
+    }
+    if (c.quality_ranking === 'BELOW_AVERAGE_35' || c.quality_ranking === 'below_average') {
+      alerts.push({
+        campaign_id: c.campaign_id,
+        campaign_name: c.campaign_name,
+        alert_type: 'low_quality',
+        severity: 'warning',
+        metric: 'Quality Ranking',
+        value: 0,
+        threshold: 0,
+        recommendation: `Quality ranking is below average. Improve ad relevance, creative quality, and landing page experience.`,
+      });
+    }
+  }
+  return alerts;
+}
+
 export function useMetaAds(options: {
   dailyBudget?: number;
   defaultAccountId?: string;
@@ -73,6 +138,9 @@ export function useMetaAds(options: {
   const [streamText, setStreamText] = useState('');
   const abortRef = useRef<AbortController | null>(null);
 
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignData | null>(null);
+  const [selectedAdSet, setSelectedAdSet] = useState<AdSetData | null>(null);
+
   const [dashboard, setDashboard] = useState<DashboardData>({
     campaigns: [],
     alerts: [],
@@ -80,6 +148,9 @@ export function useMetaAds(options: {
     audience: { by_age: [], by_gender: [], by_placement: [] },
     topCreatives: [],
     crossValidation: null,
+    adSets: [],
+    ads: [],
+    entities: [],
     lastUpdated: null,
     isLoading: false,
     error: null,
@@ -96,6 +167,12 @@ export function useMetaAds(options: {
     last7Days: [],
     byModel: {},
   });
+
+  // Computed alerts from campaign data
+  const computedAlerts = useMemo(() => {
+    if (dashboard.alerts.length > 0) return dashboard.alerts;
+    return generateAlerts(dashboard.campaigns);
+  }, [dashboard.campaigns, dashboard.alerts]);
 
   useEffect(() => {
     tokenTracker.setDailyBudget(dailyBudget);
@@ -231,6 +308,7 @@ export function useMetaAds(options: {
       ]);
 
       setDashboard(prev => ({
+        ...prev,
         campaigns: results[0].status === 'fulfilled' && results[0].value ? results[0].value : prev.campaigns,
         alerts: results[1].status === 'fulfilled' && results[1].value ? results[1].value : prev.alerts,
         budgetRecs: results[2].status === 'fulfilled' && results[2].value ? results[2].value : prev.budgetRecs,
@@ -278,6 +356,38 @@ export function useMetaAds(options: {
     return data;
   }, []);
 
+  const loadAdSets = useCallback(async (campaignId: string, timeRange = 'last_30d') => {
+    setDashboard(prev => ({ ...prev, isLoading: true }));
+    try {
+      const data = await fetchAdSets(campaignId, timeRange);
+      setDashboard(prev => ({ ...prev, adSets: data, isLoading: false }));
+      refreshTokenStats();
+      return data;
+    } catch {
+      setDashboard(prev => ({ ...prev, isLoading: false }));
+      return [];
+    }
+  }, [refreshTokenStats]);
+
+  const loadAds = useCallback(async (adSetId: string, timeRange = 'last_30d') => {
+    setDashboard(prev => ({ ...prev, isLoading: true }));
+    try {
+      const data = await fetchAds(adSetId, timeRange);
+      setDashboard(prev => ({ ...prev, ads: data, isLoading: false }));
+      refreshTokenStats();
+      return data;
+    } catch {
+      setDashboard(prev => ({ ...prev, isLoading: false }));
+      return [];
+    }
+  }, [refreshTokenStats]);
+
+  const loadEntities = useCallback(async () => {
+    const data = await fetchEntities();
+    setDashboard(prev => ({ ...prev, entities: data }));
+    return data;
+  }, []);
+
   const getEstimate = useCallback((prompt: string, taskType: TaskType = 'chat') => {
     const profile = selectToolProfile(taskType);
     return estimateCost(prompt.length, taskType, profile);
@@ -287,6 +397,10 @@ export function useMetaAds(options: {
     messages, isStreaming, streamText, sendMessage, stopStreaming, clearChat,
     query,
     dashboard, loadDashboard, loadCampaigns, loadAlerts, loadBudgetRecs, loadCrossValidation,
+    loadAdSets, loadAds, loadEntities,
+    selectedCampaign, setSelectedCampaign,
+    selectedAdSet, setSelectedAdSet,
+    computedAlerts,
     tokenStats, refreshTokenStats, getEstimate,
   };
 }

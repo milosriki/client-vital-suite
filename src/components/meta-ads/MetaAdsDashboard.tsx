@@ -1,15 +1,107 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useMetaAds, type TokenStats } from '@/hooks/useMetaAds';
 import { updateCampaignStatus } from '@/lib/metaAdsApi';
-import type { CampaignData, PerformanceAlert, BudgetRecommendation, TimeRange, CrossValidationMetrics } from '@/types/metaAds';
+import type {
+  CampaignData,
+  AdSetData,
+  AdData,
+  PerformanceAlert,
+  BudgetRecommendation,
+  TimeRange,
+  CrossValidationMetrics,
+  BrandFilter,
+} from '@/types/metaAds';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, RefreshCw,
-  Pause, Play, Download, Zap, Target, BarChart3, Users, ArrowUpDown,
-  CheckCircle, XCircle, Info,
+  Pause, Play, Download, Zap, Target, BarChart3, ArrowUpDown,
+  CheckCircle, XCircle, Info, ArrowUp, ArrowDown, Minus, Filter,
+  ShieldAlert, Layers, FileBarChart, ChevronRight,
 } from 'lucide-react';
+
+// ═══════════════════════════════════════════════════════════
+// COLOR CODING SYSTEM
+// ═══════════════════════════════════════════════════════════
+
+const METRIC_THRESHOLDS = {
+  roas: { good: 4.0, warning: 2.0, direction: 'higher' as const },
+  cpa: { good: 300, warning: 500, direction: 'lower' as const },
+  ctr: { good: 0.02, warning: 0.01, direction: 'higher' as const },
+  frequency: { good: 2.0, warning: 3.0, direction: 'lower' as const },
+} as const;
+
+type MetricKey = keyof typeof METRIC_THRESHOLDS;
+
+function getMetricColor(metric: MetricKey, value: number): string {
+  const threshold = METRIC_THRESHOLDS[metric];
+  if (!threshold) return 'text-zinc-300';
+
+  if (threshold.direction === 'higher') {
+    if (value >= threshold.good) return 'text-emerald-400';
+    if (value >= threshold.warning) return 'text-amber-400';
+    return 'text-red-400';
+  }
+  // lower is better
+  if (value <= threshold.good) return 'text-emerald-400';
+  if (value <= threshold.warning) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+function getMetricBg(metric: MetricKey, value: number): string {
+  const threshold = METRIC_THRESHOLDS[metric];
+  if (!threshold) return '';
+
+  if (threshold.direction === 'higher') {
+    if (value >= threshold.good) return 'bg-emerald-500/10';
+    if (value >= threshold.warning) return 'bg-amber-500/10';
+    return 'bg-red-500/10';
+  }
+  if (value <= threshold.good) return 'bg-emerald-500/10';
+  if (value <= threshold.warning) return 'bg-amber-500/10';
+  return 'bg-red-500/10';
+}
+
+// ─── CSV Export helper ────────────────────────────────────
+function downloadCSV(headers: string[], rows: (string | number | undefined)[][], filename: string) {
+  const csv = [headers.join(','), ...rows.map(r => r.map(v => v ?? '').join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Brand filter helper ─────────────────────────────────
+function matchesBrand(name: string, brand: BrandFilter): boolean {
+  if (brand === 'all') return true;
+  const lower = name?.toLowerCase() ?? '';
+  if (brand === 'ptd_fitness') return lower.includes('ptd') || lower.includes('fitness');
+  if (brand === 'personal_trainers_dubai') return lower.includes('personal trainer') || lower.includes('pt dubai');
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN DASHBOARD COMPONENT
+// ═══════════════════════════════════════════════════════════
 
 export default function MetaAdsDashboard() {
   const {
@@ -17,47 +109,99 @@ export default function MetaAdsDashboard() {
     loadDashboard,
     loadBudgetRecs,
     loadCrossValidation,
+    loadAdSets,
+    loadAds,
+    selectedCampaign,
+    setSelectedCampaign,
+    selectedAdSet,
+    setSelectedAdSet,
+    computedAlerts,
     tokenStats,
   } = useMetaAds({ dailyBudget: 10, defaultAccountId: 'act_349832333681399' });
 
   const [timeRange, setTimeRange] = useState<TimeRange>('last_7d');
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'alerts' | 'budget' | 'crossval' | 'tokens'>('campaigns');
+  const [brandFilter, setBrandFilter] = useState<BrandFilter>('all');
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
 
   useEffect(() => {
     loadDashboard(timeRange, ['campaigns', 'alerts']);
   }, [timeRange, loadDashboard]);
 
+  const filteredCampaigns = useMemo(
+    () => dashboard.campaigns.filter(c => matchesBrand(c.campaign_name, brandFilter)),
+    [dashboard.campaigns, brandFilter]
+  );
+
+  const handleCampaignClick = useCallback(async (campaign: CampaignData) => {
+    setSelectedCampaign(campaign);
+    setSelectedAdSet(null);
+    setDrilldownOpen(true);
+    await loadAdSets(campaign.campaign_id, timeRange);
+  }, [loadAdSets, setSelectedCampaign, setSelectedAdSet, timeRange]);
+
+  const handleAdSetClick = useCallback(async (adSet: AdSetData) => {
+    setSelectedAdSet(adSet);
+    await loadAds(adSet.adset_id, timeRange);
+  }, [loadAds, setSelectedAdSet, timeRange]);
+
   const timeRanges: Array<{ label: string; value: TimeRange }> = [
     { label: 'Today', value: 'today' },
-    { label: '7 Days', value: 'last_7d' },
-    { label: '14 Days', value: 'last_14d' },
-    { label: '30 Days', value: 'last_30d' },
+    { label: '7D', value: 'last_7d' },
+    { label: '14D', value: 'last_14d' },
+    { label: '30D', value: 'last_30d' },
     { label: 'This Month', value: 'this_month' },
+  ];
+
+  const brandOptions: Array<{ label: string; value: BrandFilter }> = [
+    { label: 'All', value: 'all' },
+    { label: 'PTD Fitness', value: 'ptd_fitness' },
+    { label: 'PT Dubai', value: 'personal_trainers_dubai' },
   ];
 
   return (
     <div className="space-y-4">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between">
+      {/* ─── Header ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Meta Ads Dashboard</h2>
+          <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-blue-400" />
+            Meta Ads Intelligence
+          </h2>
           <p className="text-xs text-zinc-500">
             {dashboard.lastUpdated
               ? `Updated ${dashboard.lastUpdated.toLocaleTimeString()}`
               : 'Not loaded yet'}
-            {dashboard.isLoading && ' \u2022 Loading...'}
+            {dashboard.isLoading && ' • Loading...'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Brand Filter */}
+          <div className="flex bg-zinc-900 rounded-lg border border-zinc-800 p-0.5">
+            <Filter className="w-3.5 h-3.5 text-zinc-500 self-center mx-1.5" />
+            {brandOptions.map((b) => (
+              <button
+                key={b.value}
+                onClick={() => setBrandFilter(b.value)}
+                className={`px-2 py-1 rounded-md text-xs transition-colors duration-200 cursor-pointer ${
+                  brandFilter === b.value
+                    ? 'bg-zinc-700 text-zinc-100'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-muted/30'
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+          {/* Time Range */}
           <div className="flex bg-zinc-900 rounded-lg border border-zinc-800 p-0.5">
             {timeRanges.map((tr) => (
               <button
                 key={tr.value}
                 onClick={() => setTimeRange(tr.value)}
-                className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md text-xs transition-colors duration-200 cursor-pointer ${
                   timeRange === tr.value
                     ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-500 hover:text-zinc-300'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-muted/30'
                 }`}
               >
                 {tr.label}
@@ -69,7 +213,7 @@ export default function MetaAdsDashboard() {
             size="sm"
             onClick={() => loadDashboard(timeRange, ['campaigns', 'alerts', 'budget'])}
             disabled={dashboard.isLoading}
-            className="gap-1.5"
+            className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${dashboard.isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -77,56 +221,129 @@ export default function MetaAdsDashboard() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <SummaryCards campaigns={dashboard.campaigns} alerts={dashboard.alerts} tokenStats={tokenStats} />
+      {/* ─── KPI Cards ──────────────────────────────────── */}
+      <KPICards campaigns={filteredCampaigns} alerts={computedAlerts} tokenStats={tokenStats} />
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-zinc-800 pb-px">
-        {([
-          { key: 'campaigns' as const, label: 'Campaigns', icon: BarChart3 },
-          { key: 'alerts' as const, label: `Alerts${dashboard.alerts.length > 0 ? ` (${dashboard.alerts.length})` : ''}`, icon: AlertTriangle },
-          { key: 'budget' as const, label: 'Budget Recs', icon: DollarSign },
-          { key: 'crossval' as const, label: 'Cross-Validation', icon: Target },
-          { key: 'tokens' as const, label: `Tokens ($${tokenStats.todayCost.toFixed(2)})`, icon: Zap },
-        ]).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => {
-              setActiveTab(tab.key);
-              if (tab.key === 'budget' && dashboard.budgetRecs.length === 0) loadBudgetRecs();
-              if (tab.key === 'crossval' && !dashboard.crossValidation) loadCrossValidation();
-            }}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-all border-b-2 cursor-pointer ${
-              activeTab === tab.key
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
+      {/* ─── Error Banner ───────────────────────────────── */}
       {dashboard.error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg flex items-center gap-2">
+          <XCircle className="w-4 h-4 shrink-0" />
           {dashboard.error}
         </div>
       )}
 
-      {activeTab === 'campaigns' && <CampaignsTable campaigns={dashboard.campaigns} isLoading={dashboard.isLoading} />}
-      {activeTab === 'alerts' && <AlertsList alerts={dashboard.alerts} />}
-      {activeTab === 'budget' && <BudgetRecsList recs={dashboard.budgetRecs} isLoading={dashboard.isLoading} />}
-      {activeTab === 'crossval' && <CrossValidationPanel data={dashboard.crossValidation} isLoading={dashboard.isLoading} />}
-      {activeTab === 'tokens' && <TokenStatsPanel stats={tokenStats} />}
+      {/* ─── Main Tabs ──────────────────────────────────── */}
+      <Tabs defaultValue="campaigns" className="w-full">
+        <TabsList className="mb-3">
+          <TabsTrigger value="campaigns" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <BarChart3 className="w-3.5 h-3.5" /> Campaigns
+          </TabsTrigger>
+          <TabsTrigger value="alerts" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Alerts {computedAlerts.length > 0 && (
+              <Badge variant="destructive" className="text-[10px] ml-1 px-1.5 py-0">{computedAlerts.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="crossval"
+            className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200"
+            onClick={() => { if (!dashboard.crossValidation) loadCrossValidation(); }}
+          >
+            <Target className="w-3.5 h-3.5" /> Cross-Validation
+          </TabsTrigger>
+          <TabsTrigger
+            value="budget"
+            className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200"
+            onClick={() => { if (dashboard.budgetRecs.length === 0) loadBudgetRecs(); }}
+          >
+            <DollarSign className="w-3.5 h-3.5" /> Budget
+          </TabsTrigger>
+          <TabsTrigger value="tokens" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <Zap className="w-3.5 h-3.5" /> Tokens (${tokenStats.todayCost.toFixed(2)})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="campaigns">
+          <CampaignsTable
+            campaigns={filteredCampaigns}
+            isLoading={dashboard.isLoading}
+            onCampaignClick={handleCampaignClick}
+          />
+        </TabsContent>
+
+        <TabsContent value="alerts">
+          <AlertsTable alerts={computedAlerts} />
+        </TabsContent>
+
+        <TabsContent value="crossval">
+          <CrossValidationPanel data={dashboard.crossValidation} isLoading={dashboard.isLoading} />
+        </TabsContent>
+
+        <TabsContent value="budget">
+          <BudgetRecsList recs={dashboard.budgetRecs} isLoading={dashboard.isLoading} />
+        </TabsContent>
+
+        <TabsContent value="tokens">
+          <TokenStatsPanel stats={tokenStats} />
+        </TabsContent>
+      </Tabs>
+
+      {/* ─── Drill-down Dialog ──────────────────────────── */}
+      <Dialog open={drilldownOpen} onOpenChange={setDrilldownOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-zinc-100">
+              <Layers className="w-4 h-4 text-blue-400" />
+              {selectedAdSet
+                ? `Ads in: ${selectedAdSet.adset_name}`
+                : selectedCampaign
+                  ? `Ad Sets in: ${selectedCampaign.campaign_name}`
+                  : 'Drill-Down'
+              }
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Breadcrumb */}
+          {selectedCampaign && (
+            <div className="flex items-center gap-1 text-xs text-zinc-500 mb-2">
+              <button
+                onClick={() => {
+                  setSelectedAdSet(null);
+                  if (selectedCampaign) loadAdSets(selectedCampaign.campaign_id, timeRange);
+                }}
+                className="cursor-pointer hover:text-zinc-300 hover:bg-muted/30 transition-colors duration-200 px-1 py-0.5 rounded"
+              >
+                {selectedCampaign.campaign_name}
+              </button>
+              {selectedAdSet && (
+                <>
+                  <ChevronRight className="w-3 h-3" />
+                  <span className="text-zinc-300">{selectedAdSet.adset_name}</span>
+                </>
+              )}
+            </div>
+          )}
+
+          {selectedAdSet ? (
+            <AdsTable ads={dashboard.ads} isLoading={dashboard.isLoading} />
+          ) : (
+            <AdSetsTable
+              adSets={dashboard.adSets}
+              isLoading={dashboard.isLoading}
+              onAdSetClick={handleAdSetClick}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
-// SUMMARY CARDS
+// KPI CARDS
 // ═══════════════════════════════════════════════════════════
-function SummaryCards({
+
+function KPICards({
   campaigns,
   alerts,
   tokenStats,
@@ -135,32 +352,62 @@ function SummaryCards({
   alerts: PerformanceAlert[];
   tokenStats: TokenStats;
 }) {
-  const totalSpend = campaigns.reduce((s, c) => s + (c.spend || 0), 0);
-  const totalConversions = campaigns.reduce((s, c) => s + (c.conversions || 0), 0);
+  const totalSpend = campaigns.reduce((s, c) => s + (c.spend ?? 0), 0);
+  const totalConversions = campaigns.reduce((s, c) => s + (c.conversions ?? 0), 0);
   const avgCPA = totalConversions > 0 ? totalSpend / totalConversions : 0;
+  const totalRevenue = campaigns.reduce((s, c) => s + (c.spend ?? 0) * (c.roas ?? 0), 0);
+  const avgROAS = totalSpend > 0 ? totalRevenue / totalSpend : 0;
   const activeCampaigns = campaigns.filter(c => c.status === 'ACTIVE').length;
   const criticalAlerts = alerts.filter(a => a.severity === 'critical').length;
 
   const cards = [
-    { label: 'Total Spend', value: `${totalSpend.toLocaleString()} AED`, sub: `${activeCampaigns} active`, icon: DollarSign, alert: false },
-    { label: 'Conversions', value: totalConversions.toLocaleString(), sub: `CPA: ${avgCPA.toFixed(0)} AED`, icon: Target, alert: avgCPA > 500 },
-    { label: 'Alerts', value: alerts.length.toString(), sub: `${criticalAlerts} critical`, icon: AlertTriangle, alert: criticalAlerts > 0 },
-    { label: 'API Cost', value: `$${tokenStats.todayCost.toFixed(3)}`, sub: `${tokenStats.todayQueries} queries`, icon: Zap, alert: false },
+    {
+      label: 'Total Spend',
+      value: `${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} AED`,
+      sub: `${activeCampaigns} active campaigns`,
+      icon: DollarSign,
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/10',
+    },
+    {
+      label: 'Results',
+      value: totalConversions.toLocaleString(),
+      sub: `CPA: ${avgCPA.toFixed(0)} AED`,
+      icon: Target,
+      color: getMetricColor('cpa', avgCPA),
+      bgColor: getMetricBg('cpa', avgCPA),
+    },
+    {
+      label: 'Avg CPA',
+      value: `${avgCPA.toFixed(0)} AED`,
+      sub: avgCPA <= 300 ? 'On target' : avgCPA <= 500 ? 'Above target' : 'Critical',
+      icon: avgCPA <= 300 ? TrendingDown : TrendingUp,
+      color: getMetricColor('cpa', avgCPA),
+      bgColor: getMetricBg('cpa', avgCPA),
+    },
+    {
+      label: 'Avg ROAS',
+      value: `${avgROAS.toFixed(2)}x`,
+      sub: criticalAlerts > 0 ? `${criticalAlerts} critical alerts` : 'All targets met',
+      icon: avgROAS >= 4 ? TrendingUp : avgROAS >= 2 ? Minus : TrendingDown,
+      color: getMetricColor('roas', avgROAS),
+      bgColor: getMetricBg('roas', avgROAS),
+    },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((card) => (
-        <Card key={card.label} className={`${card.alert ? 'border-red-500/30' : ''}`}>
+        <Card key={card.label} className={`border-zinc-800 ${card.bgColor}`}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-zinc-500">{card.label}</p>
-              <card.icon className={`w-4 h-4 ${card.alert ? 'text-red-400' : 'text-zinc-500'}`} />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-zinc-500 font-medium">{card.label}</p>
+              <div className={`p-1.5 rounded-md ${card.bgColor}`}>
+                <card.icon className={`w-4 h-4 ${card.color}`} />
+              </div>
             </div>
-            <p className={`text-xl font-semibold ${card.alert ? 'text-red-400' : 'text-zinc-100'}`}>
-              {card.value}
-            </p>
-            <p className="text-xs text-zinc-500 mt-0.5">{card.sub}</p>
+            <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+            <p className="text-xs text-zinc-500 mt-1">{card.sub}</p>
           </CardContent>
         </Card>
       ))}
@@ -171,36 +418,38 @@ function SummaryCards({
 // ═══════════════════════════════════════════════════════════
 // CAMPAIGNS TABLE
 // ═══════════════════════════════════════════════════════════
-function CampaignsTable({ campaigns, isLoading }: { campaigns: CampaignData[]; isLoading: boolean }) {
+
+function CampaignsTable({
+  campaigns,
+  isLoading,
+  onCampaignClick,
+}: {
+  campaigns: CampaignData[];
+  isLoading: boolean;
+  onCampaignClick: (c: CampaignData) => void;
+}) {
   const [sortKey, setSortKey] = useState<keyof CampaignData>('spend');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  if (isLoading && campaigns.length === 0) {
-    return <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => (
-      <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-14 animate-pulse" />
-    ))}</div>;
-  }
-
-  if (campaigns.length === 0) {
-    return <div className="text-center py-8 text-sm text-zinc-500">No campaign data. Click Refresh to load.</div>;
-  }
-
-  const sorted = [...campaigns].sort((a, b) => {
-    const aVal = a[sortKey] ?? 0;
-    const bVal = b[sortKey] ?? 0;
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
-    }
-    return sortDir === 'desc' ? String(bVal).localeCompare(String(aVal)) : String(aVal).localeCompare(String(bVal));
-  });
+  const sorted = useMemo(() => {
+    return [...campaigns].sort((a, b) => {
+      const aVal = a[sortKey] ?? 0;
+      const bVal = b[sortKey] ?? 0;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
+      }
+      return sortDir === 'desc' ? String(bVal).localeCompare(String(aVal)) : String(aVal).localeCompare(String(bVal));
+    });
+  }, [campaigns, sortKey, sortDir]);
 
   const toggleSort = (key: keyof CampaignData) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const handleToggleStatus = async (campaign: CampaignData) => {
+  const handleToggleStatus = async (e: React.MouseEvent, campaign: CampaignData) => {
+    e.stopPropagation();
     setTogglingId(campaign.campaign_id);
     try {
       const newStatus = campaign.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
@@ -211,157 +460,534 @@ function CampaignsTable({ campaigns, isLoading }: { campaigns: CampaignData[]; i
   };
 
   const exportCSV = () => {
-    const headers = ['Campaign', 'Status', 'Spend (AED)', 'Conversions', 'CPA (AED)', 'ROAS', 'CTR %', 'Impressions'];
-    const rows = sorted.map(c => [c.campaign_name, c.status, c.spend, c.conversions, c.cpa?.toFixed(0), c.roas?.toFixed(2), c.ctr?.toFixed(2), c.impressions]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'meta-ads-campaigns.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const headers = ['Campaign', 'Status', 'Spend (AED)', 'Budget (AED)', 'Conversions', 'CPA (AED)', 'ROAS', 'CTR %', 'Reach', 'Frequency', 'Quality'];
+    const rows = sorted.map(c => [
+      c.campaign_name, c.status, c.spend, c.daily_budget ?? '', c.conversions,
+      c.cpa?.toFixed(0), c.roas?.toFixed(2), c.ctr?.toFixed(2),
+      c.reach ?? '', c.frequency ?? '', c.quality_ranking ?? '',
+    ]);
+    downloadCSV(headers, rows, 'meta-ads-campaigns');
   };
+
+  if (isLoading && campaigns.length === 0) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-14 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (campaigns.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-zinc-500">
+        <BarChart3 className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
+        No campaign data. Click Refresh to load.
+      </div>
+    );
+  }
+
+  const columns: Array<{ key: keyof CampaignData; label: string }> = [
+    { key: 'campaign_name', label: 'Campaign' },
+    { key: 'status', label: 'Status' },
+    { key: 'spend', label: 'Spend' },
+    { key: 'daily_budget', label: 'Budget' },
+    { key: 'conversions', label: 'Results' },
+    { key: 'cpa', label: 'CPA' },
+    { key: 'roas', label: 'ROAS' },
+    { key: 'ctr', label: 'CTR' },
+    { key: 'reach', label: 'Reach' },
+    { key: 'frequency', label: 'Freq' },
+    { key: 'quality_ranking', label: 'Quality' },
+  ];
 
   return (
     <div className="space-y-2">
       <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
+        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
           <Download className="w-3.5 h-3.5" /> Export CSV
         </Button>
       </div>
       <div className="overflow-x-auto rounded-xl border border-zinc-800">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-zinc-900/60">
-              {[
-                { key: 'campaign_name' as keyof CampaignData, label: 'Campaign' },
-                { key: 'status' as keyof CampaignData, label: 'Status' },
-                { key: 'spend' as keyof CampaignData, label: 'Spend' },
-                { key: 'conversions' as keyof CampaignData, label: 'Conv' },
-                { key: 'cpa' as keyof CampaignData, label: 'CPA' },
-                { key: 'roas' as keyof CampaignData, label: 'ROAS' },
-                { key: 'ctr' as keyof CampaignData, label: 'CTR' },
-              ].map((col) => (
-                <th
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-zinc-900/60 hover:bg-zinc-900/60">
+              {columns.map((col) => (
+                <TableHead
                   key={col.key}
                   onClick={() => toggleSort(col.key)}
-                  className="px-3 py-2.5 text-left text-xs font-medium text-zinc-400 cursor-pointer hover:text-zinc-200 transition-colors"
+                  className="text-xs font-medium text-zinc-400 cursor-pointer hover:text-zinc-200 hover:bg-muted/30 transition-colors duration-200"
                 >
                   <span className="flex items-center gap-1">
                     {col.label}
                     {sortKey === col.key && <ArrowUpDown className="w-3 h-3 text-blue-400" />}
                   </span>
-                </th>
+                </TableHead>
               ))}
-              <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-400">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+              <TableHead className="text-xs font-medium text-zinc-400">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {sorted.map((c, i) => (
-              <tr key={c.campaign_id || i} className="border-t border-zinc-800/50 hover:bg-zinc-900/40 transition-colors">
-                <td className="px-3 py-2.5 text-xs text-zinc-200 font-medium truncate max-w-[200px]">{c.campaign_name}</td>
-                <td className="px-3 py-2.5">
+              <TableRow
+                key={c.campaign_id || i}
+                onClick={() => onCampaignClick(c)}
+                className="cursor-pointer hover:bg-muted/30 transition-colors duration-200"
+              >
+                <TableCell className="text-xs text-zinc-200 font-medium truncate max-w-[200px]">
+                  <span className="flex items-center gap-1">
+                    {c.campaign_name}
+                    <ChevronRight className="w-3 h-3 text-zinc-600" />
+                  </span>
+                </TableCell>
+                <TableCell>
                   <Badge variant={c.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-[10px]">
                     {c.status}
                   </Badge>
-                </td>
-                <td className="px-3 py-2.5 text-xs text-zinc-300">{c.spend?.toLocaleString()} AED</td>
-                <td className="px-3 py-2.5 text-xs text-zinc-300">{c.conversions?.toLocaleString()}</td>
-                <td className="px-3 py-2.5 text-xs">
-                  <span className={c.cpa > 500 ? 'text-red-400 font-medium' : 'text-zinc-200'}>
-                    {c.cpa?.toFixed(0)} AED
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 text-xs">
-                  <span className={c.roas < 2 ? 'text-red-400 font-medium' : c.roas > 3 ? 'text-emerald-400 font-medium' : 'text-zinc-200'}>
-                    {c.roas?.toFixed(2)}x
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 text-xs text-zinc-300">{c.ctr?.toFixed(2)}%</td>
-                <td className="px-3 py-2.5">
+                </TableCell>
+                <TableCell className="text-xs text-zinc-300">{(c.spend ?? 0).toLocaleString()} AED</TableCell>
+                <TableCell className="text-xs text-zinc-300">{c.daily_budget ? `${c.daily_budget.toLocaleString()} AED` : '—'}</TableCell>
+                <TableCell className="text-xs text-zinc-300 font-medium">{(c.conversions ?? 0).toLocaleString()}</TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('cpa', c.cpa ?? 0)}`}>
+                  {(c.cpa ?? 0).toFixed(0)} AED
+                </TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('roas', c.roas ?? 0)}`}>
+                  {(c.roas ?? 0).toFixed(2)}x
+                </TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('ctr', c.ctr ?? 0)}`}>
+                  {((c.ctr ?? 0) * 100).toFixed(2)}%
+                </TableCell>
+                <TableCell className="text-xs text-zinc-300">{(c.reach ?? 0).toLocaleString()}</TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('frequency', c.frequency ?? 0)}`}>
+                  {(c.frequency ?? 0).toFixed(1)}
+                </TableCell>
+                <TableCell>
+                  {c.quality_ranking && (
+                    <Badge
+                      variant={c.quality_ranking?.toLowerCase().includes('below') ? 'destructive' : 'secondary'}
+                      className="text-[10px]"
+                    >
+                      {c.quality_ranking}
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleToggleStatus(c)}
+                    onClick={(e) => handleToggleStatus(e, c)}
                     disabled={togglingId === c.campaign_id}
-                    className="h-7 px-2 cursor-pointer"
+                    className="h-7 px-2 cursor-pointer hover:bg-muted/30 transition-colors duration-200"
                   >
                     {c.status === 'ACTIVE'
                       ? <Pause className="w-3.5 h-3.5 text-amber-400" />
                       : <Play className="w-3.5 h-3.5 text-emerald-400" />
                     }
                   </Button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
-// ALERTS LIST
+// AD SETS TABLE (Drill-down)
 // ═══════════════════════════════════════════════════════════
-function AlertsList({ alerts }: { alerts: PerformanceAlert[] }) {
-  if (alerts.length === 0) return <div className="text-center py-8 text-sm text-zinc-500">No alerts. Campaigns are within targets.</div>;
 
-  const severityOrder = { critical: 0, warning: 1, info: 2 };
-  const sorted = [...alerts].sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+function AdSetsTable({
+  adSets,
+  isLoading,
+  onAdSetClick,
+}: {
+  adSets: AdSetData[];
+  isLoading: boolean;
+  onAdSetClick: (a: AdSetData) => void;
+}) {
+  if (isLoading && adSets.length === 0) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-12 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
-  const severityIcon = { critical: XCircle, warning: AlertTriangle, info: Info };
-  const severityColor = {
-    critical: 'border-red-500/30 bg-red-500/5',
-    warning: 'border-amber-500/30 bg-amber-500/5',
-    info: 'border-blue-500/30 bg-blue-500/5',
+  if (adSets.length === 0) {
+    return <div className="text-center py-6 text-sm text-zinc-500">No ad sets found.</div>;
+  }
+
+  const exportCSV = () => {
+    const headers = ['Ad Set', 'Status', 'Spend', 'Budget', 'Conversions', 'CPA', 'ROAS', 'Reach', 'Frequency', 'Quality'];
+    const rows = adSets.map(a => [
+      a.adset_name, a.status, a.spend, a.daily_budget, a.conversions,
+      a.cpa?.toFixed(0), a.roas?.toFixed(2), a.reach, a.frequency?.toFixed(1), a.quality_ranking,
+    ]);
+    downloadCSV(headers, rows, 'meta-ads-adsets');
   };
 
   return (
     <div className="space-y-2">
-      {sorted.map((alert, i) => {
-        const Icon = severityIcon[alert.severity];
-        return (
-          <div key={i} className={`border rounded-xl px-4 py-3 ${severityColor[alert.severity]}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm font-medium text-zinc-200">{alert.campaign_name}</span>
-                  <Badge variant="outline" className="text-[10px]">{alert.alert_type.replace(/_/g, ' ')}</Badge>
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </Button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-zinc-900/60 hover:bg-zinc-900/60">
+              <TableHead className="text-xs">Ad Set</TableHead>
+              <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs">Spend</TableHead>
+              <TableHead className="text-xs">Results</TableHead>
+              <TableHead className="text-xs">CPA</TableHead>
+              <TableHead className="text-xs">ROAS</TableHead>
+              <TableHead className="text-xs">Reach</TableHead>
+              <TableHead className="text-xs">Freq</TableHead>
+              <TableHead className="text-xs">Quality</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {adSets.map((a, i) => (
+              <TableRow
+                key={a.adset_id || i}
+                onClick={() => onAdSetClick(a)}
+                className="cursor-pointer hover:bg-muted/30 transition-colors duration-200"
+              >
+                <TableCell className="text-xs text-zinc-200 font-medium">
+                  <span className="flex items-center gap-1">
+                    {a.adset_name}
+                    <ChevronRight className="w-3 h-3 text-zinc-600" />
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={a.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-[10px]">{a.status}</Badge>
+                </TableCell>
+                <TableCell className="text-xs text-zinc-300">{(a.spend ?? 0).toLocaleString()} AED</TableCell>
+                <TableCell className="text-xs text-zinc-300 font-medium">{(a.conversions ?? 0).toLocaleString()}</TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('cpa', a.cpa ?? 0)}`}>
+                  {(a.cpa ?? 0).toFixed(0)} AED
+                </TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('roas', a.roas ?? 0)}`}>
+                  {(a.roas ?? 0).toFixed(2)}x
+                </TableCell>
+                <TableCell className="text-xs text-zinc-300">{(a.reach ?? 0).toLocaleString()}</TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('frequency', a.frequency ?? 0)}`}>
+                  {(a.frequency ?? 0).toFixed(1)}
+                </TableCell>
+                <TableCell>
+                  {a.quality_ranking && (
+                    <Badge variant={a.quality_ranking?.toLowerCase().includes('below') ? 'destructive' : 'secondary'} className="text-[10px]">
+                      {a.quality_ranking}
+                    </Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ADS TABLE (Drill-down level 2)
+// ═══════════════════════════════════════════════════════════
+
+function AdsTable({ ads, isLoading }: { ads: AdData[]; isLoading: boolean }) {
+  if (isLoading && ads.length === 0) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-12 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (ads.length === 0) {
+    return <div className="text-center py-6 text-sm text-zinc-500">No ads found.</div>;
+  }
+
+  const exportCSV = () => {
+    const headers = ['Ad', 'Spend', 'Impressions', 'Clicks', 'Conversions', 'CTR %', 'CPA', 'ROAS'];
+    const rows = ads.map(a => [
+      a.ad_name, a.spend, a.impressions, a.clicks, a.conversions,
+      a.ctr?.toFixed(2), a.cpa?.toFixed(0), a.roas?.toFixed(2),
+    ]);
+    downloadCSV(headers, rows, 'meta-ads-ads');
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </Button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-zinc-900/60 hover:bg-zinc-900/60">
+              <TableHead className="text-xs">Ad</TableHead>
+              <TableHead className="text-xs">Spend</TableHead>
+              <TableHead className="text-xs">Impr</TableHead>
+              <TableHead className="text-xs">Clicks</TableHead>
+              <TableHead className="text-xs">Results</TableHead>
+              <TableHead className="text-xs">CTR</TableHead>
+              <TableHead className="text-xs">CPA</TableHead>
+              <TableHead className="text-xs">ROAS</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ads.map((a, i) => (
+              <TableRow key={a.ad_id || i} className="hover:bg-muted/30 transition-colors duration-200">
+                <TableCell className="text-xs text-zinc-200 font-medium truncate max-w-[200px]">{a.ad_name}</TableCell>
+                <TableCell className="text-xs text-zinc-300">{(a.spend ?? 0).toLocaleString()} AED</TableCell>
+                <TableCell className="text-xs text-zinc-300">{(a.impressions ?? 0).toLocaleString()}</TableCell>
+                <TableCell className="text-xs text-zinc-300">{(a.clicks ?? 0).toLocaleString()}</TableCell>
+                <TableCell className="text-xs text-zinc-300 font-medium">{(a.conversions ?? 0).toLocaleString()}</TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('ctr', a.ctr ?? 0)}`}>
+                  {((a.ctr ?? 0) * 100).toFixed(2)}%
+                </TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('cpa', a.cpa ?? 0)}`}>
+                  {(a.cpa ?? 0).toFixed(0)} AED
+                </TableCell>
+                <TableCell className={`text-xs font-medium ${getMetricColor('roas', a.roas ?? 0)}`}>
+                  {(a.roas ?? 0).toFixed(2)}x
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ALERTS TABLE
+// ═══════════════════════════════════════════════════════════
+
+function AlertsTable({ alerts }: { alerts: PerformanceAlert[] }) {
+  if (alerts.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-zinc-500">
+        <CheckCircle className="w-8 h-8 mx-auto mb-3 text-emerald-600" />
+        No alerts. All campaigns are within targets.
+      </div>
+    );
+  }
+
+  const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+  const sorted = [...alerts].sort((a, b) => (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2));
+
+  const severityIcon: Record<string, typeof XCircle> = {
+    critical: XCircle,
+    warning: AlertTriangle,
+    info: Info,
+  };
+  const severityBadge: Record<string, 'destructive' | 'secondary' | 'default'> = {
+    critical: 'destructive',
+    warning: 'secondary',
+    info: 'default',
+  };
+
+  const exportCSV = () => {
+    const headers = ['Campaign', 'Alert Type', 'Severity', 'Metric', 'Value', 'Threshold', 'Recommendation'];
+    const rows = sorted.map(a => [
+      a.campaign_name, a.alert_type, a.severity, a.metric, a.value, a.threshold, a.recommendation,
+    ]);
+    downloadCSV(headers, rows, 'meta-ads-alerts');
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </Button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-zinc-900/60 hover:bg-zinc-900/60">
+              <TableHead className="text-xs">Campaign</TableHead>
+              <TableHead className="text-xs">Alert</TableHead>
+              <TableHead className="text-xs">Severity</TableHead>
+              <TableHead className="text-xs">Value</TableHead>
+              <TableHead className="text-xs">Threshold</TableHead>
+              <TableHead className="text-xs">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((alert, i) => {
+              const Icon = severityIcon[alert.severity] ?? Info;
+              return (
+                <TableRow key={i} className="hover:bg-muted/30 transition-colors duration-200">
+                  <TableCell className="text-xs text-zinc-200 font-medium">{alert.campaign_name}</TableCell>
+                  <TableCell className="text-xs text-zinc-300">
+                    <span className="flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5" />
+                      {alert.alert_type?.replace(/_/g, ' ')}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={severityBadge[alert.severity] ?? 'default'} className="text-[10px]">
+                      {alert.severity}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-zinc-300 font-medium">
+                    {typeof alert.value === 'number' ? alert.value.toFixed(1) : String(alert.value ?? '—')}
+                  </TableCell>
+                  <TableCell className="text-xs text-zinc-500">
+                    {typeof alert.threshold === 'number' ? alert.threshold.toFixed(1) : String(alert.threshold ?? '—')}
+                  </TableCell>
+                  <TableCell className="text-xs text-zinc-400 max-w-[250px] truncate">{alert.recommendation}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CROSS-VALIDATION PANEL
+// ═══════════════════════════════════════════════════════════
+
+function CrossValidationPanel({ data, isLoading }: { data: CrossValidationMetrics | null; isLoading: boolean }) {
+  if (isLoading || !data) {
+    return (
+      <div className="text-center py-8 text-sm text-zinc-500">
+        <Target className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-pulse" />
+        Loading cross-validation data...
+      </div>
+    );
+  }
+
+  const metrics = [
+    {
+      label: 'CPA / CPL',
+      meta: `${data.meta_reported?.cpa?.toFixed(0) ?? '—'} AED`,
+      real: `${data.real?.real_cpl?.toFixed(0) ?? '—'} AED`,
+      diff: data.discrepancy?.cpa_diff_percent ?? 0,
+      better: (data.discrepancy?.cpa_diff_percent ?? 0) < 0,
+    },
+    {
+      label: 'ROAS',
+      meta: `${data.meta_reported?.roas?.toFixed(2) ?? '—'}x`,
+      real: `${data.real?.real_roas?.toFixed(2) ?? '—'}x`,
+      diff: data.discrepancy?.roas_diff_percent ?? 0,
+      better: (data.discrepancy?.roas_diff_percent ?? 0) > 0,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-zinc-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-blue-400" />
+            Meta-Reported vs Real Metrics (Last 30 Days)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {metrics.map((m) => (
+            <div key={m.label} className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/50 border border-zinc-800">
+              <div className="text-sm text-zinc-300 font-medium w-24">{m.label}</div>
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <p className="text-[10px] text-zinc-500 mb-0.5">Meta Reported</p>
+                  <p className="text-sm text-zinc-400">{m.meta}</p>
                 </div>
-                <p className="text-xs text-zinc-400">{alert.recommendation}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm font-semibold text-zinc-200">{typeof alert.value === 'number' ? alert.value.toFixed(1) : alert.value}</p>
-                <p className="text-xs text-zinc-500">target: {typeof alert.threshold === 'number' ? alert.threshold.toFixed(1) : alert.threshold}</p>
+                <ArrowRight className="w-4 h-4 text-zinc-600" />
+                <div className="text-center">
+                  <p className="text-[10px] text-zinc-500 mb-0.5">Real (HubSpot/Stripe)</p>
+                  <p className="text-sm text-zinc-100 font-semibold">{m.real}</p>
+                </div>
+                <Badge
+                  variant={m.better ? 'default' : 'destructive'}
+                  className="text-[10px]"
+                >
+                  {m.better ? <ArrowUp className="w-3 h-3 mr-0.5" /> : <ArrowDown className="w-3 h-3 mr-0.5" />}
+                  {Math.abs(m.diff).toFixed(0)}%
+                </Badge>
               </div>
             </div>
+          ))}
+
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800">
+            <Card className="border-zinc-800">
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-zinc-500">HubSpot New Contacts</p>
+                <p className="text-lg font-semibold text-zinc-100">{data.real?.hubspot_new_contacts ?? 0}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-zinc-800">
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-zinc-500">Stripe Revenue</p>
+                <p className="text-lg font-semibold text-zinc-100">{(data.real?.stripe_revenue ?? 0).toLocaleString()} AED</p>
+              </CardContent>
+            </Card>
           </div>
-        );
-      })}
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+// Inline ArrowRight since lucide might not export it in all versions
+function ArrowRight({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+    </svg>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
 // BUDGET RECOMMENDATIONS
 // ═══════════════════════════════════════════════════════════
+
 function BudgetRecsList({ recs, isLoading }: { recs: BudgetRecommendation[]; isLoading: boolean }) {
-  if (isLoading && recs.length === 0) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => (
-    <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-14 animate-pulse" />
-  ))}</div>;
-  if (recs.length === 0) return <div className="text-center py-8 text-sm text-zinc-500">No recommendations yet. Loading...</div>;
+  if (isLoading && recs.length === 0) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl h-14 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+  if (recs.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-zinc-500">
+        <FileBarChart className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
+        No recommendations yet. Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
       {recs.map((rec, i) => {
-        const change = rec.recommended_daily_budget - rec.current_daily_budget;
-        const changePercent = rec.current_daily_budget > 0 ? ((change / rec.current_daily_budget) * 100).toFixed(0) : '---';
+        const change = (rec.recommended_daily_budget ?? 0) - (rec.current_daily_budget ?? 0);
+        const changePercent = (rec.current_daily_budget ?? 0) > 0
+          ? ((change / rec.current_daily_budget) * 100).toFixed(0)
+          : '—';
         const isIncrease = change > 0;
         return (
-          <Card key={i}>
+          <Card key={i} className="border-zinc-800">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-zinc-200">{rec.campaign_name}</span>
@@ -371,9 +997,9 @@ function BudgetRecsList({ recs, isLoading }: { recs: BudgetRecommendation[]; isL
                 </span>
               </div>
               <div className="flex items-center gap-4 text-xs text-zinc-400">
-                <span>Current: {rec.current_daily_budget.toLocaleString()} AED/day</span>
-                <span className="text-zinc-600">&rarr;</span>
-                <span className="text-zinc-200 font-medium">{rec.recommended_daily_budget.toLocaleString()} AED/day</span>
+                <span>Current: {(rec.current_daily_budget ?? 0).toLocaleString()} AED/day</span>
+                <span className="text-zinc-600">→</span>
+                <span className="text-zinc-200 font-medium">{(rec.recommended_daily_budget ?? 0).toLocaleString()} AED/day</span>
               </div>
               <p className="text-xs text-zinc-500 mt-1.5">{rec.reason}</p>
             </CardContent>
@@ -385,80 +1011,9 @@ function BudgetRecsList({ recs, isLoading }: { recs: BudgetRecommendation[]; isL
 }
 
 // ═══════════════════════════════════════════════════════════
-// CROSS-VALIDATION PANEL
-// ═══════════════════════════════════════════════════════════
-function CrossValidationPanel({ data, isLoading }: { data: CrossValidationMetrics | null; isLoading: boolean }) {
-  if (isLoading || !data) {
-    return <div className="text-center py-8 text-sm text-zinc-500">Loading cross-validation data...</div>;
-  }
-
-  const metrics = [
-    {
-      label: 'CPA / CPL',
-      meta: `${data.meta_reported.cpa.toFixed(0)} AED`,
-      real: `${data.real.real_cpl.toFixed(0)} AED`,
-      diff: data.discrepancy.cpa_diff_percent,
-      goodWhenLower: true,
-    },
-    {
-      label: 'ROAS',
-      meta: `${data.meta_reported.roas.toFixed(2)}x`,
-      real: `${data.real.real_roas.toFixed(2)}x`,
-      diff: data.discrepancy.roas_diff_percent,
-      goodWhenLower: false,
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Target className="w-4 h-4 text-blue-400" />
-            Meta-Reported vs Real Metrics (Last 30 Days)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4 text-center text-xs">
-            <div className="text-zinc-500 font-medium">Metric</div>
-            <div className="text-zinc-500 font-medium">Meta Reported</div>
-            <div className="text-zinc-500 font-medium">Real (HubSpot/Stripe)</div>
-          </div>
-          {metrics.map((m) => (
-            <div key={m.label} className="grid grid-cols-3 gap-4 text-center items-center">
-              <div className="text-sm text-zinc-300 font-medium">{m.label}</div>
-              <div className="text-sm text-zinc-400">{m.meta}</div>
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-sm text-zinc-100 font-semibold">{m.real}</span>
-                <Badge variant={Math.abs(m.diff) > 20 ? 'destructive' : 'secondary'} className="text-[10px]">
-                  {m.diff > 0 ? '+' : ''}{m.diff.toFixed(0)}%
-                </Badge>
-              </div>
-            </div>
-          ))}
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800">
-            <Card>
-              <CardContent className="p-3 text-center">
-                <p className="text-xs text-zinc-500">HubSpot New Contacts</p>
-                <p className="text-lg font-semibold text-zinc-100">{data.real.hubspot_new_contacts}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3 text-center">
-                <p className="text-xs text-zinc-500">Stripe Revenue</p>
-                <p className="text-lg font-semibold text-zinc-100">{data.real.stripe_revenue.toLocaleString()} AED</p>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
 // TOKEN STATS PANEL
 // ═══════════════════════════════════════════════════════════
+
 function TokenStatsPanel({ stats }: { stats: TokenStats }) {
   return (
     <div className="space-y-4">
@@ -469,7 +1024,7 @@ function TokenStatsPanel({ stats }: { stats: TokenStats }) {
           { label: 'Output Tokens', value: stats.todayOutputTokens.toLocaleString() },
           { label: 'Total Cost', value: `$${stats.todayCost.toFixed(4)}` },
         ].map((item) => (
-          <Card key={item.label}>
+          <Card key={item.label} className="border-zinc-800">
             <CardContent className="p-4">
               <p className="text-xs text-zinc-500 mb-1">{item.label}</p>
               <p className="text-lg font-semibold text-zinc-100">{item.value}</p>
@@ -478,8 +1033,7 @@ function TokenStatsPanel({ stats }: { stats: TokenStats }) {
         ))}
       </div>
 
-      {/* Budget bar */}
-      <Card>
+      <Card className="border-zinc-800">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-zinc-400">Daily Budget</span>
@@ -500,9 +1054,8 @@ function TokenStatsPanel({ stats }: { stats: TokenStats }) {
         </CardContent>
       </Card>
 
-      {/* 7-day trend */}
       {stats.last7Days.length > 0 && (
-        <Card>
+        <Card className="border-zinc-800">
           <CardContent className="p-4">
             <p className="text-xs text-zinc-400 mb-3">Last 7 Days</p>
             <div className="flex items-end gap-1.5 h-20">
@@ -525,16 +1078,15 @@ function TokenStatsPanel({ stats }: { stats: TokenStats }) {
         </Card>
       )}
 
-      {/* Model distribution */}
       {Object.keys(stats.byModel).length > 0 && (
-        <Card>
+        <Card className="border-zinc-800">
           <CardContent className="p-4">
             <p className="text-xs text-zinc-400 mb-2">Model Usage Today</p>
             <div className="space-y-1.5">
               {Object.entries(stats.byModel).map(([model, data]) => (
                 <div key={model} className="flex items-center justify-between text-xs">
                   <span className="text-zinc-300">{model}</span>
-                  <span className="text-zinc-500">{data.queries} queries \u2022 ${data.cost.toFixed(4)}</span>
+                  <span className="text-zinc-500">{data.queries} queries • ${data.cost.toFixed(4)}</span>
                 </div>
               ))}
             </div>

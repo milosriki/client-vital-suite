@@ -1,32 +1,45 @@
 import { useState } from 'react';
-import MetaAdsChat from './MetaAdsChat';
-import MetaAdsDashboard from './MetaAdsDashboard';
+import MetaAdsChat from '@/components/meta-ads/MetaAdsChat';
+import MetaAdsDashboard from '@/components/meta-ads/MetaAdsDashboard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { BarChart3, MessageSquare, Users, Zap } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import {
+  BarChart3, MessageSquare, Users, Settings, Target, Shield,
+} from 'lucide-react';
+import type { BrandFilter, TimeRange } from '@/types/metaAds';
 
 export default function MetaAdsPage() {
+  const [dailyBudget, setDailyBudget] = useState(10);
+  const [defaultBrand, setDefaultBrand] = useState<BrandFilter>('all');
+  const [defaultTimeRange, setDefaultTimeRange] = useState<TimeRange>('last_7d');
+
   return (
     <div className="min-h-[calc(100vh-4rem)] p-6">
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-zinc-100">
           <span className="text-blue-400">PTD</span> Meta Ads Intelligence
         </h1>
-        <p className="text-xs text-zinc-500 mt-0.5">Qwen + Anthropic MCP \u2022 Dual AI Pipeline</p>
+        <p className="text-xs text-zinc-500 mt-0.5">Qwen + Anthropic MCP • Dual AI Pipeline</p>
       </div>
 
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="dashboard" className="gap-1.5 cursor-pointer">
+          <TabsTrigger value="dashboard" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
             <BarChart3 className="w-3.5 h-3.5" /> Dashboard
           </TabsTrigger>
-          <TabsTrigger value="chat" className="gap-1.5 cursor-pointer">
+          <TabsTrigger value="chat" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
             <MessageSquare className="w-3.5 h-3.5" /> AI Chat
           </TabsTrigger>
-          <TabsTrigger value="audience" className="gap-1.5 cursor-pointer">
+          <TabsTrigger value="audience" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
             <Users className="w-3.5 h-3.5" /> Audience
           </TabsTrigger>
-          <TabsTrigger value="tokens" className="gap-1.5 cursor-pointer">
-            <Zap className="w-3.5 h-3.5" /> Token Budget
+          <TabsTrigger value="crossval" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <Shield className="w-3.5 h-3.5" /> Cross-Validation
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <Settings className="w-3.5 h-3.5" /> Settings
           </TabsTrigger>
         </TabsList>
 
@@ -46,10 +59,98 @@ export default function MetaAdsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="tokens">
+        <TabsContent value="crossval">
           <div className="text-center py-12 text-sm text-zinc-500">
-            <Zap className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
-            <p>Token budget details are available in the Dashboard &rarr; Tokens tab.</p>
+            <Target className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
+            <p>Cross-validation is available in the Dashboard → Cross-Validation tab.</p>
+            <p className="text-xs mt-1">Compares Meta-reported metrics vs real HubSpot/Stripe data.</p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <div className="max-w-lg space-y-6">
+            {/* Daily Token Budget */}
+            <Card className="border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-zinc-200">Daily Token Budget</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-400">Max daily AI spend</span>
+                  <Badge variant="outline" className="text-xs">${dailyBudget.toFixed(2)}</Badge>
+                </div>
+                <Slider
+                  value={[dailyBudget]}
+                  onValueChange={([v]) => setDailyBudget(v ?? 10)}
+                  min={1}
+                  max={50}
+                  step={1}
+                  className="cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-zinc-600">
+                  <span>$1</span>
+                  <span>$50</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Default Brand Filter */}
+            <Card className="border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-zinc-200">Default Brand Filter</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  {([
+                    { label: 'All Brands', value: 'all' as BrandFilter },
+                    { label: 'PTD Fitness', value: 'ptd_fitness' as BrandFilter },
+                    { label: 'PT Dubai', value: 'personal_trainers_dubai' as BrandFilter },
+                  ]).map((b) => (
+                    <button
+                      key={b.value}
+                      onClick={() => setDefaultBrand(b.value)}
+                      className={`px-3 py-1.5 rounded-md text-xs transition-colors duration-200 cursor-pointer border ${
+                        defaultBrand === b.value
+                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          : 'text-zinc-400 border-zinc-800 hover:bg-muted/30'
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Default Time Range */}
+            <Card className="border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-zinc-200">Default Time Range</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 flex-wrap">
+                  {([
+                    { label: 'Today', value: 'today' as TimeRange },
+                    { label: '7 Days', value: 'last_7d' as TimeRange },
+                    { label: '14 Days', value: 'last_14d' as TimeRange },
+                    { label: '30 Days', value: 'last_30d' as TimeRange },
+                    { label: 'This Month', value: 'this_month' as TimeRange },
+                  ]).map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setDefaultTimeRange(t.value)}
+                      className={`px-3 py-1.5 rounded-md text-xs transition-colors duration-200 cursor-pointer border ${
+                        defaultTimeRange === t.value
+                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          : 'text-zinc-400 border-zinc-800 hover:bg-muted/30'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>

@@ -10,11 +10,14 @@ import type {
   TaskType,
   ToolProfile,
   CampaignData,
+  AdSetData,
+  AdData,
   PerformanceAlert,
   BudgetRecommendation,
   AudienceBreakdown,
   CrossValidationMetrics,
   CreateCampaignParams,
+  EntityMapping,
 } from '@/types/metaAds';
 import { selectModel, selectToolProfile, tokenTracker, needsMcpTools } from '@/lib/tokenOptimizer';
 
@@ -307,6 +310,56 @@ function parseJsonFromText<T>(text: string, fallback: T): T {
     }
     return fallback;
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRILL-DOWN QUERIES
+// ═══════════════════════════════════════════════════════════
+
+export async function fetchAdSets(
+  campaignId: string,
+  timeRange: string = 'last_30d'
+): Promise<AdSetData[]> {
+  const prompt = `Campaign ${campaignId}, ${timeRange}. Return JSON array of ad sets: [{adset_id,adset_name,campaign_id,campaign_name,status,spend,impressions,clicks,conversions,cpa,roas,ctr,daily_budget,reach,frequency,link_clicks,landing_page_views,lead_form_submissions,messaging_conversations,quality_ranking,engagement_rate_ranking,conversion_rate_ranking}]. Numbers only.`;
+  const result = await queryMetaAds(prompt, { taskType: 'data_fetch', toolProfile: 'dashboard', maxTokens: 2048 });
+  return parseJsonFromText<AdSetData[]>(result.text, []);
+}
+
+export async function fetchAds(
+  adSetId: string,
+  timeRange: string = 'last_30d'
+): Promise<AdData[]> {
+  const prompt = `Ad set ${adSetId}, ${timeRange}. Return JSON array of ads: [{ad_id,ad_name,adset_id,adset_name,campaign_name,spend,impressions,clicks,conversions,ctr,cpa,roas}]. Numbers only.`;
+  const result = await queryMetaAds(prompt, { taskType: 'data_fetch', toolProfile: 'dashboard', maxTokens: 2048 });
+  return parseJsonFromText<AdData[]>(result.text, []);
+}
+
+export async function fetchEntities(): Promise<EntityMapping[]> {
+  const headers = await getHeaders();
+  const response = await fetch(getBaseUrl(), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ action: 'get_entities' }),
+  });
+  if (!response.ok) {
+    return [];
+  }
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchCrossValidationRange(
+  periodStart: string,
+  periodEnd: string
+): Promise<CrossValidationMetrics> {
+  const headers = await getHeaders();
+  const response = await fetch(getBaseUrl(), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ action: 'cross_validate', period_start: periodStart, period_end: periodEnd }),
+  });
+  if (!response.ok) throw new Error(`Cross-validation failed: ${response.status}`);
+  return response.json();
 }
 
 // ─── Export for backward compat with old chat function ────
