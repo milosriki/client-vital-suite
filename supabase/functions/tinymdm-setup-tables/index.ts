@@ -108,6 +108,26 @@ serve(async (req) => {
       DROP POLICY IF EXISTS "service_write_mdm_session_verifications" ON mdm_session_verifications;
       CREATE POLICY "service_write_mdm_session_verifications" ON mdm_session_verifications FOR ALL TO service_role USING (true) WITH CHECK (true);
 
+      -- Extra columns for device details
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS os_version text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS imei text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS serial_number text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS manufacturer text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS phone_number text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS enrollment_type text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS user_id text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS group_id text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS last_lat double precision;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS last_lng double precision;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS last_address text;
+      ALTER TABLE mdm_devices ADD COLUMN IF NOT EXISTS last_location_at timestamptz;
+
+      -- Extra column for location address
+      ALTER TABLE mdm_location_events ADD COLUMN IF NOT EXISTS address text;
+
+      -- Add unique constraint on raw_hash if not exists
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_mdm_location_events_raw_hash ON mdm_location_events(raw_hash);
+
       -- Indexes for performance
       CREATE INDEX IF NOT EXISTS idx_mdm_location_events_device_time ON mdm_location_events(device_id, recorded_at DESC);
       CREATE INDEX IF NOT EXISTS idx_mdm_visits_coach_time ON mdm_visits(coach_id, start_ts DESC);

@@ -3,14 +3,16 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const TINYMDM_BASE = "https://www.tinymdm.net/api/v1";
-const TINYMDM_PUBLIC_KEY = Deno.env.get("TINYMDM_PUBLIC_KEY")!;
-const TINYMDM_SECRET_KEY = Deno.env.get("TINYMDM_SECRET_KEY")!;
+const TINYMDM_PUBLIC_KEY = Deno.env.get("TINYMDM_API_KEY_PUBLIC")!;
+const TINYMDM_SECRET_KEY = Deno.env.get("TINYMDM_API_KEY_SECRET")!;
+const TINYMDM_ACCOUNT_ID = Deno.env.get("TINYMDM_ACCOUNT_ID")!;
 
 async function fetchTinyMDM(endpoint: string) {
   const res = await fetch(`${TINYMDM_BASE}${endpoint}`, {
     headers: {
-      "X-Tinymdm-Apikey-Public": TINYMDM_PUBLIC_KEY,
-      "X-Tinymdm-Apikey-Secret": TINYMDM_SECRET_KEY,
+      "X-Tinymdm-Manager-Apikey-Public": TINYMDM_PUBLIC_KEY,
+      "X-Tinymdm-Manager-Apikey-Secret": TINYMDM_SECRET_KEY,
+      "X-Account-Id": TINYMDM_ACCOUNT_ID,
       "Content-Type": "application/json",
     },
   });
@@ -45,15 +47,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get all tracked devices
-    const { data: devices, error: devErr } = await supabase
-      .from("mdm_devices")
-      .select("tinymdm_device_id");
-    
-    if (devErr) throw devErr;
-    if (!devices?.length) {
+    // Fetch all devices with their embedded geolocation_positions
+    const devicesResp = await fetchTinyMDM("/devices?per_page=1000");
+    const deviceList = devicesResp.results || [];
+
+    if (!deviceList.length) {
       return new Response(
-        JSON.stringify({ success: true, message: "No devices to poll", inserted: 0 }),
+        JSON.stringify({ success: true, message: "No devices found", inserted: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -61,48 +61,49 @@ serve(async (req) => {
     let totalInserted = 0;
     const errors: string[] = [];
 
-    for (const device of devices) {
+    for (const device of deviceList) {
       try {
-        const locations = await fetchTinyMDM(`/devices/${device.tinymdm_device_id}/locations`);
-        const locList = Array.isArray(locations) ? locations : locations.data || locations.locations || [];
+        const positions = device.geolocation_positions || [];
+        if (!positions.length) continue;
 
-        const rows = locList.map((loc: any) => {
-          const deviceId = device.tinymdm_device_id;
-          const recordedAt = loc.recorded_at || loc.recordedAt || loc.timestamp || loc.date;
-          const lat = parseFloat(loc.latitude || loc.lat);
-          const lng = parseFloat(loc.longitude || loc.lng || loc.lon);
-          const accuracy = loc.accuracy || loc.accuracy_m || null;
+        const rows = positions.map((loc: any) => {
+          const deviceId = String(device.id);
+          const timestamp = loc.timestamp;
+          const recordedAt = timestamp ? new Date(timestamp * 1000).toISOString() : loc.date;
+          const lat = parseFloat(loc.latitude);
+          const lng = parseFloat(loc.longitude);
 
           return {
             device_id: deviceId,
             recorded_at: recordedAt,
             lat,
             lng,
-            accuracy_m: accuracy ? parseFloat(accuracy) : null,
-            raw_hash: md5Hash(`${deviceId}${recordedAt}${lat}${lng}`),
+            accuracy_m: null,
+            address: loc.address || null,
+            raw_hash: md5Hash(`${deviceId}${timestamp}${lat}${lng}`),
           };
         }).filter((r: any) => r.recorded_at && !isNaN(r.lat) && !isNaN(r.lng));
 
         if (rows.length > 0) {
           const { error: insertErr, count } = await supabase
             .from("mdm_location_events")
-            .upsert(rows, { onConflict: "device_id,recorded_at", ignoreDuplicates: true, count: "exact" });
+            .upsert(rows, { onConflict: "raw_hash", ignoreDuplicates: true, count: "exact" });
           
           if (insertErr) {
-            errors.push(`Device ${deviceId}: ${insertErr.message}`);
+            errors.push(`Device ${device.id}: ${insertErr.message}`);
           } else {
             totalInserted += count || rows.length;
           }
         }
       } catch (e) {
-        errors.push(`Device ${device.tinymdm_device_id}: ${e.message}`);
+        errors.push(`Device ${device.id}: ${e.message}`);
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        devices_polled: devices.length, 
+        devices_polled: deviceList.length, 
         total_inserted: totalInserted,
         errors: errors.length > 0 ? errors : undefined 
       }),
