@@ -56,7 +56,7 @@ export const useNotifications = () => {
             await createNotification({
               type: "critical",
               title: "⚠️ High Churn Risk Alert",
-              message: `${client.firstname} ${client.lastname} has ${client.churn_risk_score.toFixed(0)}% churn risk`,
+              message: `${client.firstname} ${client.lastname} has ${(client.churn_risk_score ?? 0).toFixed(0)}% churn risk`,
               category: "churn",
               metadata: payload.new as Record<string, unknown>,
             });

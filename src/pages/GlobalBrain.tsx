@@ -77,12 +77,14 @@ export default function GlobalBrain() {
   const loadStats = async () => {
     try {
       const response = await fetch(getApiUrl("/api/brain?action=stats"));
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
       if (data.ok) {
         setStats(data.stats);
       }
     } catch (error) {
       console.error("Failed to load stats:", error);
+      toast.error("Failed to load brain stats");
     }
   };
 
@@ -93,6 +95,7 @@ export default function GlobalBrain() {
       const response = await fetch(
         getApiUrl("/api/brain?action=recent&limit=20"),
       );
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
       if (data.ok && data.memories) {
         setMemories(
@@ -136,6 +139,7 @@ export default function GlobalBrain() {
         }),
       });
 
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
       setResult(data);
 

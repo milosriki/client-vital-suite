@@ -109,7 +109,7 @@ export function useVitalState(): VitalStateReturn {
             if (client.churn_risk_score && client.churn_risk_score > 80) {
               toast({
                 title: '⚠️ High Churn Risk Alert',
-                description: `${client.firstname || ''} ${client.lastname || ''} has ${client.churn_risk_score.toFixed(0)}% churn risk`,
+                description: `${client.firstname || ''} ${client.lastname || ''} has ${(client.churn_risk_score ?? 0).toFixed(0)}% churn risk`,
                 variant: 'destructive',
                 duration: 8000,
               });

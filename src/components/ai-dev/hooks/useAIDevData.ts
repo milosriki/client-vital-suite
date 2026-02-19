@@ -59,7 +59,7 @@ export const useAIDevData = () => {
   const executeCommand = useMutation({
     mutationFn: async (cmd: string) => {
       const { data, error } = await supabase.functions.invoke(
-        "ptd-self-developer",
+        "smart-ai-advisor",
         {
           body: { command: cmd },
         },

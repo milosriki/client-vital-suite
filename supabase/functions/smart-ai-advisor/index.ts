@@ -7,7 +7,7 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 let cachedContext: { data: string; ts: number } | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-const GEMINI_KEY = "AIzaSyC2g_C7zy5AaHvaCVyPICR_dIY4WcfzR8A";
+const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || "";
 const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY") || "";
 
 serve(async (req) => {

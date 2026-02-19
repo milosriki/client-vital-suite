@@ -83,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Optional API key check (set AGENT_API_KEY to require it)
   const requiredApiKey = process.env.AGENT_API_KEY;
-  if (requiredApiKey && false) {
+  if (requiredApiKey) {
     // Accept x-ptd-key (frontend), x-agent-api-key, or authorization header
     const token =
       getHeaderString(req.headers["x-ptd-key"]) ??

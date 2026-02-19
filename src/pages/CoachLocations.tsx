@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/table";
 import { RefreshCw, MapPin, Clock, Navigation, AlertTriangle, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { getEdgeFunctionUrl } from "@/config/api";
 import { format, subDays } from "date-fns";
 
 // ── Types ──
@@ -208,14 +210,21 @@ export default function CoachLocations() {
   const handleSync = useCallback(async () => {
     setSyncing(true);
     try {
-      const base = `https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1`;
-      await fetch(`${base}/tinymdm-sync-devices`, { method: "POST" });
-      await fetch(`${base}/tinymdm-pull-locations`, { method: "POST" });
-      await fetch(`${base}/tinymdm-visit-builder`, { method: "POST" });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      };
+      await fetch(getEdgeFunctionUrl("tinymdm-sync-devices"), { method: "POST", headers });
+      await fetch(getEdgeFunctionUrl("tinymdm-pull-locations"), { method: "POST", headers });
+      await fetch(getEdgeFunctionUrl("tinymdm-visit-builder"), { method: "POST", headers });
       refetchDevices();
       refetchEvents();
+      toast.success("TinyMDM sync completed");
     } catch (e) {
       console.error("Sync failed:", e);
+      toast.error("TinyMDM sync failed");
     } finally {
       setSyncing(false);
     }

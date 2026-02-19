@@ -69,7 +69,7 @@ jobs:
         run: |
           set -e
           echo "🚀 Deploying Supabase Edge Functions..."
-          if supabase functions deploy --no-verify-jwt --project-ref $PROJECT_ID; then
+          if supabase functions deploy --project-ref $PROJECT_ID; then
             echo "✅ Deployment successful"
           else
             echo "::error::Deployment failed"

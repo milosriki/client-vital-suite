@@ -23,7 +23,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId, startNewThread } from "@/lib/ptd-memory";
-import { getThreadId, startNewThread } from "@/lib/ptd-memory";
 import { getApiUrl, API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
 interface Message {
@@ -54,7 +53,6 @@ export const FloatingChat = () => {
     "connected" | "connecting" | "error"
   >("connected");
   const [memoryCount, setMemoryCount] = useState(0);
-  const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Brain, Database, RefreshCw, Loader2, Zap } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Brain, Database, RefreshCw, Loader2, Zap, WifiOff } from "lucide-react";
 import { getApiUrl } from "@/config/api";
 
 interface KnowledgeChunk {
@@ -9,15 +9,29 @@ interface KnowledgeChunk {
   created_at: string;
 }
 
+const BASE_INTERVAL = 30000;
+const MAX_INTERVAL = 300000;
+const MAX_FAILURES = 10;
+
 export function BrainVisualizer() {
   const [chunks, setChunks] = useState<KnowledgeChunk[]>([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const failureCount = useRef(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentInterval = useRef(BASE_INTERVAL);
+
+  const startPolling = useCallback((ms: number) => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    currentInterval.current = ms;
+    intervalRef.current = setInterval(fetchData, ms);
+  }, []);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Poll every 30s
-    return () => clearInterval(interval);
+    startPolling(BASE_INTERVAL);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
   const fetchData = async () => {
@@ -25,8 +39,9 @@ export function BrainVisualizer() {
     try {
       // 1. Fetch Recent Knowledge
       const chunksRes = await fetch(
-        getApiUrl("/api/brain?action=recent_knowledge&limit=10"),
+        getApiUrl("/api/brain?action=recent&limit=10"),
       );
+      if (!chunksRes.ok) throw new Error(`Server error: ${chunksRes.status}`);
       const chunksData = await chunksRes.json();
       if (chunksData.ok) {
         setChunks(chunksData.chunks || []);
@@ -34,12 +49,32 @@ export function BrainVisualizer() {
 
       // 2. Fetch Stats
       const statsRes = await fetch(getApiUrl("/api/brain?action=stats"));
+      if (!statsRes.ok) throw new Error(`Server error: ${statsRes.status}`);
       const statsData = await statsRes.json();
       if (statsData.ok) {
         setStats(statsData.stats);
       }
+
+      // Success: reset backoff
+      failureCount.current = 0;
+      setConnectionLost(false);
+      if (currentInterval.current !== BASE_INTERVAL) {
+        startPolling(BASE_INTERVAL);
+      }
     } catch (e) {
       console.error("Brain fetch error:", e);
+      failureCount.current++;
+
+      if (failureCount.current >= MAX_FAILURES) {
+        // Stop polling after 10 consecutive failures
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        setConnectionLost(true);
+      } else {
+        // Exponential backoff: double interval, cap at 300s
+        const newInterval = Math.min(currentInterval.current * 2, MAX_INTERVAL);
+        startPolling(newInterval);
+      }
     } finally {
       setLoading(false);
     }
@@ -66,7 +101,7 @@ export function BrainVisualizer() {
             <div className="text-center">
               <p className="text-white/50">Total Nodes</p>
               <p className="text-cyan-400 font-mono text-lg">
-                {stats.total_knowledge_chunks}
+                {stats.total_knowledge_chunks || stats.total_memories || 0}
               </p>
             </div>
           </div>
@@ -119,10 +154,17 @@ export function BrainVisualizer() {
 
       {/* Footer Status */}
       <div className="bg-cyan-900/20 p-2 text-center border-t border-cyan-500/20">
-        <span className="text-[10px] text-cyan-400 flex items-center justify-center gap-2">
-          <Zap className="w-3 h-3" />
-          SYSTEM: ONLINE // VECTOR_DIM: 768 (GEMINI-004)
-        </span>
+        {connectionLost ? (
+          <span className="text-[10px] text-red-400 flex items-center justify-center gap-2">
+            <WifiOff className="w-3 h-3" />
+            CONNECTION LOST — Polling stopped after {MAX_FAILURES} failures
+          </span>
+        ) : (
+          <span className="text-[10px] text-cyan-400 flex items-center justify-center gap-2">
+            <Zap className="w-3 h-3" />
+            SYSTEM: ONLINE // VECTOR_DIM: 768 (GEMINI-004)
+          </span>
+        )}
       </div>
     </div>
   );

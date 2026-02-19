@@ -42,6 +42,7 @@ import {
 import { usePredictions, type ClientPrediction } from "@/hooks/usePredictions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getEdgeFunctionUrl } from "@/config/api";
 
 // ── KPI Card ──
 
@@ -257,7 +258,7 @@ export default function PredictiveIntelligence() {
       }
 
       const res = await fetch(
-        `https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/ai-client-advisor`,
+        getEdgeFunctionUrl("ai-client-advisor"),
         {
           method: "POST",
           headers: {

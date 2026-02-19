@@ -133,7 +133,7 @@ export class UnifiedAIClient {
       Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY") ||
       Deno.env.get("GEMINI_API_KEY") ||
       Deno.env.get("GOOGLE_API_KEY") ||
-      "AIzaSyC2g_C7zy5AaHvaCVyPICR_dIY4WcfzR8A";
+      Deno.env.get("GEMINI_API_KEY") || "";
     this.deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
     this.supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     this.supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

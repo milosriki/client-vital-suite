@@ -64,23 +64,20 @@ export function getEdgeFunctionUrl(functionName: string): string {
  * - In Vercel: Returns relative /api/* path
  */
 export function getApiUrl(endpoint: string): string {
-  // In Lovable environment, always use Supabase edge functions
-  if (isLovableEnvironment()) {
-    const functionName = ROUTE_TO_EDGE_FUNCTION[endpoint];
-    if (functionName) {
-      return getEdgeFunctionUrl(functionName);
-    }
-  }
+  // Strip query params for route lookup, preserve for final URL
+  const [basePath, queryString] = endpoint.split("?");
+  const qs = queryString ? `?${queryString}` : "";
 
   // In Vercel environment, use relative API routes
   if (isVercelEnvironment()) {
-    return endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    return path;
   }
 
-  // Default: Use Supabase edge functions (safest fallback)
-  const functionName = ROUTE_TO_EDGE_FUNCTION[endpoint];
+  // Use Supabase edge functions
+  const functionName = ROUTE_TO_EDGE_FUNCTION[basePath];
   if (functionName) {
-    return getEdgeFunctionUrl(functionName);
+    return getEdgeFunctionUrl(functionName) + qs;
   }
 
   return endpoint;

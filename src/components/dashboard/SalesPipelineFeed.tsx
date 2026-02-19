@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatStatus, getStatusColor } from "@/utils/formatters";
 import { Phone, Mail, Building, User } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { toast } from "sonner";
 
 interface SalesContact {
   id: string;
@@ -58,6 +59,7 @@ export function SalesPipelineFeed() {
       setLeads(data || []);
     } catch (error) {
       console.error("Error fetching leads:", error);
+      toast.error("Failed to load sales pipeline");
     } finally {
       setLoading(false);
     }

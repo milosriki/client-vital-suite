@@ -1,3 +1,4 @@
+import { requireAuth } from './_middleware/auth';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /**
@@ -14,6 +15,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * - payout_controls: Payout controls
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return;
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

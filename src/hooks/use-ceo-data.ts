@@ -354,7 +354,7 @@ export function useCEOData() {
         original_recommendation: `Action ${actionId} was rejected`,
         applied_to_model: false,
       });
-      await supabase.functions.invoke("ai-learning-loop", {}).catch(() => {});
+      await supabase.functions.invoke("ai-learning-loop", {}).catch((e) => console.warn("Learning loop failed:", e));
     },
     onSuccess: () => {
       toast.success("Action rejected");

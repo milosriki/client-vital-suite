@@ -132,7 +132,7 @@ export default function StripeAIDashboard({ open, onOpenChange, mode }: StripeAI
                   return newMessages;
                 });
               }
-            } catch {}
+            } catch (e) { console.warn("Malformed stream chunk:", e); }
           }
         }
       }

@@ -89,6 +89,7 @@ const WarRoom = () => {
         toast.info("Auto-Pilot disengaged - Manual control restored");
       } catch (error) {
         console.error("Failed to disable Auto-Pilot:", error);
+        toast.error("Failed to disable Auto-Pilot");
       }
     }
   };
