@@ -25,6 +25,7 @@ interface LocationEvent {
   lat: number;
   lng: number;
   accuracy_m: number | null;
+  address: string | null;
 }
 
 interface Device {
@@ -49,7 +50,7 @@ interface Visit {
 }
 
 // ── Map Component ──
-function LocationMap({ events, selectedCoach }: { events: LocationEvent[]; selectedCoach: string | null }) {
+function LocationMap({ events, selectedCoach, deviceNameMap }: { events: LocationEvent[]; selectedCoach: string | null; deviceNameMap: Map<string, string> }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const layerGroup = useRef<any>(null);
@@ -140,7 +141,7 @@ function LocationMap({ events, selectedCoach }: { events: LocationEvent[]; selec
         opacity: 1,
         fillOpacity: 0.8,
       })
-        .bindPopup(`<b>${deviceId}</b><br>${format(new Date(evt.recorded_at), "MMM d, h:mm a")}<br>Lat: ${evt.lat.toFixed(5)}, Lng: ${evt.lng.toFixed(5)}`)
+        .bindPopup(`<b>${deviceNameMap.get(deviceId) || deviceId}</b><br>${format(new Date(evt.recorded_at), "MMM d, h:mm a")}<br>${(evt as any).address || `${evt.lat.toFixed(5)}, ${evt.lng.toFixed(5)}`}`)
         .addTo(layerGroup.current);
     }
 
@@ -370,7 +371,7 @@ export default function CoachLocations() {
               <p className="text-sm">Loading map data...</p>
             </div>
           ) : (
-            <LocationMap events={events || []} selectedCoach={selectedCoach} />
+            <LocationMap events={events || []} selectedCoach={selectedCoach} deviceNameMap={new Map((devices || []).map(d => [d.tinymdm_device_id, d.coach_name || d.device_name || d.tinymdm_device_id]))} />
           )}
         </CardContent>
       </Card>
