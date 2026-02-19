@@ -4,12 +4,13 @@ import MetaAdsChat from '@/components/meta-ads/MetaAdsChat';
 import MetaAdsDashboard from '@/components/meta-ads/MetaAdsDashboard';
 import MetaAdsCreatives from '@/components/meta-ads/MetaAdsCreatives';
 import MetaAdsAudience from '@/components/meta-ads/MetaAdsAudience';
+import MetaAdsAttribution from '@/components/meta-ads/MetaAdsAttribution';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import {
-  BarChart3, MessageSquare, Users, Settings, Sparkles,
+  BarChart3, MessageSquare, Users, Settings, Sparkles, Link2,
 } from 'lucide-react';
 import type { BrandFilter, TimeRange } from '@/types/metaAds';
 

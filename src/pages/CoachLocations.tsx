@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, MapPin, Clock, Navigation, AlertTriangle, Loader2, Battery, TrendingUp, Route, Users, Download } from "lucide-react";
+import { RefreshCw, MapPin, Clock, Navigation, AlertTriangle, Loader2, Battery, TrendingUp, Route, Users, Download, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, subDays, differenceInMinutes, parseISO } from "date-fns";
@@ -39,6 +39,20 @@ interface LocationEvent {
   lat: number;
   lng: number;
   address: string | null;
+}
+
+interface CoachVisit {
+  id: string;
+  device_id: string;
+  coach_name: string | null;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  arrival_time: string;
+  departure_time: string;
+  dwell_minutes: number;
+  is_ptd_location: boolean;
+  created_at: string;
 }
 
 // ── Helpers ──
@@ -308,6 +322,18 @@ function exportCSV(report: ReturnType<typeof buildCoachReport>) {
   a.href = url; a.download = `coach-locations-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click();
 }
 
+// ── Dwell Export ──
+function exportDwellCSV(visits: CoachVisit[]) {
+  const header = "Coach,Location,Arrival,Departure,Dwell Minutes,PTD Location\n";
+  const rows = visits.map(v =>
+    `"${v.coach_name || v.device_id}","${v.location_name}","${v.arrival_time}","${v.departure_time}",${v.dwell_minutes},${v.is_ptd_location}`
+  ).join("\n");
+  const blob = new Blob([header + rows], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `dwell-analysis-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click();
+}
+
 // ── Main Page ──
 export default function CoachLocations() {
   const [dateRange, setDateRange] = useState(3);
@@ -338,6 +364,74 @@ export default function CoachLocations() {
       return (data || []) as LocationEvent[];
     },
   });
+
+  const { data: dwellVisits, isLoading: dwellLoading, refetch: refetchDwell } = useDedupedQuery({
+    queryKey: ["coach-visits"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coach_visits")
+        .select("*")
+        .order("arrival_time", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+      return (data || []) as CoachVisit[];
+    },
+  });
+
+  const [dwellProcessing, setDwellProcessing] = useState(false);
+  const runDwellEngine = useCallback(async () => {
+    setDwellProcessing(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      const res = await fetch("https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/gps-dwell-engine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (result.success) {
+        toast.success(`Dwell engine: ${result.total_visits} visits processed`);
+        refetchDwell();
+      } else {
+        toast.error("Dwell engine failed: " + (result.error || "unknown"));
+      }
+    } catch {
+      toast.error("Dwell engine request failed");
+    } finally {
+      setDwellProcessing(false);
+    }
+  }, [refetchDwell]);
+
+  const dwellSummary = useMemo(() => {
+    const visits = dwellVisits || [];
+    const ptdHours = Math.round(visits.filter(v => v.is_ptd_location).reduce((s, v) => s + v.dwell_minutes, 0) / 60);
+    const extHours = Math.round(visits.filter(v => !v.is_ptd_location).reduce((s, v) => s + v.dwell_minutes, 0) / 60);
+    const avgSession = visits.length > 0 ? Math.round(visits.reduce((s, v) => s + v.dwell_minutes, 0) / visits.length) : 0;
+    
+    // Most active coach
+    const coachMin = new Map<string, number>();
+    for (const v of visits) {
+      const name = v.coach_name || v.device_id;
+      coachMin.set(name, (coachMin.get(name) || 0) + v.dwell_minutes);
+    }
+    const mostActive = [...coachMin.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    // By coach breakdown
+    const byCoach = new Map<string, { ptd: number; ext: number; visits: number }>();
+    for (const v of visits) {
+      const name = v.coach_name || v.device_id;
+      if (!byCoach.has(name)) byCoach.set(name, { ptd: 0, ext: 0, visits: 0 });
+      const c = byCoach.get(name)!;
+      c.visits++;
+      if (v.is_ptd_location) c.ptd += v.dwell_minutes; else c.ext += v.dwell_minutes;
+    }
+
+    // Today's coaches
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCoaches = new Set(visits.filter(v => v.arrival_time?.slice(0, 10) === today).map(v => v.coach_name || v.device_id));
+
+    return { ptdHours, extHours, avgSession, mostActive, byCoach, todayCoaches, total: visits.length };
+  }, [dwellVisits]);
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
@@ -466,6 +560,7 @@ export default function CoachLocations() {
           <TabsTrigger value="hotspots"><Navigation className="h-4 w-4 mr-1" />Hotspots</TabsTrigger>
           <TabsTrigger value="patterns"><AlertTriangle className="h-4 w-4 mr-1" />Patterns</TabsTrigger>
           <TabsTrigger value="devices"><Battery className="h-4 w-4 mr-1" />Devices</TabsTrigger>
+          <TabsTrigger value="dwell"><Timer className="h-4 w-4 mr-1" />Dwell Analysis</TabsTrigger>
         </TabsList>
 
         {/* MAP TAB */}
@@ -631,6 +726,118 @@ export default function CoachLocations() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+        {/* DWELL ANALYSIS TAB */}
+        <TabsContent value="dwell">
+          <div className="space-y-4">
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button onClick={runDwellEngine} disabled={dwellProcessing} variant="outline" size="sm">
+                <RefreshCw className={`h-4 w-4 mr-1 ${dwellProcessing ? "animate-spin" : ""}`} />
+                {dwellProcessing ? "Processing..." : "Run Dwell Engine"}
+              </Button>
+              <Button onClick={() => exportDwellCSV(dwellVisits || [])} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-1" /> Export CSV
+              </Button>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total PTD Hours</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold text-green-600">{dwellSummary.ptdHours}h</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">External Hours</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold text-yellow-600">{dwellSummary.extHours}h</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Most Active Coach</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-lg font-bold">{dwellSummary.mostActive?.[0] || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{dwellSummary.mostActive ? `${Math.round(dwellSummary.mostActive[1] / 60)}h total` : ""}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Avg Session</CardTitle></CardHeader>
+                <CardContent><p className="text-2xl font-bold">{dwellSummary.avgSession}m</p></CardContent>
+              </Card>
+            </div>
+
+            {/* Coach Breakdown */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Coach Dwell Breakdown</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Coach</TableHead>
+                      <TableHead className="text-right">Visits</TableHead>
+                      <TableHead className="text-right">PTD Hours</TableHead>
+                      <TableHead className="text-right">External Hours</TableHead>
+                      <TableHead>Today</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...dwellSummary.byCoach.entries()].sort((a, b) => (b[1].ptd + b[1].ext) - (a[1].ptd + a[1].ext)).map(([coach, d]) => (
+                      <TableRow key={coach}>
+                        <TableCell className="font-medium">{coach}</TableCell>
+                        <TableCell className="text-right">{d.visits}</TableCell>
+                        <TableCell className="text-right text-green-600">{Math.round(d.ptd / 60)}h</TableCell>
+                        <TableCell className="text-right text-yellow-600">{Math.round(d.ext / 60)}h</TableCell>
+                        <TableCell>
+                          {dwellSummary.todayCoaches.has(coach) ? (
+                            <Badge className="bg-green-500">Active</Badge>
+                          ) : (
+                            <Badge variant="destructive">No Data</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Visit Log */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Timer className="h-5 w-5" />Visit Log ({dwellSummary.total} visits)</CardTitle></CardHeader>
+              <CardContent>
+                {dwellLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                ) : (dwellVisits || []).length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No dwell data yet. Click "Run Dwell Engine" to process GPS data.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Coach</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Arrival</TableHead>
+                        <TableHead>Departure</TableHead>
+                        <TableHead className="text-right">Dwell</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(dwellVisits || []).slice(0, 100).map((v) => (
+                        <TableRow key={v.id} className={v.is_ptd_location ? "bg-green-50 dark:bg-green-950/20" : "bg-yellow-50 dark:bg-yellow-950/20"}>
+                          <TableCell className="font-medium">{v.coach_name || v.device_id}</TableCell>
+                          <TableCell>
+                            <Badge variant={v.is_ptd_location ? "default" : "secondary"} className={v.is_ptd_location ? "bg-green-500" : ""}>
+                              {v.location_name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">{v.arrival_time ? formatDubaiTime(v.arrival_time) : "—"}</TableCell>
+                          <TableCell className="text-xs">{v.departure_time ? formatDubaiTime(v.departure_time) : "—"}</TableCell>
+                          <TableCell className="text-right font-mono">{v.dwell_minutes}m</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
