@@ -419,9 +419,9 @@ function DeepIntelTab() {
   return (
     <div className="space-y-8">
       {/* Alerts */}
-      {data.alerts.length > 0 && (
+      {(data.alerts?.length ?? 0) > 0 && (
         <div className="space-y-2">
-          {data.alerts.map((alert, i) => (
+          {(data.alerts ?? []).map((alert, i) => (
             <div key={i} className={`flex items-center gap-2 p-3 rounded-lg border ${
               alert.level === "critical" ? "bg-rose-500/10 border-rose-500/30 text-rose-400" :
               alert.level === "warning" ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :

@@ -39,7 +39,7 @@ export default function MetaAdsDashboard() {
       const { data, error } = await supabase
         .from("facebook_ads_insights")
         .select("*")
-        .order("date_start", { ascending: false })
+        .order("date", { ascending: false })
         .limit(90);
       if (error) throw error;
       return data || [];
@@ -54,10 +54,13 @@ export default function MetaAdsDashboard() {
     }
     const totalSpend = adsData.reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0);
     const totalImpressions = adsData.reduce((s: number, r: any) => s + (Number(r.impressions) || 0), 0);
-    const totalConversions = adsData.reduce((s: number, r: any) => s + (Number(r.conversions) || 0), 0);
-    const roasValues = adsData.filter((r: any) => r.roas != null).map((r: any) => Number(r.roas) || 0);
-    const avgRoas = roasValues.length > 0 ? roasValues.reduce((a: number, b: number) => a + b, 0) / roasValues.length : 0;
-    return { totalSpend, avgRoas, totalImpressions, totalConversions };
+    const totalLeads = adsData.reduce((s: number, r: any) => s + (Number(r.leads) || 0), 0);
+    const totalClicks = adsData.reduce((s: number, r: any) => s + (Number(r.clicks) || 0), 0);
+    const totalPurchaseValue = adsData.reduce((s: number, r: any) => s + (Number(r.purchase_value) || 0), 0);
+    const avgRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
+    const cpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
+    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+    return { totalSpend, avgRoas, totalImpressions, totalLeads, totalClicks, cpl, ctr };
   }, [adsData]);
 
   // Build daily chart data from real data
@@ -66,7 +69,7 @@ export default function MetaAdsDashboard() {
     // Aggregate by date
     const byDate = new Map<string, { spend: number; conversions: number }>();
     for (const row of adsData) {
-      const date = row.date_start;
+      const date = row.date;
       if (!date) continue;
       const existing = byDate.get(date) || { spend: 0, conversions: 0 };
       existing.spend += Number(row.spend) || 0;
@@ -181,10 +184,10 @@ export default function MetaAdsDashboard() {
           color="bg-indigo-100 text-indigo-600"
         />
         <MetricCard
-          title="Conversions"
-          value={kpis.totalConversions.toLocaleString()}
-          trend={hasData ? "Total period" : "No data"}
-          trendUp={kpis.totalConversions > 0}
+          title="Leads"
+          value={kpis.totalLeads.toLocaleString()}
+          trend={kpis.cpl > 0 ? `AED ${kpis.cpl.toFixed(0)} CPL` : "No leads"}
+          trendUp={kpis.totalLeads > 0}
           icon={MousePointer}
           color="bg-emerald-100 text-emerald-600"
         />
