@@ -282,7 +282,7 @@ export default function ClientActivity() {
                     </TableRow>
                   ) : (
                     filtered.map((row) => (
-                      <TableRow key={row.id} className={ROW_BG[row.depletion_priority] ?? ""}>
+                      <TableRow key={row.id} className={`cursor-pointer hover:bg-muted/30 transition-colors ${ROW_BG[row.depletion_priority] ?? ""}`}>
                         <TableCell className="font-medium">{row.client_name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.client_phone}</TableCell>
                         <TableCell className="text-xs">{row.package_name}</TableCell>
@@ -367,7 +367,7 @@ export default function ClientActivity() {
                     </TableRow>
                   ) : (
                     renewals.map((row) => (
-                      <TableRow key={row.id} className={ROW_BG[row.depletion_priority] ?? ""}>
+                      <TableRow key={row.id} className={`cursor-pointer hover:bg-muted/30 transition-colors ${ROW_BG[row.depletion_priority] ?? ""}`}>
                         <TableCell className="font-medium">{row.client_name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.client_phone}</TableCell>
                         <TableCell className="text-xs">{row.package_name}</TableCell>

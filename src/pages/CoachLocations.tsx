@@ -10,7 +10,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, MapPin, Clock, Navigation, AlertTriangle } from "lucide-react";
+import { RefreshCw, MapPin, Clock, Navigation, AlertTriangle, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, subDays } from "date-fns";
 
@@ -84,8 +85,8 @@ function LocationMap({ events, selectedCoach }: { events: LocationEvent[]; selec
       const L = (window as any).L;
       if (!mapRef.current || mapInstance.current) return;
 
-      // Default to US center
-      mapInstance.current = L.map(mapRef.current).setView([39.8283, -98.5795], 5);
+      // Default to Dubai (PTD Fitness headquarters)
+      mapInstance.current = L.map(mapRef.current).setView([25.2048, 55.2708], 12);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(mapInstance.current);
@@ -168,7 +169,7 @@ export default function CoachLocations() {
 
   const since = useMemo(() => subDays(new Date(), dateRange).toISOString(), [dateRange]);
 
-  const { data: devices, refetch: refetchDevices } = useDedupedQuery({
+  const { data: devices, isLoading: devicesLoading, refetch: refetchDevices } = useDedupedQuery({
     queryKey: ["mdm-devices"],
     queryFn: async () => {
       const { data, error } = await supabase.from("mdm_devices").select("*");
@@ -177,7 +178,7 @@ export default function CoachLocations() {
     },
   });
 
-  const { data: events, refetch: refetchEvents } = useDedupedQuery({
+  const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useDedupedQuery({
     queryKey: ["mdm-locations", since],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -354,7 +355,14 @@ export default function CoachLocations() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LocationMap events={events || []} selectedCoach={selectedCoach} />
+          {(devicesLoading || eventsLoading) ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-8 w-8 mb-3 animate-spin opacity-50" />
+              <p className="text-sm">Loading map data...</p>
+            </div>
+          ) : (
+            <LocationMap events={events || []} selectedCoach={selectedCoach} />
+          )}
         </CardContent>
       </Card>
 

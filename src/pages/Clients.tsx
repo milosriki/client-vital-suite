@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, UserPlus, Loader2 } from "lucide-react";
+import { Search, RefreshCw, UserPlus, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { ClientCard } from "@/components/ClientCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -150,18 +150,20 @@ const Clients = () => {
               {/* Client Grid */}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {clients.map((client) => (
-                  <ClientCard 
-                    key={client.email || client.id} 
-                    client={client} 
-                    onViewDetails={() => navigate(`/clients/${encodeURIComponent(client.email || '')}`)}
-                  />
+                  <div key={client.email || client.id} className="cursor-pointer hover:scale-[1.02] transition-transform">
+                    <ClientCard 
+                      client={client} 
+                      onViewDetails={() => navigate(`/clients/${encodeURIComponent(client.email || '')}`)}
+                    />
+                  </div>
                 ))}
               </div>
 
               {/* Empty State */}
               {clients.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  No clients found matching your criteria.
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Users className="h-8 w-8 mb-3 opacity-50" />
+                  <p className="text-sm">No clients found matching your criteria</p>
                 </div>
               )}
               

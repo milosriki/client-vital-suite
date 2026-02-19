@@ -190,8 +190,13 @@ export default function DailyOps() {
   if (isLoading) return <PageSkeleton variant="dashboard" />;
   if (!data) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
-        No ops snapshot available. Run the daily pipeline first.
+      <div className="p-6">
+        <h1 className="text-2xl font-bold tracking-tight mb-6">Daily Operations</h1>
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Activity className="h-8 w-8 mb-3 opacity-50" />
+          <p className="text-sm">No ops snapshot available</p>
+          <p className="text-xs mt-1">Run the daily pipeline to generate data</p>
+        </div>
       </div>
     );
   }
@@ -336,7 +341,7 @@ function PackageAlertsTable({ packages }: { packages: CriticalPackage[] }) {
               return (
                 <TableRow
                   key={`${p.client_name}-${i}`}
-                  className={isCritical ? "bg-red-500/5" : "bg-orange-500/5"}
+                  className={`cursor-pointer hover:bg-muted/30 transition-colors ${isCritical ? "bg-red-500/5" : "bg-orange-500/5"}`}
                 >
                   <TableCell className="font-medium">{p.client_name}</TableCell>
                   <TableCell className="font-mono text-xs">{p.client_phone}</TableCell>

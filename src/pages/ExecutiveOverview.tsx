@@ -307,7 +307,7 @@ export default function ExecutiveOverview() {
           </>
         ) : (
           <>
-            <Card className="bg-[#0A0A0A] border-[#1F2937]">
+            <Card className="bg-[#0A0A0A] border-[#1F2937] cursor-pointer hover:border-primary/30 transition-colors">
               <CardHeader>
                 <CardTitle className="text-lg">Top Performers (Today)</CardTitle>
               </CardHeader>
@@ -338,7 +338,7 @@ export default function ExecutiveOverview() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#0A0A0A] border-[#1F2937]">
+            <Card className="bg-[#0A0A0A] border-[#1F2937] cursor-pointer hover:border-primary/30 transition-colors">
               <CardHeader>
                 <CardTitle className="text-lg">Client Health Distribution</CardTitle>
               </CardHeader>
@@ -363,7 +363,7 @@ export default function ExecutiveOverview() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#0A0A0A] border-[#1F2937]">
+            <Card className="bg-[#0A0A0A] border-[#1F2937] cursor-pointer hover:border-primary/30 transition-colors">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   🚨 Leads Need Follow-Up

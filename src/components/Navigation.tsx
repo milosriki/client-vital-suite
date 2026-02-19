@@ -36,6 +36,8 @@ import {
   Headphones,
   Target,
   TrendingDown,
+  MapPin,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -116,6 +118,8 @@ export const Navigation = () => {
       { path: "/client-activity", label: "Client Activity", icon: Users },
       { path: "/predictions", label: "Predictions", icon: TrendingDown },
       { path: "/alert-center", label: "Alert Center", icon: AlertTriangle },
+      { path: "/coach-locations", label: "Coach GPS", icon: MapPin },
+      { path: "/meta-ads", label: "Meta Ads", icon: Megaphone },
     ],
     MORE: [
       { path: "/sales-tracker", label: "Sales Tracker", icon: Target },
@@ -124,6 +128,12 @@ export const Navigation = () => {
       { path: "/skills", label: "Skills", icon: Zap },
       { path: "/war-room", label: "War Room", icon: Crown },
       { path: "/audit", label: "Audit Trail", icon: History },
+      { path: "/enterprise/strategy", label: "Strategy", icon: Crosshair },
+      { path: "/enterprise/call-analytics", label: "Call Deep Dive", icon: Phone },
+      { path: "/enterprise/observability", label: "System Health", icon: Activity },
+      { path: "/enterprise/client-health", label: "Health Detail", icon: Activity },
+      { path: "/enterprise/coach-performance", label: "Coach Stats", icon: UserCheck },
+      { path: "/enterprise/knowledge-base", label: "Knowledge Base", icon: Brain },
     ],
   };
 

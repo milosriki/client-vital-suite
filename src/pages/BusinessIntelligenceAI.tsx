@@ -327,7 +327,7 @@ function KPIGrid({ kpis }: { kpis: ReturnType<typeof useBusinessSnapshot>["data"
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((c) => (
-        <Card key={c.label} className="bg-black/40 border-white/10">
+        <Card key={c.label} className="bg-black/40 border-white/10 cursor-pointer hover:bg-white/5 transition-colors">
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-muted-foreground">{c.label}</span>

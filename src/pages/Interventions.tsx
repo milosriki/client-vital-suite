@@ -254,7 +254,7 @@ const Interventions = () => {
         ) : (
           <div className="space-y-4">
             {interventions?.map((intervention) => (
-              <Card key={intervention.id} className="card-hover">
+              <Card key={intervention.id} className="card-hover cursor-pointer hover:bg-muted/30 transition-colors">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

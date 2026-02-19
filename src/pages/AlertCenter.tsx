@@ -323,7 +323,7 @@ const AlertCenter = () => {
                   filteredInterventions.map((item) => (
                     <TableRow
                       key={item.id}
-                      className={`${item.completed ? "opacity-40 line-through" : ""} ${
+                      className={`cursor-pointer hover:bg-muted/30 transition-colors ${item.completed ? "opacity-40 line-through" : ""} ${
                         item.priority === "CRITICAL" && !item.completed ? "bg-red-500/5" : ""
                       }`}
                     >
@@ -416,7 +416,7 @@ const AlertCenter = () => {
                   </TableRow>
                 ) : (
                   (legacyAlerts || []).map((alert: any) => (
-                    <TableRow key={alert.id}>
+                    <TableRow key={alert.id} className="cursor-pointer hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <Badge className={PRIORITY_BADGES[alert.priority] ?? "bg-muted"}>
                           {alert.priority ?? "—"}

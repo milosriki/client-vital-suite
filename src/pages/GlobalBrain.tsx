@@ -428,15 +428,16 @@ export default function GlobalBrain() {
                   <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
                 </div>
               ) : memories.length === 0 ? (
-                <p className="text-center text-white/40 py-8 text-sm">
-                  No memories yet
-                </p>
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Database className="h-8 w-8 mb-3 opacity-50" />
+                  <p className="text-sm">No memories yet</p>
+                </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {memories.map((mem, i) => (
                     <div
                       key={i}
-                      className="bg-black/30 border border-white/10 rounded-lg p-3 text-sm"
+                      className="bg-black/30 border border-white/10 rounded-lg p-3 text-sm cursor-pointer hover:bg-white/10 transition-colors"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-cyan-400 font-mono text-xs truncate max-w-[150px]">
