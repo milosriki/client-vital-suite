@@ -120,6 +120,7 @@ export const Navigation = () => {
       { path: "/alert-center", label: "Alert Center", icon: AlertTriangle },
       { path: "/coach-locations", label: "Coach GPS", icon: MapPin },
       { path: "/meta-ads", label: "Meta Ads", icon: Megaphone },
+      { path: "/lead-tracking", label: "Lead Tracking", icon: Target },
     ],
     MORE: [
       { path: "/sales-tracker", label: "Sales Tracker", icon: Target },

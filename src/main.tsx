@@ -86,6 +86,7 @@ const ClientActivity = lazyWithRetry(() => import("./pages/ClientActivity"));
 const PredictiveIntelligence = lazyWithRetry(() => import("./pages/PredictiveIntelligence"));
 const AlertCenter = lazyWithRetry(() => import("./pages/AlertCenter"));
 const MetaAds = lazyWithRetry(() => import("./pages/MetaAds"));
+const LeadTracking = lazyWithRetry(() => import("./pages/LeadTracking"));
 const ConversionFunnel = lazyWithRetry(() => import("./pages/ConversionFunnel"));
 
 // Enterprise pages — real data, production hooks
@@ -174,6 +175,7 @@ const router = createBrowserRouter([
       { path: "/audit", element: <SuspenseTable><AuditTrail /></SuspenseTable> },
       { path: "/coach-locations", element: <SuspensePage><CoachLocations /></SuspensePage> },
       { path: "/meta-ads", element: <SuspensePage><MetaAds /></SuspensePage> },
+      { path: "/lead-tracking", element: <SuspensePage><LeadTracking /></SuspensePage> },
 
       // Enterprise pages
       { path: "/enterprise/strategy", element: <SuspensePage><EnterpriseStrategy /></SuspensePage> },

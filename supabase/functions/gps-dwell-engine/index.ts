@@ -156,24 +156,30 @@ serve(async (req) => {
 
     const { data: locationEvents, error: locErr } = await sb
       .from("mdm_location_events")
-      .select("device_id,latitude,longitude,timestamp")
+      .select("device_id,lat,lng,recorded_at")
       .order("device_id")
-      .order("timestamp")
+      .order("recorded_at")
       .limit(50000);
     if (locErr) throw locErr;
 
     const { data: devicesData, error: devErr } = await sb
       .from("mdm_devices")
-      .select("device_id,user_name");
+      .select("tinymdm_device_id,coach_name");
     if (devErr) throw devErr;
 
     const coachMap = new Map<string, string>();
     for (const d of devicesData || []) {
-      if (d.user_name) coachMap.set(d.device_id, d.user_name);
+      if (d.coach_name) coachMap.set(d.tinymdm_device_id, d.coach_name);
     }
 
-    // 3. Compute visits
-    const visits = computeVisits((locationEvents || []) as RawPoint[], coachMap);
+    // 3. Map to RawPoint and compute visits
+    const rawPoints: RawPoint[] = (locationEvents || []).map((e: any) => ({
+      device_id: e.device_id,
+      latitude: e.lat,
+      longitude: e.lng,
+      timestamp: e.recorded_at,
+    }));
+    const visits = computeVisits(rawPoints, coachMap);
 
     // 4. Clear old and insert new
     await sb.from("coach_visits").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -207,7 +213,7 @@ serve(async (req) => {
 
   } catch (err) {
     console.error("gps-dwell-engine error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: err?.message || JSON.stringify(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
