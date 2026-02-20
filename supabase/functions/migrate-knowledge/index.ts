@@ -80,45 +80,54 @@ serve(async (req) => {
     let seeded = 0;
     let embedErrors = 0;
 
-    // 3. Seed with embeddings in batches of 5 (rate limit friendly)
-    for (let i = 0; i < allKnowledge.length; i += 5) {
-      const batch = allKnowledge.slice(i, i + 5);
-
-      const promises = batch.map(async (item) => {
-        const content = `Q: ${item.question}\nA: ${item.answer}`;
-
-        let embedding = null;
-        try {
-          embedding = await unifiedAI.embed(content);
-          console.log(`✅ Embedded: ${item.question.slice(0, 40)}...`);
-        } catch (e: any) {
-          console.error(`❌ Embedding failed for: ${item.question}`, e?.message || e);
-          embedErrors++;
-        }
-
-        const { error, data } = await supabase.from("knowledge_base").insert({
+    // 3. Seed entries (without embeddings first — fast)
+    for (const item of allKnowledge) {
+      try {
+        const { error } = await supabase.from("knowledge_base").insert({
           category: item.category,
           question: item.question,
           answer: item.answer,
           tags: item.tags,
-          embedding,
           is_active: true,
-        }).select("id");
+        });
 
         if (error) {
-          console.error(`❌ Insert failed: ${item.question}`, error.message, error.details);
+          console.error(`❌ Insert failed: ${item.question}`, error.message);
         } else {
           seeded++;
-          console.log(`📝 Inserted: ${item.category} — ${item.question.slice(0, 40)}`);
         }
-      });
+      } catch (e: any) {
+        console.error(`❌ Exception inserting: ${item.question}`, e?.message);
+      }
+    }
+    console.log(`📝 Seeded ${seeded}/${allKnowledge.length} entries`);
 
-      await Promise.all(promises);
-      console.log(`📦 Batch ${Math.floor(i / 5) + 1}: ${seeded}/${allKnowledge.length} seeded`);
+    // 4. Now generate embeddings for all entries
+    const { data: entries } = await supabase
+      .from("knowledge_base")
+      .select("id, question, answer")
+      .is("embedding", null)
+      .eq("is_active", true);
 
-      // Small delay between batches to avoid rate limits
-      if (i + 5 < allKnowledge.length) {
-        await new Promise((r) => setTimeout(r, 500));
+    if (entries?.length) {
+      console.log(`🧠 Generating embeddings for ${entries.length} entries...`);
+      for (const entry of entries) {
+        try {
+          const content = `Q: ${entry.question}\nA: ${entry.answer}`;
+          const embedding = await unifiedAI.embed(content);
+          if (embedding?.length > 0) {
+            await supabase
+              .from("knowledge_base")
+              .update({ embedding })
+              .eq("id", entry.id);
+            console.log(`✅ Embedded: ${entry.question.slice(0, 40)}`);
+          }
+        } catch (e: any) {
+          console.error(`❌ Embed failed: ${entry.question.slice(0, 40)}`, e?.message);
+          embedErrors++;
+        }
+        // Rate limit: 100ms between embeds
+        await new Promise((r) => setTimeout(r, 100));
       }
     }
 
