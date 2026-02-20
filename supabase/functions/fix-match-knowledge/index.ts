@@ -15,6 +15,9 @@ serve(async (req) => {
     const client = new Client(DB_URL);
     await client.connect();
 
+    // Drop old version first (different return type)
+    await client.queryArray(`DROP FUNCTION IF EXISTS match_knowledge(vector, float, int);`);
+
     await client.queryArray(`
       CREATE OR REPLACE FUNCTION match_knowledge(
         query_embedding vector(1536),
