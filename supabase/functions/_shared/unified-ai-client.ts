@@ -481,7 +481,10 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       const genAI = new GoogleGenerativeAI(this.googleKey);
       const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
-      const result = await model.embedContent(text);
+      const result = await model.embedContent({
+        content: { parts: [{ text }], role: "user" },
+        outputDimensionality: 1536,
+      });
       return result.embedding.values;
     } catch (error: any) {
       console.error("[UnifiedAI] Embedding failed:", error?.message || error);
