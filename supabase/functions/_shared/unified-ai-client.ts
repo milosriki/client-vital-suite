@@ -483,9 +483,9 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
 
       const result = await model.embedContent(text);
       return result.embedding.values;
-    } catch (error) {
-      console.error("[UnifiedAI] Embedding failed:", error);
-      return [];
+    } catch (error: any) {
+      console.error("[UnifiedAI] Embedding failed:", error?.message || error);
+      throw error; // Let caller handle — don't silently return empty
     }
   }
 
