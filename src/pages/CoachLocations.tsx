@@ -10,7 +10,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, MapPin, Clock, Navigation, AlertTriangle, Loader2, Battery, TrendingUp, Route, Users, Download, Timer } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  RefreshCw, MapPin, Clock, Navigation, AlertTriangle, Loader2,
+  Battery, TrendingUp, Route, Users, Download, Timer, Brain,
+  MessageSquarePlus, CheckCircle2, XCircle, ChevronDown, ChevronUp,
+  Zap, Target, Car, Activity, StickyNote, Send, Filter,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, subDays, differenceInMinutes, parseISO } from "date-fns";
@@ -55,6 +62,50 @@ interface CoachVisit {
   created_at: string;
 }
 
+interface Note {
+  id: string;
+  entity_type: string;
+  entity_name: string;
+  entity_id: string | null;
+  note: string;
+  note_type: string;
+  created_by: string;
+  created_at: string;
+  is_resolved: boolean;
+}
+
+interface IntelligenceData {
+  summary: {
+    date_range: string;
+    coaches_analyzed: number;
+    total_days_analyzed: number;
+    avg_utilization: number;
+    total_insights: number;
+    total_predictions: number;
+    critical_alerts: string[];
+  };
+  analytics: {
+    coach_name: string;
+    device_id: string;
+    date: string;
+    total_gps_points: number;
+    first_ping: string;
+    last_ping: string;
+    active_hours: number;
+    dwell_clusters: { centroidLat: number; centroidLng: number; address: string; startTime: string; endTime: string; durationMin: number; pointCount: number }[];
+    total_dwell_min: number;
+    total_travel_min: number;
+    total_idle_min: number;
+    sessions_scheduled: number;
+    sessions_completed: number;
+    sessions_cancelled: number;
+    utilization_pct: number;
+    travel_km: number;
+    insights: string[];
+    predictions: string[];
+  }[];
+}
+
 // ── Helpers ──
 function getBatteryColor(level: number | null) {
   if (!level) return "text-muted-foreground";
@@ -69,13 +120,35 @@ function formatDubaiTime(utcStr: string) {
   return format(dubai, "h:mm a");
 }
 
+function formatDubaiDateTime(utcStr: string) {
+  const d = new Date(utcStr);
+  const dubai = new Date(d.getTime() + 4 * 60 * 60 * 1000);
+  return format(dubai, "MMM d, h:mm a");
+}
+
 function shortAddress(addr: string | null) {
   if (!addr) return "—";
   const parts = addr.split(" - ");
   return parts.length > 1 ? `${parts[0].slice(0, 30)} · ${parts[1].slice(0, 25)}` : addr.slice(0, 55);
 }
 
-// ── Map Component ──
+function getUtilColor(pct: number) {
+  if (pct >= 75) return "text-green-600";
+  if (pct >= 50) return "text-yellow-600";
+  return "text-red-600";
+}
+
+function getNoteTypeColor(type: string) {
+  switch (type) {
+    case "concern": return "destructive";
+    case "positive": return "default";
+    case "action_item": return "secondary";
+    case "follow_up": return "outline";
+    default: return "secondary";
+  }
+}
+
+// ── Map Component (Leaflet) ──
 function LocationMap({ events, selectedCoach, deviceNameMap }: {
   events: LocationEvent[];
   selectedCoach: string | null;
@@ -116,7 +189,9 @@ function LocationMap({ events, selectedCoach, deviceNameMap }: {
       layerGroup.current = L.layerGroup().addTo(mapInstance.current);
     };
     loadLeaflet();
-    return () => { if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; } };
+    return () => {
+      if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; }
+    };
   }, []);
 
   useEffect(() => {
@@ -128,14 +203,13 @@ function LocationMap({ events, selectedCoach, deviceNameMap }: {
     const filtered = selectedCoach ? events.filter((e) => e.device_id === selectedCoach) : events;
     if (filtered.length === 0) return;
 
-    // Latest position per device
     const latest = new Map<string, LocationEvent>();
     for (const evt of filtered) {
       const ex = latest.get(evt.device_id);
       if (!ex || new Date(evt.recorded_at) > new Date(ex.recorded_at)) latest.set(evt.device_id, evt);
     }
 
-    const colors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+    const colors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#84cc16", "#14b8a6"];
     let ci = 0;
     for (const [devId, evt] of latest) {
       const color = colors[ci++ % colors.length];
@@ -144,7 +218,6 @@ function LocationMap({ events, selectedCoach, deviceNameMap }: {
         radius: 10, fillColor: color, color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.9,
       }).bindPopup(`<b>${name}</b><br>${formatDubaiTime(evt.recorded_at)}<br>${shortAddress(evt.address)}`).addTo(layerGroup.current);
 
-      // Trail for this coach
       const trail = filtered.filter(e => e.device_id === devId).sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
       if (trail.length > 1) {
         const latlngs = trail.map(e => [e.lat, e.lng]);
@@ -152,20 +225,17 @@ function LocationMap({ events, selectedCoach, deviceNameMap }: {
       }
     }
 
-    // Heatmap
     const heatData = filtered.map((e) => [e.lat, e.lng, 0.5]);
     heatLayer.current = (L as any).heatLayer(heatData, {
       radius: 25, blur: 15, maxZoom: 17,
       gradient: { 0.4: "blue", 0.6: "cyan", 0.7: "lime", 0.8: "yellow", 1: "red" },
     }).addTo(mapInstance.current);
 
-    if (filtered.length > 0) {
-      const bounds = L.latLngBounds(filtered.map((e) => [e.lat, e.lng]));
-      mapInstance.current.fitBounds(bounds, { padding: [30, 30] });
-    }
+    const bounds = L.latLngBounds(filtered.map((e) => [e.lat, e.lng]));
+    mapInstance.current.fitBounds(bounds, { padding: [30, 30] });
   }, [events, selectedCoach, deviceNameMap]);
 
-  return <div ref={mapRef} style={{ height: "550px", width: "100%", borderRadius: "8px" }} />;
+  return <div ref={mapRef} className="h-[400px] md:h-[550px] w-full rounded-lg" />;
 }
 
 // ── Pattern Detection ──
@@ -184,7 +254,6 @@ function detectPatterns(events: LocationEvent[], devices: Device[]) {
     if (coach.startsWith("SM-")) continue;
     const sorted = [...pts].sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
 
-    // Detect idle gaps > 60 min
     for (let i = 1; i < sorted.length; i++) {
       const gap = differenceInMinutes(parseISO(sorted[i].recorded_at), parseISO(sorted[i - 1].recorded_at));
       if (gap > 120) {
@@ -197,7 +266,6 @@ function detectPatterns(events: LocationEvent[], devices: Device[]) {
       }
     }
 
-    // Detect repeated locations (home base / not moving)
     const addrCount = new Map<string, number>();
     for (const e of pts) {
       if (e.address) {
@@ -215,7 +283,6 @@ function detectPatterns(events: LocationEvent[], devices: Device[]) {
       });
     }
 
-    // Detect low activity days
     const days = new Map<string, number>();
     for (const e of pts) {
       const day = e.recorded_at.slice(0, 10);
@@ -256,7 +323,6 @@ function buildCoachReport(events: LocationEvent[], devices: Device[]) {
     const addresses = pts.filter(e => e.address).map(e => e.address!);
     const uniqueStops = new Set(addresses.map(a => a.split(" - ")[0].slice(0, 30)));
 
-    // Top areas
     const areaCount = new Map<string, number>();
     for (const a of addresses) {
       const parts = a.split(" - ");
@@ -265,11 +331,9 @@ function buildCoachReport(events: LocationEvent[], devices: Device[]) {
     }
     const topAreas = [...areaCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
 
-    // First/last time (Dubai)
     const firstUTC = sorted[0]?.recorded_at;
     const lastUTC = sorted[sorted.length - 1]?.recorded_at;
 
-    // Travel estimate: count distinct locations transitions
     let transitions = 0;
     let prevAddr = "";
     for (const e of sorted) {
@@ -310,7 +374,7 @@ function buildHotspots(events: LocationEvent[], devices: Device[]) {
     .slice(0, 20);
 }
 
-// ── CSV Export ──
+// ── CSV Exports ──
 function exportCSV(report: ReturnType<typeof buildCoachReport>) {
   const header = "Coach,Points,Days,Stops,Top Area 1,Top Area 2,First Seen,Last Seen\n";
   const rows = report.map(r =>
@@ -322,16 +386,435 @@ function exportCSV(report: ReturnType<typeof buildCoachReport>) {
   a.href = url; a.download = `coach-locations-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click();
 }
 
-// ── Dwell Export ──
-function exportDwellCSV(visits: CoachVisit[]) {
-  const header = "Coach,Location,Arrival,Departure,Dwell Minutes,PTD Location\n";
-  const rows = visits.map(v =>
-    `"${v.coach_name || v.device_id}","${v.location_name}","${v.arrival_time}","${v.departure_time}",${v.dwell_minutes},${v.is_ptd_location}`
-  ).join("\n");
-  const blob = new Blob([header + rows], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `dwell-analysis-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click();
+// ── Notes Component ──
+function NotesPanel({ coachName }: { coachName?: string }) {
+  const [newNote, setNewNote] = useState("");
+  const [noteType, setNoteType] = useState("general");
+  const [entityType, setEntityType] = useState<"coach" | "client">("coach");
+  const [entityName, setEntityName] = useState(coachName || "");
+  const [submitting, setSubmitting] = useState(false);
+  const [filterCoach, setFilterCoach] = useState(coachName || "");
+
+  const { data: notes, refetch: refetchNotes } = useDedupedQuery({
+    queryKey: ["coach-notes", filterCoach],
+    queryFn: async () => {
+      let q = supabase
+        .from("coach_client_notes")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (filterCoach) {
+        q = q.ilike("entity_name", `%${filterCoach}%`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []) as Note[];
+    },
+  });
+
+  useEffect(() => {
+    if (coachName) {
+      setEntityName(coachName);
+      setFilterCoach(coachName);
+    }
+  }, [coachName]);
+
+  const handleSubmit = async () => {
+    if (!newNote.trim() || !entityName.trim()) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("coach_client_notes").insert({
+        entity_type: entityType,
+        entity_name: entityName.trim(),
+        note: newNote.trim(),
+        note_type: noteType,
+        created_by: "team_leader",
+      });
+      if (error) throw error;
+      setNewNote("");
+      toast.success("Note added");
+      refetchNotes();
+    } catch (err) {
+      toast.error("Failed to add note: " + (err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleResolved = async (noteId: string, currentVal: boolean) => {
+    const { error } = await supabase
+      .from("coach_client_notes")
+      .update({ is_resolved: !currentVal, resolved_at: !currentVal ? new Date().toISOString() : null })
+      .eq("id", noteId);
+    if (error) { toast.error("Update failed"); return; }
+    refetchNotes();
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Add note form */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <MessageSquarePlus className="h-4 w-4" />
+            Add Note
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            <Select value={entityType} onValueChange={(v) => setEntityType(v as "coach" | "client")}>
+              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="coach">Coach</SelectItem>
+                <SelectItem value="client">Client</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Name..."
+              value={entityName}
+              onChange={(e) => setEntityName(e.target.value)}
+              className="flex-1 min-w-[150px]"
+            />
+            <Select value={noteType} onValueChange={setNoteType}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">📝 General</SelectItem>
+                <SelectItem value="concern">⚠️ Concern</SelectItem>
+                <SelectItem value="positive">✅ Positive</SelectItem>
+                <SelectItem value="action_item">🎯 Action Item</SelectItem>
+                <SelectItem value="follow_up">📞 Follow Up</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Textarea
+            placeholder="Add a note... (e.g., 'Coach said client Rula will return next month')"
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            rows={2}
+          />
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || !newNote.trim() || !entityName.trim()}
+            size="sm"
+          >
+            <Send className="h-4 w-4 mr-1" />
+            {submitting ? "Saving..." : "Add Note"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Filter */}
+      <div className="flex gap-2 items-center">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Filter by name..."
+          value={filterCoach}
+          onChange={(e) => setFilterCoach(e.target.value)}
+          className="max-w-[250px]"
+        />
+        {filterCoach && (
+          <Button variant="ghost" size="sm" onClick={() => setFilterCoach("")}>
+            Clear
+          </Button>
+        )}
+        <Badge variant="outline">{(notes || []).length} notes</Badge>
+      </div>
+
+      {/* Notes list */}
+      <div className="space-y-2 max-h-[500px] overflow-y-auto">
+        {(notes || []).length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">No notes yet. Add the first one above.</p>
+        ) : (
+          (notes || []).map((n) => (
+            <Card key={n.id} className={`${n.is_resolved ? "opacity-60" : ""} transition-all`}>
+              <CardContent className="py-3 px-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <Badge variant={getNoteTypeColor(n.note_type)} className="text-xs">
+                        {n.note_type === "concern" ? "⚠️" : n.note_type === "positive" ? "✅" : n.note_type === "action_item" ? "🎯" : n.note_type === "follow_up" ? "📞" : "📝"} {n.note_type}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {n.entity_type === "coach" ? "🏋️" : "👤"} {n.entity_name}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDubaiDateTime(n.created_at)}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${n.is_resolved ? "line-through" : ""}`}>{n.note}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleResolved(n.id, n.is_resolved)}
+                    className="shrink-0"
+                  >
+                    {n.is_resolved ? (
+                      <XCircle className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Intelligence Panel ──
+function IntelligencePanel({ dateRange, selectedCoachName }: { dateRange: number; selectedCoachName: string | null }) {
+  const [intel, setIntel] = useState<IntelligenceData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [expandedCoach, setExpandedCoach] = useState<string | null>(null);
+
+  const fetchIntel = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      const body: Record<string, unknown> = {
+        date: new Date().toISOString().split("T")[0],
+        days_back: dateRange,
+      };
+      if (selectedCoachName) body.coach_name = selectedCoachName;
+
+      const res = await fetch(
+        "https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/coach-intelligence-engine",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        }
+      );
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setIntel(data);
+    } catch (err) {
+      toast.error("Intelligence fetch failed: " + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange, selectedCoachName]);
+
+  useEffect(() => {
+    fetchIntel();
+  }, [fetchIntel]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        <span>Analyzing coach intelligence...</span>
+      </div>
+    );
+  }
+
+  if (!intel) return null;
+
+  // Aggregate by coach
+  const coachAgg = new Map<string, {
+    days: number; util: number[]; km: number[]; sched: number; done: number;
+    cancel: number; insights: string[]; predictions: string[];
+    dwellMin: number; travelMin: number; idleMin: number;
+  }>();
+
+  for (const day of intel.analytics) {
+    if (!coachAgg.has(day.coach_name)) {
+      coachAgg.set(day.coach_name, {
+        days: 0, util: [], km: [], sched: 0, done: 0, cancel: 0,
+        insights: [], predictions: [], dwellMin: 0, travelMin: 0, idleMin: 0,
+      });
+    }
+    const c = coachAgg.get(day.coach_name)!;
+    c.days++;
+    c.util.push(day.utilization_pct);
+    c.km.push(day.travel_km);
+    c.sched += day.sessions_scheduled;
+    c.done += day.sessions_completed;
+    c.cancel += day.sessions_cancelled;
+    c.insights.push(...day.insights);
+    c.predictions.push(...day.predictions);
+    c.dwellMin += day.total_dwell_min;
+    c.travelMin += day.total_travel_min;
+    c.idleMin += day.total_idle_min;
+  }
+
+  const coaches = [...coachAgg.entries()]
+    .map(([name, c]) => ({
+      name,
+      ...c,
+      avgUtil: c.util.length > 0 ? Math.round(c.util.reduce((s, v) => s + v, 0) / c.util.length) : 0,
+      avgKm: c.km.length > 0 ? Math.round(c.km.reduce((s, v) => s + v, 0) / c.km.length) : 0,
+      completionRate: c.sched > 0 ? Math.round((c.done / c.sched) * 100) : 0,
+    }))
+    .sort((a, b) => a.avgUtil - b.avgUtil);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Coaches Analyzed</p>
+            <p className="text-2xl font-bold">{intel.summary.coaches_analyzed}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Avg Utilization</p>
+            <p className={`text-2xl font-bold ${getUtilColor(intel.summary.avg_utilization)}`}>
+              {intel.summary.avg_utilization}%
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Days Analyzed</p>
+            <p className="text-2xl font-bold">{intel.summary.total_days_analyzed}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Insights</p>
+            <p className="text-2xl font-bold text-yellow-600">{intel.summary.total_insights}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Critical Alerts</p>
+            <p className="text-2xl font-bold text-red-600">{intel.summary.critical_alerts.length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Critical alerts */}
+      {intel.summary.critical_alerts.length > 0 && (
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" /> Critical Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              {[...new Set(intel.summary.critical_alerts)].map((alert, i) => (
+                <p key={i} className="text-xs text-red-700">{alert}</p>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Coach-by-coach breakdown */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="h-4 w-4" /> Coach Intelligence Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Coach</TableHead>
+                  <TableHead className="text-right">Util %</TableHead>
+                  <TableHead className="text-right hidden md:table-cell">Km/Day</TableHead>
+                  <TableHead className="text-right">Sessions</TableHead>
+                  <TableHead className="text-right hidden md:table-cell">Completion</TableHead>
+                  <TableHead className="text-right hidden lg:table-cell">Dwell</TableHead>
+                  <TableHead className="text-right hidden lg:table-cell">Idle</TableHead>
+                  <TableHead className="w-[40px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {coaches.map((c) => (
+                  <>
+                    <TableRow
+                      key={c.name}
+                      className="cursor-pointer hover:bg-muted/30 transition-colors"
+                      onClick={() => setExpandedCoach(expandedCoach === c.name ? null : c.name)}
+                    >
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className={`text-right font-mono ${getUtilColor(c.avgUtil)}`}>
+                        {c.avgUtil}%
+                      </TableCell>
+                      <TableCell className="text-right font-mono hidden md:table-cell">
+                        {c.avgKm}km
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-green-600">{c.done}</span>
+                        <span className="text-muted-foreground">/{c.sched}</span>
+                        {c.cancel > 0 && <span className="text-red-500 ml-1">(-{c.cancel})</span>}
+                      </TableCell>
+                      <TableCell className={`text-right font-mono hidden md:table-cell ${c.completionRate < 70 ? "text-red-600" : "text-green-600"}`}>
+                        {c.completionRate}%
+                      </TableCell>
+                      <TableCell className="text-right text-xs hidden lg:table-cell">
+                        {Math.round(c.dwellMin / 60)}h
+                      </TableCell>
+                      <TableCell className="text-right text-xs hidden lg:table-cell">
+                        {Math.round(c.idleMin / 60)}h
+                      </TableCell>
+                      <TableCell>
+                        {expandedCoach === c.name ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </TableCell>
+                    </TableRow>
+                    {expandedCoach === c.name && (
+                      <TableRow key={`${c.name}-detail`}>
+                        <TableCell colSpan={8} className="bg-muted/20 p-4">
+                          <div className="space-y-3">
+                            {/* Mobile-visible stats */}
+                            <div className="grid grid-cols-3 gap-2 md:hidden">
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground">Km/Day</p>
+                                <p className="font-mono">{c.avgKm}km</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground">Completion</p>
+                                <p className="font-mono">{c.completionRate}%</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground">Idle</p>
+                                <p className="font-mono">{Math.round(c.idleMin / 60)}h</p>
+                              </div>
+                            </div>
+                            {c.insights.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-yellow-700 mb-1">⚡ Insights</p>
+                                {[...new Set(c.insights)].map((ins, i) => (
+                                  <p key={i} className="text-xs text-yellow-700 ml-4">• {ins}</p>
+                                ))}
+                              </div>
+                            )}
+                            {c.predictions.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-blue-700 mb-1">🔮 Predictions</p>
+                                {[...new Set(c.predictions)].map((pred, i) => (
+                                  <p key={i} className="text-xs text-blue-700 ml-4">• {pred}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 // ── Main Page ──
@@ -359,7 +842,7 @@ export default function CoachLocations() {
         .select("id,device_id,recorded_at,lat,lng,address")
         .gte("recorded_at", since)
         .order("recorded_at", { ascending: false })
-        .limit(10000);
+        .limit(15000);
       if (error) throw error;
       return (data || []) as LocationEvent[];
     },
@@ -390,7 +873,7 @@ export default function CoachLocations() {
       });
       const result = await res.json();
       if (result.success) {
-        toast.success(`Dwell engine: ${result.total_visits} visits processed`);
+        toast.success(`Dwell engine: ${result.total_visits || 0} visits processed`);
         refetchDwell();
       } else {
         toast.error("Dwell engine failed: " + (result.error || "unknown"));
@@ -404,32 +887,25 @@ export default function CoachLocations() {
 
   const dwellSummary = useMemo(() => {
     const visits = dwellVisits || [];
-    const ptdHours = Math.round(visits.filter(v => v.is_ptd_location).reduce((s, v) => s + v.dwell_minutes, 0) / 60);
-    const extHours = Math.round(visits.filter(v => !v.is_ptd_location).reduce((s, v) => s + v.dwell_minutes, 0) / 60);
-    const avgSession = visits.length > 0 ? Math.round(visits.reduce((s, v) => s + v.dwell_minutes, 0) / visits.length) : 0;
-    
-    // Most active coach
+    const ptdHours = Math.round(visits.filter(v => v.is_ptd_location).reduce((s, v) => s + (v.dwell_minutes || 0), 0) / 60);
+    const extHours = Math.round(visits.filter(v => !v.is_ptd_location).reduce((s, v) => s + (v.dwell_minutes || 0), 0) / 60);
+    const avgSession = visits.length > 0 ? Math.round(visits.reduce((s, v) => s + (v.dwell_minutes || 0), 0) / visits.length) : 0;
     const coachMin = new Map<string, number>();
     for (const v of visits) {
       const name = v.coach_name || v.device_id;
-      coachMin.set(name, (coachMin.get(name) || 0) + v.dwell_minutes);
+      coachMin.set(name, (coachMin.get(name) || 0) + (v.dwell_minutes || 0));
     }
     const mostActive = [...coachMin.entries()].sort((a, b) => b[1] - a[1])[0];
-
-    // By coach breakdown
     const byCoach = new Map<string, { ptd: number; ext: number; visits: number }>();
     for (const v of visits) {
       const name = v.coach_name || v.device_id;
       if (!byCoach.has(name)) byCoach.set(name, { ptd: 0, ext: 0, visits: 0 });
       const c = byCoach.get(name)!;
       c.visits++;
-      if (v.is_ptd_location) c.ptd += v.dwell_minutes; else c.ext += v.dwell_minutes;
+      if (v.is_ptd_location) c.ptd += (v.dwell_minutes || 0); else c.ext += (v.dwell_minutes || 0);
     }
-
-    // Today's coaches
     const today = new Date().toISOString().slice(0, 10);
-    const todayCoaches = new Set(visits.filter(v => v.arrival_time?.slice(0, 10) === today).map(v => v.coach_name || v.device_id));
-
+    const todayCoaches = new Set(visits.filter(v => (v.arrival_time || "").slice(0, 10) === today).map(v => v.coach_name || v.device_id));
     return { ptdHours, extHours, avgSession, mostActive, byCoach, todayCoaches, total: visits.length };
   }, [dwellVisits]);
 
@@ -439,7 +915,7 @@ export default function CoachLocations() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
       const headers: Record<string, string> = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-      const base = `https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1`;
+      const base = "https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1";
       await fetch(`${base}/tinymdm-sync-devices`, { method: "POST", headers });
       await fetch(`${base}/tinymdm-pull-locations`, { method: "POST", headers });
       refetchDevices();
@@ -456,6 +932,11 @@ export default function CoachLocations() {
     new Map((devices || []).map(d => [d.tinymdm_device_id, d.coach_name || d.device_name])),
   [devices]);
 
+  const selectedCoachName = useMemo(() => {
+    if (!selectedCoach) return null;
+    return deviceNameMap.get(selectedCoach) || null;
+  }, [selectedCoach, deviceNameMap]);
+
   const coachReport = useMemo(() => buildCoachReport(events || [], devices || []), [events, devices]);
   const hotspots = useMemo(() => buildHotspots(events || [], devices || []), [events, devices]);
   const patterns = useMemo(() => detectPatterns(events || [], devices || []), [events, devices]);
@@ -470,370 +951,338 @@ export default function CoachLocations() {
   const isLoading = devicesLoading || eventsLoading;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-3 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-blue-500" />
-            Coach Location Intelligence
+          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+            <MapPin className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />
+            Coach GPS Intelligence
           </h1>
-          <p className="text-muted-foreground mt-1">
-            GPS tracking, heatmaps, route analysis & proactive pattern detection
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">
+            Live tracking • Heatmaps • AI Intelligence • Notes
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={() => exportCSV(coachReport)} variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-1" /> Export CSV
+            <Download className="h-4 w-4 mr-1" /> CSV
           </Button>
-          <Button onClick={handleSync} disabled={syncing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Sync TinyMDM"}
+          <Button onClick={handleSync} disabled={syncing} variant="outline" size="sm">
+            <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync GPS"}
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center flex-wrap">
+      <div className="flex gap-2 md:gap-4 items-center flex-wrap">
         <Select value={String(dateRange)} onValueChange={(v) => setDateRange(Number(v))}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[130px] md:w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="1">Last 24 hours</SelectItem>
+            <SelectItem value="1">Last 24h</SelectItem>
             <SelectItem value="3">Last 3 days</SelectItem>
             <SelectItem value="7">Last 7 days</SelectItem>
             <SelectItem value="14">Last 14 days</SelectItem>
+            <SelectItem value="30">Last 30 days</SelectItem>
           </SelectContent>
         </Select>
         <Select value={selectedCoach || "all"} onValueChange={(v) => setSelectedCoach(v === "all" ? null : v)}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="All Coaches" /></SelectTrigger>
+          <SelectTrigger className="w-[160px] md:w-[200px]"><SelectValue placeholder="All Coaches" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Coaches</SelectItem>
             {coachOptions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="flex gap-2 ml-auto">
-          <Badge variant="outline"><Users className="h-3 w-3 mr-1" />{activeDevices.length} coaches</Badge>
-          <Badge variant="outline"><MapPin className="h-3 w-3 mr-1" />{(events || []).length.toLocaleString()} points</Badge>
-          <Badge variant="outline"><AlertTriangle className="h-3 w-3 mr-1" />{patterns.filter(p => p.severity === "high").length} alerts</Badge>
+        <div className="flex gap-1 md:gap-2 ml-auto flex-wrap">
+          <Badge variant="outline" className="text-xs"><Users className="h-3 w-3 mr-1" />{activeDevices.length}</Badge>
+          <Badge variant="outline" className="text-xs"><MapPin className="h-3 w-3 mr-1" />{(events || []).length.toLocaleString()}</Badge>
+          <Badge variant="outline" className="text-xs"><AlertTriangle className="h-3 w-3 mr-1" />{patterns.filter(p => p.severity === "high").length}</Badge>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Active Coaches</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{activeDevices.length}</p>
+          <CardContent className="pt-3 pb-2 px-3 md:pt-4 md:pb-3 md:px-4">
+            <p className="text-xs text-muted-foreground">Active Coaches</p>
+            <p className="text-xl md:text-2xl font-bold">{activeDevices.length}</p>
             <p className="text-xs text-muted-foreground">of {(devices || []).length} devices</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Unique Areas Covered</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{hotspots.length}</p>
-            <p className="text-xs text-muted-foreground">neighborhoods in {dateRange}d</p>
+          <CardContent className="pt-3 pb-2 px-3 md:pt-4 md:pb-3 md:px-4">
+            <p className="text-xs text-muted-foreground">Areas Covered</p>
+            <p className="text-xl md:text-2xl font-bold">{hotspots.length}</p>
+            <p className="text-xs text-muted-foreground">in {dateRange}d</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Avg Stops/Coach/Day</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
+          <CardContent className="pt-3 pb-2 px-3 md:pt-4 md:pb-3 md:px-4">
+            <p className="text-xs text-muted-foreground">Avg Stops/Day</p>
+            <p className="text-xl md:text-2xl font-bold">
               {coachReport.length > 0 ? Math.round(coachReport.reduce((s, r) => s + r.uniqueStops, 0) / Math.max(coachReport.reduce((s, r) => s + r.activeDays, 0), 1)) : 0}
             </p>
-            <p className="text-xs text-muted-foreground">client locations visited</p>
+            <p className="text-xs text-muted-foreground">per coach</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Pattern Alerts</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-red-500">{patterns.filter(p => p.severity === "high").length}</p>
-            <p className="text-xs text-muted-foreground">{patterns.filter(p => p.severity === "medium").length} medium, {patterns.filter(p => p.severity === "low").length} low</p>
+          <CardContent className="pt-3 pb-2 px-3 md:pt-4 md:pb-3 md:px-4">
+            <p className="text-xs text-muted-foreground">Alerts</p>
+            <p className="text-xl md:text-2xl font-bold text-red-500">{patterns.filter(p => p.severity === "high").length}</p>
+            <p className="text-xs text-muted-foreground">{patterns.filter(p => p.severity === "medium").length} medium</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="map" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="map"><MapPin className="h-4 w-4 mr-1" />Heatmap</TabsTrigger>
-          <TabsTrigger value="report"><TrendingUp className="h-4 w-4 mr-1" />Coach Report</TabsTrigger>
-          <TabsTrigger value="hotspots"><Navigation className="h-4 w-4 mr-1" />Hotspots</TabsTrigger>
-          <TabsTrigger value="patterns"><AlertTriangle className="h-4 w-4 mr-1" />Patterns</TabsTrigger>
-          <TabsTrigger value="devices"><Battery className="h-4 w-4 mr-1" />Devices</TabsTrigger>
-          <TabsTrigger value="dwell"><Timer className="h-4 w-4 mr-1" />Dwell Analysis</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex justify-start">
+          <TabsTrigger value="map" className="text-xs md:text-sm"><MapPin className="h-3 w-3 md:h-4 md:w-4 mr-1" />Map</TabsTrigger>
+          <TabsTrigger value="intelligence" className="text-xs md:text-sm"><Brain className="h-3 w-3 md:h-4 md:w-4 mr-1" />AI Intel</TabsTrigger>
+          <TabsTrigger value="report" className="text-xs md:text-sm"><TrendingUp className="h-3 w-3 md:h-4 md:w-4 mr-1" />Report</TabsTrigger>
+          <TabsTrigger value="patterns" className="text-xs md:text-sm"><AlertTriangle className="h-3 w-3 md:h-4 md:w-4 mr-1" />Patterns</TabsTrigger>
+          <TabsTrigger value="notes" className="text-xs md:text-sm"><StickyNote className="h-3 w-3 md:h-4 md:w-4 mr-1" />Notes</TabsTrigger>
+          <TabsTrigger value="hotspots" className="text-xs md:text-sm"><Navigation className="h-3 w-3 md:h-4 md:w-4 mr-1" />Hotspots</TabsTrigger>
+          <TabsTrigger value="devices" className="text-xs md:text-sm"><Battery className="h-3 w-3 md:h-4 md:w-4 mr-1" />Devices</TabsTrigger>
+          <TabsTrigger value="dwell" className="text-xs md:text-sm"><Timer className="h-3 w-3 md:h-4 md:w-4 mr-1" />Dwell</TabsTrigger>
         </TabsList>
 
-        {/* MAP TAB */}
+        {/* MAP */}
         <TabsContent value="map">
           {isLoading ? (
-            <div className="flex items-center justify-center h-[550px]"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            <div className="flex items-center justify-center h-[400px] md:h-[550px]"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : (
             <LocationMap events={events || []} selectedCoach={selectedCoach} deviceNameMap={deviceNameMap} />
           )}
         </TabsContent>
 
-        {/* COACH REPORT TAB */}
+        {/* AI INTELLIGENCE */}
+        <TabsContent value="intelligence">
+          <IntelligencePanel dateRange={dateRange} selectedCoachName={selectedCoachName} />
+        </TabsContent>
+
+        {/* COACH REPORT */}
         <TabsContent value="report">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" />Coach Activity Report ({dateRange}-Day)</CardTitle></CardHeader>
-            <CardContent>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-sm md:text-base"><TrendingUp className="h-5 w-5" />Coach Activity ({dateRange}d)</CardTitle></CardHeader>
+            <CardContent className="p-0">
               {coachReport.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No coach data yet. Click "Sync TinyMDM" to pull data.</p>
+                <p className="text-muted-foreground text-center py-8">No data. Click "Sync GPS".</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Coach</TableHead>
-                      <TableHead className="text-right">Points</TableHead>
-                      <TableHead className="text-right">Days</TableHead>
-                      <TableHead className="text-right">Stops</TableHead>
-                      <TableHead className="text-right">Moves</TableHead>
-                      <TableHead>Top Areas</TableHead>
-                      <TableHead>First → Last (Dubai)</TableHead>
-                      <TableHead>Battery</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {coachReport.map((r) => (
-                      <TableRow key={r.coach} className="cursor-pointer hover:bg-muted/30 transition-colors">
-                        <TableCell className="font-medium">{r.coach}</TableCell>
-                        <TableCell className="text-right">{r.totalPoints}</TableCell>
-                        <TableCell className="text-right">{r.activeDays}</TableCell>
-                        <TableCell className="text-right">{r.uniqueStops}</TableCell>
-                        <TableCell className="text-right">{r.transitions}</TableCell>
-                        <TableCell className="text-xs max-w-[200px] truncate">
-                          {r.topAreas.map(([area, cnt]) => `${area} (${cnt})`).join(", ")}
-                        </TableCell>
-                        <TableCell className="text-xs">{r.firstSeen} → {r.lastSeen}</TableCell>
-                        <TableCell>
-                          {r.device?.battery_level != null ? (
-                            <span className={getBatteryColor(r.device.battery_level)}>
-                              {r.device.battery_level}%
-                            </span>
-                          ) : "—"}
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Coach</TableHead>
+                        <TableHead className="text-right">Pts</TableHead>
+                        <TableHead className="text-right hidden md:table-cell">Days</TableHead>
+                        <TableHead className="text-right">Stops</TableHead>
+                        <TableHead className="text-right hidden md:table-cell">Moves</TableHead>
+                        <TableHead className="hidden lg:table-cell">Top Areas</TableHead>
+                        <TableHead className="hidden md:table-cell">Time (Dubai)</TableHead>
+                        <TableHead className="text-right">Batt</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {coachReport.map((r) => (
+                        <TableRow key={r.coach} className="cursor-pointer hover:bg-muted/30 transition-colors">
+                          <TableCell className="font-medium text-xs md:text-sm">{r.coach}</TableCell>
+                          <TableCell className="text-right">{r.totalPoints}</TableCell>
+                          <TableCell className="text-right hidden md:table-cell">{r.activeDays}</TableCell>
+                          <TableCell className="text-right">{r.uniqueStops}</TableCell>
+                          <TableCell className="text-right hidden md:table-cell">{r.transitions}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate hidden lg:table-cell">
+                            {r.topAreas.map(([area, cnt]) => `${area} (${cnt})`).join(", ")}
+                          </TableCell>
+                          <TableCell className="text-xs hidden md:table-cell">{r.firstSeen} → {r.lastSeen}</TableCell>
+                          <TableCell className={`text-right font-mono ${getBatteryColor(r.device?.battery_level ?? null)}`}>
+                            {r.device?.battery_level != null ? `${r.device.battery_level}%` : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* HOTSPOTS TAB */}
-        <TabsContent value="hotspots">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Navigation className="h-5 w-5" />Area Hotspots — Where Coaches Spend Time</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]">#</TableHead>
-                    <TableHead>Area</TableHead>
-                    <TableHead className="text-right">Visits</TableHead>
-                    <TableHead className="text-right">Coaches</TableHead>
-                    <TableHead>Who</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {hotspots.map((h, i) => (
-                    <TableRow key={h.area} className="cursor-pointer hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-mono text-muted-foreground">{i + 1}</TableCell>
-                      <TableCell className="font-medium">{h.area}</TableCell>
-                      <TableCell className="text-right">{h.count}</TableCell>
-                      <TableCell className="text-right">{h.coaches.length}</TableCell>
-                      <TableCell className="text-xs max-w-[300px] truncate">{h.coaches.slice(0, 4).join(", ")}{h.coaches.length > 4 ? ` +${h.coaches.length - 4}` : ""}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* PATTERNS TAB */}
+        {/* PATTERNS */}
         <TabsContent value="patterns">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" />Proactive Pattern Detection</CardTitle></CardHeader>
-            <CardContent>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-sm md:text-base"><AlertTriangle className="h-5 w-5" />Pattern Detection</CardTitle></CardHeader>
+            <CardContent className="p-0">
               {patterns.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No patterns detected yet. Need more GPS data (sync hourly for 2-3 days).</p>
+                <p className="text-muted-foreground text-center py-8">No patterns yet. Need 2-3 days of GPS data.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[80px]">Severity</TableHead>
-                      <TableHead className="w-[120px]">Type</TableHead>
-                      <TableHead>Coach</TableHead>
-                      <TableHead>Detail</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {patterns.slice(0, 50).map((p, i) => (
-                      <TableRow key={i} className="cursor-pointer hover:bg-muted/30 transition-colors">
-                        <TableCell>
-                          <Badge variant={p.severity === "high" ? "destructive" : p.severity === "medium" ? "default" : "secondary"}>
-                            {p.severity.toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs font-mono">
-                          {p.type === "idle_gap" ? "⏸️ Idle Gap" : p.type === "low_movement" ? "📍 Static" : "⚡ Low Activity"}
-                        </TableCell>
-                        <TableCell className="font-medium">{p.coach}</TableCell>
-                        <TableCell className="text-xs">{p.detail}</TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Level</TableHead>
+                        <TableHead className="w-[100px] hidden md:table-cell">Type</TableHead>
+                        <TableHead>Coach</TableHead>
+                        <TableHead>Detail</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {patterns.slice(0, 50).map((p, i) => (
+                        <TableRow key={i} className="cursor-pointer hover:bg-muted/30 transition-colors">
+                          <TableCell>
+                            <Badge variant={p.severity === "high" ? "destructive" : p.severity === "medium" ? "default" : "secondary"}>
+                              {p.severity.toUpperCase()}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono hidden md:table-cell">
+                            {p.type === "idle_gap" ? "⏸️ Idle" : p.type === "low_movement" ? "📍 Static" : "⚡ Low"}
+                          </TableCell>
+                          <TableCell className="font-medium text-xs md:text-sm">{p.coach}</TableCell>
+                          <TableCell className="text-xs">{p.detail}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* DEVICES TAB */}
-        <TabsContent value="devices">
+        {/* NOTES */}
+        <TabsContent value="notes">
+          <NotesPanel coachName={selectedCoachName || undefined} />
+        </TabsContent>
+
+        {/* HOTSPOTS */}
+        <TabsContent value="hotspots">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Battery className="h-5 w-5" />Device Fleet Status</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Coach</TableHead>
-                    <TableHead>Device</TableHead>
-                    <TableHead>OS</TableHead>
-                    <TableHead className="text-right">Battery</TableHead>
-                    <TableHead>GPS Active</TableHead>
-                    <TableHead>Last Location</TableHead>
-                    <TableHead>Last Seen (Dubai)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(devices || []).filter(d => !d.coach_name?.startsWith("SM-")).sort((a, b) => (a.coach_name || "").localeCompare(b.coach_name || "")).map((d) => (
-                    <TableRow key={d.tinymdm_device_id} className="cursor-pointer hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-medium">{d.coach_name}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{d.device_name}</TableCell>
-                      <TableCell className="text-xs">{d.os_version || "—"}</TableCell>
-                      <TableCell className={`text-right font-mono ${getBatteryColor(d.battery_level)}`}>
-                        {d.battery_level != null ? `${d.battery_level}%` : "—"}
-                      </TableCell>
-                      <TableCell>{d.is_online ? <Badge variant="default" className="bg-green-500">ON</Badge> : <Badge variant="secondary">OFF</Badge>}</TableCell>
-                      <TableCell className="text-xs max-w-[250px] truncate">{shortAddress(d.last_address)}</TableCell>
-                      <TableCell className="text-xs">{d.last_location_at ? formatDubaiTime(d.last_location_at) : "—"}</TableCell>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-sm md:text-base"><Navigation className="h-5 w-5" />Area Hotspots</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px]">#</TableHead>
+                      <TableHead>Area</TableHead>
+                      <TableHead className="text-right">Visits</TableHead>
+                      <TableHead className="text-right hidden md:table-cell">Coaches</TableHead>
+                      <TableHead className="hidden md:table-cell">Who</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {hotspots.map((h, i) => (
+                      <TableRow key={h.area} className="cursor-pointer hover:bg-muted/30 transition-colors">
+                        <TableCell className="font-mono text-muted-foreground">{i + 1}</TableCell>
+                        <TableCell className="font-medium text-xs md:text-sm">{h.area}</TableCell>
+                        <TableCell className="text-right">{h.count}</TableCell>
+                        <TableCell className="text-right hidden md:table-cell">{h.coaches.length}</TableCell>
+                        <TableCell className="text-xs max-w-[300px] truncate hidden md:table-cell">{h.coaches.slice(0, 4).join(", ")}{h.coaches.length > 4 ? ` +${h.coaches.length - 4}` : ""}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
-        {/* DWELL ANALYSIS TAB */}
+
+        {/* DEVICES */}
+        <TabsContent value="devices">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-sm md:text-base"><Battery className="h-5 w-5" />Device Fleet</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Coach</TableHead>
+                      <TableHead className="hidden md:table-cell">Device</TableHead>
+                      <TableHead className="text-right">Batt</TableHead>
+                      <TableHead>GPS</TableHead>
+                      <TableHead className="hidden md:table-cell">Last Location</TableHead>
+                      <TableHead>Last Seen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(devices || []).filter(d => !d.coach_name?.startsWith("SM-")).sort((a, b) => (a.coach_name || "").localeCompare(b.coach_name || "")).map((d) => (
+                      <TableRow key={d.tinymdm_device_id} className="cursor-pointer hover:bg-muted/30 transition-colors">
+                        <TableCell className="font-medium text-xs md:text-sm">{d.coach_name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground hidden md:table-cell">{d.device_name}</TableCell>
+                        <TableCell className={`text-right font-mono ${getBatteryColor(d.battery_level)}`}>
+                          {d.battery_level != null ? `${d.battery_level}%` : "—"}
+                        </TableCell>
+                        <TableCell>{d.is_online ? <Badge className="bg-green-500 text-xs">ON</Badge> : <Badge variant="secondary" className="text-xs">OFF</Badge>}</TableCell>
+                        <TableCell className="text-xs max-w-[200px] truncate hidden md:table-cell">{shortAddress(d.last_address)}</TableCell>
+                        <TableCell className="text-xs">{d.last_location_at ? formatDubaiTime(d.last_location_at) : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* DWELL */}
         <TabsContent value="dwell">
           <div className="space-y-4">
-            {/* Actions */}
             <div className="flex gap-2">
               <Button onClick={runDwellEngine} disabled={dwellProcessing} variant="outline" size="sm">
                 <RefreshCw className={`h-4 w-4 mr-1 ${dwellProcessing ? "animate-spin" : ""}`} />
                 {dwellProcessing ? "Processing..." : "Run Dwell Engine"}
               </Button>
-              <Button onClick={() => exportDwellCSV(dwellVisits || [])} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1" /> Export CSV
-              </Button>
             </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total PTD Hours</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold text-green-600">{dwellSummary.ptdHours}h</p></CardContent>
+                <CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">PTD Hours</p><p className="text-xl font-bold text-green-600">{dwellSummary.ptdHours}h</p></CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">External Hours</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold text-yellow-600">{dwellSummary.extHours}h</p></CardContent>
+                <CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">External</p><p className="text-xl font-bold text-yellow-600">{dwellSummary.extHours}h</p></CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Most Active Coach</CardTitle></CardHeader>
-                <CardContent>
-                  <p className="text-lg font-bold">{dwellSummary.mostActive?.[0] || "—"}</p>
-                  <p className="text-xs text-muted-foreground">{dwellSummary.mostActive ? `${Math.round(dwellSummary.mostActive[1] / 60)}h total` : ""}</p>
-                </CardContent>
+                <CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Most Active</p><p className="text-sm font-bold">{dwellSummary.mostActive?.[0] || "—"}</p></CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Avg Session</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold">{dwellSummary.avgSession}m</p></CardContent>
+                <CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Avg Dwell</p><p className="text-xl font-bold">{dwellSummary.avgSession}m</p></CardContent>
               </Card>
             </div>
-
-            {/* Coach Breakdown */}
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Coach Dwell Breakdown</CardTitle></CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Coach</TableHead>
-                      <TableHead className="text-right">Visits</TableHead>
-                      <TableHead className="text-right">PTD Hours</TableHead>
-                      <TableHead className="text-right">External Hours</TableHead>
-                      <TableHead>Today</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...dwellSummary.byCoach.entries()].sort((a, b) => (b[1].ptd + b[1].ext) - (a[1].ptd + a[1].ext)).map(([coach, d]) => (
-                      <TableRow key={coach}>
-                        <TableCell className="font-medium">{coach}</TableCell>
-                        <TableCell className="text-right">{d.visits}</TableCell>
-                        <TableCell className="text-right text-green-600">{Math.round(d.ptd / 60)}h</TableCell>
-                        <TableCell className="text-right text-yellow-600">{Math.round(d.ext / 60)}h</TableCell>
-                        <TableCell>
-                          {dwellSummary.todayCoaches.has(coach) ? (
-                            <Badge className="bg-green-500">Active</Badge>
-                          ) : (
-                            <Badge variant="destructive">No Data</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {/* Visit Log */}
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Timer className="h-5 w-5" />Visit Log ({dwellSummary.total} visits)</CardTitle></CardHeader>
-              <CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Visit Log ({dwellSummary.total})</CardTitle></CardHeader>
+              <CardContent className="p-0">
                 {dwellLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
                 ) : (dwellVisits || []).length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No dwell data yet. Click "Run Dwell Engine" to process GPS data.</p>
+                  <p className="text-muted-foreground text-center py-8">No dwell data. Run Dwell Engine to process GPS.</p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Coach</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Arrival</TableHead>
-                        <TableHead>Departure</TableHead>
-                        <TableHead className="text-right">Dwell</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(dwellVisits || []).slice(0, 100).map((v) => (
-                        <TableRow key={v.id} className={v.is_ptd_location ? "bg-green-50 dark:bg-green-950/20" : "bg-yellow-50 dark:bg-yellow-950/20"}>
-                          <TableCell className="font-medium">{v.coach_name || v.device_id}</TableCell>
-                          <TableCell>
-                            <Badge variant={v.is_ptd_location ? "default" : "secondary"} className={v.is_ptd_location ? "bg-green-500" : ""}>
-                              {v.location_name}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs">{v.arrival_time ? formatDubaiTime(v.arrival_time) : "—"}</TableCell>
-                          <TableCell className="text-xs">{v.departure_time ? formatDubaiTime(v.departure_time) : "—"}</TableCell>
-                          <TableCell className="text-right font-mono">{v.dwell_minutes}m</TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Coach</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead className="hidden md:table-cell">Arrival</TableHead>
+                          <TableHead className="hidden md:table-cell">Departure</TableHead>
+                          <TableHead className="text-right">Min</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {(dwellVisits || []).slice(0, 100).map((v) => (
+                          <TableRow key={v.id} className={v.is_ptd_location ? "bg-green-50 dark:bg-green-950/20" : ""}>
+                            <TableCell className="font-medium text-xs">{v.coach_name || v.device_id}</TableCell>
+                            <TableCell>
+                              <Badge variant={v.is_ptd_location ? "default" : "secondary"} className={`text-xs ${v.is_ptd_location ? "bg-green-500" : ""}`}>
+                                {v.location_name}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs hidden md:table-cell">{v.arrival_time ? formatDubaiTime(v.arrival_time) : "—"}</TableCell>
+                            <TableCell className="text-xs hidden md:table-cell">{v.departure_time ? formatDubaiTime(v.departure_time) : "—"}</TableCell>
+                            <TableCell className="text-right font-mono">{v.dwell_minutes || 0}m</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
