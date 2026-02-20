@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getPtdInternalHeaders } from '@/config/api';
 
 type Role = 'user' | 'assistant';
 
@@ -59,7 +60,7 @@ export default function GlobalBrainPage() {
 
   async function loadThreads() {
     try {
-      const res = await fetch('/api/threads');
+      const res = await fetch('/api/threads', { headers: getPtdInternalHeaders() });
       const data: ThreadsResponse = await res.json();
       if (data.ok && Array.isArray(data.data)) {
         setThreads(data.data);
@@ -73,7 +74,7 @@ export default function GlobalBrainPage() {
     try {
       const res = await fetch('/api/threads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getPtdInternalHeaders(),
         body: JSON.stringify({ name: `Chat ${new Date().toLocaleString()}` }),
       });
       const data: ThreadDetailResponse = await res.json();
@@ -89,7 +90,7 @@ export default function GlobalBrainPage() {
 
   async function loadThread(threadId: string) {
     try {
-      const res = await fetch(`/api/threads?id=${threadId}`);
+      const res = await fetch(`/api/threads?id=${threadId}`, { headers: getPtdInternalHeaders() });
       const data: ThreadDetailResponse = await res.json();
       if (data.ok) {
         setCurrentThread(threadId);
@@ -113,7 +114,7 @@ export default function GlobalBrainPage() {
     try {
       const res = await fetch('/api/query', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getPtdInternalHeaders(),
         body: JSON.stringify({
           question: userMessage,
           mode,

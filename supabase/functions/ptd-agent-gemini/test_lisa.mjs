@@ -1,10 +1,8 @@
-/**
- * 👩‍💼 LISA v7: THE PROACTIVE RESULTS ARCHITECT
- * 4-Agent Synergy: Sales Psychology + Data Extraction + Human Voice + Operational Speed.
- * Mission: Convert cold applicants into booked assessments via fast, human-centric psychology.
- */
+import fs from 'fs';
 
-export const UNIFIED_LISA_PROMPT = `
+const GEMINI_API_KEY = "AIzaSyDtyoadQ7oGOrJnNFuH_M9WZjHZ65iivsw";
+
+const UNIFIED_LISA_PROMPT = `
 <system_role>
 You are LISA from PTD Fitness. You are a Senior Results Consultant and Setter.
 You move 10x faster than any human, but you feel more "real" than any bot.
@@ -46,28 +44,12 @@ Before every reply, you must perform a 5-step internal audit:
 5.  **AGENT VOICE:** Is this casual enough? Did I use "||"? Did I avoid corporate junk like "how can I assist"?
 </thinking_process>
 
-<script_playbook>
-## 1. THE DISARMING OPENER (Cold Lead Response)
-"hey [Name] || lisa here from PTD. saw your application. || quick one: are you looking to get lean or build some muscle?"
-
-## 2. THE MULTI-PART ANSWER (Handling Objections & Prices)
-"makes total sense. || to answer your question, our custom packages usually range from 3k-4k depending on the specific blueprint we build for you. || but before we get into the weeds, i need to know if we even have a coach in your area. where in dubai are you based?"
-
-## 3. THE BINARY CLOSE (Booking - AFTER checking capacity)
-"okay, i think we can absolutely help with that back pain. || we do a free movement assessment where the coach builds your blueprint. || i just checked the calendar, and i have 4pm tomorrow or 10am wednesday. which works best?"
-
-## 4. THE VENDOR BOUNCER
-"fair play on the hustle. || but we strictly use this number for fitness clients and aren't looking for new vendors right now. all the best!"
-</script_playbook>
-
 <human_voice_rules>
 - NEVER use: "navigate", "service", "department", "representative", "assist", "unfortunately", "how can i help", "rest assured".
 - ALWAYS use: "blueprint", "vision", "survival mode", "beast mode", "fair play", "to be honest", "i've got you".
 - casual lowercase only. 
 - use "||" for bubble breaks (to represent sending separate back-to-back WhatsApp messages).
 - NEVER just say "please wait while I check my tools." Think silently, then output your final human response.
-- **CRITICAL:** NEVER output raw internal system messages, code snippets, JSON, or API logs to the user (e.g. VITE_ variables or Supabase errors). If a tool fails, stay in character and say something natural like "give me a sec, checking my system."
-- **VAGUE QUERIES:** If the user sends a short, vague message (like "tell me" or "hello"), DO NOT dump a massive list of your capabilities. Instead, ask a single, highly conversational clarifying question about their fitness goals.
 </human_voice_rules>
 
 <output_rules>
@@ -76,17 +58,63 @@ Before every reply, you must perform a 5-step internal audit:
 </output_rules>
 `;
 
-// Helper to inject context (Knowledge Base)
-export const buildSystemPrompt = (context: any) => {
-  const knowledge =
-    context?.relevant_knowledge?.map((k: any) => `- ${k.content}`).join("\n") ||
-    "";
+const tools = [{
+  functionDeclarations: [
+    {
+      name: "check_capacity",
+      description: "Check coach capacity for a zone/segment before booking.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          zone: { type: "STRING" }
+        }
+      }
+    }
+  ]
+}];
 
-  return `${UNIFIED_LISA_PROMPT}
+async function callGemini(userInput) {
+  console.log(`\n========================================`);
+  console.log(`🗣️ USER: ${userInput}`);
 
-CONTEXT FROM KNOWLEDGE BASE:
-${knowledge}
+  const now = new Date();
+  const gstFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Dubai', weekday: 'long', hour: 'numeric', minute: '2-digit', hour12: true });
+  const currentGSTTime = gstFormatter.format(now);
+  
+  const systemInstruction = {
+    parts: [
+      { text: UNIFIED_LISA_PROMPT + "\n\nLIVE NOW (GST): " + currentGSTTime + "\n\nCONTEXT FROM KNOWLEDGE BASE:\n- PTD Ultimate Package: 4000 AED/month. Includes elite coaching.\n- We cover Dubai Marina, Downtown, and JVC." }
+    ]
+  };
 
-Remember: You are Lisa. Results Architect. Move forward or dismiss.
-`;
-};;
+  const body = {
+    systemInstruction,
+    contents: [{ role: "user", parts: [{ text: userInput }] }],
+    tools: tools,
+    generationConfig: { maxOutputTokens: 300, temperature: 0.1 }
+  };
+
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json();
+  
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  parts.forEach(p => {
+    if (p.functionCall) console.log("\n🛠️ LISA (Action): Calls [" + p.functionCall.name + "] with args:", p.functionCall.args);
+    if (p.text) console.log("\n🤖 LISA (Reply):\n" + p.text);
+  });
+}
+
+async function main() {
+  await callGemini("Hi Lisa, I run an SEO and marketing agency for fitness brands in Dubai. Are you the owner? I can help you guys get 50 more leads a month.");
+  
+  await callGemini("Hey! What are your package prices? And do you have trainers that can come to my gym in Business Bay?");
+
+  await callGemini("My goal is building muscle. I live in Dubai Marina. Let's book tomorrow at 4pm.");
+}
+
+main();

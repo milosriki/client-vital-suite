@@ -1,0 +1,8 @@
+.DS_Store
+.env*
+.agent
+.claude
+.loki
+.vscode
+.git
+.gemini

@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getThreadId } from "@/lib/ptd-memory";
 import { cn } from "@/lib/utils";
-import { getApiUrl, API_ENDPOINTS } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, getPtdInternalHeaders } from "@/config/api";
 
 interface VoiceChatProps {
   agentFunction?: string;
@@ -139,10 +139,7 @@ export function VoiceChat({
     try {
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-ptd-key": "ptd-secure-internal-2025-key-v2"
-        },
+        headers: getPtdInternalHeaders(),
         body: JSON.stringify({
           message: text,
           thread_id: threadIdRef.current

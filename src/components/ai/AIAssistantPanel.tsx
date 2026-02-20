@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { getApiUrl, API_ENDPOINTS } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, getPtdInternalHeaders } from "@/config/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,10 +160,7 @@ export function AIAssistantPanel() {
     mutationFn: async (message: string) => {
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-ptd-key": "ptd-secure-internal-2025-key-v2",
-        },
+        headers: getPtdInternalHeaders(),
         body: JSON.stringify({
           message,
           thread_id: sessionId,

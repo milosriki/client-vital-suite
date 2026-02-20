@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2,
@@ -687,15 +688,29 @@ ${aiResponse}
         ))}
 
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                <span className="text-sm text-white/70">
-                  Processing with unlimited power...
-                </span>
+          <div className="flex justify-start w-full">
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-black/40 border border-cyan-500/20 rounded-lg p-4 font-mono text-xs w-full max-w-[85%]"
+            >
+              <div className="flex items-center gap-2 mb-2 text-cyan-400">
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span>UNLIMITED ORCHESTRATOR INITIALIZING...</span>
               </div>
-            </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-white/60 space-y-1"
+              >
+                <p> {">"} Waking 10 specialist sub-agents...</p>
+                <p className="animate-pulse">
+                  {" "}
+                  {">"} Analyzing deep context layer...
+                </p>
+              </motion.div>
+            </motion.div>
           </div>
         )}
       </div>

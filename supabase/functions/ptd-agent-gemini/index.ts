@@ -266,11 +266,12 @@ async function searchMemory(
     const embedding = await getEmbeddings(query);
 
     if (embedding) {
-      const { data } = await supabase.rpc("match_memories", {
+      const { data } = await supabase.rpc("match_agent_memory", {
         query_embedding: embedding,
         match_threshold: 0.7,
         match_count: 5,
-        filter_thread_id: threadId || null,
+        p_agent_name: "ptd-agent-gemini",
+        p_thread_id: threadId || null,
       });
 
       if (data && data.length > 0) {
@@ -336,16 +337,22 @@ async function searchMemoryByKeywords(
 async function searchKnowledgeBase(
   supabase: any,
   query: string,
+  isWhatsApp: boolean = false,
 ): Promise<string> {
   try {
     // Use unified Gemini embeddings (same provider as all other embeddings)
     const queryEmbedding = await unifiedAI.embed(query.slice(0, 8000));
 
     if (queryEmbedding && queryEmbedding.length > 0) {
-      const { data: matches } = await supabase.rpc("match_knowledge", {
+      const { data: matches } = await supabase.rpc("match_isolated_knowledge", {
         query_embedding: queryEmbedding,
         match_threshold: 0.65,
         match_count: 5,
+        // SECURITY ISOLATION: 
+        // If the agent is LISA (WhatsApp mode), we restrict her memory to safe, public-facing categories.
+        // If the agent is the CEO Dashboard or any internal tool (isWhatsApp = false), 
+        // we pass 'null' so they retain 100% UNRESTRICTED access to all company files and formulas.
+        allowed_categories: isWhatsApp ? ['pricing', 'packages', 'locations', 'faq', 'formula', 'rule'] : null,
       });
 
       if (matches && matches.length > 0) {
@@ -670,39 +677,55 @@ async function syncInteractionToHubSpot(
 
     // 2. Update Contact & Log Note
     if (targetContactId) {
-      const isPartnership =
-        intent === "PARTNERSHIP_QUERY" ||
-        /partner|collaborat|business deal/i.test(query);
-      const isBooking =
-        intent === "BOOKING_CONFIRMED" ||
-        context?.current_phase === "close" ||
-        /assessment|book|slot/i.test(query);
+      // --- START: Structured LLM Extraction (Replacing regex) ---
+      let llmData: any = {};
+      try {
+        const extractPrompt = `Analyze this message to extract details for our fitness CRM.
+Message: "${query}"
+Context rules: If the user explicitly mentions an area in Dubai/Abu Dhabi, extract it as location. 
+Extract their primary fitness goal and any dominating physical pain/injury mentioned.
+Are they asking about partnership/collaboration?
+Are they trying to book an assessment or asking for a time slot?
 
-      // Detect and Validate Location (Dubai/Abu Dhabi)
-      let detectedLocation = "";
-      const locationMatch = query.match(
-        /in (Marina|Downtown|JVC|Palm|Business Bay|JLT|DIFC|Al Barsha|Umm Suqeim|Khalifa City|Saadiyat)/i,
-      );
-      if (locationMatch) {
+Print your response STRICTLY as a raw JSON object (no markdown formatting, no \`\`\`json) with these keys: 
+{"location": "string or null", "goal": "string or null", "pain": "string or null", "is_partnership_request": boolean, "is_booking_request": boolean}`;
+
+        const extractionResponse = await unifiedAI.chat([{ role: "user", content: extractPrompt }], {
+          max_tokens: 150,
+          temperature: 0.1,
+          tools: []
+        });
+        
+        const cleanJSON = extractionResponse.content.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+        llmData = JSON.parse(cleanJSON);
+      } catch(e) {
+        console.error("LLM Extraction failed, falling back to basic checks", e);
+      }
+
+      const isPartnership = llmData.is_partnership_request || intent === "PARTNERSHIP_QUERY" || /partner|collaborat|business deal/i.test(query);
+      const isBooking = llmData.is_booking_request || intent === "BOOKING_CONFIRMED" || context?.current_phase === "close" || /assessment|book|slot/i.test(query);
+      
+      let detectedLocation = llmData.location || "";
+      // Validate Location (Dubai/Abu Dhabi) if extracted
+      if (detectedLocation) {
         const locService = new LocationService();
-        const locData = await locService.validateAddress(
-          `${locationMatch[1]}, Dubai`,
-        );
+        const locData = await locService.validateAddress(`${detectedLocation}, UAE`);
         if (locData.valid) detectedLocation = locData.formatted_address;
       }
+      // --- END: Structured LLM Extraction ---
 
       const updateProps: any = {
         last_ai_interaction: new Date().toISOString(),
-        whatsapp_intent: intent || "CHAT",
-        whatsapp_summary: `User is interested in ${context?.goal || "fitness"}. Main hurdle: ${context?.dominant_pain || "none"}.`,
+        whatsapp_intent: intent || (isBooking ? "BOOKING" : isPartnership ? "PARTNERSHIP" : "CHAT"),
+        whatsapp_summary: `User is interested in ${llmData.goal || context?.goal || "fitness"}. Main hurdle: ${llmData.pain || context?.dominant_pain || "none"}.`,
       };
 
       if (detectedLocation) updateProps.city = detectedLocation;
 
       // Extract details for HubSpot
-      if (context?.goal) updateProps.fitness_goal = context.goal;
-      if (context?.dominant_pain)
-        updateProps.dominant_pain = context.dominant_pain;
+      if (llmData.goal || context?.goal) updateProps.fitness_goal = llmData.goal || context.goal;
+      if (llmData.pain || context?.dominant_pain)
+        updateProps.dominant_pain = llmData.pain || context.dominant_pain;
 
       if (isPartnership) {
         updateProps.partnership_interest = "true";
@@ -831,7 +854,7 @@ async function runAgent(
       : searchKnowledgeDocuments(supabase, userMessage).then((res) =>
           res.slice(0, 10000),
         ),
-    searchKnowledgeBase(supabase, userMessage).then((res) =>
+    searchKnowledgeBase(supabase, userMessage, isWhatsApp).then((res) =>
       res.slice(0, isWhatsApp ? 3000 : 10000),
     ),
     isWhatsApp
@@ -864,12 +887,27 @@ async function runAgent(
     else convStaleness = "Active conversation";
   }
 
+  // Inject Live Current Time & Date Context
+  const now = new Date();
+  const gstFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Dubai',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  const currentGSTTime = gstFormatter.format(now);
+
   // Build system prompt - use WhatsApp sales prompt for WhatsApp conversations
   const systemPrompt = isWhatsApp
     ? `
 ${WHATSAPP_SALES_PERSONA}
 
 ## 📍 SESSION CONTEXT
+- **LIVE DATE & TIME (GST)**: ${currentGSTTime}
 - **CONVERSATION STATE**: ${convStaleness}
 - **CONTACT**: HubSpot ID ${context?.contactId || "unknown"}
 - **LAST OWNER**: ${context?.owner_name || "Mark"}
@@ -893,8 +931,12 @@ REMEMBER: You are Mark. A supportive Transformation Coach. Your focus is 100% on
 `
     : `
 # PTD SUPER-INTELLIGENCE CEO (UNIFIED MODE)
+// SECURITY ISOLATION: 
+// This is the CEO Dashboard's brain. Unlike LISA (who is restricted to public info and WhatsApp rules),
+// the CEO has 100% unrestricted access to all financial data, Stripe forencis, and business intelligence.
 
 MISSION: Absolute truth and aggressive sales conversion.
+
 
 
 ## 💰 FINANCIAL TRUTH PROTOCOL (STRICT)
@@ -998,7 +1040,7 @@ ${activeLearnings}
         tool_calls: currentResponse.tool_calls,
         messages_length: messages.length,
       },
-      status: "tool_calling",
+      status: "running",
     });
 
     let toolCallCount = 0;

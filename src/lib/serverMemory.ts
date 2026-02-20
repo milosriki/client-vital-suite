@@ -5,7 +5,16 @@
  * This ensures all data persistence happens server-side only.
  */
 
-const API_BASE = "https://client-vital-suite.vercel.app";
+const API_BASE = typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE
+  ? import.meta.env.VITE_API_BASE
+  : "https://client-vital-suite.vercel.app";
+
+function getPtdHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  const key = typeof import.meta !== "undefined" && import.meta.env?.VITE_PTD_INTERNAL_ACCESS_KEY;
+  if (key) h["x-ptd-key"] = key;
+  return h;
+}
 
 // Session management
 export interface Session {
@@ -44,7 +53,7 @@ export async function createOrGetSession(
 ): Promise<Session> {
     const response = await fetch(`${API_BASE}/api/session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getPtdHeaders(),
         body: JSON.stringify({
             session_id: sessionId,
             ...options,
@@ -64,7 +73,9 @@ export async function createOrGetSession(
  * Get session info
  */
 export async function getSession(sessionId: string): Promise<Session | null> {
-    const response = await fetch(`${API_BASE}/api/session?session_id=${sessionId}`);
+    const response = await fetch(`${API_BASE}/api/session?session_id=${sessionId}`, {
+        headers: getPtdHeaders(),
+    });
 
     if (response.status === 404) {
         return null;
@@ -93,7 +104,7 @@ export async function storeMemory(
 ): Promise<MemoryEntry> {
     const response = await fetch(`${API_BASE}/api/memory`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getPtdHeaders(),
         body: JSON.stringify({
             session_id: sessionId,
             key,
@@ -125,7 +136,7 @@ export async function storeGlobalMemory(
 ): Promise<MemoryEntry> {
     const response = await fetch(`${API_BASE}/api/memory`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getPtdHeaders(),
         body: JSON.stringify({
             global: true,
             key,
@@ -157,7 +168,7 @@ export async function getMemory(
         url.searchParams.set("key", key);
     }
 
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), { headers: getPtdHeaders() });
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Failed to get memory" }));
@@ -178,7 +189,7 @@ export async function getGlobalMemory(key?: string): Promise<MemoryEntry[]> {
         url.searchParams.set("key", key);
     }
 
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), { headers: getPtdHeaders() });
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Failed to get global memory" }));
@@ -201,6 +212,7 @@ export async function deleteMemory(sessionId: string, key?: string): Promise<voi
 
     const response = await fetch(url.toString(), {
         method: "DELETE",
+        headers: getPtdHeaders(),
     });
 
     if (!response.ok) {
@@ -219,6 +231,7 @@ export async function deleteGlobalMemory(key: string): Promise<void> {
 
     const response = await fetch(url.toString(), {
         method: "DELETE",
+        headers: getPtdHeaders(),
     });
 
     if (!response.ok) {

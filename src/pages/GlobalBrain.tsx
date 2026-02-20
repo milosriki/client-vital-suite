@@ -13,7 +13,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getApiUrl } from "@/config/api";
+import { getApiUrl, getPtdInternalHeaders } from "@/config/api";
 import { BrainVisualizer } from "@/components/BrainVisualizer";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -76,7 +76,9 @@ export default function GlobalBrain() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch(getApiUrl("/api/brain?action=stats"));
+      const response = await fetch(getApiUrl("/api/brain?action=stats"), {
+        headers: getPtdInternalHeaders(),
+      });
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
       if (data.ok) {
@@ -94,6 +96,7 @@ export default function GlobalBrain() {
       // Use the brain API with recent action
       const response = await fetch(
         getApiUrl("/api/brain?action=recent&limit=20"),
+        { headers: getPtdInternalHeaders() },
       );
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
@@ -131,7 +134,7 @@ export default function GlobalBrain() {
     try {
       const response = await fetch(getApiUrl("/api/query"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getPtdInternalHeaders(),
         body: JSON.stringify({
           question,
           mode: "deep",

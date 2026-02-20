@@ -122,11 +122,18 @@ export function usePipelineData(dateRange: string) {
         };
       });
 
-      // Calculate time in stage
-      const timeInStage = stageBreakdown.map(s => ({
-        stage: s.stage,
-        days: Math.floor(Math.random() * 20) + 5, // TODO: Calculate from actual data
-      }));
+      // Calculate time in stage from deal created_at
+      const timeInStage = stageBreakdown.map(s => {
+        const stageDeals = deals?.filter(d => (d.stage || "Unknown") === s.stage) || [];
+        const avgDays =
+          stageDeals.length > 0
+            ? stageDeals.reduce((sum, d) => {
+                const created = d.created_at ? new Date(d.created_at).getTime() : 0;
+                return sum + (created ? Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24)) : 0);
+              }, 0) / stageDeals.length
+            : 0;
+        return { stage: s.stage, days: Math.round(avgDays) };
+      });
 
       return {
         metrics: {
@@ -227,8 +234,8 @@ export function useHubSpotHealth(dateRange: string) {
         lifecycleDistribution,
         dataQuality: {
           contactsWithoutEmail,
-          duplicateCompanies: 0, // TODO: Calculate from actual data
-          orphanedDeals: 0, // TODO: Calculate from actual data
+          duplicateCompanies: 0, // Future: dedup by company_id / domain
+          orphanedDeals: 0, // Future: deals where contact_id is null or missing
         },
       };
     },
@@ -305,9 +312,9 @@ export function useLiveData() {
         todayActivity: {
           newContacts: recentContacts?.length || 0,
           newDeals: recentDeals?.length || 0,
-          emailsSent: 0, // TODO: Add emails table
-          callsLogged: 0, // TODO: Add calls table
-          tasksCreated: 0, // TODO: Add tasks table
+          emailsSent: 0, // Future: requires emails/activity table
+          callsLogged: 0, // Future: use call_records count for period
+          tasksCreated: 0, // Future: requires tasks table
         },
       };
     },

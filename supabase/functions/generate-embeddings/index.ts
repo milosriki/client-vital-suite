@@ -80,7 +80,7 @@ serve(async (req) => {
             embedding,
             metadata: {
               ...metadata,
-              embedding_model: "text-embedding-004",
+              embedding_model: "gemini-embedding-001",
               source_text_length: text.length,
             },
           })
@@ -119,7 +119,7 @@ serve(async (req) => {
           embedding,
           metadata: {
             ...metadata,
-            embedding_model: "text-embedding-004",
+            embedding_model: "gemini-embedding-001",
             updated_at: new Date(),
           },
         })

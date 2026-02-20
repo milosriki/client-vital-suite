@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2,
@@ -25,7 +26,7 @@ import {
 } from "@/lib/ptd-memory";
 import { toast } from "sonner";
 import { useVoiceChat, useTextToSpeech } from "@/hooks/useVoiceChat";
-import { getApiUrl, API_ENDPOINTS } from "@/config/api";
+import { getApiUrl, API_ENDPOINTS, getPtdInternalHeaders } from "@/config/api";
 
 // Global Brain constants
 const GLOBAL_THREAD_ID = "ptd-global";
@@ -291,10 +292,7 @@ export default function PTDControlChat() {
     try {
       const response = await fetch(getApiUrl(API_ENDPOINTS.agent), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-ptd-key": "ptd-secure-internal-2025-key-v2",
-        },
+        headers: getPtdInternalHeaders(),
         body: JSON.stringify({
           message: userMessage,
           thread_id: threadId, // Pass thread ID for memory continuity
@@ -536,15 +534,29 @@ export default function PTDControlChat() {
         ))}
 
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                <span className="text-sm text-white/70">
-                  Thinking with memory...
-                </span>
+          <div className="flex justify-start w-full">
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-black/40 border border-cyan-500/20 rounded-lg p-4 font-mono text-xs w-full max-w-[85%]"
+            >
+              <div className="flex items-center gap-2 mb-2 text-cyan-400">
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span>SUPER AGENT ORCHESTRATOR INITIALIZING...</span>
               </div>
-            </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-white/60 space-y-1"
+              >
+                <p> {">"} Accessing persistent memory stores...</p>
+                <p className="animate-pulse">
+                  {" "}
+                  {">"} Cross-referencing conversation patterns...
+                </p>
+              </motion.div>
+            </motion.div>
           </div>
         )}
       </div>

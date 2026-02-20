@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { ArrowUpRight, ArrowDownRight, LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -32,7 +33,7 @@ export function MetricCard({
       className={cn(
         "bg-[#0A0A0A] border border-[#1F2937] p-6 rounded-xl transition-colors duration-200",
         isClickable && "cursor-pointer hover:border-primary",
-        className
+        className,
       )}
     >
       {/* Header: Icon + Label + Delta */}
@@ -47,11 +48,13 @@ export function MetricCard({
               "flex items-center gap-1 text-sm font-medium",
               delta.type === "positive" && "text-emerald-500",
               delta.type === "negative" && "text-red-500",
-              delta.type === "neutral" && "text-slate-300"
+              delta.type === "neutral" && "text-slate-300",
             )}
           >
             {delta.type === "positive" && <ArrowUpRight className="w-4 h-4" />}
-            {delta.type === "negative" && <ArrowDownRight className="w-4 h-4" />}
+            {delta.type === "negative" && (
+              <ArrowDownRight className="w-4 h-4" />
+            )}
             {delta.value > 0 ? "+" : ""}
             {delta.value}%
           </div>
@@ -59,7 +62,20 @@ export function MetricCard({
       </div>
 
       {/* Metric Value */}
-      <div className="text-3xl font-semibold text-slate-50 mb-2">{value}</div>
+      <div className="text-3xl font-semibold text-slate-50 mb-2">
+        {value === "Loading..." ? (
+          <motion.div
+            initial={{ opacity: 0.5 }}
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            className="h-9 w-32 bg-slate-700/50 rounded-md overflow-hidden relative"
+          >
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          </motion.div>
+        ) : (
+          value
+        )}
+      </div>
 
       {/* Optional Sparkline */}
       {sparkline && <div className="mt-3">{sparkline}</div>}

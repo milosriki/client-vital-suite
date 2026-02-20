@@ -25,6 +25,8 @@ import { SentimentTriage } from "../_shared/sentiment.ts";
 import { getSocialProof, formatSocialProof } from "../_shared/social-proof.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 import { StageDetector, type SalesStage } from "../_shared/stage-detection.ts";
+import { LearningLayer } from "../_shared/learning-layer.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,7 +91,8 @@ Deno.serve(async (req) => {
 
     // 2. Parallel Context Retrieval (Speed Pillar)
     // [BRAIN TRANSPLANT] Now fetching Long Term Memory (conversation_intelligence)
-    const [hubspotContext, chatHistory, aiMemoryRes] = await Promise.all([
+    const learningLayer = new LearningLayer(supabase);
+    const [hubspotContext, chatHistory, aiMemoryRes, knowledgeContext, activeLearnings] = await Promise.all([
       hubspot.searchContactByPhone(phone),
       getChatHistory(phone),
       supabase
@@ -97,8 +100,13 @@ Deno.serve(async (req) => {
         .select("phone, lead_score, conversation_phase, psychological_profile, dominant_pain, desired_outcome, primary_blocker, message_count, last_lead_message_at, conversation_summary, last_internal_thought, followup_stage, followup_count")
         .eq("phone", phone)
         .maybeSingle(),
-      // 2.1 Social Proof REMOVED per User Instruction ("No Social Proof on New Leads")
-      // getSocialProof(supabase, ...) -> Skipped.
+      // 2.1 RAG Knowledge Search — find relevant knowledge for this message
+      searchKnowledge(supabase, incomingText).catch((e) => {
+        console.warn("⚠️ Knowledge search failed:", e.message);
+        return null;
+      }),
+      // 2.2 Active learnings from feedback
+      learningLayer.getActiveLearnings(5, "lisa").catch(() => ""),
     ]);
 
     const aiMemory = aiMemoryRes.data;
@@ -181,7 +189,9 @@ Deno.serve(async (req) => {
       days_since_last_reply: daysSinceLastReply,
       referral_source: null,
       voice_mood: voiceTone,
-      // social_proof: ... REMOVED
+      knowledge_context: knowledgeContext,
+      active_learnings: activeLearnings || null,
+      social_proof: null, // Re-enable when social proof data is seeded
     });
 
     // Inject NEPQ stage goal into prompt
@@ -688,5 +698,57 @@ async function notifyTeamOnBooking(
     console.log(`✅ [BOOKING ALERT] Notification sent for ${phone}`);
   } catch (e) {
     console.error(`❌ [BOOKING ALERT] Failed to notify team for ${phone}:`, e);
+  }
+}
+
+/**
+ * RAG Knowledge Search — semantic search against Lisa's knowledge base
+ * Generates embedding for query, finds most relevant knowledge entries
+ */
+async function searchKnowledge(
+  supabaseClient: any,
+  query: string,
+  limit = 3,
+): Promise<string | null> {
+  try {
+    // Generate embedding for the incoming message
+    const queryEmbedding = await unifiedAI.embed(query);
+    if (!queryEmbedding) return null;
+
+    // Call the match_knowledge RPC for semantic search
+    const { data, error } = await supabaseClient.rpc("match_knowledge", {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.3,
+      match_count: limit,
+    });
+
+    if (error) {
+      console.warn("⚠️ match_knowledge RPC error:", error.message);
+      // Fallback: text search
+      const { data: fallbackData } = await supabaseClient
+        .from("knowledge_base")
+        .select("category, question, answer")
+        .eq("is_active", true)
+        .textSearch("question", query.split(" ").slice(0, 3).join(" & "), {
+          type: "websearch",
+        })
+        .limit(limit);
+
+      if (fallbackData?.length) {
+        return fallbackData
+          .map((k: any) => `[${k.category}] ${k.question}: ${k.answer}`)
+          .join("\n\n");
+      }
+      return null;
+    }
+
+    if (!data?.length) return null;
+
+    return data
+      .map((k: any) => `[${k.category}] ${k.question}: ${k.answer}`)
+      .join("\n\n");
+  } catch (e) {
+    console.error("Knowledge search error:", e);
+    return null;
   }
 }

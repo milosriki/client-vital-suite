@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Brain, Database, RefreshCw, Loader2, Zap, WifiOff } from "lucide-react";
-import { getApiUrl } from "@/config/api";
+import { getApiUrl, getPtdInternalHeaders } from "@/config/api";
 
 interface KnowledgeChunk {
   id: string;
@@ -37,18 +37,29 @@ export function BrainVisualizer() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const headers = getPtdInternalHeaders();
       // 1. Fetch Recent Knowledge
       const chunksRes = await fetch(
         getApiUrl("/api/brain?action=recent&limit=10"),
+        { headers },
       );
       if (!chunksRes.ok) throw new Error(`Server error: ${chunksRes.status}`);
       const chunksData = await chunksRes.json();
       if (chunksData.ok) {
-        setChunks(chunksData.chunks || []);
+        const raw = chunksData.chunks ?? chunksData.memories ?? [];
+        const mapped = Array.isArray(raw)
+          ? raw.map((m: { id?: string; query?: string; response?: string; knowledge_extracted?: { source?: string }; created_at?: string }) => ({
+              id: m.id ?? "",
+              category: (m as { category?: string }).category ?? (m.knowledge_extracted?.source ?? "memory"),
+              content: (m as { content?: string }).content ?? m.query ?? (typeof m.response === "string" ? m.response.slice(0, 200) : "") ?? "",
+              created_at: m.created_at ?? new Date().toISOString(),
+            }))
+          : [];
+        setChunks(mapped);
       }
 
       // 2. Fetch Stats
-      const statsRes = await fetch(getApiUrl("/api/brain?action=stats"));
+      const statsRes = await fetch(getApiUrl("/api/brain?action=stats"), { headers });
       if (!statsRes.ok) throw new Error(`Server error: ${statsRes.status}`);
       const statsData = await statsRes.json();
       if (statsData.ok) {

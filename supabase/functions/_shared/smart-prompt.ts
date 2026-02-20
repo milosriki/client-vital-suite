@@ -35,6 +35,8 @@ export interface ConversationContext {
   referral_source: string | null;
   voice_mood?: string | null;
   social_proof?: string | null; // New field for injected testimonials
+  knowledge_context?: string | null; // RAG-retrieved knowledge
+  active_learnings?: string | null; // Learned corrections from feedback
 }
 
 export function buildSmartPrompt(context: ConversationContext): string {
@@ -236,6 +238,9 @@ Psych Profile: ${context.psychological_profile || "Not enough data yet"}
 Days Since Last Reply: ${context.days_since_last_reply.toFixed(1)}
 Voice Mood: ${context.voice_mood || "Text only"}
 Referral Source: ${context.referral_source || "Unknown"}
+${context.knowledge_context ? `\n=== RELEVANT KNOWLEDGE (from your brain) ===\n${context.knowledge_context}\nUse this knowledge naturally in your response. Don't quote it verbatim — paraphrase in your casual style.` : ""}
+${context.active_learnings ? `\n=== LEARNED CORRECTIONS ===\n${context.active_learnings}\nFollow these corrections strictly — they come from real feedback.` : ""}
+${context.social_proof ? `\n=== SOCIAL PROOF ===\n${context.social_proof}\nUse naturally when relevant. Never force it.` : ""}
 `;
 }
 

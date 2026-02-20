@@ -22,7 +22,16 @@
  *   const history = await memory.getConversation();
  */
 
-const API_BASE = "https://client-vital-suite.vercel.app";
+const API_BASE = typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE
+  ? import.meta.env.VITE_API_BASE
+  : "https://client-vital-suite.vercel.app";
+
+function getPtdHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  const key = typeof import.meta !== "undefined" && import.meta.env?.VITE_PTD_INTERNAL_ACCESS_KEY;
+  if (key) h["x-ptd-key"] = key;
+  return h;
+}
 
 // Default user for PTD internal use
 const DEFAULT_USER = 'ptd_team';
@@ -69,12 +78,10 @@ export async function set(
   value: any, 
   type: 'general' | 'preference' | 'context' | 'conversation' | 'knowledge' = 'general'
 ): Promise<void> {
+  const headers = { ...getPtdHeaders(), 'X-User-Key': getUser() };
   const response = await fetch(`${API_BASE}/api/user-memory`, {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'X-User-Key': getUser(),
-    },
+    headers,
     body: JSON.stringify({ key, value, type }),
   });
 
@@ -88,9 +95,10 @@ export async function set(
  * Get a single value
  */
 export async function get<T = any>(key: string): Promise<T | null> {
+  const headers = { ...getPtdHeaders(), 'X-User-Key': getUser() };
   const response = await fetch(
     `${API_BASE}/api/user-memory?key=${encodeURIComponent(key)}`,
-    { headers: { 'X-User-Key': getUser() } }
+    { headers }
   );
 
   if (!response.ok) {
@@ -115,9 +123,8 @@ export async function getAll(type?: string): Promise<Array<{
   let url = `${API_BASE}/api/user-memory`;
   if (type) url += `?type=${encodeURIComponent(type)}`;
   
-  const response = await fetch(url, { 
-    headers: { 'X-User-Key': getUser() } 
-  });
+  const headers = { ...getPtdHeaders(), 'X-User-Key': getUser() };
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Get failed' }));
@@ -137,12 +144,10 @@ export async function getAll(type?: string): Promise<Array<{
  * Delete a value
  */
 export async function remove(key: string): Promise<void> {
+  const headers = { ...getPtdHeaders(), 'X-User-Key': getUser() };
   const response = await fetch(
     `${API_BASE}/api/user-memory?key=${encodeURIComponent(key)}`,
-    { 
-      method: 'DELETE',
-      headers: { 'X-User-Key': getUser() } 
-    }
+    { method: 'DELETE', headers }
   );
 
   if (!response.ok) {
