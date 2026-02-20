@@ -70,7 +70,7 @@ serve(async (req) => {
     const { error: wipeErr } = await supabase
       .from("knowledge_base")
       .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
+      .not("id", "is", null);
     if (wipeErr) console.warn("Wipe warning:", wipeErr.message);
 
     console.log("✅ Old knowledge wiped. Seeding fresh...");
@@ -90,24 +90,26 @@ serve(async (req) => {
         let embedding = null;
         try {
           embedding = await unifiedAI.embed(content);
-        } catch (e) {
-          console.error(`❌ Embedding failed for: ${item.question}`, e);
+          console.log(`✅ Embedded: ${item.question.slice(0, 40)}...`);
+        } catch (e: any) {
+          console.error(`❌ Embedding failed for: ${item.question}`, e?.message || e);
           embedErrors++;
         }
 
-        const { error } = await supabase.from("knowledge_base").insert({
+        const { error, data } = await supabase.from("knowledge_base").insert({
           category: item.category,
           question: item.question,
           answer: item.answer,
           tags: item.tags,
           embedding,
           is_active: true,
-        });
+        }).select("id");
 
         if (error) {
-          console.error(`❌ Insert failed: ${item.question}`, error.message);
+          console.error(`❌ Insert failed: ${item.question}`, error.message, error.details);
         } else {
           seeded++;
+          console.log(`📝 Inserted: ${item.category} — ${item.question.slice(0, 40)}`);
         }
       });
 
