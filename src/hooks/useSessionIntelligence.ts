@@ -66,18 +66,55 @@ export interface RedZoneAlert {
   severity: "warning" | "critical" | "ghost";
 }
 
-function classifyFrequency(daysLast: number, sessLast30: number): string {
-  if (daysLast <= 7 && sessLast30 >= 3) return "Active";
-  if (daysLast <= 14 && sessLast30 >= 2) return "Slowing";
-  if (daysLast <= 30) return "Inactive";
+/**
+ * INTELLIGENT frequency classification.
+ * Not a simple day cutoff — relative to each client's OWN training pattern.
+ *
+ * Logic:
+ * - If avg gap between sessions is known, use it as baseline
+ * - "Active" = within 1.5x their normal gap
+ * - "Slowing" = 1.5x-3x their normal gap (they're drifting)
+ * - "Inactive" = 3x-6x their normal gap (they've dropped off)
+ * - "Ghost" = >6x their normal gap OR >60 days absolute
+ *
+ * For clients with no pattern (< 3 sessions), use conservative defaults.
+ */
+function classifyFrequency(
+  daysLast: number,
+  sessLast30: number,
+  avgGapDays: number | null,
+  totalSessions: number,
+): string {
+  // If we have enough data, use pattern-relative thresholds
+  if (avgGapDays !== null && avgGapDays > 0 && totalSessions >= 3) {
+    const ratio = daysLast / avgGapDays;
+    if (ratio <= 1.5) return "Active";      // Within normal range
+    if (ratio <= 3.0) return "Slowing";     // Noticeably off pattern
+    if (ratio <= 6.0) return "Inactive";    // Significant dropout
+    return "Ghost";                          // Gone
+  }
+
+  // Fallback for new clients or sparse data — use absolute thresholds but smarter
+  if (totalSessions <= 2) {
+    // New client — give them more grace
+    if (daysLast <= 14) return "Active";
+    if (daysLast <= 30) return "Slowing";
+    if (daysLast <= 60) return "Inactive";
+    return "Ghost";
+  }
+
+  // Some sessions but no reliable gap — use 30d activity
+  if (sessLast30 >= 4) return "Active";     // ~1/week
+  if (sessLast30 >= 2) return "Slowing";
+  if (daysLast <= 45) return "Inactive";
   return "Ghost";
 }
 
 function classifyTrend(last7: number, last30: number): "up" | "stable" | "down" | "none" {
   if (last30 === 0) return "none";
   const weeklyRate30 = (last30 / 30) * 7;
-  if (last7 > weeklyRate30 * 1.2) return "up";
-  if (last7 < weeklyRate30 * 0.6) return "down";
+  if (last7 > weeklyRate30 * 1.3) return "up";
+  if (last7 < weeklyRate30 * 0.5) return "down";
   return "stable";
 }
 
@@ -172,7 +209,7 @@ export function useSessionIntelligence() {
         sessions_last_7d: last7,
         sessions_last_30d: last30,
         sessions_last_90d: last90,
-        frequency_label: classifyFrequency(daysLast, last30),
+        frequency_label: classifyFrequency(daysLast, last30, avgBetween, records.length),
         trend: classifyTrend(last7, last30),
         locations,
         multi_coach: allCoaches.length > 1,
@@ -230,19 +267,35 @@ export function useSessionIntelligence() {
     }).sort((a, b) => b.total_sessions - a.total_sessions);
   }, [clientProfiles, sessions]);
 
-  // Red zone alerts
+  // Red zone alerts — INTELLIGENT, pattern-relative
+  // Only flags clients whose absence is abnormal for THEIR pattern
   const redZoneAlerts = useMemo<RedZoneAlert[]>(() => {
     return clientProfiles
-      .filter((c) => c.days_since_last > 7)
-      .map((c) => ({
-        client_name: c.client_name,
-        coach_name: c.coach_name,
-        days_since_last: c.days_since_last,
-        last_session_date: c.last_session_date,
-        severity: c.days_since_last > 30 ? "ghost" as const
-          : c.days_since_last > 14 ? "critical" as const
-          : "warning" as const,
-      }))
+      .filter((c) => c.frequency_label !== "Active") // Only non-active clients
+      .filter((c) => {
+        // Smart filter: if we know their pattern, only alert when overdue
+        if (c.avg_days_between !== null && c.avg_days_between > 0) {
+          return c.days_since_last > c.avg_days_between * 1.5; // Beyond 1.5x their normal
+        }
+        // No pattern data — use conservative 10-day threshold
+        return c.days_since_last > 10;
+      })
+      .map((c) => {
+        // Severity based on how far past their pattern they are
+        const overdueRatio = c.avg_days_between
+          ? c.days_since_last / c.avg_days_between
+          : c.days_since_last / 7; // Fallback assumes weekly
+
+        return {
+          client_name: c.client_name,
+          coach_name: c.coach_name,
+          days_since_last: c.days_since_last,
+          last_session_date: c.last_session_date,
+          severity: overdueRatio > 6 ? "ghost" as const
+            : overdueRatio > 3 ? "critical" as const
+            : "warning" as const,
+        };
+      })
       .sort((a, b) => b.days_since_last - a.days_since_last);
   }, [clientProfiles]);
 

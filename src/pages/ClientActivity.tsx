@@ -581,6 +581,9 @@ export default function ClientActivity() {
                 <AlertTriangle className="h-5 w-5 text-red-400" />
                 Red Zone — {filteredAlerts.length} clients need attention
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Pattern-based detection: alerts trigger when a client is overdue relative to their own training frequency, not a flat day count.
+              </p>
             </CardHeader>
             <div className="overflow-x-auto">
               <Table>

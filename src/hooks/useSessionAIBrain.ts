@@ -27,16 +27,27 @@ export function useSessionAIBrain(
 
     // ─── 1. RETENTION INSIGHTS ───
 
-    // Ghost clients — revenue at risk
+    // Ghost clients — revenue at risk (pattern-relative, not flat cutoff)
     const ghosts = clientProfiles.filter((c) => c.frequency_label === "Ghost");
     if (ghosts.length > 0) {
+      // Separate ghosts with known patterns vs unknown
+      const knownPattern = ghosts.filter((g) => g.avg_days_between !== null);
+      const avgOverdue = knownPattern.length > 0
+        ? Math.round(knownPattern.reduce((s, g) => s + g.days_since_last / (g.avg_days_between || 1), 0) / knownPattern.length)
+        : 0;
+
       insights.push({
         id: "ghost-clients",
         severity: "critical",
         category: "retention",
-        title: `${ghosts.length} Ghost Clients — Not Seen in 30+ Days`,
-        description: `These clients haven't trained in over a month. High probability of churn without immediate intervention.`,
-        action: `Priority call list: ${ghosts.slice(0, 5).map((g) => g.client_name).join(", ")}${ghosts.length > 5 ? ` +${ghosts.length - 5} more` : ""}`,
+        title: `${ghosts.length} Ghost Clients — Significantly Overdue`,
+        description: knownPattern.length > 0
+          ? `These clients are on average ${avgOverdue}x past their normal training interval. This is pattern-based detection, not a simple day count.`
+          : `These clients haven't trained in a long time relative to their history.`,
+        action: `Priority call list: ${ghosts.slice(0, 5).map((g) => {
+          const gap = g.avg_days_between ? ` (normally every ${g.avg_days_between}d, now ${g.days_since_last}d)` : ` (${g.days_since_last}d absent)`;
+          return `${g.client_name}${gap}`;
+        }).join("; ")}${ghosts.length > 5 ? ` +${ghosts.length - 5} more` : ""}`,
         metric: `${ghosts.length} clients at risk`,
         affected: ghosts.map((g) => g.client_name),
       });
