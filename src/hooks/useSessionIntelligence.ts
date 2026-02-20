@@ -5,24 +5,43 @@ import { differenceInDays } from "date-fns";
 
 export interface SessionRecord {
   id: string;
+  client_id: string;
   client_name: string;
+  client_email: string;
+  coach_id: string;
   coach_name: string;
-  session_date: string;
+  training_date: string;
   session_type: string;
   status: string;
+  location: string;
+  time_slot: string;
+  package_code: string;
+}
+
+export interface CoachHistory {
+  coach_name: string;
+  sessions: number;
+  first_session: string;
+  last_session: string;
 }
 
 export interface ClientSessionProfile {
   client_name: string;
-  coach_name: string;
+  client_id: string;
+  client_email: string;
+  coach_name: string; // most recent
+  all_coaches: CoachHistory[]; // every coach who ever trained this client
   total_sessions: number;
   last_session_date: string | null;
   days_since_last: number;
   avg_days_between: number | null;
   sessions_last_7d: number;
   sessions_last_30d: number;
+  sessions_last_90d: number;
   frequency_label: string; // "Active" | "Slowing" | "Inactive" | "Ghost"
   trend: "up" | "stable" | "down" | "none";
+  locations: string[];
+  multi_coach: boolean; // trained by more than one coach
 }
 
 export interface CoachActivityProfile {
@@ -70,9 +89,9 @@ export function useSessionIntelligence() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("training_sessions_live" as never)
-        .select("id, client_name, coach_name, session_date, session_type, status")
-        .order("session_date", { ascending: false })
-        .limit(10000);
+        .select("*")
+        .order("training_date", { ascending: false })
+        .limit(50000);
       if (error) throw error;
       return (data ?? []) as unknown as SessionRecord[];
     },
@@ -94,14 +113,16 @@ export function useSessionIntelligence() {
     }
 
     return Array.from(byClient.entries()).map(([name, records]) => {
-      const sorted = records.sort((a, b) => b.session_date.localeCompare(a.session_date));
-      const lastDate = sorted[0]?.session_date ?? null;
+      const sorted = records.sort((a, b) => b.training_date.localeCompare(a.training_date));
+      const lastDate = sorted[0]?.training_date ?? null;
       const daysLast = lastDate ? differenceInDays(now, new Date(lastDate)) : 999;
 
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
       const d30 = new Date(now.getTime() - 30 * 86400000).toISOString();
-      const last7 = sorted.filter((s) => s.session_date >= d7).length;
-      const last30 = sorted.filter((s) => s.session_date >= d30).length;
+      const d90 = new Date(now.getTime() - 90 * 86400000).toISOString();
+      const last7 = sorted.filter((s) => s.training_date >= d7).length;
+      const last30 = sorted.filter((s) => s.training_date >= d30).length;
+      const last90 = sorted.filter((s) => s.training_date >= d90).length;
 
       // Avg days between sessions (last 10)
       let avgBetween: number | null = null;
@@ -109,7 +130,7 @@ export function useSessionIntelligence() {
         const recent = sorted.slice(0, Math.min(10, sorted.length));
         let totalGap = 0;
         for (let i = 0; i < recent.length - 1; i++) {
-          totalGap += differenceInDays(new Date(recent[i].session_date), new Date(recent[i + 1].session_date));
+          totalGap += differenceInDays(new Date(recent[i].training_date), new Date(recent[i + 1].training_date));
         }
         avgBetween = Math.round(totalGap / (recent.length - 1));
       }
@@ -117,17 +138,44 @@ export function useSessionIntelligence() {
       // Coach = most recent
       const coach = sorted[0]?.coach_name ?? "Unknown";
 
+      // All coaches who ever trained this client
+      const coachMap = new Map<string, { sessions: number; dates: string[] }>();
+      for (const s of records) {
+        const cn = s.coach_name ?? "Unknown";
+        if (!coachMap.has(cn)) coachMap.set(cn, { sessions: 0, dates: [] });
+        const entry = coachMap.get(cn)!;
+        entry.sessions++;
+        entry.dates.push(s.training_date);
+      }
+      const allCoaches: CoachHistory[] = Array.from(coachMap.entries())
+        .map(([cn, data]) => ({
+          coach_name: cn,
+          sessions: data.sessions,
+          first_session: data.dates.sort()[0],
+          last_session: data.dates.sort().reverse()[0],
+        }))
+        .sort((a, b) => b.sessions - a.sessions);
+
+      // Unique locations
+      const locations = [...new Set(records.map((r) => r.location).filter(Boolean))];
+
       return {
         client_name: name,
+        client_id: sorted[0]?.client_id ?? "",
+        client_email: sorted[0]?.client_email ?? "",
         coach_name: coach,
+        all_coaches: allCoaches,
         total_sessions: records.length,
         last_session_date: lastDate,
         days_since_last: daysLast,
         avg_days_between: avgBetween,
         sessions_last_7d: last7,
         sessions_last_30d: last30,
+        sessions_last_90d: last90,
         frequency_label: classifyFrequency(daysLast, last30),
         trend: classifyTrend(last7, last30),
+        locations,
+        multi_coach: allCoaches.length > 1,
       };
     });
   }, [sessions]);
@@ -151,14 +199,14 @@ export function useSessionIntelligence() {
 
     return Array.from(byCoach.entries()).map(([coach, clients]) => {
       const rawSessions = coachSessions.get(coach) ?? [];
-      const sorted = rawSessions.sort((a, b) => b.session_date.localeCompare(a.session_date));
-      const lastDate = sorted[0]?.session_date ?? null;
+      const sorted = rawSessions.sort((a, b) => b.training_date.localeCompare(a.training_date));
+      const lastDate = sorted[0]?.training_date ?? null;
       const daysLast = lastDate ? differenceInDays(now, new Date(lastDate)) : 999;
 
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
       const d30 = new Date(now.getTime() - 30 * 86400000).toISOString();
-      const last7 = sorted.filter((s) => s.session_date >= d7).length;
-      const last30 = sorted.filter((s) => s.session_date >= d30).length;
+      const last7 = sorted.filter((s) => s.training_date >= d7).length;
+      const last30 = sorted.filter((s) => s.training_date >= d30).length;
 
       const inactive7 = clients.filter((c) => c.days_since_last > 7).length;
       const inactive14 = clients.filter((c) => c.days_since_last > 14).length;

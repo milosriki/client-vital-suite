@@ -24,6 +24,7 @@ import {
   type CoachActivityProfile,
   type RedZoneAlert,
 } from "@/hooks/useSessionIntelligence";
+import { useSessionAIBrain, type AIInsight } from "@/hooks/useSessionAIBrain";
 import { formatCurrency } from "@/lib/ceo-utils";
 
 // ── Helpers ──
@@ -154,6 +155,7 @@ export default function ClientActivity() {
     clientProfiles, coachProfiles, redZoneAlerts, stats,
     isLoading: siLoading, isFetching: siFetching, refetch: refetchSI,
   } = useSessionIntelligence();
+  const aiInsights = useSessionAIBrain(clientProfiles, coachProfiles, redZoneAlerts);
 
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
@@ -308,6 +310,14 @@ export default function ClientActivity() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="brain" className="relative">
+            <Activity className="h-4 w-4 mr-1" /> AI Brain
+            {aiInsights.filter((i) => i.severity === "critical").length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-purple-500 text-white rounded-full">
+                {aiInsights.filter((i) => i.severity === "critical").length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Package Activity (original) ── */}
@@ -396,6 +406,8 @@ export default function ClientActivity() {
                     <TableHead className="text-center">Last 7d</TableHead>
                     <TableHead className="text-center">Last 30d</TableHead>
                     <TableHead className="text-center">Avg Gap</TableHead>
+                    <TableHead className="text-center">90d</TableHead>
+                    <TableHead>Coaches</TableHead>
                     <TableHead>Trend</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -403,7 +415,7 @@ export default function ClientActivity() {
                 <TableBody>
                   {filteredProfiles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
+                      <TableCell colSpan={12} className="text-center text-muted-foreground py-12">
                         No session data found
                       </TableCell>
                     </TableRow>
@@ -433,6 +445,23 @@ export default function ClientActivity() {
                         <TableCell className="text-center">{cp.sessions_last_30d}</TableCell>
                         <TableCell className="text-center text-xs">
                           {cp.avg_days_between !== null ? `${cp.avg_days_between}d` : "—"}
+                        </TableCell>
+                        <TableCell className="text-center">{cp.sessions_last_90d}</TableCell>
+                        <TableCell className="text-xs">
+                          {cp.multi_coach ? (
+                            <div className="space-y-0.5">
+                              {cp.all_coaches.map((ch) => (
+                                <div key={ch.coach_name} className="flex items-center gap-1">
+                                  <span className={ch.coach_name === cp.coach_name ? "font-semibold" : "text-muted-foreground"}>
+                                    {ch.coach_name}
+                                  </span>
+                                  <span className="text-muted-foreground">({ch.sessions})</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>{cp.coach_name}</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -622,6 +651,23 @@ export default function ClientActivity() {
             </div>
           </Card>
         </TabsContent>
+
+        {/* ── Tab 5: AI Brain ── */}
+        <TabsContent value="brain">
+          <div className="space-y-4">
+            {aiInsights.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  No insights generated — need more session data
+                </CardContent>
+              </Card>
+            ) : (
+              aiInsights.map((insight) => (
+                <InsightCard key={insight.id} insight={insight} />
+              ))
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -635,6 +681,59 @@ function MiniStat({ label, value, highlight }: { label: string; value: number | 
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className={`text-lg font-bold mt-0.5 ${highlight ? "text-red-400" : ""}`}>{value}</p>
     </div>
+  );
+}
+
+const INSIGHT_STYLES: Record<string, { border: string; bg: string; icon: string }> = {
+  critical: { border: "border-red-500/40", bg: "bg-red-500/5", icon: "text-red-400" },
+  warning: { border: "border-orange-500/40", bg: "bg-orange-500/5", icon: "text-orange-400" },
+  opportunity: { border: "border-emerald-500/40", bg: "bg-emerald-500/5", icon: "text-emerald-400" },
+  info: { border: "border-blue-500/40", bg: "bg-blue-500/5", icon: "text-blue-400" },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  retention: "Retention",
+  coach: "Coach",
+  revenue: "Revenue",
+  pattern: "Pattern",
+  operational: "Operations",
+};
+
+function InsightCard({ insight }: { insight: AIInsight }) {
+  const style = INSIGHT_STYLES[insight.severity] ?? INSIGHT_STYLES.info;
+  return (
+    <Card className={`${style.border} ${style.bg} border`}>
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant="outline" className={`text-[10px] ${style.border} ${style.icon}`}>
+                {insight.severity.toUpperCase()}
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {CATEGORY_LABELS[insight.category] ?? insight.category}
+              </Badge>
+              {insight.metric && (
+                <span className="text-xs text-muted-foreground">{insight.metric}</span>
+              )}
+            </div>
+            <h3 className={`font-semibold ${style.icon}`}>{insight.title}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{insight.description}</p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-border/40 bg-background/50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Recommended Action
+          </p>
+          <p className="text-sm">{insight.action}</p>
+        </div>
+        {insight.affected && insight.affected.length > 5 && (
+          <p className="text-xs text-muted-foreground">
+            +{insight.affected.length - 5} more affected
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

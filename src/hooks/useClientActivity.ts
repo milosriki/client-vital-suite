@@ -51,8 +51,8 @@ export function useClientActivity() {
       const { data, error } = await supabase
         .from("training_sessions_live" as never)
         .select("*")
-        .gte("session_date", sevenDaysAgo)
-        .order("session_date", { ascending: false });
+        .gte("training_date", sevenDaysAgo)
+        .order("training_date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as TrainingSession[];
     },
