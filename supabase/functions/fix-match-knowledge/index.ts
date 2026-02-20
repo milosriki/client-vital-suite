@@ -29,7 +29,7 @@ serve(async (req) => {
         category text,
         question text,
         answer text,
-        tags jsonb,
+        tags text[],
         similarity float
       )
       LANGUAGE plpgsql
