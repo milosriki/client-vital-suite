@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Component, type ReactNode, type ErrorInfo } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,7 +124,7 @@ function FunnelStep({ label, value, icon: Icon, color, isLast }: {
         <Icon className="h-4 w-4 opacity-70" />
         <span className="font-medium">{label}</span>
       </div>
-      <span className="font-bold text-lg">{value.toLocaleString()}</span>
+      <span className="font-bold text-lg">{(value ?? 0).toLocaleString()}</span>
     </div>
   );
 }
@@ -725,7 +725,7 @@ function MetaAdsTab({ dateRange }: { dateRange: string }) {
             <CardContent className="pt-6">
               <p className="text-xs text-muted-foreground mb-1">{m.label}</p>
               <p className="text-2xl font-mono font-bold">
-                {m.label === "CPC" ? m.value.replace("$", "AED ") : m.value}
+                {m.label === "CPC" ? (m.value ?? "").replace("$", "AED ") : m.value}
               </p>
               <div className="flex items-center gap-1 mt-1">
                 {m.delta.type === "positive" ? (
@@ -768,8 +768,8 @@ function MetaAdsTab({ dateRange }: { dateRange: string }) {
                     <td className="py-2 px-3">
                       <Badge variant="outline" className="text-[10px] text-emerald-400">{c.status}</Badge>
                     </td>
-                    <td className="py-2 px-3 text-right font-mono">AED {c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                    <td className="py-2 px-3 text-right font-mono">{c.leads}</td>
+                    <td className="py-2 px-3 text-right font-mono">AED {(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    <td className="py-2 px-3 text-right font-mono">{(c.leads ?? 0)}</td>
                     <td className="py-2 px-3 text-right font-mono">AED {Number(c?.cpl ?? 0).toFixed(2)}</td>
                     <td className="py-2 px-3 text-right font-mono text-emerald-400">{Number(c?.roas ?? 0).toFixed(2)}x</td>
                   </tr>
@@ -810,7 +810,7 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                 summary={`${m.label} calculated from real transaction and ad data.`}
               >
                 <p className="text-2xl font-mono font-bold">
-                  {m.value.replace(/\$/g, "AED ")}
+                  {(m.value ?? "").replace(/\$/g, "AED ")}
                 </p>
               </XRayTooltip>
             </CardContent>
@@ -841,12 +841,12 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                 {data.campaignROI.map((c, i) => (
                   <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                     <td className="py-2 px-3 max-w-[200px] truncate">{c.campaign}</td>
-                    <td className="py-2 px-3 text-right font-mono">AED {c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                    <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {c.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    <td className="py-2 px-3 text-right font-mono">AED {(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {(c.revenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     <td className="py-2 px-3 text-right font-mono">{Number(c?.roi ?? 0).toFixed(2)}x</td>
                     <td className="py-2 px-3 text-right font-mono">AED {Number(c?.cac ?? 0).toFixed(0)}</td>
                     <td className={`py-2 px-3 text-right font-mono ${c.margin >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      AED {c.margin.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      AED {(c.margin ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 ))}
@@ -880,9 +880,9 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                   {deepData.cohortAnalysis.map((c, i) => (
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{c.month}</td>
-                      <td className="py-2 px-3 text-right font-mono">{c.leads}</td>
+                      <td className="py-2 px-3 text-right font-mono">{(c.leads ?? 0)}</td>
                       <td className="py-2 px-3 text-right font-mono">{Number(c?.conv ?? 0).toFixed(1)}%</td>
-                      <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {c.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                      <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {(c.revenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                       <td className="py-2 px-3 text-right font-mono">{Number(c?.roas ?? 0).toFixed(2)}x</td>
                       <td className="py-2 px-3 text-right font-mono">AED {Number(c?.cac ?? 0).toFixed(0)}</td>
                     </tr>
@@ -1119,6 +1119,55 @@ function SourceTruthTab() {
    Main Page Component
    ───────────────────────────────────────────── */
 
+/* ─────────────────────────────────────────────
+   Error Boundary — prevents tab crashes from killing the whole page
+   ───────────────────────────────────────────── */
+class TabErrorBoundary extends Component<
+  { children: ReactNode; tabName: string },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; tabName: string }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error(`[${this.props.tabName}] Tab error:`, error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="bg-black/40 border-red-500/30">
+          <CardContent className="py-12 text-center space-y-4">
+            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
+            <div>
+              <h3 className="text-lg font-semibold text-red-400">
+                {this.props.tabName} encountered an error
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {this.state.error?.message || "An unexpected error occurred"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => this.setState({ hasError: false, error: null })}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function MarketingIntelligence() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1205,27 +1254,37 @@ export default function MarketingIntelligence() {
         </TabsList>
 
         <TabsContent value="command-center" className="space-y-8 mt-6">
-          {isLoading ? (
-            <MarketingIntelligenceGhost />
-          ) : (
-            <CommandCenterTab data={data} deltas={deltas} range={range} />
-          )}
+          <TabErrorBoundary tabName="Command Center">
+            {isLoading ? (
+              <MarketingIntelligenceGhost />
+            ) : (
+              <CommandCenterTab data={data} deltas={deltas} range={range} />
+            )}
+          </TabErrorBoundary>
         </TabsContent>
 
         <TabsContent value="deep-intel" className="mt-6">
-          <DeepIntelTab />
+          <TabErrorBoundary tabName="Deep Intel">
+            <DeepIntelTab />
+          </TabErrorBoundary>
         </TabsContent>
 
         <TabsContent value="meta-ads" className="mt-6">
-          <MetaAdsTab dateRange={range} />
+          <TabErrorBoundary tabName="Meta Ads">
+            <MetaAdsTab dateRange={range} />
+          </TabErrorBoundary>
         </TabsContent>
 
         <TabsContent value="money-map" className="mt-6">
-          <MoneyMapTab dateRange={range} />
+          <TabErrorBoundary tabName="Money Map">
+            <MoneyMapTab dateRange={range} />
+          </TabErrorBoundary>
         </TabsContent>
 
         <TabsContent value="source-truth" className="mt-6">
-          <SourceTruthTab />
+          <TabErrorBoundary tabName="Source Truth">
+            <SourceTruthTab />
+          </TabErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>
