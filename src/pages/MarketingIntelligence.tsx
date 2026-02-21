@@ -720,21 +720,21 @@ function MetaAdsTab({ dateRange }: { dateRange: string }) {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {data.metrics.map((m, i) => (
+        {(data.metrics || []).map((m, i) => (
           <Card key={i} className="bg-black/40">
             <CardContent className="pt-6">
-              <p className="text-xs text-muted-foreground mb-1">{m.label}</p>
+              <p className="text-xs text-muted-foreground mb-1">{m?.label ?? ""}</p>
               <p className="text-2xl font-mono font-bold">
-                {m.label === "CPC" ? (m.value ?? "").replace("$", "AED ") : m.value}
+                {m?.label === "CPC" ? (m?.value ?? "").replace("$", "AED ") : (m?.value ?? "—")}
               </p>
               <div className="flex items-center gap-1 mt-1">
-                {m.delta.type === "positive" ? (
+                {m?.delta?.type === "positive" ? (
                   <TrendingUp className="h-3 w-3 text-emerald-400" />
                 ) : (
                   <TrendingDown className="h-3 w-3 text-rose-400" />
                 )}
                 <span className="text-xs text-muted-foreground font-mono">
-                  {m.delta.value > 0 ? "+" : ""}{m.delta.value}
+                  {(m?.delta?.value ?? 0) > 0 ? "+" : ""}{m?.delta?.value ?? 0}
                 </span>
               </div>
             </CardContent>
@@ -762,7 +762,7 @@ function MetaAdsTab({ dateRange }: { dateRange: string }) {
                 </tr>
               </thead>
               <tbody>
-                {data.campaigns.map((c, i) => (
+                {(data.campaigns || []).map((c, i) => (
                   <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                     <td className="py-2 px-3 max-w-[200px] truncate">{c.campaign}</td>
                     <td className="py-2 px-3">
@@ -800,17 +800,17 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {data.metrics.map((m, i) => (
+        {(data.metrics || []).map((m, i) => (
           <Card key={i} className="bg-black/40">
             <CardContent className="pt-6">
-              <p className="text-xs text-muted-foreground mb-1">{m.label}</p>
+              <p className="text-xs text-muted-foreground mb-1">{m?.label ?? ""}</p>
               <XRayTooltip
-                title={m.label}
+                title={m?.label ?? ""}
                 insights={[{ label: "Source", value: "Stripe + Meta + HubSpot" }]}
-                summary={`${m.label} calculated from real transaction and ad data.`}
+                summary={`${m?.label ?? ""} calculated from real transaction and ad data.`}
               >
                 <p className="text-2xl font-mono font-bold">
-                  {(m.value ?? "").replace(/\$/g, "AED ")}
+                  {(m?.value ?? "").replace(/\$/g, "AED ")}
                 </p>
               </XRayTooltip>
             </CardContent>
@@ -838,7 +838,7 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                 </tr>
               </thead>
               <tbody>
-                {data.campaignROI.map((c, i) => (
+                {(data.campaignROI || []).map((c, i) => (
                   <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                     <td className="py-2 px-3 max-w-[200px] truncate">{c.campaign}</td>
                     <td className="py-2 px-3 text-right font-mono">AED {(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -877,7 +877,7 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {deepData.cohortAnalysis.map((c, i) => (
+                  {(deepData?.cohortAnalysis || []).map((c, i) => (
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{c.month}</td>
                       <td className="py-2 px-3 text-right font-mono">{(c.leads ?? 0)}</td>
@@ -1033,7 +1033,7 @@ function SourceTruthTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sourceAlignment.details.map((row, i) => (
+                  {(sourceAlignment?.details || []).map((row, i) => (
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono text-xs">{row.report_date}</td>
                       <td className="py-2 px-3 max-w-[180px] truncate">{row.campaign_name}</td>
@@ -1097,7 +1097,7 @@ function SourceTruthTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {triangleData.map((row: any, i: number) => (
+                  {(triangleData || []).map((row: any, i: number) => (
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{row.month}</td>
                       <td className="py-2 px-3 text-right font-mono text-rose-400">AED {row.meta_ad_spend?.toLocaleString() ?? 0}</td>
