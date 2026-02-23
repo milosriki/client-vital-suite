@@ -859,6 +859,8 @@ REMEMBER: You are Mark. A supportive Transformation Coach. Your focus is 100% on
 
 MISSION: Absolute truth and aggressive sales conversion.
 
+${UNIFIED_ATLAS_PROMPT}
+
 
 ## 💰 FINANCIAL TRUTH PROTOCOL (STRICT)
 1. **REVENUE QUESTIONS**: You MUST use the 'revenue_intelligence' tool. This is the only source of truth for "Validated Revenue" ($9.9M+). 
@@ -1035,7 +1037,30 @@ ${activeLearnings}
     );
   }
 
-  const finalResponse = currentResponse.content;
+  let finalResponse = currentResponse.content;
+
+  // ============= POST-PROCESSING: Extract & Store Atlas Actions =============
+  // Only for CEO/dashboard mode — WhatsApp (Lisa) never generates actions
+  if (!isWhatsApp) {
+    try {
+      const { cleanResponse, actionsInserted } = await extractAndStoreActions(
+        supabase,
+        finalResponse,
+      );
+      finalResponse = cleanResponse;
+      if (actionsInserted > 0) {
+        console.log(
+          `Atlas Actions: ${actionsInserted} action(s) stored in atlas_actions table`,
+        );
+      }
+    } catch (actionsErr) {
+      console.error("Atlas actions extraction error (non-critical):", actionsErr);
+      // Strip the actions block even if storage fails — don't leak it to UI
+      finalResponse = finalResponse
+        .replace(/```atlas_actions\s*\n[\s\S]*?\n```/, "")
+        .trim();
+    }
+  }
 
   // Save to memory (was previously missing — agent never learned from conversations)
   try {
@@ -1049,6 +1074,129 @@ ${activeLearnings}
   );
 
   return finalResponse;
+}
+
+// ============= ATLAS ACTIONS: EXTRACT & STORE =============
+
+interface AtlasAction {
+  action_type: string;
+  title: string;
+  description?: string;
+  priority?: number;
+  contact_id?: string | null;
+  deal_id?: string | null;
+  assigned_to?: string | null;
+  due_date?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+const VALID_ACTION_TYPES = new Set([
+  "call_lead",
+  "move_deal",
+  "follow_up",
+  "escalate",
+  "review",
+]);
+
+const VALID_STATUSES = new Set([
+  "pending",
+  "in_progress",
+  "completed",
+  "dismissed",
+]);
+
+/**
+ * Extracts structured atlas_actions JSON from the AI response and stores them in the database.
+ * Returns the response with the actions block stripped out (clean for the user).
+ */
+async function extractAndStoreActions(
+  supabase: any,
+  response: string,
+): Promise<{ cleanResponse: string; actionsInserted: number }> {
+  // Match the fenced atlas_actions block
+  const actionsMatch = response.match(
+    /```atlas_actions\s*\n([\s\S]*?)\n```/,
+  );
+
+  if (!actionsMatch) {
+    return { cleanResponse: response, actionsInserted: 0 };
+  }
+
+  const jsonStr = actionsMatch[1].trim();
+  const cleanResponse = response
+    .replace(/```atlas_actions\s*\n[\s\S]*?\n```/, "")
+    .trim();
+
+  let actions: AtlasAction[] = [];
+  try {
+    const parsed = JSON.parse(jsonStr);
+    actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+  } catch (e) {
+    console.error("Failed to parse atlas_actions JSON:", e);
+    return { cleanResponse, actionsInserted: 0 };
+  }
+
+  if (actions.length === 0) {
+    return { cleanResponse, actionsInserted: 0 };
+  }
+
+  // Validate and sanitize each action before insert
+  const validActions = actions
+    .filter((a) => {
+      if (!a.action_type || !a.title) {
+        console.warn("Skipping action with missing type or title:", a);
+        return false;
+      }
+      if (!VALID_ACTION_TYPES.has(a.action_type)) {
+        console.warn(`Skipping action with invalid type: ${a.action_type}`);
+        return false;
+      }
+      return true;
+    })
+    .map((a) => ({
+      action_type: a.action_type,
+      title: a.title.slice(0, 255),
+      description: a.description?.slice(0, 2000) || null,
+      priority: Math.min(10, Math.max(1, a.priority || 5)),
+      status: "pending" as const,
+      contact_id: isValidUUID(a.contact_id) ? a.contact_id : null,
+      deal_id: isValidUUID(a.deal_id) ? a.deal_id : null,
+      assigned_to: a.assigned_to || null,
+      due_date: a.due_date || null,
+      metadata: a.metadata || {},
+    }));
+
+  if (validActions.length === 0) {
+    return { cleanResponse, actionsInserted: 0 };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("atlas_actions")
+      .insert(validActions)
+      .select("id");
+
+    if (error) {
+      console.error("Failed to insert atlas_actions:", error.message);
+      return { cleanResponse, actionsInserted: 0 };
+    }
+
+    console.log(
+      `Atlas Actions: inserted ${data?.length || 0} actions into atlas_actions table`,
+    );
+    return { cleanResponse, actionsInserted: data?.length || 0 };
+  } catch (e) {
+    console.error("atlas_actions insert exception:", e);
+    return { cleanResponse, actionsInserted: 0 };
+  }
+}
+
+/** UUID v4 format check */
+function isValidUUID(val: unknown): val is string {
+  if (typeof val !== "string" || !val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    val,
+  );
 }
 
 // ============= MAIN SERVER HANDLER =============
