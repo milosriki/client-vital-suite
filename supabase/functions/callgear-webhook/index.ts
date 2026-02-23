@@ -61,12 +61,34 @@ serve(async (req) => {
     const payload: CallGearNotification = await req.json();
     console.log("CallGear webhook received:", JSON.stringify(payload));
 
+    // Validate required fields
     if (!payload.call_session_id) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing call_session_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Validate event type
+    const validEvents = [
+      "call.completed", "call_finished", "call.missed", "lost_call",
+      "call.started", "call.answered", "call.transferred"
+    ];
+    if (payload.event && !validEvents.includes(payload.event)) {
+      console.warn(`Unknown CallGear event type: ${payload.event}`);
+    }
+
+    // Basic payload sanity check — reject obviously malformed data
+    if (typeof payload.call_session_id !== "string" || payload.call_session_id.length > 255) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid call_session_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // TODO: Add HMAC-SHA256 signature verification when CallGear provides webhook signing
+    // const signature = req.headers.get("X-CallGear-Signature");
+    // if (signature) { verify(signature, body, secret); }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

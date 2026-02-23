@@ -42,8 +42,8 @@ serve(async (req) => {
     const { eventData, mode = 'test' } = await req.json();
     
     const STAPE_CAPIG_API_KEY = Deno.env.get('STAPE_CAPIG_API_KEY');
-    const STAPE_URL = 'https://ap.stape.info';
-    const CAPIG_IDENTIFIER = 'ecxdsmmg';
+    const STAPE_URL = Deno.env.get('STAPE_URL') || 'https://ap.stape.info';
+    const CAPIG_IDENTIFIER = Deno.env.get('STAPE_CAPIG_IDENTIFIER') || 'ecxdsmmg';
     
     // Stape is optional - if no key, return success but don't send
     if (!STAPE_CAPIG_API_KEY) {
@@ -74,7 +74,7 @@ serve(async (req) => {
       event_name: eventData.event_name || 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
       action_source: 'website',
-      event_source_url: 'https://www.personaltrainersdubai.com',
+      event_source_url: Deno.env.get('EVENT_SOURCE_URL') || 'https://www.personaltrainersdubai.com',
       user_data: {
         em: hashedEmail,  // SHA-256 hashed email
         ph: hashedPhone,  // SHA-256 hashed phone

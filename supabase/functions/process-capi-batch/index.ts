@@ -50,8 +50,8 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const STAPE_URL = 'https://ap.stape.info';
-    const CAPIG_IDENTIFIER = 'ecxdsmmg';
+    const STAPE_URL = Deno.env.get('STAPE_URL') || 'https://ap.stape.info';
+    const CAPIG_IDENTIFIER = Deno.env.get('STAPE_CAPIG_IDENTIFIER') || 'ecxdsmmg';
 
     console.log('Processing CAPI batch:', { batch_id, limit, mode });
 
@@ -127,7 +127,7 @@ serve(async (req) => {
         const payload: any = {
           event_name: event.event_name,
           event_time: Math.floor(new Date(event.event_time).getTime() / 1000),
-          event_source_url: event.event_source_url || 'https://www.personaltrainersdubai.com',
+          event_source_url: event.event_source_url || Deno.env.get('EVENT_SOURCE_URL') || 'https://www.personaltrainersdubai.com',
           action_source: event.action_source || 'website',
           user_data: userData,
           custom_data: {

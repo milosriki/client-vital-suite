@@ -22,6 +22,10 @@
     <script src="https://fast.wistia.com/player.js" async></script>
 
     <!-- 3. TYPEFORM SDK -->
+    <!-- TODO: TypeForm forms (GTp9Uet7) are dead-ends — submissions stay in TypeForm only.
+         Action needed: 1) Create typeform-webhook edge function to receive submissions
+         2) Add hidden fields for utm_source, utm_medium, utm_campaign, fbclid, gclid
+         3) Pre-fill hidden fields via JS before popup opens (iframe isolation strips URL params) -->
     <script src="//embed.typeform.com/next/embed.js"></script>
 
     <!-- 4. TAILWIND CSS -->

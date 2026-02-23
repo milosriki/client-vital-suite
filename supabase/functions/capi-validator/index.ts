@@ -294,20 +294,14 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[CAPI Validator] Complete in ${duration}ms:`, summary);
 
-    return apiError("INTERNAL_ERROR", JSON.stringify({
-      success: true,
+    return apiSuccess({
       duration_ms: duration,
       summary,
       results: results.slice(0, 50) // Limit response size
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
   } catch (error: unknown) {
     console.error("[CAPI Validator] Error:", error);
-    return apiSuccess({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Unknown error", 500);
   }
 });

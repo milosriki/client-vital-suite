@@ -60,7 +60,10 @@ async function checkMetaApiHealth(): Promise<"healthy" | "degraded" | "down" | "
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/me?access_token=${META_ACCESS_TOKEN}`
+      `https://graph.facebook.com/v18.0/me`,
+      {
+        headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` },
+      }
     );
 
     if (response.status === 200) return "healthy";
@@ -133,7 +136,10 @@ async function handleAuthError(error: Record<string, unknown>): Promise<MetaErro
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/me?access_token=${META_ACCESS_TOKEN}`
+      `https://graph.facebook.com/v18.0/me`,
+      {
+        headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` },
+      }
     );
 
     if (response.status === 200) {
@@ -449,19 +455,13 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[Meta Error Handler] Complete in ${duration}ms - ${resolutionsSuccessful}/${(errors || []).length} resolved`);
 
-    return apiError("INTERNAL_ERROR", JSON.stringify({
-      success: true,
+    return apiSuccess({
       duration_ms: duration,
       report,
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
   } catch (error: unknown) {
     console.error("[Meta Error Handler] Error:", error);
-    return apiSuccess({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Unknown error", 500);
   }
 });
