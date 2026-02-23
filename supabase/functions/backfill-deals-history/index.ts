@@ -17,7 +17,6 @@ const corsHeaders = {
 };
 
 const BATCH_SIZE = 100;
-const START_DATE = "2024-01-01T00:00:00.000Z";
 
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
@@ -64,14 +63,9 @@ serve(async (req) => {
           {
             filters: [
               {
-                propertyName: "closedate",
-                operator: "GTE",
-                value: new Date(START_DATE).getTime().toString(),
-              },
-              {
-                propertyName: "amount",
-                operator: "GT",
-                value: "0",
+                propertyName: "dealstage",
+                operator: "EQ",
+                value: "closedwon",
               },
             ],
           },
@@ -144,14 +138,12 @@ serve(async (req) => {
       }
     }
 
-    return apiError("INTERNAL_ERROR", JSON.stringify({
+    return apiSuccess({
         success: true,
         total_synced: totalSynced,
         stage_breakdown: stageStats,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+      });
   } catch (error: unknown) {
-    return apiSuccess({ error: error.message });
+    return apiError("INTERNAL_ERROR", (error as Error).message);
   }
 });

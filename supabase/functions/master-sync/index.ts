@@ -286,10 +286,13 @@ serve(async (req) => {
 
       const upsertData = allDeals.map((d: any) => {
         const p = d.properties;
+        const amt = p.amount ? Number(p.amount) : null;
         return {
           hubspot_deal_id: d.id,
           deal_name: p.dealname,
-          amount: p.amount ? Number(p.amount) : null,
+          amount: amt,
+          deal_value: amt,
+          value_aed: amt,
           deal_stage: p.dealstage,
           pipeline: p.pipeline,
           close_date: p.closedate,
