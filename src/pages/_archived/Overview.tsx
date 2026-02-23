@@ -42,7 +42,15 @@ import { getBusinessTodayString, getBusinessDate } from "@/lib/date-utils";
 const Overview = () => {
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupStatus, setSetupStatus] = useState("");
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<{
+    type: string;
+    message: string;
+    error: unknown;
+    timestamp: string;
+    executionError?: unknown;
+    workflowErrors?: Array<{ workflow: string; message: string; details?: string }>;
+    fullResponse?: unknown;
+  } | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [zoneFilter, setZoneFilter] = useState<string | null>(null);
   const { toast } = useToast();

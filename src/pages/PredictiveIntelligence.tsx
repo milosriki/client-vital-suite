@@ -245,13 +245,13 @@ export default function PredictiveIntelligence() {
     try {
       // Find email from packages
       const { data: pkg } = await supabase
-        .from("client_packages_live" as never)
+        .from("client_packages_live")
         .select("client_email")
         .eq("client_name", clientName)
         .limit(1)
         .maybeSingle();
 
-      const email = (pkg as any)?.client_email;
+      const email = pkg?.client_email;
       if (!email) {
         setAiAdvisory("Could not find client email. Please try again.");
         return;
@@ -281,7 +281,7 @@ export default function PredictiveIntelligence() {
 
   const getRecommendedAction = (c: ClientPrediction) => {
     // Use ML-generated action if available
-    const mlAction = (c.churn_factors as any)?.recommended_action;
+    const mlAction = (c.churn_factors as Record<string, unknown>)?.recommended_action as string | undefined;
     if (mlAction) return mlAction;
 
     if (c.churn_score >= 70) {
@@ -297,7 +297,7 @@ export default function PredictiveIntelligence() {
     return "Continue current engagement — monitor monthly";
   };
 
-  const cf = selectedClient?.churn_factors as any;
+  const cf = selectedClient?.churn_factors;
 
   return (
     <div className="space-y-6 p-6">
@@ -379,7 +379,7 @@ export default function PredictiveIntelligence() {
               </TableHeader>
               <TableBody>
                 {sortedClients.map((c: ClientPrediction) => {
-                  const factors = c.churn_factors as any;
+                  const factors = c.churn_factors;
                   return (
                     <TableRow
                       key={c.client_id}

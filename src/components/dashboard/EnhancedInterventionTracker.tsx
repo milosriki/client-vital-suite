@@ -21,17 +21,46 @@ import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
 import { QUERY_KEYS } from "@/config/queryKeys";
 
+interface InterventionItem {
+  id: number;
+  email: string;
+  firstname: string | null;
+  lastname: string | null;
+  client_email?: string;
+  intervention_type: string;
+  intervention_date: string | null;
+  triggered_at: string | null;
+  status: string | null;
+  priority: string | null;
+  assigned_to: string | null;
+  executed_by: string | null;
+  health_score_at_trigger: number | null;
+  health_zone_at_trigger: string | null;
+  health_score_after: number | null;
+  health_zone: string | null;
+  ai_recommendation: string | null;
+  outcome: string | null;
+  notes: string | null;
+  trigger_reason: string | null;
+  revenue_protected_aed: number | null;
+  completed_at: string | null;
+  actioned_at?: string | null;
+  created_at: string | null;
+  created_by?: string | null;
+  success_probability?: number | null;
+}
+
 interface InterventionTrackerProps {
-  interventions: any[];
+  interventions: InterventionItem[];
   isLoading: boolean;
 }
 
 export function EnhancedInterventionTracker({ interventions, isLoading }: InterventionTrackerProps) {
   const queryClient = useQueryClient();
-  const [selectedIntervention, setSelectedIntervention] = useState<any>(null);
+  const [selectedIntervention, setSelectedIntervention] = useState<InterventionItem | null>(null);
   const [notes, setNotes] = useState("");
 
-  const handlePhoneClick = async (intervention: any) => {
+  const handlePhoneClick = async (intervention: InterventionItem) => {
     const email = intervention.email || intervention.client_email;
     if (!email) {
       toast({ title: "No phone number available", description: "No email on record to look up phone number." });
@@ -53,11 +82,11 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
     window.open(`tel:${contact.phone}`, "_self");
   };
 
-  const handleCalendarClick = (intervention: any) => {
+  const handleCalendarClick = (_intervention: InterventionItem) => {
     toast({ title: "No calendar link available", description: "No booking URL is configured for this contact." });
   };
 
-  const logAiFeedback = async (intervention: any, feedbackNotes?: string) => {
+  const logAiFeedback = async (intervention: InterventionItem, feedbackNotes?: string) => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       const createdBy = userData?.user?.id || intervention?.created_by || null;
@@ -129,7 +158,7 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
     };
   };
 
-  const handleMarkExecuted = async (intervention: any) => {
+  const handleMarkExecuted = async (intervention: InterventionItem) => {
     const { error } = await supabase
       .from("intervention_log")
       .update({

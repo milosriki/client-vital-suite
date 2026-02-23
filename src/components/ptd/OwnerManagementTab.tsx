@@ -18,7 +18,12 @@ export function OwnerManagementTab() {
   const [maxReassignments, setMaxReassignments] = useState(50);
   const [slaMinutes, setSlaMinutes] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+  }>>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   // Fetch owners for dropdown
@@ -115,7 +120,7 @@ export function OwnerManagementTab() {
     queryFn: async () => {
       // Try to fetch from reassignment_log if it exists
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("reassignment_log")
           .select("contact_id, old_owner_id, new_owner_id, reason, reassigned_at")
           .order("reassigned_at", { ascending: false })

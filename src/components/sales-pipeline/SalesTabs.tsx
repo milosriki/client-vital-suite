@@ -717,12 +717,12 @@ function FollowUpTab() {
     queryKey: ['lost-deal-followups'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('view_lost_deal_followups' as any)
+        .from('view_lost_deal_followups')
         .select('*')
         .in('followup_priority', ['HOT', 'WARM', 'COOL'])
         .order('days_since_lost', { ascending: true });
       if (error) throw error;
-      return data as any[];
+      return data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -762,7 +762,7 @@ function FollowUpTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {followups.map((f: any) => (
+              {followups.map((f) => (
                 <TableRow key={f.deal_id} className="cursor-pointer hover:bg-muted/30 transition-colors duration-150">
                   <TableCell>
                     <Badge className={priorityColor[f.followup_priority] || 'bg-gray-500'}>

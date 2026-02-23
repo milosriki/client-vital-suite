@@ -92,7 +92,7 @@ export function AIAssistantPanel() {
     queryFn: async (): Promise<ProactiveInsight[]> => {
       try {
         // Using raw query since table may not exist in schema yet
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("proactive_insights")
           .select("id, insight_type, priority, title, content, is_dismissed, created_at")
           .eq("is_dismissed", false)
@@ -127,7 +127,7 @@ export function AIAssistantPanel() {
     queryFn: async (): Promise<Message[]> => {
       try {
         // Using raw query since table may not exist in schema yet
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("agent_conversations")
           .select("id, role, content, session_id, created_at")
           .eq("session_id", sessionId)
@@ -184,7 +184,7 @@ export function AIAssistantPanel() {
         speak(textToSpeak);
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error("Error sending message:", error);
       toast({
         title: "AI Agent Error",
@@ -199,7 +199,7 @@ export function AIAssistantPanel() {
   // Dismiss insight
   const dismissInsight = useMutation({
     mutationFn: async (insightId: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("proactive_insights")
         .update({ is_dismissed: true })
         .eq("id", insightId);
@@ -236,7 +236,7 @@ export function AIAssistantPanel() {
     setQuery("");
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: string): "destructive" | "secondary" | "outline" => {
     switch (priority) {
       case "critical":
         return "destructive";
@@ -328,7 +328,7 @@ export function AIAssistantPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <Badge
-                          variant={getPriorityColor(insight.priority) as any}
+                          variant={getPriorityColor(insight.priority)}
                           className="text-xs"
                         >
                           {insight.priority}
@@ -559,7 +559,7 @@ export function AIAssistantButton({ onClick }: { onClick: () => void }) {
     queryKey: ["proactive-insights-count"],
     queryFn: async (): Promise<number> => {
       try {
-        const { count, error } = await (supabase as any)
+        const { count, error } = await supabase
           .from("proactive_insights")
           .select("*", { count: "exact", head: true })
           .eq("is_dismissed", false)

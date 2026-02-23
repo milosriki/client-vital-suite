@@ -16,7 +16,10 @@ const MAX_FAILURES = 10;
 export function BrainVisualizer() {
   const [chunks, setChunks] = useState<KnowledgeChunk[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<{
+    total_knowledge_chunks?: number;
+    total_memories?: number;
+  } | null>(null);
   const [connectionLost, setConnectionLost] = useState(false);
   const failureCount = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

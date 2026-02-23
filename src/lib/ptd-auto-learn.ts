@@ -230,8 +230,8 @@ export async function learnRecentData() {
 export async function getDynamicMegaPrompt(): Promise<string> {
   try {
     const [structure, patterns, recentMemories] = await Promise.all([
-      supabase.from('agent_context').select('value').eq('key', 'system_structure').single(),
-      supabase.from('agent_context').select('value').eq('key', 'data_patterns').single(),
+      supabase.from('agent_context').select('value').eq('key', 'system_structure').maybeSingle(),
+      supabase.from('agent_context').select('value').eq('key', 'data_patterns').maybeSingle(),
       supabase.from('agent_memory')
         .select('query, response, knowledge_extracted')
         .order('created_at', { ascending: false })

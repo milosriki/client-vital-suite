@@ -15,6 +15,18 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
+interface CAPIEvent {
+  id: string;
+  event_name: string;
+  event_time: string;
+  currency: string;
+  value_aed: number;
+  email: string;
+  status: string;
+  created_at: string;
+  mode?: string;
+}
+
 interface CAPITabProps {
   mode: "test" | "live";
 }
@@ -28,7 +40,21 @@ export default function CAPITab({ mode }: CAPITabProps) {
   const [fbc, setFbc] = useState("");
   const [useTestCode, setUseTestCode] = useState(mode === "test");
   const [testCode, setTestCode] = useState("TEST12345");
-  const [payload, setPayload] = useState<any>(null);
+  const [payload, setPayload] = useState<{
+    event_name: string;
+    event_time: number;
+    event_id: string;
+    event_source_url: string;
+    action_source: string;
+    user_data: Record<string, string | null>;
+    custom_data: {
+      currency: string;
+      value: number;
+      content_name: string;
+      content_category: string;
+    };
+    test_event_code?: string;
+  } | null>(null);
   const [emqEstimate, setEmqEstimate] = useState<number | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,14 +66,14 @@ export default function CAPITab({ mode }: CAPITabProps) {
   const { data: events, refetch } = useDedupedQuery({
     queryKey: ["capi-events", mode],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("capi_events" as any)
+      const { data, error } = await supabase
+        .from("capi_events" as never)
         .select("id, event_name, event_time, currency, value_aed, email, status, created_at")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
-        .limit(50) as any);
+        .limit(50) as unknown as { data: CAPIEvent[] | null; error: Error | null };
       if (error) throw error;
-      return data as any[];
+      return data ?? [];
     },
   });
 
@@ -102,7 +128,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  const calculateEMQ = (hashedPayload: any): number => {
+  const calculateEMQ = (hashedPayload: Record<string, Record<string, string | null>>): number => {
     let score = 0;
     const maxScore = 10;
     
@@ -203,14 +229,14 @@ export default function CAPITab({ mode }: CAPITabProps) {
     
     // Log to automation_logs in Supabase
     try {
-      const { error } = await (supabase
-        .from('automation_logs' as any)
+      const { error } = await supabase
+        .from('automation_logs' as never)
         .insert({
           action_type: 'capi_simulate',
           mode,
           payload,
           status: 'simulated',
-        }) as any);
+        } as Record<string, unknown>) as unknown as { error: Error | null };
 
       if (error) throw error;
 
@@ -923,7 +949,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events?.map((event: any) => (
+                {events?.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell className="font-medium">{event.event_name}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -984,7 +1010,7 @@ export default function CAPITab({ mode }: CAPITabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events?.map((event: any) => (
+                {events?.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell className="font-medium">{event.event_name}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">

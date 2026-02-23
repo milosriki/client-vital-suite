@@ -126,7 +126,7 @@ export function useSessionIntelligence() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("training_sessions_live" as never)
-        .select("*")
+        .select("id, client_id, client_name, client_email, coach_id, coach_name, training_date, session_type, status, location, time_slot, package_code")
         .order("training_date", { ascending: false })
         .limit(50000);
       if (error) throw error;

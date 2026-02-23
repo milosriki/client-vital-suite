@@ -99,22 +99,27 @@ export default function MillionDollarPanel() {
   const [leads, setLeads] = useState<number>(0);
   const [roas, setRoas] = useState<number>(0);
 
-  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [healthStatus, setHealthStatus] = useState<{
+    executive_briefing: string | null;
+    system_health_status: string | null;
+    action_plan: unknown[] | null;
+  } | null>(null);
 
   const refreshData = async () => {
     setLoading(true);
     try {
       // 1. Fetch Dashboard Stats (RPC)
-      const { data: stats, error } = await (supabase.rpc as any)(
+      const { data: stats, error } = await supabase.rpc(
         "get_dashboard_stats",
       );
 
       if (error) throw error;
 
       // Extract values from RPC
-      const revenueVal = (stats as any).revenue_this_month || 0;
-      const trendVal = (stats as any).revenue_trend || 0;
-      const pipelineVal = (stats as any).pipeline_value || 0;
+      const statsObj = stats as Record<string, unknown> | null;
+      const revenueVal = Number(statsObj?.revenue_this_month) || 0;
+      const trendVal = Number(statsObj?.revenue_trend) || 0;
+      const pipelineVal = Number(statsObj?.pipeline_value) || 0;
 
       setRevenue({ amount: revenueVal, currency: "AED" });
 

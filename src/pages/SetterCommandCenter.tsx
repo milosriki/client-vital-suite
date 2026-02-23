@@ -112,7 +112,7 @@ export default function SetterCommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("call_records")
-        .select("*")
+        .select("id, caller_number, caller_name, owner_name, call_status, call_outcome, duration_seconds, created_at, started_at")
         .gte("created_at", startOfRange.toISOString())
         .lte("created_at", endOfToday.toISOString())
         .order("created_at", { ascending: false });

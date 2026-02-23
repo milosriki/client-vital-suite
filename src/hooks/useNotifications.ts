@@ -17,7 +17,7 @@ export const useNotifications = () => {
       message: notification.message,
       category: notification.category || "system",
       metadata: notification.metadata || {},
-    } as any);
+    });
     if (error) console.error("Error creating notification:", error);
   };
 

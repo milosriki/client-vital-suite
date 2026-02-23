@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { DEAL_STAGES } from "@/constants/dealStages";
 import {
   Card,
@@ -44,11 +45,61 @@ import { getBusinessDate } from "@/lib/date-utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { toast } from "sonner";
 
+interface ClosedDeal {
+  id: string;
+  deal_name: string | null;
+  deal_value: number;
+  stage: string | null;
+  updated_at: string | null;
+  contact_id?: string | null;
+}
+
+interface SetterFunnel {
+  setter_name: string | null;
+  total_leads: number | null;
+  deals_created: number | null;
+  booked: number | null;
+  held: number | null;
+  closed_won: number | null;
+  closed_lost: number | null;
+  closed_won_value: number | null;
+  lead_to_deal_pct: number | null;
+  book_to_held_pct: number | null;
+  ghost_rate_pct: number | null;
+  held_to_close_pct: number | null;
+}
+
+interface NoShowRecord {
+  contact_name: string | null;
+  first_name: string | null;
+  deal_name: string | null;
+  email: string | null;
+  coach: string | null;
+  assigned_coach: string | null;
+  stage_label: string | null;
+  deal_stage: string | null;
+  stage: string | null;
+  truth_status: string | null;
+  utm_campaign: string | null;
+  source_campaign: string | null;
+}
+
+interface CoachPerfRecord {
+  id: number;
+  coach_name: string;
+  total_clients: number | null;
+  avg_health_score: number | null;
+  clients_improving: number | null;
+  clients_declining: number | null;
+  trend: string | null;
+  report_date: string;
+}
+
 const SalesCoachTracker = () => {
-  const [selectedDeal, setSelectedDeal] = useState<any>(null);
-  const [selectedSetter, setSelectedSetter] = useState<any>(null);
-  const [selectedNoShow, setSelectedNoShow] = useState<any>(null);
-  const [selectedCoach, setSelectedCoach] = useState<any>(null);
+  const [selectedDeal, setSelectedDeal] = useState<ClosedDeal | null>(null);
+  const [selectedSetter, setSelectedSetter] = useState<SetterFunnel | null>(null);
+  const [selectedNoShow, setSelectedNoShow] = useState<NoShowRecord | null>(null);
+  const [selectedCoach, setSelectedCoach] = useState<CoachPerfRecord | null>(null);
 
   const now = getBusinessDate();
   const currentMonthStart = startOfMonth(now);

@@ -20,6 +20,13 @@ import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import type { CoachPerformance } from "@/types/database";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClientPackageLive = Database["public"]["Tables"]["client_packages_live"]["Row"];
+type ClientPrediction = Database["public"]["Tables"]["client_predictions"]["Row"];
+type ClientHealthScore = Database["public"]["Tables"]["client_health_scores"]["Row"];
+type TrainingSessionLive = Database["public"]["Tables"]["training_sessions_live"]["Row"];
+type CallRecord = Database["public"]["Tables"]["call_records"]["Row"];
 
 // ── Types ──
 interface EnrichedClient {
@@ -117,16 +124,16 @@ export default function Coaches() {
   const { data: coaches, isLoading: coachLoading, refetch } = useDedupedQuery<CoachPerformance[]>({
     queryKey: ["coach-performance-latest"],
     queryFn: async () => {
-      const { data: latestDate } = await (supabase as any)
+      const { data: latestDate } = await supabase
         .from("coach_performance")
         .select("report_date")
         .order("report_date", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!latestDate?.report_date) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("coach_performance")
-        .select("*")
+        .select("report_date, coach_name, avg_client_health, clients_red, clients_yellow, clients_green")
         .eq("report_date", latestDate.report_date)
         .order("avg_client_health", { ascending: false });
       if (error) throw error;
@@ -135,39 +142,39 @@ export default function Coaches() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: packages } = useDedupedQuery<any[]>({
+  const { data: packages } = useDedupedQuery<ClientPackageLive[]>({
     queryKey: ["client-packages-live"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("client_packages_live" as never).select("*");
+      const { data, error } = await supabase.from("client_packages_live").select("client_id, client_name, client_email, client_phone, last_coach, remaining_sessions, pack_size, package_value, sessions_per_week, future_booked, last_session_date");
       if (error) throw error;
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: predictions } = useDedupedQuery<any[]>({
+  const { data: predictions } = useDedupedQuery<ClientPrediction[]>({
     queryKey: ["client-predictions"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("client_predictions" as never).select("*");
+      const { data, error } = await supabase.from("client_predictions").select("client_id, churn_score, churn_factors, revenue_at_risk, predicted_churn_date");
       if (error) throw error;
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: healthScores } = useDedupedQuery<any[]>({
+  const { data: healthScores } = useDedupedQuery<ClientHealthScore[]>({
     queryKey: ["client-health-latest"],
     queryFn: async () => {
-      const { data: latest } = await (supabase as any)
+      const { data: latest } = await supabase
         .from("client_health_scores")
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!latest?.calculated_on) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("client_health_scores")
-        .select("*")
+        .select("id, email, health_score, health_zone, churn_risk_score, calculated_on, assigned_coach, firstname, lastname, outstanding_sessions, package_value_aed, sessions_last_7d, sessions_last_30d")
         .eq("calculated_on", latest.calculated_on);
       if (error) throw error;
       return data || [];
@@ -175,10 +182,10 @@ export default function Coaches() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: sessions } = useDedupedQuery<any[]>({
+  const { data: sessions } = useDedupedQuery<TrainingSessionLive[]>({
     queryKey: ["training-sessions-live"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("training_sessions_live" as never).select("*");
+      const { data, error } = await supabase.from("training_sessions_live").select("client_id, client_name, session_date, date");
       if (error) throw error;
       return data || [];
     },
@@ -186,12 +193,12 @@ export default function Coaches() {
   });
 
   // Fetch call records for last-call-date lookup
-  const { data: callRecords } = useDedupedQuery<any[]>({
+  const { data: callRecords } = useDedupedQuery<Pick<CallRecord, "caller_number" | "started_at" | "call_direction">[]>({
     queryKey: ["call-records-recent"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("call_records" as never)
-        .select("caller_number, started_at, call_direction" as any)
+        .from("call_records")
+        .select("caller_number, started_at, call_direction")
         .order("started_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
@@ -204,9 +211,9 @@ export default function Coaches() {
   const callMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of callRecords || []) {
-      const phone = (c as any).caller_number?.replace(/\D/g, "");
+      const phone = c.caller_number?.replace(/\D/g, "");
       if (phone && !map.has(phone)) {
-        map.set(phone, (c as any).started_at);
+        map.set(phone, c.started_at ?? "");
       }
     }
     return map;

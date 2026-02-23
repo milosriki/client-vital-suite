@@ -124,7 +124,7 @@ export function usePeriodComparison() {
 
         // 7. Daily business metrics (recent 7d for ROAS trend)
         supabase
-          .from("daily_business_metrics" as any)
+          .from("daily_business_metrics")
           .select(
             "date, roas_daily, ad_spend_facebook, total_leads_new, total_revenue_booked",
           )
@@ -136,7 +136,7 @@ export function usePeriodComparison() {
 
         // 8. Daily business metrics (prior 7d for ROAS comparison)
         supabase
-          .from("daily_business_metrics" as any)
+          .from("daily_business_metrics")
           .select(
             "date, roas_daily, ad_spend_facebook, total_leads_new, total_revenue_booked",
           )

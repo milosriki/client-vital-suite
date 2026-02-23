@@ -54,7 +54,7 @@ export interface AIOptions {
 // ============================================================================
 
 // Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
-// UPDATED 2026-02-22: Upgraded for Gemini 3.1 and Claude 4.6 (2026 Era)
+// UPDATED 2026-02-23: Gemini 3.1 cascade + DeepSeek fallback
 const GEMINI_CASCADE = [
   "gemini-3.1-pro",        // Primary: 10M context, deep reasoning
   "gemini-3.1-flash",      // Setter: High speed, low cost, strong reasoning
@@ -65,11 +65,6 @@ const GEMINI_CASCADE = [
 const DEEPSEEK_MODELS = [
   "deepseek-chat",        // DeepSeek V3
   "deepseek-reasoner",    // DeepSeek R1
-] as const;
-
-const CLAUDE_MODELS = [
-  "claude-4.6-opus",      // CEO-Class Reasoning
-  "claude-3.7-sonnet",    // Coding
 ] as const;
 
 const MODEL_CASCADE = [...GEMINI_CASCADE] as const;
@@ -238,7 +233,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
     // Agent-Specific Model Selection (2026 Standards)
     if (!options.model) {
       if (options.agentType === "atlas") {
-        options.model = "claude-4.6-opus"; // Riki gets the CEO brain
+        options.model = "gemini-3.1-pro"; // Atlas gets the deep reasoning brain
       } else if (options.agentType === "lisa") {
         options.model = "gemini-3.1-flash"; // Lisa gets the Setter brain (Speed + IQ)
       } else {

@@ -72,7 +72,7 @@ export const useDeepAnalysis = (dateRange: string) => {
       // Fetch current period data
       const { data: currentData, error: currentError } = await supabase
         .from("facebook_ads_insights")
-        .select("*")
+        .select("spend, leads, clicks, impressions, conversions, frequency, date, campaign_name, purchase_value")
         .gte("date", startDate)
         .lte("date", endDate);
 
@@ -86,7 +86,7 @@ export const useDeepAnalysis = (dateRange: string) => {
 
       const { data: baselineData, error: baselineError } = await supabase
         .from("facebook_ads_insights")
-        .select("*")
+        .select("spend, leads, clicks, impressions, conversions, frequency, date, campaign_name, purchase_value")
         .gte("date", baselineStart.toISOString().split("T")[0])
         .lte("date", baselineEnd.toISOString().split("T")[0]);
 
@@ -179,7 +179,7 @@ export const useDeepAnalysis = (dateRange: string) => {
 
         const { data: monthData } = await supabase
           .from("facebook_ads_insights")
-          .select("*")
+          .select("spend, leads, clicks, impressions, conversions, frequency, date, campaign_name, purchase_value")
           .gte("date", monthStart.toISOString().split("T")[0])
           .lte("date", monthEnd.toISOString().split("T")[0]);
 
@@ -222,7 +222,7 @@ export const useMetaAds = (dateRange: string) => {
 
       const { data, error } = await supabase
         .from("facebook_ads_insights")
-        .select("*")
+        .select("spend, leads, clicks, impressions, frequency, ctr, date, campaign_name")
         .gte("date", startDate)
         .lte("date", endDate);
 
@@ -332,7 +332,7 @@ export const useMoneyMap = (dateRange: string) => {
       // Fetch ad spend data
       const { data: adsData, error: adsError } = await supabase
         .from("facebook_ads_insights")
-        .select("*")
+        .select("spend, leads, clicks, date, campaign_name")
         .gte("date", startDate)
         .lte("date", endDate);
 

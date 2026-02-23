@@ -43,7 +43,7 @@ export function TodaySnapshot() {
           .select('id', { count: 'exact', head: true })
           .gte('created_at', startOfToday)
           .lte('created_at', endOfToday),
-        (supabase as any)
+        supabase
           .from('deals')
           .select('id', { count: 'exact', head: true })
           .gte('close_date', startOfToday.split('T')[0])

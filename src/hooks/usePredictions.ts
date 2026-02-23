@@ -39,7 +39,7 @@ export function usePredictions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("client_predictions" as never)
-        .select("*")
+        .select("client_id, client_name, churn_score, churn_factors, revenue_at_risk, predicted_churn_date, updated_at")
         .order("churn_score", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as ClientPrediction[];
@@ -53,7 +53,7 @@ export function usePredictions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("revenue_forecasts" as never)
-        .select("*")
+        .select("forecast_date, revenue_30d, revenue_60d, revenue_90d, at_risk_30d, at_risk_60d, at_risk_90d, total_pipeline, updated_at")
         .order("forecast_date", { ascending: false })
         .limit(1)
         .maybeSingle();

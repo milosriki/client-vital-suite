@@ -19,7 +19,7 @@ export function VisionAnalysisWidget() {
     "general" | "meal" | "form_check"
   >("general");
   const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
   const handleAnalyze = async () => {
     if (!imageUrl) return;
@@ -87,7 +87,7 @@ export function VisionAnalysisWidget() {
         <Tabs
           defaultValue="general"
           className="w-full"
-          onValueChange={(v) => setAnalysisType(v as any)}
+          onValueChange={(v) => setAnalysisType(v as "general" | "meal" | "form_check")}
         >
           <TabsList className="grid w-full grid-cols-3 bg-secondary/30 h-8">
             <TabsTrigger value="general" className="text-xs">

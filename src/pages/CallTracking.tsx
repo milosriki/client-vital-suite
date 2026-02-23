@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,8 +39,8 @@ export default function CallTracking() {
     status: 'all',
     location: 'all',
   });
-  const [selectedLostLead, setSelectedLostLead] = useState<any>(null);
-  const [selectedSetter, setSelectedSetter] = useState<any>(null);
+  const [selectedLostLead, setSelectedLostLead] = useState<(Tables<"lost_leads"> & { contact_name: string | null }) | null>(null);
+  const [selectedSetter, setSelectedSetter] = useState<Tables<"setter_daily_stats"> | null>(null);
   const [timeRange, setTimeRange] = useState(30);
 
   const cutoffDate = useMemo(() => {
@@ -126,7 +127,7 @@ export default function CallTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lost_leads")
-        .select("*")
+        .select("id, caller_number, lead_score, missed_call_count, lifecycle_stage, assigned_owner, last_missed_at, status")
         .order("lead_score", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -139,7 +140,7 @@ export default function CallTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("setter_daily_stats")
-        .select("*")
+        .select("id, hubspot_owner_id, owner_name, date, total_calls, answered_calls, avg_duration, appointments_set, conversion_rate, lost_lead_count")
         .order("date", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -326,10 +327,10 @@ export default function CallTracking() {
     if (!setterStats?.length) return [];
     const latestByOwner = new Map<string, (typeof setterStats)[0]>();
     for (const stat of setterStats) {
-      const key = (stat as any).hubspot_owner_id || (stat as any).owner_name;
+      const key = stat.hubspot_owner_id || stat.owner_name || "";
       if (!latestByOwner.has(key)) latestByOwner.set(key, stat);
     }
-    return Array.from(latestByOwner.values()).sort((a, b) => ((b as any).conversion_rate || 0) - ((a as any).conversion_rate || 0));
+    return Array.from(latestByOwner.values()).sort((a, b) => (b.conversion_rate || 0) - (a.conversion_rate || 0));
   }, [setterStats]);
 
   const uniqueOwners = useMemo(() => {
@@ -451,8 +452,8 @@ export default function CallTracking() {
             </TabsTrigger>
             <TabsTrigger value="lost-leads" className="gap-2 cursor-pointer">
               <UserX className="h-4 w-4" /> Lost Leads
-              {enrichedLostLeads.filter(l => (l as any).status === 'new').length > 0 && (
-                <Badge variant="destructive" className="ml-1">{enrichedLostLeads.filter(l => (l as any).status === 'new').length}</Badge>
+              {enrichedLostLeads.filter(l => l.status === 'new').length > 0 && (
+                <Badge variant="destructive" className="ml-1">{enrichedLostLeads.filter(l => l.status === 'new').length}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="leaderboard" className="gap-2 cursor-pointer">
@@ -524,7 +525,7 @@ export default function CallTracking() {
                 </div>
               ) : enrichedLostLeads.length > 0 ? (
                 <div className="space-y-2">
-                  {enrichedLostLeads.map((lead: any) => (
+                  {enrichedLostLeads.map((lead) => (
                     <Card
                       key={lead.id}
                       className={`cursor-pointer transition-colors duration-200 hover:bg-muted/30 ${lead.status === 'new' ? 'border-red-500/30' : ''}`}

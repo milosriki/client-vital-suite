@@ -127,11 +127,11 @@ export default function PTDUnlimitedChat() {
             if (item.query === "[THREAD_START]") return;
 
             // Check if this is a document upload entry
-            const knowledge = item.knowledge_extracted as any;
+            const knowledge = item.knowledge_extracted as Record<string, unknown> | null;
             if (knowledge?.type === "document_upload") {
               loadedFiles.push({
-                name: knowledge.filename,
-                content: knowledge.preview || "",
+                name: knowledge.filename as string,
+                content: (knowledge.preview as string) || "",
               });
             }
 

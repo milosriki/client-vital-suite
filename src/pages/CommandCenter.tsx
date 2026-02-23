@@ -120,7 +120,7 @@ export default function CommandCenter() {
       const term = journeySearch.trim();
       const isEmail = term.includes("@");
       const isPhone = /^\+?\d{7,}$/.test(term.replace(/[\s-]/g, ""));
-      let query = supabase.from("lead_full_journey").select("*");
+      let query = supabase.from("lead_full_journey").select("first_name, last_name, email, phone, deal_stage, deal_stage_label, attribution_campaign, fb_adset_name, fb_ad_name, attribution_source, total_calls, completed_calls, latest_agent, assigned_coach, deal_value, health_score, health_zone, speed_to_lead_minutes");
       if (isEmail) {
         query = query.ilike("email", `%${term}%`);
       } else if (isPhone) {

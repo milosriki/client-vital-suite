@@ -414,7 +414,7 @@ function DeepIntelTab() {
   if (!data) return <div className="text-center text-muted-foreground py-10">No deep intelligence data available.</div>;
 
   const { baselines, funnel, lossReasons, assessmentTruth, ceoBrief } = data;
-  const projections = ceoBrief?.projections || (data.projections as any)?.projections;
+  const projections = ceoBrief?.projections || (data.projections as Record<string, unknown> | null)?.projections;
 
   return (
     <div className="space-y-8">
@@ -474,12 +474,12 @@ function DeepIntelTab() {
             </div>
 
             {/* Actions Required */}
-            {ceoBrief.actions_required && (ceoBrief.actions_required as any[]).length > 0 && (
+            {ceoBrief.actions_required && Array.isArray(ceoBrief.actions_required) && ceoBrief.actions_required.length > 0 && (
               <div className="mt-4 space-y-2">
                 <p className="text-sm font-semibold text-amber-400">Actions Required:</p>
-                {(ceoBrief.actions_required as any[]).map((action: any, i: number) => (
+                {(ceoBrief.actions_required as Record<string, unknown>[]).map((action, i: number) => (
                   <div key={i} className="text-sm text-muted-foreground pl-4 border-l-2 border-amber-500/30">
-                    {action.action || action.message || JSON.stringify(action)}
+                    {(action.action as string) || (action.message as string) || JSON.stringify(action)}
                   </div>
                 ))}
               </div>
@@ -908,12 +908,12 @@ function SourceTruthTab() {
     queryKey: ["truth-triangle"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("view_truth_triangle" as any)
-        .select("*")
+        .from("view_truth_triangle")
+        .select("month, meta_ad_spend, hubspot_deal_value, stripe_gross_revenue")
         .order("month", { ascending: false })
         .limit(12);
       if (error) throw error;
-      return (data || []) as any[];
+      return data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -923,15 +923,15 @@ function SourceTruthTab() {
     queryKey: ["attribution-coverage"],
     queryFn: async () => {
       const [totalRes, attributedRes, methodRes] = await Promise.all([
-        supabase.from("active_contacts" as any).select("id", { count: "exact", head: true }),
-        supabase.from("active_contacts" as any).select("id", { count: "exact", head: true }).not("attributed_ad_id", "is", null),
-        supabase.from("active_contacts" as any).select("attribution_source").not("attribution_source", "is", null),
+        supabase.from("active_contacts").select("id", { count: "exact", head: true }),
+        supabase.from("active_contacts").select("id", { count: "exact", head: true }).not("attributed_ad_id", "is", null),
+        supabase.from("active_contacts").select("attribution_source").not("attribution_source", "is", null),
       ]);
       const total = totalRes.count || 0;
       const attributed = attributedRes.count || 0;
       // Count by method
       const methods: Record<string, number> = {};
-      (methodRes.data || []).forEach((r: any) => {
+      (methodRes.data || []).forEach((r) => {
         const m = r.attribution_source || "unknown";
         methods[m] = (methods[m] || 0) + 1;
       });

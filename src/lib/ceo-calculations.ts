@@ -59,12 +59,12 @@ export function calculateIntegrationStatus(
   const status: IntegrationStatus = {};
 
   platforms.forEach((p) => {
-    const logs = syncLogs.filter((l: any) => l.platform === p);
-    const errors = syncErrors.filter((e: any) => e.source === p);
-    const lastLog = logs[0] as any; // Assumes logs are sorted desc
+    const logs = syncLogs.filter((l) => l.platform === p);
+    const errors = syncErrors.filter((e) => e.source === p);
+    const lastLog = logs[0]; // Assumes logs are sorted desc
 
     status[p] = {
-      connected: logs.some((l: any) => l.status === "success"),
+      connected: logs.some((l) => l.status === "success"),
       lastSync: lastLog?.started_at || null,
       errors: errors.length,
     };

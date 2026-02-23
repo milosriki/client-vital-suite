@@ -132,7 +132,7 @@ export default function LeadTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enhanced_leads")
-        .select("*")
+        .select("id, email, first_name, last_name, lead_score, engagement_level, recommended_action, phone, lifecycle_stage, created_at")
         .limit(1000);
       if (error) throw error;
       return (data ?? []) as EnhancedLead[];

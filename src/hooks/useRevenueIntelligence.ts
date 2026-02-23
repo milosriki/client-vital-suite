@@ -332,9 +332,9 @@ export function useLiveData() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "contacts" },
         (payload) => {
-          const newContact = payload.new as any;
+          const newContact = payload.new as Record<string, unknown>;
           const name = `${newContact.first_name || ""} ${newContact.last_name || ""}`.trim() || "Unknown";
-          const source = newContact.attribution_source || "Direct";
+          const source = (newContact.attribution_source as string) || "Direct";
 
           setLiveActivity(prev => [
             {
@@ -358,11 +358,11 @@ export function useLiveData() {
         "postgres_changes",
         { event: "*", schema: "public", table: "deals" },
         (payload) => {
-          const deal = payload.new as any;
+          const deal = payload.new as Record<string, unknown>;
           let event = "";
 
           if (payload.eventType === "INSERT") {
-            event = `New deal: "${deal.deal_name}" in ${deal.stage} ($${deal.deal_value.toLocaleString()})`;
+            event = `New deal: "${deal.deal_name}" in ${deal.stage} ($${Number(deal.deal_value || 0).toLocaleString()})`;
           } else if (payload.eventType === "UPDATE") {
             event = `Deal "${deal.deal_name}" updated to ${deal.stage}`;
           }

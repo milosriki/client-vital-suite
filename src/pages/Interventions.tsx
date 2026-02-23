@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ import { useAnnounce } from "@/lib/accessibility";
 const Interventions = () => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
-  const [selectedIntervention, setSelectedIntervention] = useState<any>(null);
+  const [selectedIntervention, setSelectedIntervention] = useState<Tables<"intervention_log"> | null>(null);
   const [notes, setNotes] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -115,7 +116,7 @@ const Interventions = () => {
     }
   };
 
-  const handleOpenNotesDialog = (intervention: any) => {
+  const handleOpenNotesDialog = (intervention: Tables<"intervention_log">) => {
     setSelectedIntervention(intervention);
     setNotes(intervention.notes || "");
     setNotesDialogOpen(true);

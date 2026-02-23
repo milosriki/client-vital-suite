@@ -21,20 +21,25 @@ type DrawerType =
   | "ai-assistant"
   | null;
 
+interface DrawerData {
+  id?: string;
+  [key: string]: unknown;
+}
+
 interface DrawerContextType {
-  openDrawer: (type: DrawerType, data?: any) => void;
+  openDrawer: (type: DrawerType, data?: DrawerData) => void;
   closeDrawer: () => void;
   activeDrawer: DrawerType;
-  drawerData: any;
+  drawerData: DrawerData | null;
 }
 
 const DrawerContext = createContext<DrawerContextType | undefined>(undefined);
 
 export function DrawerProvider({ children }: { children: ReactNode }) {
   const [activeDrawer, setActiveDrawer] = useState<DrawerType>(null);
-  const [drawerData, setDrawerData] = useState<any>(null);
+  const [drawerData, setDrawerData] = useState<DrawerData | null>(null);
 
-  const openDrawer = useCallback((type: DrawerType, data?: any) => {
+  const openDrawer = useCallback((type: DrawerType, data?: DrawerData) => {
     setActiveDrawer(type);
     setDrawerData(data);
   }, []);
@@ -88,7 +93,7 @@ function DrawerRouter({
   onClose,
 }: {
   type: DrawerType;
-  data: any;
+  data: DrawerData | null;
   onClose: () => void;
 }) {
   if (!type) return null;

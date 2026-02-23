@@ -17,7 +17,13 @@ export function QuickActionsPanel() {
   const [newOwnerId, setNewOwnerId] = useState('');
   const [noteBody, setNoteBody] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    owner: string;
+  }>>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   // Fetch owners for dropdown

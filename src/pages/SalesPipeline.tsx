@@ -1,6 +1,7 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { DEAL_STAGES, STAGE_LABELS } from "@/constants/dealStages";
 import { subDays } from "date-fns";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ export default function SalesPipeline() {
   const [daysFilter, setDaysFilter] = useState<string>("3");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
-  const [selectedDeal, setSelectedDeal] = useState<any>(null);
+  const [selectedDeal, setSelectedDeal] = useState<Tables<"deals"> | null>(null);
 
   // Calculate date filter
   const getDateFilter = () => {
@@ -167,7 +168,7 @@ export default function SalesPipeline() {
     queryKey: ["lead-funnel", daysFilter, ownerFilter, campaignFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("dynamic_funnel_view").select("*");
+      let query = supabase.from("dynamic_funnel_view").select("funnel_stage, lead_source, owner, campaign, created_at");
 
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);

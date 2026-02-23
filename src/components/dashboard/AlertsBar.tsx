@@ -43,7 +43,7 @@ export function AlertsBar() {
       }
 
       // Check sync errors
-      const { count: syncCount } = await (supabase as any)
+      const { count: syncCount } = await supabase
         .from('sync_errors')
         .select('id', { count: 'exact', head: true })
         .is('resolved_at', null);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import {
   Card,
   CardContent,
@@ -28,7 +29,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useAnnounce } from "@/lib/accessibility";
 
 export default function AIBusinessAdvisor() {
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClient, setSelectedClient] = useState<Tables<"client_health_scores"> | null>(null);
   const [script, setScript] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -47,7 +48,7 @@ export default function AIBusinessAdvisor() {
     },
   });
 
-  const handleGenerateScript = async (client: any) => {
+  const handleGenerateScript = async (client: Tables<"client_health_scores">) => {
     setSelectedClient(client);
     setIsGenerating(true);
     setScript("");
@@ -121,7 +122,7 @@ export default function AIBusinessAdvisor() {
                     Loading queue...
                   </div>
                 ) : (
-                  atRiskClients?.map((client: any) => (
+                  atRiskClients?.map((client) => (
                     <div
                       key={client.email}
                       onClick={() => handleGenerateScript(client)}

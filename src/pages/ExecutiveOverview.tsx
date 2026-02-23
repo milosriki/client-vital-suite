@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DollarSign, TrendingUp, Users, Phone, Target, AlertCircle, Activity } from "lucide-react";
+import { DollarSign, TrendingUp, Users, Phone, Target, AlertCircle, Activity, Sun, Clock } from "lucide-react";
+import { ProactiveInsightsSection } from "@/components/executive/ProactiveInsightsSection";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -13,6 +14,8 @@ import { RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SyncButton } from "@/components/SyncButton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import {
   LineChart,
   Line,
@@ -30,8 +33,32 @@ import {
 } from "recharts";
 import { chartTheme } from "@/components/dashboard/cards/ChartCard";
 import { useExecutiveData } from "@/hooks/useExecutiveData";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/config/queryKeys";
+
+type DailyMarketingBriefRow = Database["public"]["Tables"]["daily_marketing_briefs"]["Row"];
+
+function formatAED(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return `AED ${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function formatNumber(value: number | null | undefined, decimals = 1): string {
+  if (value == null) return "—";
+  return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: decimals });
+}
+
+function renderJsonSummary(json: unknown): string | null {
+  if (!json) return null;
+  if (typeof json === "string") return json;
+  if (Array.isArray(json)) {
+    return json.filter(item => typeof item === "string").join("\n");
+  }
+  if (typeof json === "object") {
+    try { return JSON.stringify(json, null, 2); } catch { return null; }
+  }
+  return null;
+}
 
 export default function ExecutiveOverview() {
   const [dateRange, setDateRange] = useState("last_30_days");
@@ -40,6 +67,22 @@ export default function ExecutiveOverview() {
 
   // Fetch real data from Supabase
   const { data, isLoading, error } = useExecutiveData({ dateRange });
+
+  // Fetch latest morning brief
+  const { data: morningBrief, isLoading: isBriefLoading } = useQuery<DailyMarketingBriefRow | null>({
+    queryKey: ["morning-brief", "latest"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("daily_marketing_briefs")
+        .select("*")
+        .order("brief_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 min
+  });
 
   const handleRefresh = async () => {
     // Invalidate and refetch all executive dashboard queries
@@ -97,6 +140,95 @@ export default function ExecutiveOverview() {
           options: DATE_RANGE_PRESETS,
         }}
       />
+
+      {/* Morning Brief */}
+      {isBriefLoading ? (
+        <Skeleton className="h-48 bg-slate-800/50" />
+      ) : morningBrief ? (
+        <Card className="bg-[#0A0A0A] border-[#1F2937]">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sun className="w-5 h-5 text-amber-400" />
+                Morning Brief — {morningBrief.brief_date}
+              </CardTitle>
+              <div className="flex items-center gap-1 text-xs text-slate-500">
+                <Clock className="w-3 h-3" />
+                {morningBrief.created_at
+                  ? new Date(morningBrief.created_at).toLocaleString("en-AE", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "—"}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Yesterday's key numbers */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wider">Spend</p>
+                <p className="text-lg font-semibold text-white">{formatAED(morningBrief.yesterday_spend)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wider">Leads</p>
+                <p className="text-lg font-semibold text-white">{formatNumber(morningBrief.yesterday_leads, 0)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wider">CPL</p>
+                <p className="text-lg font-semibold text-white">{formatAED(morningBrief.yesterday_cpl)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wider">7d ROAS</p>
+                <p className={`text-lg font-semibold ${(morningBrief.rolling_7d_roas ?? 0) >= 1 ? "text-emerald-400" : "text-red-400"}`}>
+                  {morningBrief.rolling_7d_roas != null ? `${morningBrief.rolling_7d_roas.toFixed(2)}x` : "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* AI-generated summary from actions_required */}
+            {morningBrief.actions_required && (
+              <div className="border-t border-[#1F2937] pt-3">
+                <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">AI Summary</p>
+                <div className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
+                  {(() => {
+                    const summary = renderJsonSummary(morningBrief.actions_required);
+                    return summary || "No summary available";
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Rolling 7d context */}
+            {(morningBrief.rolling_7d_spend != null || morningBrief.rolling_7d_revenue != null) && (
+              <div className="flex flex-wrap gap-4 text-xs text-slate-500 border-t border-[#1F2937] pt-3">
+                {morningBrief.rolling_7d_spend != null && (
+                  <span>7d Spend: <span className="text-slate-300">{formatAED(morningBrief.rolling_7d_spend)}</span></span>
+                )}
+                {morningBrief.rolling_7d_revenue != null && (
+                  <span>7d Revenue: <span className="text-slate-300">{formatAED(morningBrief.rolling_7d_revenue)}</span></span>
+                )}
+                {morningBrief.rolling_7d_ghost_rate != null && (
+                  <span>7d Ghost Rate: <span className="text-slate-300">{(morningBrief.rolling_7d_ghost_rate * 100).toFixed(1)}%</span></span>
+                )}
+                {morningBrief.yesterday_assessments != null && (
+                  <span>Assessments: <span className="text-slate-300">{morningBrief.yesterday_assessments}</span></span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-[#0A0A0A] border-[#1F2937]">
+          <CardContent className="py-8 text-center">
+            <Sun className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-slate-500 text-sm">No brief yet</p>
+            <p className="text-slate-600 text-xs mt-1">The morning brief will appear here once generated</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* North Star Metric + AI Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-dashboard-gap">
@@ -264,6 +396,9 @@ export default function ExecutiveOverview() {
           />
         )}
       </div>
+
+      {/* Proactive Insights */}
+      <ProactiveInsightsSection />
 
       {/* Live Activity Feed */}
       {isLoading ? (

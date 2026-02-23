@@ -27,10 +27,10 @@ export default function SettingsTab() {
 
   const loadSettings = async () => {
     try {
-      const { data, error } = await (supabase
-        .from("app_settings" as any)
+      const { data, error } = await supabase
+        .from("app_settings")
         .select("supabase_url, supabase_anon_key, capi_base_url, meta_pixel_id, meta_access_token, test_event_code, telegram_bot_token, telegram_chat_id")
-        .single() as any);
+        .maybeSingle();
       
       if (data) {
         setSettings({
@@ -51,12 +51,12 @@ export default function SettingsTab() {
 
   const handleSave = async () => {
     try {
-      const { error } = await (supabase
-        .from("app_settings" as any)
+      const { error } = await supabase
+        .from("app_settings")
         .upsert({
           id: "00000000-0000-0000-0000-000000000000", // Singleton record
           ...settings,
-        }) as any);
+        });
 
       if (error) throw error;
 

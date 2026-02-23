@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { QUERY_KEYS } from '@/config/queryKeys';
 import { useDedupedQuery } from '@/hooks/useDedupedQuery';
+import type { Tables } from '@/integrations/supabase/types';
 
 export function ErrorMonitorPanel() {
-    const [realtimeErrors, setRealtimeErrors] = useState<any[]>([]);
+    const [realtimeErrors, setRealtimeErrors] = useState<Tables<"sync_errors">[]>([]);
 
     // Set up real-time subscription
     useEffect(() => {

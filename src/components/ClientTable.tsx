@@ -259,7 +259,7 @@ export const ClientTable = ({ clients }: ClientTableProps) => {
                           <div className="flex justify-center">
                             <HealthScoreBadge
                               score={client.health_score || 0}
-                              zone={client.health_zone as any}
+                              zone={(client.health_zone || "GREEN") as "RED" | "YELLOW" | "GREEN" | "PURPLE"}
                               size="sm"
                             />
                           </div>

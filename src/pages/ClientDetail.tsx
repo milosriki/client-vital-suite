@@ -118,7 +118,7 @@ export default function ClientDetail() {
 
   const fullName =
     `${client.firstname || ""} ${client.lastname || ""}`.trim() || decodedEmail;
-  const displayEmail = (client as any).email || decodedEmail;
+  const displayEmail = client.email || decodedEmail;
 
   const sessionData = [
     { period: "Last 7 Days", sessions: client.sessions_last_7d || 0 },
@@ -207,7 +207,7 @@ export default function ClientDetail() {
             <div className="flex flex-col items-center gap-2">
               <HealthScoreBadge
                 score={client.health_score || 0}
-                zone={client.health_zone as any}
+                zone={(client.health_zone || "GREEN") as "RED" | "YELLOW" | "GREEN" | "PURPLE"}
                 size="lg"
               />
               <p className="text-xs text-slate-300">

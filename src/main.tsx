@@ -34,7 +34,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import "./index.css";
 
 // Chunk load error recovery — handles stale deployments
-function lazyWithRetry(importFn: () => Promise<any>) {
+function lazyWithRetry(importFn: () => Promise<{ default: React.ComponentType }>) {
   return lazy(() =>
     importFn().catch((error: Error) => {
       // If chunk fails to load (stale deployment), reload the page once
@@ -48,7 +48,7 @@ function lazyWithRetry(importFn: () => Promise<any>) {
         if (!hasReloaded) {
           sessionStorage.setItem("chunk_reload", "1");
           window.location.reload();
-          return { default: () => null } as any;
+          return { default: () => null } as { default: React.ComponentType };
         }
         sessionStorage.removeItem("chunk_reload");
       }
@@ -132,8 +132,8 @@ startBackgroundLearning();
 
 // Make testing utilities available in browser console (development only)
 if (import.meta.env.DEV && typeof window !== "undefined") {
-  (window as any).testAllFunctions = testAllFunctions;
-  (window as any).verifyConnections = verifyAllConnections;
+  (window as unknown as Record<string, unknown>).testAllFunctions = testAllFunctions;
+  (window as unknown as Record<string, unknown>).verifyConnections = verifyAllConnections;
 }
 
 const router = createBrowserRouter([

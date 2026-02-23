@@ -24,7 +24,7 @@ export function useTruthTriangle() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("view_truth_triangle")
-        .select("*")
+        .select("month, meta_ad_spend, hubspot_deal_value, stripe_gross_revenue, meta_reported_revenue, hubspot_deal_count, gap_stripe_hubspot, true_roas_cash, pipeline_roas_booked")
         .order("month", { ascending: false })
         .limit(1)
         .maybeSingle();

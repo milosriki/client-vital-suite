@@ -9,6 +9,32 @@ import { toast } from "@/hooks/use-toast";
 import { RefreshCw, Database, DollarSign, Send, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
+interface EnrichedEvent {
+  send_status: string;
+  mode: string;
+}
+
+interface BatchJob {
+  id: string;
+  batch_name: string;
+  scheduled_time: string;
+  status: string;
+  events_count: number;
+  events_sent: number;
+  events_failed: number;
+  mode: string;
+  created_at: string;
+}
+
+interface BatchConfig {
+  id: string;
+  config_name: string;
+  batch_time: string;
+  batch_size: number;
+  last_run: string | null;
+  enabled: boolean;
+}
+
 interface DataEnrichmentTabProps {
   mode: "test" | "live";
 }
@@ -21,13 +47,13 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const { data: queueStats } = useDedupedQuery({
     queryKey: ["queue-stats", mode],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("capi_events_enriched" as any)
+      const { data, error } = await supabase
+        .from("capi_events_enriched" as never)
         .select("send_status")
-        .eq("mode", mode) as any);
-      
+        .eq("mode", mode) as unknown as { data: EnrichedEvent[] | null; error: Error | null };
+
       if (error) throw error;
-      
+
       const stats = {
         pending: 0,
         enriched: 0,
@@ -36,8 +62,8 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
       };
 
       if (data) {
-        for (const row of data as any[]) {
-          const status = row.send_status as string;
+        for (const row of data) {
+          const status = row.send_status;
           if (status === 'pending') stats.pending++;
           else if (status === 'enriched') stats.enriched++;
           else if (status === 'sent') stats.sent++;
@@ -54,15 +80,15 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const { data: batchJobs } = useDedupedQuery({
     queryKey: ["batch-jobs", mode],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("batch_jobs" as any)
+      const { data, error } = await supabase
+        .from("batch_jobs" as never)
         .select("id, batch_name, scheduled_time, status, events_count, events_sent, events_failed, mode, created_at")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
-        .limit(10) as any);
-      
+        .limit(10) as unknown as { data: BatchJob[] | null; error: Error | null };
+
       if (error) throw error;
-      return data as any[];
+      return data ?? [];
     },
     staleTime: Infinity, // Real-time updates via subscriptions
   });
@@ -71,13 +97,13 @@ export default function DataEnrichmentTab({ mode }: DataEnrichmentTabProps) {
   const { data: batchConfigs } = useDedupedQuery({
     queryKey: ["batch-config"],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("batch_config" as any)
+      const { data, error } = await supabase
+        .from("batch_config" as never)
         .select("id, config_name, batch_time, batch_size, last_run, enabled")
-        .order("batch_time", { ascending: true }) as any);
-      
+        .order("batch_time", { ascending: true }) as unknown as { data: BatchConfig[] | null; error: Error | null };
+
       if (error) throw error;
-      return data as any[];
+      return data ?? [];
     },
   });
 

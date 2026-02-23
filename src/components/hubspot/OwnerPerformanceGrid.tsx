@@ -197,7 +197,7 @@ export function OwnerPerformanceGrid() {
           </div>
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) => setSortBy(e.target.value as "name" | "contacts" | "deals" | "value")}
             className="px-3 py-2 border rounded-md text-sm"
           >
             <option value="contacts">Sort by Contacts</option>

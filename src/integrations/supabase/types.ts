@@ -685,6 +685,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_interventions: {
+        Row: {
+          action_text: string
+          client_email: string
+          client_name: string | null
+          context: Json | null
+          created_at: string | null
+          id: string
+          intervention_type: string
+          resolved_at: string | null
+          status: string | null
+          urgency: string | null
+        }
+        Insert: {
+          action_text: string
+          client_email: string
+          client_name?: string | null
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          intervention_type: string
+          resolved_at?: string | null
+          status?: string | null
+          urgency?: string | null
+        }
+        Update: {
+          action_text?: string
+          client_email?: string
+          client_name?: string | null
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          intervention_type?: string
+          resolved_at?: string | null
+          status?: string | null
+          urgency?: string | null
+        }
+        Relationships: []
+      }
       ai_learning_rules: {
         Row: {
           action_pattern: Json
@@ -857,6 +896,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      attribution_chain: {
+        Row: {
+          attribution_source: string | null
+          created_at: string | null
+          external_id: string
+          fb_ad_id: string | null
+          fb_adset_id: string | null
+          fb_campaign_id: string | null
+          fb_campaign_name: string | null
+          form_event_id: string | null
+          form_time: string | null
+          hubspot_contact_id: string
+          id: string
+          landing_page: string | null
+          lead_event_id: string | null
+          lead_time: string | null
+          tracking_group: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          attribution_source?: string | null
+          created_at?: string | null
+          external_id: string
+          fb_ad_id?: string | null
+          fb_adset_id?: string | null
+          fb_campaign_id?: string | null
+          fb_campaign_name?: string | null
+          form_event_id?: string | null
+          form_time?: string | null
+          hubspot_contact_id: string
+          id?: string
+          landing_page?: string | null
+          lead_event_id?: string | null
+          lead_time?: string | null
+          tracking_group?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          attribution_source?: string | null
+          created_at?: string | null
+          external_id?: string
+          fb_ad_id?: string | null
+          fb_adset_id?: string | null
+          fb_campaign_id?: string | null
+          fb_campaign_name?: string | null
+          form_event_id?: string | null
+          form_time?: string | null
+          hubspot_contact_id?: string
+          id?: string
+          landing_page?: string | null
+          lead_event_id?: string | null
+          lead_time?: string | null
+          tracking_group?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
       }
       attribution_events: {
         Row: {
@@ -1074,6 +1179,123 @@ export type Database = {
           size_estimate?: number | null
           sync_status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      aws_coach_performance: {
+        Row: {
+          active_days: number | null
+          active_last_14d: number | null
+          avg_clients_per_day: number | null
+          avg_sessions_per_day: number | null
+          clients_90d: number | null
+          coach_name: string
+          completion_rate: number | null
+          id: string
+          max_sessions_day: number | null
+          report_date: string
+          retention_14d_pct: number | null
+          synced_at: string | null
+          total_cancelled: number | null
+          total_completed: number | null
+        }
+        Insert: {
+          active_days?: number | null
+          active_last_14d?: number | null
+          avg_clients_per_day?: number | null
+          avg_sessions_per_day?: number | null
+          clients_90d?: number | null
+          coach_name: string
+          completion_rate?: number | null
+          id?: string
+          max_sessions_day?: number | null
+          report_date: string
+          retention_14d_pct?: number | null
+          synced_at?: string | null
+          total_cancelled?: number | null
+          total_completed?: number | null
+        }
+        Update: {
+          active_days?: number | null
+          active_last_14d?: number | null
+          avg_clients_per_day?: number | null
+          avg_sessions_per_day?: number | null
+          clients_90d?: number | null
+          coach_name?: string
+          completion_rate?: number | null
+          id?: string
+          max_sessions_day?: number | null
+          report_date?: string
+          retention_14d_pct?: number | null
+          synced_at?: string | null
+          total_cancelled?: number | null
+          total_completed?: number | null
+        }
+        Relationships: []
+      }
+      aws_ops_snapshot: {
+        Row: {
+          active_clients_30d: number | null
+          clients_decreasing: number | null
+          clients_increasing: number | null
+          clients_stable: number | null
+          coach_leaderboard: Json | null
+          critical_packages: Json | null
+          daily_sessions: Json | null
+          declining_clients: Json | null
+          frequency_trends: Json | null
+          generated_at: string | null
+          high_packages: Json | null
+          id: string
+          packages_critical: number | null
+          packages_high: number | null
+          packages_medium: number | null
+          sessions_confirmed_today: number | null
+          sessions_today: number | null
+          snapshot_date: string
+          total_packages_active: number | null
+        }
+        Insert: {
+          active_clients_30d?: number | null
+          clients_decreasing?: number | null
+          clients_increasing?: number | null
+          clients_stable?: number | null
+          coach_leaderboard?: Json | null
+          critical_packages?: Json | null
+          daily_sessions?: Json | null
+          declining_clients?: Json | null
+          frequency_trends?: Json | null
+          generated_at?: string | null
+          high_packages?: Json | null
+          id?: string
+          packages_critical?: number | null
+          packages_high?: number | null
+          packages_medium?: number | null
+          sessions_confirmed_today?: number | null
+          sessions_today?: number | null
+          snapshot_date: string
+          total_packages_active?: number | null
+        }
+        Update: {
+          active_clients_30d?: number | null
+          clients_decreasing?: number | null
+          clients_increasing?: number | null
+          clients_stable?: number | null
+          coach_leaderboard?: Json | null
+          critical_packages?: Json | null
+          daily_sessions?: Json | null
+          declining_clients?: Json | null
+          frequency_trends?: Json | null
+          generated_at?: string | null
+          high_packages?: Json | null
+          id?: string
+          packages_critical?: number | null
+          packages_high?: number | null
+          packages_medium?: number | null
+          sessions_confirmed_today?: number | null
+          sessions_today?: number | null
+          snapshot_date?: string
+          total_packages_active?: number | null
         }
         Relationships: []
       }
@@ -1468,21 +1690,27 @@ export type Database = {
           call_outcome: string | null
           call_score: number | null
           call_status: string
+          call_type: string | null
           caller_city: string | null
           caller_country: string | null
           caller_number: string
           caller_state: string | null
+          contact_id: string | null
           conversion_outcome: string | null
           created_at: string | null
           duration_seconds: number | null
           ended_at: string | null
           forwarded_from: string | null
+          hubspot_engagement_id: string | null
           hubspot_owner_id: string | null
           id: string
+          is_lost: boolean | null
           keywords: string[] | null
           keywords_mentioned: string[] | null
           lead_quality: string | null
+          owner_name: string | null
           provider_call_id: string | null
+          ptd_outcome: string | null
           recording_url: string | null
           revenue_generated: number | null
           sentiment_score: number | null
@@ -1500,21 +1728,27 @@ export type Database = {
           call_outcome?: string | null
           call_score?: number | null
           call_status?: string
+          call_type?: string | null
           caller_city?: string | null
           caller_country?: string | null
           caller_number: string
           caller_state?: string | null
+          contact_id?: string | null
           conversion_outcome?: string | null
           created_at?: string | null
           duration_seconds?: number | null
           ended_at?: string | null
           forwarded_from?: string | null
+          hubspot_engagement_id?: string | null
           hubspot_owner_id?: string | null
           id?: string
+          is_lost?: boolean | null
           keywords?: string[] | null
           keywords_mentioned?: string[] | null
           lead_quality?: string | null
+          owner_name?: string | null
           provider_call_id?: string | null
+          ptd_outcome?: string | null
           recording_url?: string | null
           revenue_generated?: number | null
           sentiment_score?: number | null
@@ -1532,21 +1766,27 @@ export type Database = {
           call_outcome?: string | null
           call_score?: number | null
           call_status?: string
+          call_type?: string | null
           caller_city?: string | null
           caller_country?: string | null
           caller_number?: string
           caller_state?: string | null
+          contact_id?: string | null
           conversion_outcome?: string | null
           created_at?: string | null
           duration_seconds?: number | null
           ended_at?: string | null
           forwarded_from?: string | null
+          hubspot_engagement_id?: string | null
           hubspot_owner_id?: string | null
           id?: string
+          is_lost?: boolean | null
           keywords?: string[] | null
           keywords_mentioned?: string[] | null
           lead_quality?: string | null
+          owner_name?: string | null
           provider_call_id?: string | null
+          ptd_outcome?: string | null
           recording_url?: string | null
           revenue_generated?: number | null
           sentiment_score?: number | null
@@ -1558,6 +1798,132 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "call_records_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "call_records_tracking_number_id_fkey"
             columns: ["tracking_number_id"]
@@ -1681,6 +2047,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "call_records"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_transcription_jobs_call_record_id_fkey"
+            columns: ["call_record_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["call_id"]
           },
         ]
       }
@@ -1885,6 +2258,144 @@ export type Database = {
         }
         Relationships: []
       }
+      client_packages: {
+        Row: {
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          client_phone: string | null
+          days_until_depleted: number | null
+          depletion_priority: string | null
+          expiry_date: string | null
+          future_booked: number | null
+          id: string
+          last_coach: string | null
+          last_session_date: string | null
+          next_session_date: string | null
+          pack_size: number | null
+          package_id: string | null
+          package_name: string | null
+          package_value: number | null
+          purchase_date: string | null
+          remaining_sessions: number | null
+          sessions_per_week: number | null
+          synced_at: string | null
+        }
+        Insert: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          days_until_depleted?: number | null
+          depletion_priority?: string | null
+          expiry_date?: string | null
+          future_booked?: number | null
+          id?: string
+          last_coach?: string | null
+          last_session_date?: string | null
+          next_session_date?: string | null
+          pack_size?: number | null
+          package_id?: string | null
+          package_name?: string | null
+          package_value?: number | null
+          purchase_date?: string | null
+          remaining_sessions?: number | null
+          sessions_per_week?: number | null
+          synced_at?: string | null
+        }
+        Update: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          days_until_depleted?: number | null
+          depletion_priority?: string | null
+          expiry_date?: string | null
+          future_booked?: number | null
+          id?: string
+          last_coach?: string | null
+          last_session_date?: string | null
+          next_session_date?: string | null
+          pack_size?: number | null
+          package_id?: string | null
+          package_name?: string | null
+          package_value?: number | null
+          purchase_date?: string | null
+          remaining_sessions?: number | null
+          sessions_per_week?: number | null
+          synced_at?: string | null
+        }
+        Relationships: []
+      }
+      client_packages_live: {
+        Row: {
+          client_email: string | null
+          client_id: string
+          client_name: string | null
+          client_phone: string | null
+          days_until_depleted: number | null
+          depletion_priority: string | null
+          expiry_date: string | null
+          future_booked: number | null
+          id: string
+          last_coach: string | null
+          last_session_date: string | null
+          next_session_date: string | null
+          pack_size: number | null
+          package_id: string
+          package_name: string | null
+          package_value: number | null
+          purchase_date: string | null
+          remaining_sessions: number | null
+          sessions_per_week: number | null
+          synced_at: string | null
+        }
+        Insert: {
+          client_email?: string | null
+          client_id: string
+          client_name?: string | null
+          client_phone?: string | null
+          days_until_depleted?: number | null
+          depletion_priority?: string | null
+          expiry_date?: string | null
+          future_booked?: number | null
+          id?: string
+          last_coach?: string | null
+          last_session_date?: string | null
+          next_session_date?: string | null
+          pack_size?: number | null
+          package_id: string
+          package_name?: string | null
+          package_value?: number | null
+          purchase_date?: string | null
+          remaining_sessions?: number | null
+          sessions_per_week?: number | null
+          synced_at?: string | null
+        }
+        Update: {
+          client_email?: string | null
+          client_id?: string
+          client_name?: string | null
+          client_phone?: string | null
+          days_until_depleted?: number | null
+          depletion_priority?: string | null
+          expiry_date?: string | null
+          future_booked?: number | null
+          id?: string
+          last_coach?: string | null
+          last_session_date?: string | null
+          next_session_date?: string | null
+          pack_size?: number | null
+          package_id?: string
+          package_name?: string | null
+          package_value?: number | null
+          purchase_date?: string | null
+          remaining_sessions?: number | null
+          sessions_per_week?: number | null
+          synced_at?: string | null
+        }
+        Relationships: []
+      }
       client_payment_history: {
         Row: {
           email: string
@@ -1914,6 +2425,132 @@ export type Database = {
           id?: string
           last_three_packages?: Json | null
           total_lifetime_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      client_predictions: {
+        Row: {
+          churn_factors: Json | null
+          churn_score: number | null
+          client_id: string
+          client_name: string | null
+          ml_metadata: Json | null
+          predicted_churn_date: string | null
+          revenue_at_risk: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          churn_factors?: Json | null
+          churn_score?: number | null
+          client_id: string
+          client_name?: string | null
+          ml_metadata?: Json | null
+          predicted_churn_date?: string | null
+          revenue_at_risk?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          churn_factors?: Json | null
+          churn_score?: number | null
+          client_id?: string
+          client_name?: string | null
+          ml_metadata?: Json | null
+          predicted_churn_date?: string | null
+          revenue_at_risk?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      clients_full: {
+        Row: {
+          cancellations_90d: number | null
+          client_id: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_completed_session: string | null
+          last_login: string | null
+          last_name: string | null
+          packages: Json | null
+          phone: string | null
+          registration_date: string | null
+          status: string | null
+          synced_at: string | null
+          total_sessions_365d: number | null
+        }
+        Insert: {
+          cancellations_90d?: number | null
+          client_id: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_completed_session?: string | null
+          last_login?: string | null
+          last_name?: string | null
+          packages?: Json | null
+          phone?: string | null
+          registration_date?: string | null
+          status?: string | null
+          synced_at?: string | null
+          total_sessions_365d?: number | null
+        }
+        Update: {
+          cancellations_90d?: number | null
+          client_id?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_completed_session?: string | null
+          last_login?: string | null
+          last_name?: string | null
+          packages?: Json | null
+          phone?: string | null
+          registration_date?: string | null
+          status?: string | null
+          synced_at?: string | null
+          total_sessions_365d?: number | null
+        }
+        Relationships: []
+      }
+      coach_client_notes: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          entity_id: string | null
+          entity_name: string
+          entity_type: string
+          id: string
+          is_resolved: boolean | null
+          note: string
+          note_type: string | null
+          resolved_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          entity_id?: string | null
+          entity_name: string
+          entity_type: string
+          id?: string
+          is_resolved?: boolean | null
+          note: string
+          note_type?: string | null
+          resolved_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          entity_id?: string | null
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          is_resolved?: boolean | null
+          note?: string
+          note_type?: string | null
+          resolved_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -2050,6 +2687,81 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_visits: {
+        Row: {
+          arrival_time: string | null
+          coach_name: string | null
+          created_at: string | null
+          departure_time: string | null
+          device_id: string
+          dwell_minutes: number | null
+          id: string
+          is_ptd_location: boolean | null
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+        }
+        Insert: {
+          arrival_time?: string | null
+          coach_name?: string | null
+          created_at?: string | null
+          departure_time?: string | null
+          device_id: string
+          dwell_minutes?: number | null
+          id?: string
+          is_ptd_location?: boolean | null
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+        }
+        Update: {
+          arrival_time?: string | null
+          coach_name?: string | null
+          created_at?: string | null
+          departure_time?: string | null
+          device_id?: string
+          dwell_minutes?: number | null
+          id?: string
+          is_ptd_location?: boolean | null
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+        }
+        Relationships: []
+      }
+      coaches_full: {
+        Row: {
+          active_clients: number | null
+          coach_name: string
+          id: string
+          last_session_date: string | null
+          synced_at: string | null
+          total_clients_ever: number | null
+          total_remaining_sessions: number | null
+          total_sessions_year: number | null
+        }
+        Insert: {
+          active_clients?: number | null
+          coach_name: string
+          id?: string
+          last_session_date?: string | null
+          synced_at?: string | null
+          total_clients_ever?: number | null
+          total_remaining_sessions?: number | null
+          total_sessions_year?: number | null
+        }
+        Update: {
+          active_clients?: number | null
+          coach_name?: string
+          id?: string
+          last_session_date?: string | null
+          synced_at?: string | null
+          total_clients_ever?: number | null
+          total_remaining_sessions?: number | null
+          total_sessions_year?: number | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           annual_revenue: number | null
@@ -2134,6 +2846,20 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "call_attribution"
             referencedColumns: ["contact_id"]
           },
@@ -2218,6 +2944,13 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
@@ -2227,6 +2960,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2263,6 +3003,20 @@ export type Database = {
             foreignKeyName: "contact_ownership_history_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "call_attribution"
             referencedColumns: ["contact_id"]
           },
@@ -2347,6 +3101,13 @@ export type Database = {
             foreignKeyName: "contact_ownership_history_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
@@ -2356,6 +3117,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_ownership_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2369,11 +3137,14 @@ export type Database = {
           attributed_ad_id: string | null
           attributed_adset_id: string | null
           attributed_campaign_id: string | null
+          attributed_channel: string | null
+          attribution_method: string | null
           attribution_source: string | null
           call_attempt_count: number | null
           city: string | null
           closed_deal_value: number | null
           coach_notes: string | null
+          coach_uuid: string | null
           company_domain: string | null
           company_id: string | null
           company_name: string | null
@@ -2389,21 +3160,29 @@ export type Database = {
           email_opt_out: boolean | null
           facebook_clicks: number | null
           facebook_id: string | null
+          fbc: string | null
+          fbp: string | null
           first_conversion_date: string | null
           first_name: string | null
           first_outbound_call_time: string | null
           first_page_seen: string | null
+          first_referrer: string | null
           first_touch_source: string | null
           first_touch_time: string | null
           first_visit_date: string | null
           fitness_goals: string | null
           future_booked_sessions: number | null
           ghl_contact_id: string | null
+          google_click_id: string | null
           google_id: string | null
           hubspot_contact_id: string | null
           hubspot_team: string | null
           id: string
           industry: string | null
+          ip_city: string | null
+          ip_country: string | null
+          ip_state: string | null
+          ip_zipcode: string | null
           job_title: string | null
           language: string | null
           last_activity_date: string | null
@@ -2416,12 +3195,16 @@ export type Database = {
           last_package_cost: number | null
           last_page_seen: string | null
           last_paid_session_date: string | null
+          last_referrer: string | null
           last_sync_window_start: string | null
           last_touch_source: string | null
           last_touch_time: string | null
           last_updated_by: string | null
           last_updated_source: string | null
           last_visit_date: string | null
+          latest_source: string | null
+          latest_source_data_1: string | null
+          latest_source_data_2: string | null
           latest_traffic_source: string | null
           latest_traffic_source_2: string | null
           lead_status: string | null
@@ -2463,6 +3246,7 @@ export type Database = {
           sessions_last_7d: number | null
           sessions_last_90d: number | null
           sessions_purchased: number | null
+          setter_uuid: string | null
           sla_first_touch: string | null
           source: string | null
           speed_to_lead_minutes: number | null
@@ -2493,11 +3277,14 @@ export type Database = {
           attributed_ad_id?: string | null
           attributed_adset_id?: string | null
           attributed_campaign_id?: string | null
+          attributed_channel?: string | null
+          attribution_method?: string | null
           attribution_source?: string | null
           call_attempt_count?: number | null
           city?: string | null
           closed_deal_value?: number | null
           coach_notes?: string | null
+          coach_uuid?: string | null
           company_domain?: string | null
           company_id?: string | null
           company_name?: string | null
@@ -2513,21 +3300,29 @@ export type Database = {
           email_opt_out?: boolean | null
           facebook_clicks?: number | null
           facebook_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
           first_conversion_date?: string | null
           first_name?: string | null
           first_outbound_call_time?: string | null
           first_page_seen?: string | null
+          first_referrer?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           first_visit_date?: string | null
           fitness_goals?: string | null
           future_booked_sessions?: number | null
           ghl_contact_id?: string | null
+          google_click_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
           hubspot_team?: string | null
           id?: string
           industry?: string | null
+          ip_city?: string | null
+          ip_country?: string | null
+          ip_state?: string | null
+          ip_zipcode?: string | null
           job_title?: string | null
           language?: string | null
           last_activity_date?: string | null
@@ -2540,12 +3335,16 @@ export type Database = {
           last_package_cost?: number | null
           last_page_seen?: string | null
           last_paid_session_date?: string | null
+          last_referrer?: string | null
           last_sync_window_start?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
           last_updated_by?: string | null
           last_updated_source?: string | null
           last_visit_date?: string | null
+          latest_source?: string | null
+          latest_source_data_1?: string | null
+          latest_source_data_2?: string | null
           latest_traffic_source?: string | null
           latest_traffic_source_2?: string | null
           lead_status?: string | null
@@ -2587,6 +3386,7 @@ export type Database = {
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
           sessions_purchased?: number | null
+          setter_uuid?: string | null
           sla_first_touch?: string | null
           source?: string | null
           speed_to_lead_minutes?: number | null
@@ -2617,11 +3417,14 @@ export type Database = {
           attributed_ad_id?: string | null
           attributed_adset_id?: string | null
           attributed_campaign_id?: string | null
+          attributed_channel?: string | null
+          attribution_method?: string | null
           attribution_source?: string | null
           call_attempt_count?: number | null
           city?: string | null
           closed_deal_value?: number | null
           coach_notes?: string | null
+          coach_uuid?: string | null
           company_domain?: string | null
           company_id?: string | null
           company_name?: string | null
@@ -2637,21 +3440,29 @@ export type Database = {
           email_opt_out?: boolean | null
           facebook_clicks?: number | null
           facebook_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
           first_conversion_date?: string | null
           first_name?: string | null
           first_outbound_call_time?: string | null
           first_page_seen?: string | null
+          first_referrer?: string | null
           first_touch_source?: string | null
           first_touch_time?: string | null
           first_visit_date?: string | null
           fitness_goals?: string | null
           future_booked_sessions?: number | null
           ghl_contact_id?: string | null
+          google_click_id?: string | null
           google_id?: string | null
           hubspot_contact_id?: string | null
           hubspot_team?: string | null
           id?: string
           industry?: string | null
+          ip_city?: string | null
+          ip_country?: string | null
+          ip_state?: string | null
+          ip_zipcode?: string | null
           job_title?: string | null
           language?: string | null
           last_activity_date?: string | null
@@ -2664,12 +3475,16 @@ export type Database = {
           last_package_cost?: number | null
           last_page_seen?: string | null
           last_paid_session_date?: string | null
+          last_referrer?: string | null
           last_sync_window_start?: string | null
           last_touch_source?: string | null
           last_touch_time?: string | null
           last_updated_by?: string | null
           last_updated_source?: string | null
           last_visit_date?: string | null
+          latest_source?: string | null
+          latest_source_data_1?: string | null
+          latest_source_data_2?: string | null
           latest_traffic_source?: string | null
           latest_traffic_source_2?: string | null
           lead_status?: string | null
@@ -2711,6 +3526,7 @@ export type Database = {
           sessions_last_7d?: number | null
           sessions_last_90d?: number | null
           sessions_purchased?: number | null
+          setter_uuid?: string | null
           sla_first_touch?: string | null
           source?: string | null
           speed_to_lead_minutes?: number | null
@@ -3094,6 +3910,84 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_marketing_briefs: {
+        Row: {
+          actions_required: Json | null
+          brief_date: string
+          budget_proposals: Json | null
+          created_at: string | null
+          fatigue_alerts: Json | null
+          funnel_health: Json | null
+          historical_context: Json | null
+          id: string
+          loss_analysis: Json | null
+          new_copy_pending: number | null
+          projection_30d: Json | null
+          projections: Json | null
+          rolling_7d_avg_health: number | null
+          rolling_7d_ghost_rate: number | null
+          rolling_7d_revenue: number | null
+          rolling_7d_roas: number | null
+          rolling_7d_spend: number | null
+          source_alignment: Json | null
+          yesterday_assessments: number | null
+          yesterday_cpl: number | null
+          yesterday_leads: number | null
+          yesterday_spend: number | null
+          yesterday_true_cpa: number | null
+        }
+        Insert: {
+          actions_required?: Json | null
+          brief_date: string
+          budget_proposals?: Json | null
+          created_at?: string | null
+          fatigue_alerts?: Json | null
+          funnel_health?: Json | null
+          historical_context?: Json | null
+          id?: string
+          loss_analysis?: Json | null
+          new_copy_pending?: number | null
+          projection_30d?: Json | null
+          projections?: Json | null
+          rolling_7d_avg_health?: number | null
+          rolling_7d_ghost_rate?: number | null
+          rolling_7d_revenue?: number | null
+          rolling_7d_roas?: number | null
+          rolling_7d_spend?: number | null
+          source_alignment?: Json | null
+          yesterday_assessments?: number | null
+          yesterday_cpl?: number | null
+          yesterday_leads?: number | null
+          yesterday_spend?: number | null
+          yesterday_true_cpa?: number | null
+        }
+        Update: {
+          actions_required?: Json | null
+          brief_date?: string
+          budget_proposals?: Json | null
+          created_at?: string | null
+          fatigue_alerts?: Json | null
+          funnel_health?: Json | null
+          historical_context?: Json | null
+          id?: string
+          loss_analysis?: Json | null
+          new_copy_pending?: number | null
+          projection_30d?: Json | null
+          projections?: Json | null
+          rolling_7d_avg_health?: number | null
+          rolling_7d_ghost_rate?: number | null
+          rolling_7d_revenue?: number | null
+          rolling_7d_roas?: number | null
+          rolling_7d_spend?: number | null
+          source_alignment?: Json | null
+          yesterday_assessments?: number | null
+          yesterday_cpl?: number | null
+          yesterday_leads?: number | null
+          yesterday_spend?: number | null
+          yesterday_true_cpa?: number | null
+        }
+        Relationships: []
+      }
       daily_summary: {
         Row: {
           action_plan: Json | null
@@ -3201,7 +4095,9 @@ export type Database = {
           owner_id: string | null
           owner_name: string | null
           pipeline: string | null
+          pipeline_name: string | null
           stage: string | null
+          stage_label: string | null
           status: Database["public"]["Enums"]["deal_status"] | null
           updated_at: string | null
           value_aed: number | null
@@ -3225,7 +4121,9 @@ export type Database = {
           owner_id?: string | null
           owner_name?: string | null
           pipeline?: string | null
+          pipeline_name?: string | null
           stage?: string | null
+          stage_label?: string | null
           status?: Database["public"]["Enums"]["deal_status"] | null
           updated_at?: string | null
           value_aed?: number | null
@@ -3249,7 +4147,9 @@ export type Database = {
           owner_id?: string | null
           owner_name?: string | null
           pipeline?: string | null
+          pipeline_name?: string | null
           stage?: string | null
+          stage_label?: string | null
           status?: Database["public"]["Enums"]["deal_status"] | null
           updated_at?: string | null
           value_aed?: number | null
@@ -3268,6 +4168,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "staff"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "deals_contact_id_fkey"
@@ -3357,6 +4271,13 @@ export type Database = {
             foreignKeyName: "deals_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
@@ -3366,6 +4287,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "deals_lead_id_fkey"
@@ -3827,6 +4755,7 @@ export type Database = {
           ad_name: string | null
           adset_id: string | null
           adset_name: string | null
+          attribution_window: string | null
           campaign_id: string
           campaign_name: string | null
           clicks: number | null
@@ -3846,11 +4775,17 @@ export type Database = {
           id: string
           impressions: number | null
           inline_link_clicks: number | null
+          landing_page_views: number | null
+          last_synced_at: string | null
+          lead_form_submissions: number | null
           leads: number | null
+          link_clicks: number | null
+          messaging_conversations: number | null
           objective: string | null
           outbound_clicks: number | null
           purchase_value: number | null
           quality_ranking: string | null
+          raw_actions: Json | null
           reach: number | null
           social_spend: number | null
           spend: number | null
@@ -3859,9 +4794,13 @@ export type Database = {
           updated_at: string | null
           video_avg_time_watched: number | null
           video_p100_watched: number | null
+          video_p25: number | null
           video_p25_watched: number | null
+          video_p50: number | null
           video_p50_watched: number | null
+          video_p75: number | null
           video_p75_watched: number | null
+          video_views: number | null
           website_ctr: number | null
         }
         Insert: {
@@ -3871,6 +4810,7 @@ export type Database = {
           ad_name?: string | null
           adset_id?: string | null
           adset_name?: string | null
+          attribution_window?: string | null
           campaign_id: string
           campaign_name?: string | null
           clicks?: number | null
@@ -3890,11 +4830,17 @@ export type Database = {
           id?: string
           impressions?: number | null
           inline_link_clicks?: number | null
+          landing_page_views?: number | null
+          last_synced_at?: string | null
+          lead_form_submissions?: number | null
           leads?: number | null
+          link_clicks?: number | null
+          messaging_conversations?: number | null
           objective?: string | null
           outbound_clicks?: number | null
           purchase_value?: number | null
           quality_ranking?: string | null
+          raw_actions?: Json | null
           reach?: number | null
           social_spend?: number | null
           spend?: number | null
@@ -3903,9 +4849,13 @@ export type Database = {
           updated_at?: string | null
           video_avg_time_watched?: number | null
           video_p100_watched?: number | null
+          video_p25?: number | null
           video_p25_watched?: number | null
+          video_p50?: number | null
           video_p50_watched?: number | null
+          video_p75?: number | null
           video_p75_watched?: number | null
+          video_views?: number | null
           website_ctr?: number | null
         }
         Update: {
@@ -3915,6 +4865,7 @@ export type Database = {
           ad_name?: string | null
           adset_id?: string | null
           adset_name?: string | null
+          attribution_window?: string | null
           campaign_id?: string
           campaign_name?: string | null
           clicks?: number | null
@@ -3934,11 +4885,17 @@ export type Database = {
           id?: string
           impressions?: number | null
           inline_link_clicks?: number | null
+          landing_page_views?: number | null
+          last_synced_at?: string | null
+          lead_form_submissions?: number | null
           leads?: number | null
+          link_clicks?: number | null
+          messaging_conversations?: number | null
           objective?: string | null
           outbound_clicks?: number | null
           purchase_value?: number | null
           quality_ranking?: string | null
+          raw_actions?: Json | null
           reach?: number | null
           social_spend?: number | null
           spend?: number | null
@@ -3947,9 +4904,13 @@ export type Database = {
           updated_at?: string | null
           video_avg_time_watched?: number | null
           video_p100_watched?: number | null
+          video_p25?: number | null
           video_p25_watched?: number | null
+          video_p50?: number | null
           video_p50_watched?: number | null
+          video_p75?: number | null
           video_p75_watched?: number | null
+          video_views?: number | null
           website_ctr?: number | null
         }
         Relationships: []
@@ -5060,6 +6021,175 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_delegation_history: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          delegated_at: string
+          from_owner_id: string | null
+          from_owner_name: string | null
+          hubspot_contact_id: string
+          id: number
+          sequence_number: number | null
+          source_type: string | null
+          to_owner_id: string
+          to_owner_name: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          delegated_at: string
+          from_owner_id?: string | null
+          from_owner_name?: string | null
+          hubspot_contact_id: string
+          id?: number
+          sequence_number?: number | null
+          source_type?: string | null
+          to_owner_id: string
+          to_owner_name?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          delegated_at?: string
+          from_owner_id?: string | null
+          from_owner_name?: string | null
+          hubspot_contact_id?: string
+          id?: number
+          sequence_number?: number | null
+          source_type?: string | null
+          to_owner_id?: string
+          to_owner_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_events: {
         Row: {
           id: string
@@ -5108,12 +6238,26 @@ export type Database = {
       leads: {
         Row: {
           ai_suggested_reply: string | null
+          analytics_score: number | null
+          assessment_date: string | null
+          assessment_scheduled: boolean | null
           assigned_coach: string | null
+          attributed_ad_id: string | null
+          attributed_campaign_id: string | null
+          attribution_source: string | null
+          call_attempt_count: number | null
           closer_id: string | null
+          coach_uuid: string | null
+          contact_unworked: boolean | null
           created_at: string | null
+          custom_lifecycle_stage: string | null
           email: string | null
+          facebook_id: string | null
           facebook_lead_id: string | null
+          first_conversion_date: string | null
           first_name: string | null
+          first_touch_source: string | null
+          fitness_goals: string | null
           hubspot_id: string | null
           id: string
           last_name: string | null
@@ -5122,18 +6266,33 @@ export type Database = {
           phone: string | null
           score: number | null
           setter_id: string | null
+          setter_uuid: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"] | null
           updated_at: string | null
         }
         Insert: {
           ai_suggested_reply?: string | null
+          analytics_score?: number | null
+          assessment_date?: string | null
+          assessment_scheduled?: boolean | null
           assigned_coach?: string | null
+          attributed_ad_id?: string | null
+          attributed_campaign_id?: string | null
+          attribution_source?: string | null
+          call_attempt_count?: number | null
           closer_id?: string | null
+          coach_uuid?: string | null
+          contact_unworked?: boolean | null
           created_at?: string | null
+          custom_lifecycle_stage?: string | null
           email?: string | null
+          facebook_id?: string | null
           facebook_lead_id?: string | null
+          first_conversion_date?: string | null
           first_name?: string | null
+          first_touch_source?: string | null
+          fitness_goals?: string | null
           hubspot_id?: string | null
           id?: string
           last_name?: string | null
@@ -5142,18 +6301,33 @@ export type Database = {
           phone?: string | null
           score?: number | null
           setter_id?: string | null
+          setter_uuid?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"] | null
           updated_at?: string | null
         }
         Update: {
           ai_suggested_reply?: string | null
+          analytics_score?: number | null
+          assessment_date?: string | null
+          assessment_scheduled?: boolean | null
           assigned_coach?: string | null
+          attributed_ad_id?: string | null
+          attributed_campaign_id?: string | null
+          attribution_source?: string | null
+          call_attempt_count?: number | null
           closer_id?: string | null
+          coach_uuid?: string | null
+          contact_unworked?: boolean | null
           created_at?: string | null
+          custom_lifecycle_stage?: string | null
           email?: string | null
+          facebook_id?: string | null
           facebook_lead_id?: string | null
+          first_conversion_date?: string | null
           first_name?: string | null
+          first_touch_source?: string | null
+          fitness_goals?: string | null
           hubspot_id?: string | null
           id?: string
           last_name?: string | null
@@ -5162,6 +6336,7 @@ export type Database = {
           phone?: string | null
           score?: number | null
           setter_id?: string | null
+          setter_uuid?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"] | null
           updated_at?: string | null
@@ -5300,6 +6475,175 @@ export type Database = {
         }
         Relationships: []
       }
+      lost_leads: {
+        Row: {
+          assigned_owner: string | null
+          caller_number: string
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          last_missed_at: string | null
+          lead_score: number | null
+          lifecycle_stage: string | null
+          missed_call_count: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_owner?: string | null
+          caller_number: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_missed_at?: string | null
+          lead_score?: number | null
+          lifecycle_stage?: string | null
+          missed_call_count?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_owner?: string | null
+          caller_number?: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_missed_at?: string | null
+          lead_score?: number | null
+          lifecycle_stage?: string | null
+          missed_call_count?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lost_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       management_activity_audit: {
         Row: {
           assigned_coach: string | null
@@ -5395,6 +6739,221 @@ export type Database = {
           platform?: string | null
         }
         Relationships: []
+      }
+      mdm_devices: {
+        Row: {
+          battery_level: number | null
+          coach_id: string | null
+          coach_name: string | null
+          created_at: string | null
+          device_name: string | null
+          enrollment_type: string | null
+          group_id: string | null
+          id: string
+          imei: string | null
+          is_online: boolean | null
+          last_address: string | null
+          last_lat: number | null
+          last_lng: number | null
+          last_location_at: string | null
+          last_sync_at: string | null
+          manufacturer: string | null
+          os_version: string | null
+          phone_number: string | null
+          policy_id: string | null
+          serial_number: string | null
+          tinymdm_device_id: string
+          user_id: string | null
+        }
+        Insert: {
+          battery_level?: number | null
+          coach_id?: string | null
+          coach_name?: string | null
+          created_at?: string | null
+          device_name?: string | null
+          enrollment_type?: string | null
+          group_id?: string | null
+          id?: string
+          imei?: string | null
+          is_online?: boolean | null
+          last_address?: string | null
+          last_lat?: number | null
+          last_lng?: number | null
+          last_location_at?: string | null
+          last_sync_at?: string | null
+          manufacturer?: string | null
+          os_version?: string | null
+          phone_number?: string | null
+          policy_id?: string | null
+          serial_number?: string | null
+          tinymdm_device_id: string
+          user_id?: string | null
+        }
+        Update: {
+          battery_level?: number | null
+          coach_id?: string | null
+          coach_name?: string | null
+          created_at?: string | null
+          device_name?: string | null
+          enrollment_type?: string | null
+          group_id?: string | null
+          id?: string
+          imei?: string | null
+          is_online?: boolean | null
+          last_address?: string | null
+          last_lat?: number | null
+          last_lng?: number | null
+          last_location_at?: string | null
+          last_sync_at?: string | null
+          manufacturer?: string | null
+          os_version?: string | null
+          phone_number?: string | null
+          policy_id?: string | null
+          serial_number?: string | null
+          tinymdm_device_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      mdm_location_events: {
+        Row: {
+          accuracy_m: number | null
+          address: string | null
+          device_id: string
+          id: string
+          lat: number
+          lng: number
+          raw_hash: string | null
+          recorded_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          address?: string | null
+          device_id: string
+          id?: string
+          lat: number
+          lng: number
+          raw_hash?: string | null
+          recorded_at: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          address?: string | null
+          device_id?: string
+          id?: string
+          lat?: number
+          lng?: number
+          raw_hash?: string | null
+          recorded_at?: string
+        }
+        Relationships: []
+      }
+      mdm_pois: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          id: string
+          lat: number
+          lng: number
+          name: string
+          radius_m: number | null
+          type: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          lat: number
+          lng: number
+          name: string
+          radius_m?: number | null
+          type?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          lat?: number
+          lng?: number
+          name?: string
+          radius_m?: number | null
+          type?: string | null
+        }
+        Relationships: []
+      }
+      mdm_session_verifications: {
+        Row: {
+          created_at: string | null
+          evidence_window: unknown
+          id: string
+          max_distance_m: number | null
+          points_in_geofence: number | null
+          session_id: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          evidence_window?: unknown
+          id?: string
+          max_distance_m?: number | null
+          points_in_geofence?: number | null
+          session_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          evidence_window?: unknown
+          id?: string
+          max_distance_m?: number | null
+          points_in_geofence?: number | null
+          session_id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      mdm_visits: {
+        Row: {
+          coach_id: string | null
+          confidence: number | null
+          created_at: string | null
+          device_id: string | null
+          duration_min: number | null
+          end_ts: string | null
+          id: string
+          poi_id: string | null
+          start_ts: string
+        }
+        Insert: {
+          coach_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          device_id?: string | null
+          duration_min?: number | null
+          end_ts?: string | null
+          id?: string
+          poi_id?: string | null
+          start_ts: string
+        }
+        Update: {
+          coach_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          device_id?: string | null
+          duration_min?: number | null
+          end_ts?: string | null
+          id?: string
+          poi_id?: string | null
+          start_ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mdm_visits_poi_id_fkey"
+            columns: ["poi_id"]
+            isOneToOne: false
+            referencedRelation: "mdm_pois"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       member_analytics: {
         Row: {
@@ -5539,6 +7098,297 @@ export type Database = {
           message_preview?: string | null
           status?: string
           thread_id?: string
+        }
+        Relationships: []
+      }
+      meta_ad_sets: {
+        Row: {
+          ad_set_id: string
+          ad_set_name: string | null
+          bid_strategy: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          clicks: number | null
+          conversions: number | null
+          cpa: number | null
+          created_at: string | null
+          daily_budget: number | null
+          date_start: string | null
+          date_stop: string | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          last_synced_at: string | null
+          lifetime_budget: number | null
+          optimization_goal: string | null
+          raw_actions: Json | null
+          reach: number | null
+          roas: number | null
+          spend: number | null
+          status: string | null
+          targeting: Json | null
+        }
+        Insert: {
+          ad_set_id: string
+          ad_set_name?: string | null
+          bid_strategy?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          daily_budget?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          last_synced_at?: string | null
+          lifetime_budget?: number | null
+          optimization_goal?: string | null
+          raw_actions?: Json | null
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          targeting?: Json | null
+        }
+        Update: {
+          ad_set_id?: string
+          ad_set_name?: string | null
+          bid_strategy?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          daily_budget?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          last_synced_at?: string | null
+          lifetime_budget?: number | null
+          optimization_goal?: string | null
+          raw_actions?: Json | null
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          targeting?: Json | null
+        }
+        Relationships: []
+      }
+      meta_ads: {
+        Row: {
+          ad_id: string
+          ad_name: string | null
+          ad_set_id: string | null
+          ad_set_name: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          clicks: number | null
+          conversion_rate_ranking: string | null
+          conversions: number | null
+          cpa: number | null
+          cpc: number | null
+          created_at: string | null
+          creative_body: string | null
+          creative_link_url: string | null
+          creative_thumbnail_url: string | null
+          creative_title: string | null
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate_ranking: string | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          last_synced_at: string | null
+          quality_ranking: string | null
+          raw_actions: Json | null
+          reach: number | null
+          roas: number | null
+          spend: number | null
+          status: string | null
+        }
+        Insert: {
+          ad_id: string
+          ad_name?: string | null
+          ad_set_id?: string | null
+          ad_set_name?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversion_rate_ranking?: string | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          created_at?: string | null
+          creative_body?: string | null
+          creative_link_url?: string | null
+          creative_thumbnail_url?: string | null
+          creative_title?: string | null
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate_ranking?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          last_synced_at?: string | null
+          quality_ranking?: string | null
+          raw_actions?: Json | null
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+        }
+        Update: {
+          ad_id?: string
+          ad_name?: string | null
+          ad_set_id?: string | null
+          ad_set_name?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversion_rate_ranking?: string | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          created_at?: string | null
+          creative_body?: string | null
+          creative_link_url?: string | null
+          creative_thumbnail_url?: string | null
+          creative_title?: string | null
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate_ranking?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          last_synced_at?: string | null
+          quality_ranking?: string | null
+          raw_actions?: Json | null
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      meta_cross_validation: {
+        Row: {
+          created_at: string | null
+          data_sources: Json | null
+          hubspot_leads: number | null
+          hubspot_new_contacts: number | null
+          id: string
+          meta_conversions: number | null
+          meta_cpa: number | null
+          meta_roas: number | null
+          meta_spend: number | null
+          period_end: string
+          period_start: string
+          real_cpl: number | null
+          real_roas: number | null
+          real_vs_meta_cpa_diff_pct: number | null
+          real_vs_meta_roas_diff_pct: number | null
+          stripe_revenue: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_sources?: Json | null
+          hubspot_leads?: number | null
+          hubspot_new_contacts?: number | null
+          id?: string
+          meta_conversions?: number | null
+          meta_cpa?: number | null
+          meta_roas?: number | null
+          meta_spend?: number | null
+          period_end: string
+          period_start: string
+          real_cpl?: number | null
+          real_roas?: number | null
+          real_vs_meta_cpa_diff_pct?: number | null
+          real_vs_meta_roas_diff_pct?: number | null
+          stripe_revenue?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          data_sources?: Json | null
+          hubspot_leads?: number | null
+          hubspot_new_contacts?: number | null
+          id?: string
+          meta_conversions?: number | null
+          meta_cpa?: number | null
+          meta_roas?: number | null
+          meta_spend?: number | null
+          period_end?: string
+          period_start?: string
+          real_cpl?: number | null
+          real_roas?: number | null
+          real_vs_meta_cpa_diff_pct?: number | null
+          real_vs_meta_roas_diff_pct?: number | null
+          stripe_revenue?: number | null
+        }
+        Relationships: []
+      }
+      ml_client_features: {
+        Row: {
+          client_email: string
+          client_name: string | null
+          coach_name: string | null
+          computed_at: string | null
+          feature_count: number | null
+          features: Json
+        }
+        Insert: {
+          client_email: string
+          client_name?: string | null
+          coach_name?: string | null
+          computed_at?: string | null
+          feature_count?: number | null
+          features?: Json
+        }
+        Update: {
+          client_email?: string
+          client_name?: string | null
+          coach_name?: string | null
+          computed_at?: string | null
+          feature_count?: number | null
+          features?: Json
+        }
+        Relationships: []
+      }
+      ml_model_weights: {
+        Row: {
+          id: string
+          metrics: Json | null
+          model_name: string
+          trained_at: string | null
+          version: string
+          weights: Json
+        }
+        Insert: {
+          id?: string
+          metrics?: Json | null
+          model_name: string
+          trained_at?: string | null
+          version: string
+          weights: Json
+        }
+        Update: {
+          id?: string
+          metrics?: Json | null
+          model_name?: string
+          trained_at?: string | null
+          version?: string
+          weights?: Json
         }
         Relationships: []
       }
@@ -5920,6 +7770,20 @@ export type Database = {
             foreignKeyName: "proactive_insights_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "call_attribution"
             referencedColumns: ["contact_id"]
           },
@@ -6004,6 +7868,13 @@ export type Database = {
             foreignKeyName: "proactive_insights_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
@@ -6015,6 +7886,13 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
           {
+            foreignKeyName: "proactive_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proactive_insights_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
@@ -6022,6 +7900,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ptd_meta_entities: {
+        Row: {
+          brand: string
+          config: Json | null
+          created_at: string | null
+          entity_name: string
+          entity_type: string
+          id: string
+          meta_id: string | null
+        }
+        Insert: {
+          brand: string
+          config?: Json | null
+          created_at?: string | null
+          entity_name: string
+          entity_type: string
+          id?: string
+          meta_id?: string | null
+        }
+        Update: {
+          brand?: string
+          config?: Json | null
+          created_at?: string | null
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          meta_id?: string | null
+        }
+        Relationships: []
       }
       "really connection": {
         Row: {
@@ -6125,6 +8033,42 @@ export type Database = {
           issues?: string[]
           original_length?: number | null
           thread_id?: string
+        }
+        Relationships: []
+      }
+      revenue_forecasts: {
+        Row: {
+          at_risk_30d: number | null
+          at_risk_60d: number | null
+          at_risk_90d: number | null
+          forecast_date: string
+          revenue_30d: number | null
+          revenue_60d: number | null
+          revenue_90d: number | null
+          total_pipeline: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          at_risk_30d?: number | null
+          at_risk_60d?: number | null
+          at_risk_90d?: number | null
+          forecast_date: string
+          revenue_30d?: number | null
+          revenue_60d?: number | null
+          revenue_90d?: number | null
+          total_pipeline?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          at_risk_30d?: number | null
+          at_risk_60d?: number | null
+          at_risk_90d?: number | null
+          forecast_date?: string
+          revenue_30d?: number | null
+          revenue_60d?: number | null
+          revenue_90d?: number | null
+          total_pipeline?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -6318,6 +8262,96 @@ export type Database = {
         }
         Relationships: []
       }
+      session_depletion_alerts: {
+        Row: {
+          alert_status: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          created_at: string | null
+          id: string
+          last_coach: string | null
+          package_id: string
+          priority: string | null
+          remaining_sessions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          alert_status?: string | null
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string | null
+          id?: string
+          last_coach?: string | null
+          package_id: string
+          priority?: string | null
+          remaining_sessions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          alert_status?: string | null
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string | null
+          id?: string
+          last_coach?: string | null
+          package_id?: string
+          priority?: string | null
+          remaining_sessions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      setter_daily_stats: {
+        Row: {
+          answered_calls: number | null
+          appointments_set: number | null
+          avg_duration: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          date: string
+          hubspot_owner_id: string | null
+          id: string
+          lost_lead_count: number | null
+          missed_calls: number | null
+          owner_name: string | null
+          total_calls: number | null
+          total_talk_time: number | null
+        }
+        Insert: {
+          answered_calls?: number | null
+          appointments_set?: number | null
+          avg_duration?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date: string
+          hubspot_owner_id?: string | null
+          id?: string
+          lost_lead_count?: number | null
+          missed_calls?: number | null
+          owner_name?: string | null
+          total_calls?: number | null
+          total_talk_time?: number | null
+        }
+        Update: {
+          answered_calls?: number | null
+          appointments_set?: number | null
+          avg_duration?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date?: string
+          hubspot_owner_id?: string | null
+          id?: string
+          lost_lead_count?: number | null
+          missed_calls?: number | null
+          owner_name?: string | null
+          total_calls?: number | null
+          total_talk_time?: number | null
+        }
+        Relationships: []
+      }
       spark_leads: {
         Row: {
           created_at: string | null
@@ -6354,6 +8388,7 @@ export type Database = {
           email: string | null
           gender: string | null
           home_zone: string | null
+          hubspot_owner_id: string | null
           id: string
           name: string
           role: string
@@ -6365,6 +8400,7 @@ export type Database = {
           email?: string | null
           gender?: string | null
           home_zone?: string | null
+          hubspot_owner_id?: string | null
           id?: string
           name: string
           role: string
@@ -6376,6 +8412,7 @@ export type Database = {
           email?: string | null
           gender?: string | null
           home_zone?: string | null
+          hubspot_owner_id?: string | null
           id?: string
           name?: string
           role?: string
@@ -6591,6 +8628,7 @@ export type Database = {
           amount_paid: number | null
           created_at: string | null
           currency: string | null
+          customer_email: string | null
           customer_id: string | null
           id: string
           metadata: Json | null
@@ -6605,6 +8643,7 @@ export type Database = {
           amount_paid?: number | null
           created_at?: string | null
           currency?: string | null
+          customer_email?: string | null
           customer_id?: string | null
           id?: string
           metadata?: Json | null
@@ -6619,6 +8658,7 @@ export type Database = {
           amount_paid?: number | null
           created_at?: string | null
           currency?: string | null
+          customer_email?: string | null
           customer_id?: string | null
           id?: string
           metadata?: Json | null
@@ -6792,9 +8832,11 @@ export type Database = {
       stripe_subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
+          contact_id: string | null
           created_at: string | null
           current_period_end: string | null
           current_period_start: string | null
+          customer_email: string | null
           customer_id: string | null
           id: string
           metadata: Json | null
@@ -6804,9 +8846,11 @@ export type Database = {
         }
         Insert: {
           cancel_at_period_end?: boolean | null
+          contact_id?: string | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          customer_email?: string | null
           customer_id?: string | null
           id?: string
           metadata?: Json | null
@@ -6816,62 +8860,226 @@ export type Database = {
         }
         Update: {
           cancel_at_period_end?: boolean | null
+          contact_id?: string | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          customer_email?: string | null
           customer_id?: string | null
           id?: string
           metadata?: Json | null
-          status?: string | null
-          stripe_id?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      stripe_transactions: {
-        Row: {
-          amount: number | null
-          contact_id: string | null
-          created_at: string | null
-          currency: string | null
-          customer_id: string | null
-          description: string | null
-          id: string
-          metadata: Json | null
-          payment_method: string | null
-          status: string | null
-          stripe_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          amount?: number | null
-          contact_id?: string | null
-          created_at?: string | null
-          currency?: string | null
-          customer_id?: string | null
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          payment_method?: string | null
-          status?: string | null
-          stripe_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          amount?: number | null
-          contact_id?: string | null
-          created_at?: string | null
-          currency?: string | null
-          customer_id?: string | null
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          payment_method?: string | null
           status?: string | null
           stripe_id?: string
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_transactions: {
+        Row: {
+          amount: number | null
+          amount_refunded: number | null
+          charge_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          currency: string | null
+          customer_email: string | null
+          customer_id: string | null
+          description: string | null
+          failure_reason: string | null
+          id: string
+          metadata: Json | null
+          payment_method: string | null
+          refunded: boolean | null
+          status: string | null
+          stripe_id: string
+          subscription_id: string | null
+          transaction_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number | null
+          amount_refunded?: number | null
+          charge_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          customer_email?: string | null
+          customer_id?: string | null
+          description?: string | null
+          failure_reason?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          refunded?: boolean | null
+          status?: string | null
+          stripe_id: string
+          subscription_id?: string | null
+          transaction_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number | null
+          amount_refunded?: number | null
+          charge_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          customer_email?: string | null
+          customer_id?: string | null
+          description?: string | null
+          failure_reason?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          refunded?: boolean | null
+          status?: string | null
+          stripe_id?: string
+          subscription_id?: string | null
+          transaction_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
           {
             foreignKeyName: "stripe_transactions_contact_id_fkey"
             columns: ["contact_id"]
@@ -6960,6 +9168,13 @@ export type Database = {
             foreignKeyName: "stripe_transactions_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "view_contact_360"
             referencedColumns: ["contact_id"]
           },
@@ -6969,6 +9184,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_enterprise_truth_genome"
             referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "stripe_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -7389,6 +9611,147 @@ export type Database = {
         }
         Relationships: []
       }
+      training_sessions: {
+        Row: {
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          coach_id: string | null
+          coach_name: string | null
+          id: string
+          location: string | null
+          package_code: string | null
+          rds_id: number | null
+          session_type: string | null
+          status: string | null
+          synced_at: string | null
+          time_slot: string | null
+          training_date: string | null
+        }
+        Insert: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          coach_id?: string | null
+          coach_name?: string | null
+          id?: string
+          location?: string | null
+          package_code?: string | null
+          rds_id?: number | null
+          session_type?: string | null
+          status?: string | null
+          synced_at?: string | null
+          time_slot?: string | null
+          training_date?: string | null
+        }
+        Update: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          coach_id?: string | null
+          coach_name?: string | null
+          id?: string
+          location?: string | null
+          package_code?: string | null
+          rds_id?: number | null
+          session_type?: string | null
+          status?: string | null
+          synced_at?: string | null
+          time_slot?: string | null
+          training_date?: string | null
+        }
+        Relationships: []
+      }
+      training_sessions_full: {
+        Row: {
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          coach_name: string | null
+          id: string
+          location: string | null
+          session_type: string | null
+          status: string | null
+          synced_at: string | null
+          training_date: string
+        }
+        Insert: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          coach_name?: string | null
+          id?: string
+          location?: string | null
+          session_type?: string | null
+          status?: string | null
+          synced_at?: string | null
+          training_date: string
+        }
+        Update: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          coach_name?: string | null
+          id?: string
+          location?: string | null
+          session_type?: string | null
+          status?: string | null
+          synced_at?: string | null
+          training_date?: string
+        }
+        Relationships: []
+      }
+      training_sessions_live: {
+        Row: {
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          coach_id: string | null
+          coach_name: string | null
+          id: string
+          location: string | null
+          package_code: string | null
+          rds_id: string
+          session_type: string | null
+          status: string | null
+          synced_at: string | null
+          time_slot: string | null
+          training_date: string | null
+        }
+        Insert: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          coach_id?: string | null
+          coach_name?: string | null
+          id?: string
+          location?: string | null
+          package_code?: string | null
+          rds_id: string
+          session_type?: string | null
+          status?: string | null
+          synced_at?: string | null
+          time_slot?: string | null
+          training_date?: string | null
+        }
+        Update: {
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          coach_id?: string | null
+          coach_name?: string | null
+          id?: string
+          location?: string | null
+          package_code?: string | null
+          rds_id?: string
+          session_type?: string | null
+          status?: string | null
+          synced_at?: string | null
+          time_slot?: string | null
+          training_date?: string | null
+        }
+        Relationships: []
+      }
       ultimate_truth_events: {
         Row: {
           aligned_at: string | null
@@ -7802,43 +10165,422 @@ export type Database = {
       }
     }
     Views: {
+      active_contacts: {
+        Row: {
+          analytics_score: number | null
+          assessment_date: string | null
+          assessment_scheduled: boolean | null
+          assigned_coach: string | null
+          associated_deal_ids: string[] | null
+          attributed_ad_id: string | null
+          attributed_adset_id: string | null
+          attributed_campaign_id: string | null
+          attribution_source: string | null
+          call_attempt_count: number | null
+          city: string | null
+          closed_deal_value: number | null
+          coach_notes: string | null
+          company_domain: string | null
+          company_id: string | null
+          company_name: string | null
+          company_size: string | null
+          contact_unworked: boolean | null
+          count_of_reassignations: number | null
+          created_at: string | null
+          currently_in_prospecting: boolean | null
+          custom_lifecycle_stage: string | null
+          delegation_date: string | null
+          email: string | null
+          email_domain: string | null
+          email_opt_out: boolean | null
+          facebook_clicks: number | null
+          facebook_id: string | null
+          fbc: string | null
+          fbp: string | null
+          first_conversion_date: string | null
+          first_name: string | null
+          first_outbound_call_time: string | null
+          first_page_seen: string | null
+          first_referrer: string | null
+          first_touch_source: string | null
+          first_touch_time: string | null
+          first_visit_date: string | null
+          fitness_goals: string | null
+          future_booked_sessions: number | null
+          ghl_contact_id: string | null
+          google_click_id: string | null
+          google_id: string | null
+          hubspot_contact_id: string | null
+          hubspot_team: string | null
+          id: string | null
+          industry: string | null
+          ip_city: string | null
+          ip_country: string | null
+          ip_state: string | null
+          ip_zipcode: string | null
+          job_title: string | null
+          language: string | null
+          last_activity_date: string | null
+          last_deal_created_date: string | null
+          last_email_clicked_date: string | null
+          last_email_opened_date: string | null
+          last_email_sent_date: string | null
+          last_meeting_date: string | null
+          last_name: string | null
+          last_package_cost: number | null
+          last_page_seen: string | null
+          last_paid_session_date: string | null
+          last_referrer: string | null
+          last_sync_window_start: string | null
+          last_touch_source: string | null
+          last_touch_time: string | null
+          last_updated_by: string | null
+          last_updated_source: string | null
+          last_visit_date: string | null
+          latest_source: string | null
+          latest_source_data_1: string | null
+          latest_source_data_2: string | null
+          latest_traffic_source: string | null
+          latest_traffic_source_2: string | null
+          lead_status: string | null
+          lifecycle_stage: string | null
+          linkedin_bio: string | null
+          linkedin_clicks: number | null
+          linkedin_connections: number | null
+          location: string | null
+          marketing_opt_out: boolean | null
+          member_accessed_private_content: number | null
+          neighborhood: string | null
+          next_meeting_date: string | null
+          next_session_is_booked: boolean | null
+          num_associated_deals: number | null
+          num_emails: number | null
+          num_emails_clicked: number | null
+          num_emails_opened: number | null
+          num_emails_sent: number | null
+          num_event_completions: number | null
+          num_form_submissions: number | null
+          num_meetings: number | null
+          num_notes: number | null
+          num_page_views: number | null
+          num_unique_forms_submitted: number | null
+          num_visits: number | null
+          open_deal_value: number | null
+          outstanding_sessions: number | null
+          owner_id: string | null
+          owner_name: string | null
+          package_type: string | null
+          phone: string | null
+          preferred_contact_method: string | null
+          preferred_location: string | null
+          recent_conversion: string | null
+          recent_conversion_date: string | null
+          registered_member: number | null
+          segment_memberships: string[] | null
+          sessions_last_30d: number | null
+          sessions_last_7d: number | null
+          sessions_last_90d: number | null
+          sessions_purchased: number | null
+          sla_first_touch: string | null
+          source: string | null
+          speed_to_lead_minutes: number | null
+          status: string | null
+          sync_processing_count: number | null
+          time_of_entry: string | null
+          timezone: string | null
+          total_deal_value: number | null
+          total_events: number | null
+          total_value: number | null
+          twitter_clicks: number | null
+          twitter_followers: number | null
+          twitter_handle: string | null
+          updated_at: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          website: string | null
+        }
+        Insert: {
+          analytics_score?: number | null
+          assessment_date?: string | null
+          assessment_scheduled?: boolean | null
+          assigned_coach?: string | null
+          associated_deal_ids?: string[] | null
+          attributed_ad_id?: string | null
+          attributed_adset_id?: string | null
+          attributed_campaign_id?: string | null
+          attribution_source?: string | null
+          call_attempt_count?: number | null
+          city?: string | null
+          closed_deal_value?: number | null
+          coach_notes?: string | null
+          company_domain?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          contact_unworked?: boolean | null
+          count_of_reassignations?: number | null
+          created_at?: string | null
+          currently_in_prospecting?: boolean | null
+          custom_lifecycle_stage?: string | null
+          delegation_date?: string | null
+          email?: string | null
+          email_domain?: string | null
+          email_opt_out?: boolean | null
+          facebook_clicks?: number | null
+          facebook_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          first_conversion_date?: string | null
+          first_name?: string | null
+          first_outbound_call_time?: string | null
+          first_page_seen?: string | null
+          first_referrer?: string | null
+          first_touch_source?: string | null
+          first_touch_time?: string | null
+          first_visit_date?: string | null
+          fitness_goals?: string | null
+          future_booked_sessions?: number | null
+          ghl_contact_id?: string | null
+          google_click_id?: string | null
+          google_id?: string | null
+          hubspot_contact_id?: string | null
+          hubspot_team?: string | null
+          id?: string | null
+          industry?: string | null
+          ip_city?: string | null
+          ip_country?: string | null
+          ip_state?: string | null
+          ip_zipcode?: string | null
+          job_title?: string | null
+          language?: string | null
+          last_activity_date?: string | null
+          last_deal_created_date?: string | null
+          last_email_clicked_date?: string | null
+          last_email_opened_date?: string | null
+          last_email_sent_date?: string | null
+          last_meeting_date?: string | null
+          last_name?: string | null
+          last_package_cost?: number | null
+          last_page_seen?: string | null
+          last_paid_session_date?: string | null
+          last_referrer?: string | null
+          last_sync_window_start?: string | null
+          last_touch_source?: string | null
+          last_touch_time?: string | null
+          last_updated_by?: string | null
+          last_updated_source?: string | null
+          last_visit_date?: string | null
+          latest_source?: string | null
+          latest_source_data_1?: string | null
+          latest_source_data_2?: string | null
+          latest_traffic_source?: string | null
+          latest_traffic_source_2?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
+          linkedin_bio?: string | null
+          linkedin_clicks?: number | null
+          linkedin_connections?: number | null
+          location?: string | null
+          marketing_opt_out?: boolean | null
+          member_accessed_private_content?: number | null
+          neighborhood?: string | null
+          next_meeting_date?: string | null
+          next_session_is_booked?: boolean | null
+          num_associated_deals?: number | null
+          num_emails?: number | null
+          num_emails_clicked?: number | null
+          num_emails_opened?: number | null
+          num_emails_sent?: number | null
+          num_event_completions?: number | null
+          num_form_submissions?: number | null
+          num_meetings?: number | null
+          num_notes?: number | null
+          num_page_views?: number | null
+          num_unique_forms_submitted?: number | null
+          num_visits?: number | null
+          open_deal_value?: number | null
+          outstanding_sessions?: number | null
+          owner_id?: string | null
+          owner_name?: string | null
+          package_type?: string | null
+          phone?: string | null
+          preferred_contact_method?: string | null
+          preferred_location?: string | null
+          recent_conversion?: string | null
+          recent_conversion_date?: string | null
+          registered_member?: number | null
+          segment_memberships?: string[] | null
+          sessions_last_30d?: number | null
+          sessions_last_7d?: number | null
+          sessions_last_90d?: number | null
+          sessions_purchased?: number | null
+          sla_first_touch?: string | null
+          source?: string | null
+          speed_to_lead_minutes?: number | null
+          status?: string | null
+          sync_processing_count?: number | null
+          time_of_entry?: string | null
+          timezone?: string | null
+          total_deal_value?: number | null
+          total_events?: number | null
+          total_value?: number | null
+          twitter_clicks?: number | null
+          twitter_followers?: number | null
+          twitter_handle?: string | null
+          updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          website?: string | null
+        }
+        Update: {
+          analytics_score?: number | null
+          assessment_date?: string | null
+          assessment_scheduled?: boolean | null
+          assigned_coach?: string | null
+          associated_deal_ids?: string[] | null
+          attributed_ad_id?: string | null
+          attributed_adset_id?: string | null
+          attributed_campaign_id?: string | null
+          attribution_source?: string | null
+          call_attempt_count?: number | null
+          city?: string | null
+          closed_deal_value?: number | null
+          coach_notes?: string | null
+          company_domain?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          contact_unworked?: boolean | null
+          count_of_reassignations?: number | null
+          created_at?: string | null
+          currently_in_prospecting?: boolean | null
+          custom_lifecycle_stage?: string | null
+          delegation_date?: string | null
+          email?: string | null
+          email_domain?: string | null
+          email_opt_out?: boolean | null
+          facebook_clicks?: number | null
+          facebook_id?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          first_conversion_date?: string | null
+          first_name?: string | null
+          first_outbound_call_time?: string | null
+          first_page_seen?: string | null
+          first_referrer?: string | null
+          first_touch_source?: string | null
+          first_touch_time?: string | null
+          first_visit_date?: string | null
+          fitness_goals?: string | null
+          future_booked_sessions?: number | null
+          ghl_contact_id?: string | null
+          google_click_id?: string | null
+          google_id?: string | null
+          hubspot_contact_id?: string | null
+          hubspot_team?: string | null
+          id?: string | null
+          industry?: string | null
+          ip_city?: string | null
+          ip_country?: string | null
+          ip_state?: string | null
+          ip_zipcode?: string | null
+          job_title?: string | null
+          language?: string | null
+          last_activity_date?: string | null
+          last_deal_created_date?: string | null
+          last_email_clicked_date?: string | null
+          last_email_opened_date?: string | null
+          last_email_sent_date?: string | null
+          last_meeting_date?: string | null
+          last_name?: string | null
+          last_package_cost?: number | null
+          last_page_seen?: string | null
+          last_paid_session_date?: string | null
+          last_referrer?: string | null
+          last_sync_window_start?: string | null
+          last_touch_source?: string | null
+          last_touch_time?: string | null
+          last_updated_by?: string | null
+          last_updated_source?: string | null
+          last_visit_date?: string | null
+          latest_source?: string | null
+          latest_source_data_1?: string | null
+          latest_source_data_2?: string | null
+          latest_traffic_source?: string | null
+          latest_traffic_source_2?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
+          linkedin_bio?: string | null
+          linkedin_clicks?: number | null
+          linkedin_connections?: number | null
+          location?: string | null
+          marketing_opt_out?: boolean | null
+          member_accessed_private_content?: number | null
+          neighborhood?: string | null
+          next_meeting_date?: string | null
+          next_session_is_booked?: boolean | null
+          num_associated_deals?: number | null
+          num_emails?: number | null
+          num_emails_clicked?: number | null
+          num_emails_opened?: number | null
+          num_emails_sent?: number | null
+          num_event_completions?: number | null
+          num_form_submissions?: number | null
+          num_meetings?: number | null
+          num_notes?: number | null
+          num_page_views?: number | null
+          num_unique_forms_submitted?: number | null
+          num_visits?: number | null
+          open_deal_value?: number | null
+          outstanding_sessions?: number | null
+          owner_id?: string | null
+          owner_name?: string | null
+          package_type?: string | null
+          phone?: string | null
+          preferred_contact_method?: string | null
+          preferred_location?: string | null
+          recent_conversion?: string | null
+          recent_conversion_date?: string | null
+          registered_member?: number | null
+          segment_memberships?: string[] | null
+          sessions_last_30d?: number | null
+          sessions_last_7d?: number | null
+          sessions_last_90d?: number | null
+          sessions_purchased?: number | null
+          sla_first_touch?: string | null
+          source?: string | null
+          speed_to_lead_minutes?: number | null
+          status?: string | null
+          sync_processing_count?: number | null
+          time_of_entry?: string | null
+          timezone?: string | null
+          total_deal_value?: number | null
+          total_events?: number | null
+          total_value?: number | null
+          twitter_clicks?: number | null
+          twitter_followers?: number | null
+          twitter_handle?: string | null
+          updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       ad_creative_funnel: {
         Row: {
           ad_id: string | null
           ad_name: string | null
           adset_name: string | null
-          anytrack_leads: number | null
-          booked: number | null
-          campaign_name: string | null
-          clicks: number | null
-          closed_won: number | null
-          conversion_rate_ranking: string | null
-          cpl: number | null
-          cpo: number | null
-          creative_verdict: string | null
-          db_leads: number | null
-          engagement_rate_ranking: string | null
-          fb_leads: number | null
-          impressions: number | null
-          quality_ranking: string | null
-          revenue: number | null
-          roas: number | null
-          spend: number | null
-          stripe_revenue: number | null
-          stripe_transactions: number | null
-          true_roas: number | null
-          video_completion_pct: number | null
-          video_p100_total: number | null
-          video_p25_total: number | null
-        }
-        Relationships: []
-      }
-      adset_full_funnel: {
-        Row: {
-          adset_id: string | null
-          adset_name: string | null
-          anytrack_leads: number | null
-          book_to_held_pct: number | null
           booked: number | null
           campaign_name: string | null
           clicks: number | null
@@ -7849,15 +10591,60 @@ export type Database = {
           db_leads: number | null
           fb_leads: number | null
           held: number | null
-          held_to_close_pct: number | null
           impressions: number | null
-          in_deal: number | null
-          lead_to_book_pct: number | null
+          leads_7d: number | null
+          reach: number | null
+          revenue: number | null
+          roas: number | null
+          spend: number | null
+          verdict: string | null
+        }
+        Relationships: []
+      }
+      adset_full_funnel: {
+        Row: {
+          adset_id: string | null
+          adset_name: string | null
+          booked: number | null
+          campaign_name: string | null
+          clicks: number | null
+          closed_lost: number | null
+          closed_won: number | null
+          cpl: number | null
+          db_leads: number | null
+          fb_leads: number | null
+          held: number | null
+          impressions: number | null
           leads_7d: number | null
           revenue: number | null
           roas: number | null
           spend: number | null
           verdict: string | null
+        }
+        Relationships: []
+      }
+      assessment_truth_matrix: {
+        Row: {
+          assigned_coach: string | null
+          close_date: string | null
+          contact_id: string | null
+          deal_amount: number | null
+          deal_id: string | null
+          deal_name: string | null
+          deal_stage: string | null
+          email: string | null
+          first_name: string | null
+          health_category: string | null
+          health_score: number | null
+          last_name: string | null
+          lead_status: string | null
+          lifecycle_stage: string | null
+          outstanding_sessions: number | null
+          sessions_last_30d: number | null
+          sessions_last_7d: number | null
+          sessions_last_90d: number | null
+          sessions_purchased: number | null
+          truth_category: string | null
         }
         Relationships: []
       }
@@ -7901,6 +10688,7 @@ export type Database = {
           book_to_held_pct: number | null
           booked: number | null
           campaign: string | null
+          campaign_id: string | null
           clicks: number | null
           closed_lost: number | null
           closed_won: number | null
@@ -8179,6 +10967,22 @@ export type Database = {
           total_events: number | null
           total_value: number | null
           unique_users: number | null
+        }
+        Relationships: []
+      }
+      daily_marketing_metrics_view: {
+        Row: {
+          active_campaigns: number | null
+          brief_date: string | null
+          click_to_lead_rate: number | null
+          cost_per_lead: number | null
+          ctr: number | null
+          deals_created: number | null
+          deals_won: number | null
+          total_clicks: number | null
+          total_impressions: number | null
+          total_leads: number | null
+          total_spend: number | null
         }
         Relationships: []
       }
@@ -8563,6 +11367,19 @@ export type Database = {
         }
         Relationships: []
       }
+      view_agent_cost_summary: {
+        Row: {
+          avg_latency_ms: number | null
+          calls: number | null
+          day: string | null
+          function_name: string | null
+          model: string | null
+          total_cost_usd: number | null
+          total_input_tokens: number | null
+          total_output_tokens: number | null
+        }
+        Relationships: []
+      }
       view_atlas_lead_dna: {
         Row: {
           ad_copy: string | null
@@ -8580,6 +11397,45 @@ export type Database = {
           image_url: string | null
           lifecycle_stage: string | null
           verified_revenue: number | null
+        }
+        Relationships: []
+      }
+      view_call_contact_match: {
+        Row: {
+          appointment_set: boolean | null
+          attributed_channel: string | null
+          call_date: string | null
+          call_direction: string | null
+          call_id: string | null
+          call_status: string | null
+          caller_number: string | null
+          contact_id: string | null
+          contact_name: string | null
+          deal_amount: number | null
+          deal_id: string | null
+          deal_name: string | null
+          deal_stage: string | null
+          duration_seconds: number | null
+          lifecycle_stage: string | null
+          recording_url: string | null
+          setter_id: string | null
+        }
+        Relationships: []
+      }
+      view_capacity_vs_spend: {
+        Row: {
+          active_campaigns: number | null
+          ad_spend_last_7d: number | null
+          avg_clients_per_coach: number | null
+          calculated_at: string | null
+          capacity_pct: number | null
+          capacity_status: string | null
+          coach_count: number | null
+          gender: string | null
+          recommended_action: string | null
+          total_active_clients: number | null
+          total_max_capacity: number | null
+          zone: string | null
         }
         Relationships: []
       }
@@ -8654,6 +11510,54 @@ export type Database = {
         }
         Relationships: []
       }
+      view_daily_call_activity: {
+        Row: {
+          appointments_set: number | null
+          avg_duration_ms: number | null
+          call_date: string | null
+          completed: number | null
+          missed: number | null
+          outbound: number | null
+          setter_id: string | null
+          total_calls: number | null
+          total_talk_ms: number | null
+          unanswered: number | null
+          very_short: number | null
+          with_recording: number | null
+        }
+        Relationships: []
+      }
+      view_daily_marketing_brief: {
+        Row: {
+          brief_date: string | null
+          funnel_health: Json | null
+          rolling_7d_ghost_rate: number | null
+          rolling_7d_revenue: number | null
+          rolling_7d_roas: number | null
+          rolling_7d_spend: number | null
+          yesterday_assessments: number | null
+          yesterday_cpl: number | null
+          yesterday_leads: number | null
+          yesterday_spend: number | null
+          yesterday_true_cpa: number | null
+        }
+        Relationships: []
+      }
+      view_delegation_analytics: {
+        Row: {
+          auto_received: number | null
+          leads_lost: number | null
+          manual_received: number | null
+          net_leads: number | null
+          reassignments_received: number | null
+          received_delegations: number | null
+          setter_id: string | null
+          setter_name: string | null
+          unique_contacts_lost: number | null
+          unique_contacts_received: number | null
+        }
+        Relationships: []
+      }
       view_enterprise_truth_genome: {
         Row: {
           ad_id: string | null
@@ -8669,6 +11573,374 @@ export type Database = {
           verified_cash: number | null
         }
         Relationships: []
+      }
+      view_full_attribution: {
+        Row: {
+          ad_id: string | null
+          adset_id: string | null
+          anytrack_client_id: string | null
+          anytrack_server_id: string | null
+          attribution_method: string | null
+          became_lead_at: string | null
+          campaign_id: string | null
+          closed_deal_value: number | null
+          coach_name: string | null
+          contact_created: string | null
+          email: string | null
+          first_conversion_date: string | null
+          first_name: string | null
+          form_source: string | null
+          form_submitted_at: string | null
+          hubspot_contact_id: string | null
+          landing_page: string | null
+          last_name: string | null
+          lifecycle_stage: string | null
+          num_associated_deals: number | null
+          phone: string | null
+          setter_name: string | null
+          total_deal_value: number | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Relationships: []
+      }
+      view_hot_potato_leads: {
+        Row: {
+          attributed_channel: string | null
+          auto_delegations: number | null
+          bulk_delegations: number | null
+          contact_id: string | null
+          contact_name: string | null
+          deal_amount: number | null
+          deal_stage: string | null
+          email: string | null
+          first_assignment: string | null
+          hubspot_contact_id: string | null
+          last_assignment: string | null
+          lifecycle_stage: string | null
+          manual_delegations: number | null
+          owner_names: string[] | null
+          ownership_span: unknown
+          phone: string | null
+          total_delegations: number | null
+          unique_owners: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "lead_delegation_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      view_lead_follow_up: {
+        Row: {
+          answered_calls: number | null
+          assigned_coach: string | null
+          attributed_ad_id: string | null
+          attribution_source: string | null
+          city: string | null
+          close_date: string | null
+          contact_created: string | null
+          days_in_deal_stage: number | null
+          days_since_created: number | null
+          days_since_last_contact: number | null
+          deal_created: string | null
+          deal_name: string | null
+          deal_stage: string | null
+          deal_value: number | null
+          email: string | null
+          first_name: string | null
+          going_cold: boolean | null
+          has_deal: boolean | null
+          hubspot_contact_id: string | null
+          id: string | null
+          last_activity_date: string | null
+          last_call_agent: string | null
+          last_call_date: string | null
+          last_call_outcome: string | null
+          last_call_status: string | null
+          last_name: string | null
+          lead_source: string | null
+          lifecycle_stage: string | null
+          missing_coach: boolean | null
+          missing_deal: boolean | null
+          no_calls_made: boolean | null
+          phone: string | null
+          priority_number: number | null
+          setter_name: string | null
+          total_calls: number | null
+          utm_campaign: string | null
+          utm_source: string | null
+        }
+        Relationships: []
+      }
+      view_lost_deal_followups: {
+        Row: {
+          amount: number | null
+          close_date: string | null
+          contact_email: string | null
+          contact_first_name: string | null
+          contact_id: string | null
+          contact_last_name: string | null
+          contact_phone: string | null
+          days_since_lost: number | null
+          deal_created_at: string | null
+          deal_id: string | null
+          deal_name: string | null
+          followup_priority: string | null
+          lifecycle_stage: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       view_marketing_attribution: {
         Row: {
@@ -8697,6 +11969,55 @@ export type Database = {
           gender: string | null
           total_segment_sessions: number | null
           zone: string | null
+        }
+        Relationships: []
+      }
+      view_setter_performance: {
+        Row: {
+          appointment_rate: number | null
+          appointments_30d: number | null
+          appointments_7d: number | null
+          appointments_set: number | null
+          avg_deal_value_aed: number | null
+          avg_duration_30d_seconds: number | null
+          avg_duration_7d_seconds: number | null
+          avg_duration_seconds: number | null
+          calls_30d: number | null
+          calls_7d: number | null
+          calls_per_deal: number | null
+          calls_with_recording: number | null
+          completed_30d: number | null
+          completed_7d: number | null
+          completed_calls: number | null
+          connection_rate: number | null
+          customers: number | null
+          first_call_date: string | null
+          inbound_calls: number | null
+          last_call_date: string | null
+          leads_assigned: number | null
+          long_calls: number | null
+          lost_deals: number | null
+          max_duration_seconds: number | null
+          medium_calls: number | null
+          missed_30d: number | null
+          missed_7d: number | null
+          missed_calls: number | null
+          outbound_calls: number | null
+          revenue_30d_aed: number | null
+          revenue_aed: number | null
+          setter_id: string | null
+          short_calls: number | null
+          sqls: number | null
+          total_calls: number | null
+          total_contacts: number | null
+          total_deals: number | null
+          total_talk_hours: number | null
+          unanswered_30d: number | null
+          unanswered_7d: number | null
+          unanswered_calls: number | null
+          very_short_calls: number | null
+          won_deals: number | null
+          won_deals_30d: number | null
         }
         Relationships: []
       }
@@ -8883,6 +12204,10 @@ export type Database = {
       cleanup_old_logs: { Args: never; Returns: undefined }
       cleanup_update_source_log: { Args: never; Returns: undefined }
       create_lead_ai_replies_table: { Args: never; Returns: undefined }
+      dedup_phone_contacts: {
+        Args: { p_limit?: number; p_mode?: string }
+        Returns: Json
+      }
       ensure_request_log: {
         Args: {
           p_device_id: string
@@ -8931,6 +12256,7 @@ export type Database = {
           total_spend: number
         }[]
       }
+      get_command_center_data: { Args: { p_days?: number }; Returns: Json }
       get_dashboard_metrics: {
         Args: never
         Returns: {
@@ -9081,9 +12407,54 @@ export type Database = {
         | { Args: { role_name: string }; Returns: boolean }
       introspect_schema_verbose: { Args: { p_schema?: unknown }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      link_attribution_contacts: { Args: never; Returns: Json }
       manual_link_deal_contact: {
         Args: { p_contact_id: string; p_deal_id: string }
         Returns: undefined
+      }
+      match_agent_memory:
+        | {
+            Args: { match_count: number; query_embedding: string }
+            Returns: {
+              id: string
+              knowledge_extracted: Json
+              query: string
+              response: string
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              match_count?: number
+              match_threshold?: number
+              p_agent_name?: string
+              p_thread_id?: string
+              query_embedding: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              knowledge_extracted: Json
+              query: string
+              response: string
+              similarity: number
+            }[]
+          }
+      match_isolated_knowledge: {
+        Args: {
+          allowed_categories?: string[]
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          similarity: number
+          structured_data: Json
+          title: string
+        }[]
       }
       match_knowledge: {
         Args: {
@@ -9092,19 +12463,29 @@ export type Database = {
           query_embedding: string
         }
         Returns: {
-          content: string
+          answer: string
+          category: string
           id: string
-          metadata: Json
+          question: string
           similarity: number
+          tags: Json
         }[]
       }
       match_memories: {
-        Args: { count?: number; query_embedding: string; threshold?: number }
+        Args: {
+          filter_thread_id?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
         Returns: {
-          content: string
+          created_at: string
           id: string
-          metadata: Json
+          knowledge_extracted: Json
+          query: string
+          response: string
           similarity: number
+          thread_id: string
         }[]
       }
       normalize_phone: { Args: { phone: string }; Returns: string }

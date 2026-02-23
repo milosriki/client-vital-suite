@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type LossAnalysisDBRow = Database["public"]["Tables"]["loss_analysis"]["Row"];
+type SourceDiscrepancyRow = Database["public"]["Views"]["source_discrepancy_matrix"]["Row"];
+type AssessmentTruthRow = Database["public"]["Views"]["assessment_truth_matrix"]["Row"];
+type DailyMarketingBriefRow = Database["public"]["Tables"]["daily_marketing_briefs"]["Row"];
+type FunnelMetricRow = Database["public"]["Tables"]["funnel_metrics"]["Row"];
 
 export interface HistoricalBaseline {
   dimension_type: string;
@@ -116,14 +123,14 @@ export function useDeepIntelligence() {
       ] = await Promise.all([
         // 1. Historical baselines (overall, 90d)
         supabase
-          .from("historical_baselines" as any)
+          .from("historical_baselines")
           .select("dimension_type, dimension_value, period_days, avg_roas, avg_cpl, avg_ghost_rate, avg_close_rate, total_spend, total_leads, total_revenue, trend_direction, trend_pct, best_week_start, best_week_roas, worst_week_start, worst_week_roas")
           .eq("dimension_type", "overall")
           .order("period_days", { ascending: true }),
 
         // 2. Latest funnel metrics (overall)
         supabase
-          .from("funnel_metrics" as any)
+          .from("funnel_metrics")
           .select("metric_date, dimension_type, leads_created, assessments_booked, assessments_held, deals_created, packages_selected, payments_pending, closed_won, closed_lost, lead_to_booked_pct, booked_to_held_pct, held_to_deal_pct, deal_to_payment_pct, payment_to_won_pct, overall_lead_to_customer_pct, marketing_health, sales_health, coach_health, ops_health")
           .eq("dimension_type", "overall")
           .order("metric_date", { ascending: false })
@@ -131,14 +138,14 @@ export function useDeepIntelligence() {
 
         // 3. Loss analysis — aggregate by reason
         supabase
-          .from("loss_analysis" as any)
+          .from("loss_analysis")
           .select("primary_loss_reason, confidence_pct")
           .order("analyzed_at", { ascending: false })
           .limit(200),
 
         // 4. Source discrepancy — last 7 days
         supabase
-          .from("source_discrepancy_matrix" as any)
+          .from("source_discrepancy_matrix")
           .select("report_date, campaign_name, fb_reported_leads, anytrack_leads, supabase_contacts, max_discrepancy_pct, trust_verdict")
           .order("report_date", { ascending: false })
           .limit(30),
@@ -151,26 +158,26 @@ export function useDeepIntelligence() {
 
         // 6. Assessment truth matrix — HubSpot vs AWS
         supabase
-          .from("assessment_truth_matrix" as any)
+          .from("assessment_truth_matrix")
           .select("email, first_name, last_name, coach, hubspot_stage_name, hubspot_says_completed, aws_confirms_attended, truth_status, attribution_source, health_score, health_zone, stage_updated_at")
           .order("stage_updated_at", { ascending: false })
           .limit(50),
 
         // 7. Latest CEO morning brief
         supabase
-          .from("daily_marketing_briefs" as any)
+          .from("daily_marketing_briefs")
           .select("brief_date, yesterday_spend, yesterday_leads, yesterday_cpl, yesterday_assessments, yesterday_true_cpa, rolling_7d_spend, rolling_7d_revenue, rolling_7d_roas, rolling_7d_ghost_rate, actions_required, budget_proposals, fatigue_alerts, new_copy_pending, historical_context, funnel_health, loss_analysis, source_alignment, projections")
           .order("brief_date", { ascending: false })
           .limit(1),
       ]);
 
       // Aggregate loss reasons client-side
-      const lossData = (lossRes.data || []) as any[];
+      const lossData = lossRes.data || [];
       const lossMap = new Map<
         string,
         { count: number; totalConfidence: number }
       >();
-      lossData.forEach((row: any) => {
+      lossData.forEach((row) => {
         const reason = row.primary_loss_reason || "unknown";
         const existing = lossMap.get(reason) || {
           count: 0,
@@ -191,10 +198,10 @@ export function useDeepIntelligence() {
         .sort((a, b) => b.count - a.count);
 
       // Aggregate source discrepancies
-      const sourceData = (sourceRes.data || []) as any[];
+      const sourceData = sourceRes.data || [];
       const verdictCounts = { ALIGNED: 0, DRIFTING: 0, BROKEN: 0, NO_DATA: 0 };
       let totalGap = 0;
-      sourceData.forEach((row: any) => {
+      sourceData.forEach((row) => {
         const verdict = row.trust_verdict || "NO_DATA";
         if (verdict in verdictCounts)
           verdictCounts[verdict as keyof typeof verdictCounts]++;
@@ -215,7 +222,7 @@ export function useDeepIntelligence() {
         level: "critical" | "warning" | "info";
         message: string;
       }[] = [];
-      const funnel = (funnelRes.data?.[0] as any) || null;
+      const funnel = funnelRes.data?.[0] ?? null;
       if (funnel) {
         if (funnel.coach_health === "critical")
           alerts.push({
@@ -240,7 +247,7 @@ export function useDeepIntelligence() {
         });
 
       // Aggregate assessment truth statuses
-      const truthData = (truthRes.data || []) as any[];
+      const truthData = truthRes.data || [];
       const truthCounts = {
         CONFIRMED_ATTENDED: 0,
         HUBSPOT_ONLY_NO_AWS_PROOF: 0,
@@ -249,7 +256,7 @@ export function useDeepIntelligence() {
         UNKNOWN: 0,
         PAST_ASSESSMENT_STAGE: 0,
       };
-      truthData.forEach((row: any) => {
+      truthData.forEach((row) => {
         const status = row.truth_status || "UNKNOWN";
         if (status in truthCounts)
           truthCounts[status as keyof typeof truthCounts]++;
@@ -266,7 +273,7 @@ export function useDeepIntelligence() {
           : 0;
 
       // Get latest CEO brief
-      const latestBrief = (briefRes.data?.[0] as any) || null;
+      const latestBrief = briefRes.data?.[0] ?? null;
 
       return {
         baselines: (baselinesRes.data || []) as unknown as HistoricalBaseline[],

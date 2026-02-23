@@ -93,7 +93,7 @@ export const StripeCharts = ({
                             )}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {(payload[0].payload as any).count} payments
+                            {(payload[0].payload as Record<string, unknown>).count} payments
                           </p>
                         </div>
                       );

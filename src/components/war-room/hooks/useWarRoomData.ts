@@ -19,7 +19,7 @@ export const useWarRoomData = () => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const { data, error } = await supabase
-        .from("daily_business_metrics" as any)
+        .from("daily_business_metrics")
         .select("ad_spend_facebook, ad_spend_google")
         .gte("date", thirtyDaysAgo.toISOString().split("T")[0]);
 

@@ -343,8 +343,8 @@ export async function getPendingApprovals(): Promise<ExecutionRequest[]> {
     .limit(50);
 
   return (data || [])
-    .filter((d: any) => (d.value as any)?.status === 'pending')
-    .map((d: any) => ({ ...(d.value as ExecutionRequest), request_key: d.key }) as ExecutionRequest);
+    .filter((d) => (d.value as Record<string, unknown> | null)?.status === 'pending')
+    .map((d) => ({ ...(d.value as unknown as ExecutionRequest), request_key: d.key }));
 }
 
 // ============= 24/7 MONITORING =============
@@ -491,7 +491,7 @@ export async function getAgentStats(): Promise<{
     supabase.from('agent_memory').select('id', { count: 'exact', head: true }),
     supabase.from('agent_patterns').select('id', { count: 'exact', head: true }),
     supabase.from('agent_context').select('id', { count: 'exact', head: true }).eq('agent_type', 'execution_queue'),
-    supabase.from('agent_context').select('value').eq('key', 'monitoring_results').single()
+    supabase.from('agent_context').select('value').eq('key', 'monitoring_results').maybeSingle()
   ]);
 
   const pending = await getPendingApprovals();
@@ -502,6 +502,6 @@ export async function getAgentStats(): Promise<{
     executions: executions.count || 0,
     pending_approvals: pending.length,
     specialists: Object.values(SPECIALIST_AGENTS).filter(s => s.active).length,
-    last_monitoring: (monitoring.data?.value as any)?.timestamp || null
+    last_monitoring: (monitoring.data?.value as Record<string, unknown> | null)?.timestamp as string || null
   };
 }

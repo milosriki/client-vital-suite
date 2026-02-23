@@ -63,7 +63,7 @@ export function useDailyOps() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("aws_ops_snapshot" as never)
-        .select("*")
+        .select("snapshot_date, sessions_today, sessions_confirmed_today, active_clients_30d, total_packages_active, packages_critical, packages_high, packages_medium, clients_increasing, clients_decreasing, clients_stable, coach_leaderboard, critical_packages, high_packages, declining_clients, daily_sessions, frequency_trends")
         .order("snapshot_date", { ascending: false })
         .limit(1)
         .maybeSingle();

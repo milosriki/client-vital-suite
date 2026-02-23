@@ -75,10 +75,8 @@ export function apiError(
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...corsHeaders,
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers":
-        "authorization, x-client-info, apikey, content-type",
     },
   });
 }
@@ -98,11 +96,7 @@ export function apiCreated<T>(data: T): Response {
 export function apiNoContent(): Response {
   return new Response(null, {
     status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers":
-        "authorization, x-client-info, apikey, content-type",
-    },
+    headers: corsHeaders,
   });
 }
 
@@ -138,8 +132,8 @@ export function apiRateLimited(
   return new Response(JSON.stringify(body), {
     status: 429,
     headers: {
+      ...corsHeaders,
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
       "X-RateLimit-Limit": String(limit),
       "X-RateLimit-Remaining": String(remaining),
       "X-RateLimit-Reset": String(
@@ -157,10 +151,8 @@ export function apiCorsPreFlight(): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      ...corsHeaders,
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "authorization, x-client-info, apikey, content-type",
       "Access-Control-Max-Age": "86400",
     },
   });

@@ -14,7 +14,7 @@ export function LiveRevenueChart() {
     queryFn: async () => {
       const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
       
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('deals')
         .select('deal_value, close_date')
         .eq('status', 'closed')

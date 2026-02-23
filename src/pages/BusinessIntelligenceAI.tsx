@@ -63,7 +63,7 @@ function useBusinessSnapshot() {
         supabase.from("call_records").select("id, call_type, duration, is_lost, owner_name, created_at").gte("created_at", start),
         supabase.from("facebook_ads_insights").select("spend, impressions, clicks, leads, ctr, cpc, roas, campaign_name, date").gte("date", start),
         supabase.from("client_health_scores").select("health_score, health_zone, outstanding_sessions, package_value_aed, assigned_coach").order("calculated_at", { ascending: false }).limit(500),
-        supabase.from("coach_performance").select("*").limit(50),
+        supabase.from("coach_performance").select("id, coach_name, total_clients, avg_health_score, clients_improving, clients_declining, trend").limit(50),
       ]);
 
       const deals = dealsRes.data || [];

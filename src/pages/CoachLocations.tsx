@@ -400,7 +400,7 @@ function NotesPanel({ coachName }: { coachName?: string }) {
     queryFn: async () => {
       let q = supabase
         .from("coach_client_notes")
-        .select("*")
+        .select("id, entity_type, entity_name, entity_id, note, note_type, created_by, created_at, is_resolved")
         .order("created_at", { ascending: false })
         .limit(100);
       if (filterCoach) {
@@ -853,7 +853,7 @@ export default function CoachLocations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coach_visits")
-        .select("*")
+        .select("id, device_id, coach_name, location_name, latitude, longitude, arrival_time, departure_time, dwell_minutes, is_ptd_location, created_at")
         .order("arrival_time", { ascending: false })
         .limit(5000);
       if (error) throw error;

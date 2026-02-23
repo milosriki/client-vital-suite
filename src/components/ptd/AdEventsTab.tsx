@@ -7,6 +7,22 @@ import { RefreshCw, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 
+interface AdEvent {
+  id: string;
+  event_name: string;
+  event_id: string | null;
+  email: string | null;
+  user_email: string | null;
+  phone: string | null;
+  user_phone: string | null;
+  value_aed: number | null;
+  currency: string | null;
+  status: string | null;
+  fbp: string | null;
+  fbc: string | null;
+  created_at: string;
+}
+
 interface AdEventsTabProps {
   mode: "test" | "live";
 }
@@ -15,15 +31,15 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
   const { data: events, isLoading, refetch } = useDedupedQuery({
     queryKey: ["capi-events", mode],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("capi_events" as any)
+      const { data, error } = await supabase
+        .from("capi_events" as never)
         .select("id, event_name, event_id, email, user_email, phone, user_phone, value_aed, currency, status, fbp, fbc, created_at")
         .eq("mode", mode)
         .order("created_at", { ascending: false })
-        .limit(500) as any);
-      
+        .limit(500) as unknown as { data: AdEvent[] | null; error: Error | null };
+
       if (error) throw error;
-      return data as any[];
+      return data ?? [];
     },
     staleTime: Infinity, // Real-time updates via subscriptions
   });
@@ -78,7 +94,7 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {events.map((event: any) => (
+                  {events.map((event) => (
                     <TableRow key={event.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -150,7 +166,7 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-500">
-              {events?.filter((e: any) => e.status === "sent").length || 0}
+              {events?.filter((e) => e.status === "sent").length || 0}
             </div>
             <p className="text-xs text-muted-foreground">Sent</p>
           </CardContent>
@@ -158,7 +174,7 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-yellow-500">
-              {events?.filter((e: any) => !e.status || e.status === "pending").length || 0}
+              {events?.filter((e) => !e.status || e.status === "pending").length || 0}
             </div>
             <p className="text-xs text-muted-foreground">Pending</p>
           </CardContent>
@@ -166,7 +182,7 @@ export default function AdEventsTab({ mode }: AdEventsTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-red-500">
-              {events?.filter((e: any) => e.status === "failed").length || 0}
+              {events?.filter((e) => e.status === "failed").length || 0}
             </div>
             <p className="text-xs text-muted-foreground">Failed</p>
           </CardContent>

@@ -28,7 +28,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
     queryKey: QUERY_KEYS.sync.errors.check,
     dedupeIntervalMs: 1000,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('sync_errors')
         .select('id')
         .is('resolved_at', null)
@@ -45,7 +45,7 @@ export function GreetingBar({ onDateChange }: GreetingBarProps) {
     queryKey: QUERY_KEYS.sync.lastTime,
     dedupeIntervalMs: 1000,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('sync_logs')
         .select('started_at, status')
         .order('started_at', { ascending: false })

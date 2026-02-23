@@ -59,7 +59,7 @@ export const useStripeTransactions = (
     queryFn: async () => {
       let query = supabase
         .from("stripe_transactions")
-        .select("*")
+        .select("id, stripe_id, amount, currency, status, payment_method, description, created_at, contact_id, customer_id, metadata")
         .order("created_at", { ascending: false });
 
       // Apply date range filter

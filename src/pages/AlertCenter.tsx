@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClientPackageLive = Database["public"]["Tables"]["client_packages_live"]["Row"];
+type ClientPrediction = Database["public"]["Tables"]["client_predictions"]["Row"];
+type ClientHealthScore = Database["public"]["Tables"]["client_health_scores"]["Row"];
+type SessionDepletionAlert = Database["public"]["Tables"]["session_depletion_alerts"]["Row"];
 
 // ── Types ──
 interface InterventionItem {
@@ -47,39 +53,39 @@ const AlertCenter = () => {
   const [coachFilter, setCoachFilter] = useState("ALL");
 
   // ── Fetch packages + predictions + health to build intervention queue ──
-  const { data: packages, isLoading: pkgLoading, refetch: refetchPkgs } = useDedupedQuery<any[]>({
+  const { data: packages, isLoading: pkgLoading, refetch: refetchPkgs } = useDedupedQuery<ClientPackageLive[]>({
     queryKey: ["alert-packages"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("client_packages_live" as never).select("*");
+      const { data, error } = await supabase.from("client_packages_live").select("id, client_id, client_name, client_email, client_phone, last_coach, remaining_sessions, package_value, last_session_date, future_booked");
       if (error) throw error;
       return data || [];
     },
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: predictions } = useDedupedQuery<any[]>({
+  const { data: predictions } = useDedupedQuery<ClientPrediction[]>({
     queryKey: ["alert-predictions"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("client_predictions" as never).select("*");
+      const { data, error } = await supabase.from("client_predictions").select("client_id, churn_score, churn_factors, revenue_at_risk");
       if (error) throw error;
       return data || [];
     },
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: healthScores } = useDedupedQuery<any[]>({
+  const { data: healthScores } = useDedupedQuery<ClientHealthScore[]>({
     queryKey: ["alert-health"],
     queryFn: async () => {
-      const { data: latest } = await (supabase as any)
+      const { data: latest } = await supabase
         .from("client_health_scores")
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!latest?.calculated_on) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("client_health_scores")
-        .select("*")
+        .select("calculated_on, email, health_zone, churn_risk_score")
         .eq("calculated_on", latest.calculated_on);
       if (error) throw error;
       return data || [];
@@ -88,16 +94,16 @@ const AlertCenter = () => {
   });
 
   // Legacy alerts table
-  const { data: legacyAlerts, isLoading: legacyLoading, refetch: refetchLegacy } = useDedupedQuery<any[]>({
+  const { data: legacyAlerts, isLoading: legacyLoading, refetch: refetchLegacy } = useDedupedQuery<SessionDepletionAlert[]>({
     queryKey: ["session-depletion-alerts"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("session_depletion_alerts" as any)
-        .select("*")
+        .from("session_depletion_alerts")
+        .select("id, priority, client_name, client_phone, remaining_sessions, last_coach, alert_status, created_at")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return (data || []) as any[];
+      return data || [];
     },
     staleTime: 60 * 1000,
   });
@@ -415,7 +421,7 @@ const AlertCenter = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  (legacyAlerts || []).map((alert: any) => (
+                  (legacyAlerts || []).map((alert) => (
                     <TableRow key={alert.id} className="cursor-pointer hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <Badge className={PRIORITY_BADGES[alert.priority] ?? "bg-muted"}>

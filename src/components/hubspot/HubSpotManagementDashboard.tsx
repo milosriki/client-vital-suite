@@ -44,7 +44,7 @@ export function HubSpotManagementDashboard({
           </SelectContent>
         </Select>
 
-        <Select value={globalLocationFilter} onValueChange={(v) => setGlobalLocationFilter(v as any)}>
+        <Select value={globalLocationFilter} onValueChange={(v) => setGlobalLocationFilter(v as "all" | "premium" | "standard")}>
           <SelectTrigger className="w-[150px]">
             <SelectValue />
           </SelectTrigger>

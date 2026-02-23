@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS match_knowledge(vector, double precision, integer);
+
 CREATE OR REPLACE FUNCTION match_knowledge(
   query_embedding vector(1536),
   match_threshold float DEFAULT 0.3,

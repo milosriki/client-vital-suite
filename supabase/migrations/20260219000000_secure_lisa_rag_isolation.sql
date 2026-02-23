@@ -47,7 +47,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.match_agent_memory(vector, FLOAT, INT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.match_agent_memory(vector, FLOAT, INT, TEXT, TEXT) TO service_role;
 
-COMMENT ON FUNCTION public.match_agent_memory IS 'Isolated vector search for specific agent memories (e.g. LISA only)';
+COMMENT ON FUNCTION public.match_agent_memory(vector, FLOAT, INT, TEXT, TEXT) IS 'Isolated vector search for specific agent memories (e.g. LISA only)';
 
 
 -- 2. Update match_knowledge to support multiple safe categories
@@ -91,4 +91,4 @@ $$;
 GRANT EXECUTE ON FUNCTION public.match_isolated_knowledge(vector, FLOAT, INT, TEXT[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.match_isolated_knowledge(vector, FLOAT, INT, TEXT[]) TO service_role;
 
-COMMENT ON FUNCTION public.match_isolated_knowledge IS 'Isolated vector search for agent knowledge, restricted to safe categories';
+COMMENT ON FUNCTION public.match_isolated_knowledge(vector, FLOAT, INT, TEXT[]) IS 'Isolated vector search for agent knowledge, restricted to safe categories';

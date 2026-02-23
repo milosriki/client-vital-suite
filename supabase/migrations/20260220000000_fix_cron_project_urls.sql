@@ -1,7 +1,12 @@
 -- Fix cron job URLs: use CVS project ztjndilxurtsfqdsvfds (was wrongly lqmnbntloslpsjbsdoid).
 -- Rollback: re-run 20260203000000 logic with wrong URL if needed.
 
-SELECT cron.unschedule('fetch-callgear-data');
+DO $$
+BEGIN
+    PERFORM cron.unschedule('fetch-callgear-data');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 SELECT cron.schedule(
     'fetch-callgear-data',
     '0 22 * * *',
@@ -16,7 +21,12 @@ SELECT cron.schedule(
     $$
 );
 
-SELECT cron.unschedule('sync-hubspot-daily-safety');
+DO $$
+BEGIN
+    PERFORM cron.unschedule('sync-hubspot-daily-safety');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 SELECT cron.schedule(
     'sync-hubspot-daily-safety',
     '0 23 * * *',

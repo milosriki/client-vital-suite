@@ -64,7 +64,7 @@ export const dealsApi = {
       })
       .eq("id", dealId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data as Deal;

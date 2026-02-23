@@ -117,15 +117,16 @@ export function useCEOData() {
     queryFn: async (): Promise<RevenueMetrics> => {
       // Use RPC for efficient server-side aggregation
       const { data: stats, error } = await supabase.rpc(
-        "get_dashboard_stats" as any,
+        "get_dashboard_stats",
       );
 
       if (!error && stats) {
+        const s = stats as Record<string, unknown>;
         return {
-          totalRevenue: stats.revenue_this_month || 0,
-          avgDealValue: stats.avg_deal_value || 0,
-          dealsCount: stats.closed_deals_count || 0,
-          pipelineValue: stats.pipeline_value || 0,
+          totalRevenue: Number(s.revenue_this_month) || 0,
+          avgDealValue: Number(s.avg_deal_value) || 0,
+          dealsCount: Number(s.closed_deals_count) || 0,
+          pipelineValue: Number(s.pipeline_value) || 0,
         };
       }
 
