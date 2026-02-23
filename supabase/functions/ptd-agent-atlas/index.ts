@@ -567,14 +567,9 @@ async function executeTool(
 
 import { WHATSAPP_SALES_PERSONA } from "../_shared/whatsapp-sales-prompts.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
-import {
-  handleError,
-  corsHeaders as defaultCorsHeaders,
-} from "../_shared/error-handler.ts";
 import { apiError, apiValidationError } from "../_shared/api-response.ts";
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import {
-import { corsHeaders } from "../_shared/cors.ts";
   sanitizeResponse,
   validateResponseSafety,
   formatForWhatsApp,
