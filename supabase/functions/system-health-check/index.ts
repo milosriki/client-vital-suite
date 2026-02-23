@@ -6,11 +6,6 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { checkDataFreshness, getFreshnessSummary } from "../_shared/data-freshness-sla.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 interface FunctionCheck {
   name: string;
   status: "ok" | "error" | "warning" | "not_configured";

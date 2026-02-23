@@ -8,11 +8,6 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
 
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 function jsonResponse(body: Record<string, unknown>, status = 200) {
     return apiSuccess(body);
 }

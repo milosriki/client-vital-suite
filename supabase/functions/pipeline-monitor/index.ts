@@ -5,17 +5,13 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // ============================================
 // PIPELINE MONITOR AGENT
 // Monitors the full data pipeline for failures
 // HubSpot → Health Scores → Interventions → CAPI
 // ============================================
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 // Environment variable validation
 function validateEnvVars(): void {

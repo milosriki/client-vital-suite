@@ -7,10 +7,6 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 serve(async (req) => {
   try {
     verifyAuth(req); // Security Hardening

@@ -6,6 +6,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 const QWEN_API = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions";
@@ -112,12 +113,6 @@ RULES:
 - PTD benchmarks: target CPA < 350 AED, target ROAS > 3.0
 - For conversational queries, provide analysis with specific numbers + actionable recommendations
 - When analyzing creatives, focus on what converts for the 40+ executive demographic`;
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-task-type, x-tool-profile",
-};
 
 // ─── Cross-validation helper ──────────────────────────────
 async function crossValidate(supabaseClient: ReturnType<typeof createClient>): Promise<Record<string, unknown>> {

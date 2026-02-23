@@ -14,12 +14,6 @@ import {
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
   try {
     verifyAuth(req);

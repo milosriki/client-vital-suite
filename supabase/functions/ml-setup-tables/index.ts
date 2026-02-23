@@ -1,9 +1,5 @@
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const DATABASE_URL = Deno.env.get("SUPABASE_DB_URL") ??
   `postgresql://postgres.ztjndilxurtsfqdsvfds:${Deno.env.get("DB_PASSWORD") ?? ""}@aws-0-ap-south-1.pooler.supabase.com:6543/postgres`;

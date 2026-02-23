@@ -47,12 +47,6 @@ import {
   formatForWhatsApp,
 } from "../_shared/content-filter.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 // ============= SKILL ORCHESTRATION =============
 async function loadActiveSkill(supabase: any, query: string): Promise<string> {
   try {

@@ -5,17 +5,13 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // ============================================
 // CAPI VALIDATOR AGENT
 // Validates events before sending to Meta
 // Catches errors BEFORE they fail in production
 // ============================================
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,

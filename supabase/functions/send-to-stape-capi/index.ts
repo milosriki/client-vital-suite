@@ -32,11 +32,6 @@ async function hashPhone(phone: string | null | undefined): Promise<string | nul
   return hashPII(normalized);
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') {

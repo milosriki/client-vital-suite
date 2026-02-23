@@ -5,17 +5,13 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // ============================================
 // STRIPE ERROR HANDLER AGENT
 // Specialized handler for Stripe payment errors
 // Critical priority - handles financial operations
 // ============================================
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 function validateEnv(): { valid: boolean; missing: string[] } {
   const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];

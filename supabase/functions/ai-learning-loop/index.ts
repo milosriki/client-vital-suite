@@ -9,12 +9,6 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
   verifyAuth(req);
 

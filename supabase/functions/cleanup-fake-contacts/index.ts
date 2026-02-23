@@ -12,11 +12,6 @@ import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 // Cleans up orphaned records across all tables
 // ============================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 // Comprehensive list of fake email patterns
 const FAKE_EMAIL_PATTERNS = [
   "%@email.com",

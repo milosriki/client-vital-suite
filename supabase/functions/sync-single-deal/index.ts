@@ -7,12 +7,6 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === "OPTIONS") {

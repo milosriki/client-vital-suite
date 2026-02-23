@@ -9,11 +9,6 @@ import {
   logCircuitBreakerTrip,
 } from "../_shared/circuit-breaker.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 const HUBSPOT_BASE_URL = 'https://api.hubapi.com';
 
 serve(async (req) => {

@@ -28,11 +28,6 @@ import { StageDetector, type SalesStage } from "../_shared/stage-detection.ts";
 import { LearningLayer } from "../_shared/learning-layer.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 const AISENSY_API_KEY = Deno.env.get("AISENSY_API_KEY")!;
 const AISENSY_WEBHOOK_SECRET = Deno.env.get("AISENSY_WEBHOOK_SECRET")!;
 const HUBSPOT_API_KEY = Deno.env.get("HUBSPOT_API_KEY")!;

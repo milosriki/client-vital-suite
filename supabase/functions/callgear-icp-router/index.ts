@@ -23,11 +23,6 @@ interface CallGearICPResponse {
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
-
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return apiCorsPreFlight();

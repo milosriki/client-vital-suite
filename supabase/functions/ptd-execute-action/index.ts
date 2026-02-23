@@ -6,11 +6,6 @@ import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 // ============= EXECUTION TOOL DEFINITIONS =============
 const EXECUTION_TOOLS: Record<string, { risk: string; requires_approval: boolean }> = {
   update_client_zone: { risk: 'medium', requires_approval: true },

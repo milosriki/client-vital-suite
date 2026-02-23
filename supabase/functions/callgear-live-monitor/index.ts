@@ -15,19 +15,13 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // CORRECT CallGear API URLs:
 // - Data API: https://dataapi.callgear.com/v2.0 (JSON-RPC for reports)
 // - Call API: https://callapi.callgear.com/v4.0 (REST for call management)
 const CALLGEAR_API_URL =
   Deno.env.get("CALLGEAR_API_URL") || "https://dataapi.callgear.com/v2.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 interface JsonRpcRequest {
   jsonrpc: string;

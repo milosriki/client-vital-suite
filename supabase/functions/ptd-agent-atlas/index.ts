@@ -33,12 +33,6 @@ import {
 } from "../_shared/app-errors.ts";
 import { tools, LISA_SAFE_TOOLS } from "../_shared/tool-definitions.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 // ============= SKILL ORCHESTRATION =============
 async function loadActiveSkill(supabase: any, query: string): Promise<string> {
   try {
@@ -580,6 +574,7 @@ import {
 import { apiError, apiValidationError } from "../_shared/api-response.ts";
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import {
+import { corsHeaders } from "../_shared/cors.ts";
   sanitizeResponse,
   validateResponseSafety,
   formatForWhatsApp,

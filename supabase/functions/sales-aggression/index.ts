@@ -7,11 +7,6 @@ import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req) => {
     try { verifyAuth(req); } catch { throw new UnauthorizedError(); } // Security Hardening
   if (req.method === 'OPTIONS') return apiCorsPreFlight();

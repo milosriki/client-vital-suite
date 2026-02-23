@@ -12,11 +12,6 @@ import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 // Detects failures before they impact business
 // ============================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

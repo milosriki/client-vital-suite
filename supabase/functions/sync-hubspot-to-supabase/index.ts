@@ -15,12 +15,6 @@ import {
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 // Batch size for processing - smaller batches prevent CPU timeout
 const BATCH_SIZE = 100;
 const MAX_RECORDS_PER_SYNC = 1000; // Process 1000 at a time, call again for more

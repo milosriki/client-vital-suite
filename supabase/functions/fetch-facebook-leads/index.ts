@@ -1,14 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const PB_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
 const PTD_MAIN_ACCOUNT = "act_349832333681399";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 async function callPipeboard(tool: string, args: Record<string, unknown>): Promise<unknown> {
   const PB_TOKEN = Deno.env.get("PIPEBOARD_API_KEY") || "";

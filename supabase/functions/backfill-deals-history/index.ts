@@ -10,12 +10,6 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { HubSpotManager } from "../_shared/hubspot-manager.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 const BATCH_SIZE = 100;
 
 serve(async (req) => {
