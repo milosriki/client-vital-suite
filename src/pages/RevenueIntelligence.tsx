@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { DollarSign, TrendingUp, Users, AlertCircle, Activity, RefreshCw } from "lucide-react";
+import { DollarSign, TrendingUp, Users, AlertCircle, Activity, RefreshCw, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { usePipelineData, useHubSpotHealth, useLiveData } from "@/hooks/useRevenueIntelligence";
+import { usePipelineData, useHubSpotHealth, useLiveData, useRevenueByChannel } from "@/hooks/useRevenueIntelligence";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -63,6 +63,7 @@ export default function RevenueIntelligence() {
     refetch();
     pipelineRefetch();
     hubspotRefetch();
+    channelRefetch();
   };
 
   // Tab 2: Pipeline Data (Real Supabase data)
@@ -85,6 +86,13 @@ export default function RevenueIntelligence() {
     recentDeals: realtimeRecentDeals,
     todayActivity: realtimeTodayActivity
   } = useLiveData();
+
+  // Tab 5: Revenue by Channel
+  const {
+    data: channelData,
+    isLoading: channelLoading,
+    refetch: channelRefetch,
+  } = useRevenueByChannel(dateRange);
 
   // Tab 1: Stripe Data - Wired to real Stripe API response
   const m = data?.metrics;
@@ -318,6 +326,7 @@ export default function RevenueIntelligence() {
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="hubspot">HubSpot Health</TabsTrigger>
           <TabsTrigger value="live">Live Data</TabsTrigger>
+          <TabsTrigger value="channels">Revenue by Channel</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Stripe Data */}
@@ -737,6 +746,209 @@ export default function RevenueIntelligence() {
               { key: "source", label: "Source", render: (item) => item.source },
             ]}
           />
+        </TabsContent>
+
+        {/* Tab 5: Revenue by Channel */}
+        <TabsContent value="channels" className="space-y-6">
+          {channelLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+              <span className="ml-3 text-slate-400">Loading channel data...</span>
+            </div>
+          ) : !channelData?.channelData?.length ? (
+            <Card className="bg-[#0A0A0A] border-[#1F2937]">
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <AlertCircle className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-slate-400 text-lg">No channel attribution data available</p>
+                <p className="text-slate-500 text-sm mt-2">Deals need linked contacts with attributed_channel to appear here</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Summary Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <MetricCard
+                  label="Total Revenue"
+                  value={`AED ${channelData.summary.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                  delta={{ value: 0, type: "positive" as const }}
+                  icon={DollarSign}
+                />
+                <MetricCard
+                  label="Total Deals"
+                  value={channelData.summary.totalDeals.toLocaleString()}
+                  delta={{ value: 0, type: "neutral" as const }}
+                  icon={Activity}
+                />
+                <MetricCard
+                  label="Top Channel"
+                  value={channelData.summary.topChannel}
+                  delta={{ value: 0, type: "positive" as const }}
+                  icon={TrendingUp}
+                />
+                <MetricCard
+                  label="Active Channels"
+                  value={channelData.summary.channelCount.toString()}
+                  delta={{ value: 0, type: "neutral" as const }}
+                  icon={Users}
+                />
+              </div>
+
+              {/* Revenue by Channel Bar Chart */}
+              <ChartCard title="Revenue by Channel (AED)" height="default">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={channelData.channelData}
+                    layout="horizontal"
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray={chartTheme.grid.strokeDasharray}
+                      stroke={chartTheme.grid.stroke}
+                    />
+                    <XAxis
+                      dataKey="channel"
+                      stroke={chartTheme.axis.stroke}
+                      tick={{ fill: chartTheme.axis.tick.fill, fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={chartTheme.axis.stroke}
+                      tick={{ fill: chartTheme.axis.tick.fill }}
+                      tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: chartTheme.tooltip.backgroundColor,
+                        border: chartTheme.tooltip.border,
+                        borderRadius: chartTheme.tooltip.borderRadius,
+                        padding: chartTheme.tooltip.padding,
+                      }}
+                      formatter={(value: number, name: string) => {
+                        if (name === "Total Revenue") return [`AED ${value.toLocaleString()}`, name];
+                        if (name === "Avg Deal Value") return [`AED ${value.toLocaleString()}`, name];
+                        return [value, name];
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="totalRevenue" fill={CHART_COLORS.revenue} name="Total Revenue" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avgDealValue" fill={CHART_COLORS.marketing} name="Avg Deal Value" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              {/* Deal Count + Conversion Rate Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Deal Count by Channel */}
+                <ChartCard title="Deals by Channel" height="default">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={channelData.channelData.filter(c => c.dealCount > 0)}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={(entry) => `${entry.channel}: ${entry.dealCount}`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="dealCount"
+                        nameKey="channel"
+                      >
+                        {channelData.channelData.filter(c => c.dealCount > 0).map((_entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: chartTheme.tooltip.backgroundColor,
+                          border: chartTheme.tooltip.border,
+                          borderRadius: chartTheme.tooltip.borderRadius,
+                          padding: chartTheme.tooltip.padding,
+                        }}
+                        formatter={(value: number) => [`${value} deals`, "Deals"]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+
+                {/* Conversion Rate by Channel */}
+                <ChartCard title="Conversion Rate by Channel (%)" height="default">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={channelData.channelData.filter(c => c.totalContacts > 0)}
+                      layout="horizontal"
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray={chartTheme.grid.strokeDasharray}
+                        stroke={chartTheme.grid.stroke}
+                      />
+                      <XAxis
+                        dataKey="channel"
+                        stroke={chartTheme.axis.stroke}
+                        tick={{ fill: chartTheme.axis.tick.fill, fontSize: 12 }}
+                      />
+                      <YAxis
+                        stroke={chartTheme.axis.stroke}
+                        tick={{ fill: chartTheme.axis.tick.fill }}
+                        tickFormatter={(value) => `${value}%`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: chartTheme.tooltip.backgroundColor,
+                          border: chartTheme.tooltip.border,
+                          borderRadius: chartTheme.tooltip.borderRadius,
+                          padding: chartTheme.tooltip.padding,
+                        }}
+                        formatter={(value: number) => [`${value}%`, "Conversion Rate"]}
+                      />
+                      <Bar dataKey="conversionRate" fill={CHART_COLORS.growth} name="Conversion Rate" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              </div>
+
+              {/* Channel Data Table */}
+              <DataTableCard
+                title="Channel Performance Breakdown"
+                data={channelData.channelData}
+                columns={[
+                  {
+                    key: "channel",
+                    label: "Channel",
+                    render: (item) => <span className="font-medium text-slate-100">{item.channel}</span>,
+                  },
+                  {
+                    key: "dealCount",
+                    label: "Deals",
+                    render: (item) => item.dealCount.toLocaleString(),
+                  },
+                  {
+                    key: "totalRevenue",
+                    label: "Total Revenue",
+                    render: (item) => `AED ${item.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+                  },
+                  {
+                    key: "avgDealValue",
+                    label: "Avg Deal Value",
+                    render: (item) => `AED ${item.avgDealValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+                  },
+                  {
+                    key: "totalContacts",
+                    label: "Contacts",
+                    render: (item) => item.totalContacts.toLocaleString(),
+                  },
+                  {
+                    key: "conversionRate",
+                    label: "Conversion Rate",
+                    render: (item) => (
+                      <span className={item.conversionRate > 5 ? "text-emerald-400" : item.conversionRate > 1 ? "text-amber-400" : "text-slate-400"}>
+                        {item.conversionRate}%
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -416,6 +416,158 @@ export function useLiveData() {
 }
 
 // ============================================================================
+// Tab 5: Revenue by Channel Hook
+// ============================================================================
+
+export interface ChannelRevenueData {
+  channel: string;
+  dealCount: number;
+  totalRevenue: number;
+  avgDealValue: number;
+  conversionRate: number;
+  totalContacts: number;
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  organic: "Organic",
+  paid_social: "Paid Social",
+  paid_search: "Paid Search",
+  email: "Email",
+  referral: "Referral",
+  direct: "Direct",
+  unknown: "Unknown",
+};
+
+export function useRevenueByChannel(dateRange: string) {
+  return useQuery({
+    queryKey: ["revenue-by-channel", dateRange],
+    queryFn: async () => {
+      // Approach: join deals with contacts to get attributed_channel per deal
+      // This gives us deal-level channel attribution
+      const { data: deals, error: dealsError } = await supabase
+        .from("deals")
+        .select("id, deal_value, amount, stage, contact_id, created_at")
+        .order("created_at", { ascending: false });
+
+      if (dealsError) throw dealsError;
+
+      // Fetch contacts with their attributed_channel for all deal contact_ids
+      const contactIds = [...new Set(
+        (deals || [])
+          .map(d => d.contact_id)
+          .filter((id): id is string => id !== null)
+      )];
+
+      // Batch fetch contacts (Supabase in() has a limit, chunk if needed)
+      const CHUNK_SIZE = 500;
+      const contactMap = new Map<string, string>();
+
+      for (let i = 0; i < contactIds.length; i += CHUNK_SIZE) {
+        const chunk = contactIds.slice(i, i + CHUNK_SIZE);
+        const { data: contacts, error: contactsError } = await supabase
+          .from("contacts")
+          .select("id, attributed_channel")
+          .in("id", chunk);
+
+        if (contactsError) throw contactsError;
+
+        contacts?.forEach(c => {
+          contactMap.set(c.id, c.attributed_channel || "unknown");
+        });
+      }
+
+      // Also get total contacts per channel for conversion rate
+      const { data: allContacts, error: allContactsError } = await supabase
+        .from("contacts")
+        .select("id, attributed_channel");
+
+      if (allContactsError) throw allContactsError;
+
+      const contactsByChannel = (allContacts || []).reduce((acc, c) => {
+        const ch = normalizeChannel(c.attributed_channel);
+        acc[ch] = (acc[ch] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Group deals by channel
+      const channelMap: Record<string, { dealCount: number; totalRevenue: number; closedWon: number }> = {};
+      const allChannels = ["organic", "paid_social", "paid_search", "email", "referral", "direct", "unknown"];
+
+      // Initialize all channels
+      allChannels.forEach(ch => {
+        channelMap[ch] = { dealCount: 0, totalRevenue: 0, closedWon: 0 };
+      });
+
+      (deals || []).forEach(deal => {
+        const rawChannel = deal.contact_id ? contactMap.get(deal.contact_id) || "unknown" : "unknown";
+        const channel = normalizeChannel(rawChannel);
+
+        if (!channelMap[channel]) {
+          channelMap[channel] = { dealCount: 0, totalRevenue: 0, closedWon: 0 };
+        }
+
+        channelMap[channel].dealCount++;
+        const value = Number(deal.deal_value) || Number(deal.amount) || 0;
+        channelMap[channel].totalRevenue += value;
+
+        if (deal.stage === "closedwon") {
+          channelMap[channel].closedWon++;
+        }
+      });
+
+      // Build channel data array
+      const channelData: ChannelRevenueData[] = Object.entries(channelMap)
+        .map(([channel, stats]) => ({
+          channel: CHANNEL_LABELS[channel] || channel,
+          dealCount: stats.dealCount,
+          totalRevenue: stats.totalRevenue,
+          avgDealValue: stats.dealCount > 0 ? Math.round(stats.totalRevenue / stats.dealCount) : 0,
+          conversionRate: contactsByChannel[channel]
+            ? Number(((stats.closedWon / contactsByChannel[channel]) * 100).toFixed(1))
+            : 0,
+          totalContacts: contactsByChannel[channel] || 0,
+        }))
+        .filter(ch => ch.dealCount > 0 || ch.totalContacts > 0)
+        .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+      // Summary metrics
+      const totalRevenue = channelData.reduce((s, c) => s + c.totalRevenue, 0);
+      const totalDeals = channelData.reduce((s, c) => s + c.dealCount, 0);
+      const topChannel = channelData[0]?.channel || "N/A";
+
+      return {
+        channelData,
+        summary: {
+          totalRevenue,
+          totalDeals,
+          topChannel,
+          channelCount: channelData.filter(c => c.dealCount > 0).length,
+        },
+      };
+    },
+  });
+}
+
+function normalizeChannel(raw: string | null | undefined): string {
+  if (!raw) return "unknown";
+  const lower = raw.toLowerCase().trim();
+
+  // Map common variations to standard channel names
+  if (lower.includes("organic") || lower === "organic_search" || lower === "organic_social") return "organic";
+  if (lower.includes("paid_social") || lower === "facebook" || lower === "instagram" || lower === "meta") return "paid_social";
+  if (lower.includes("paid_search") || lower === "google_ads" || lower === "google") return "paid_search";
+  if (lower.includes("email") || lower === "email_marketing") return "email";
+  if (lower.includes("referral") || lower === "word_of_mouth") return "referral";
+  if (lower === "direct" || lower === "none" || lower === "offline") return "direct";
+
+  // Check against known channels
+  const knownChannels = ["organic", "paid_social", "paid_search", "email", "referral", "direct"];
+  if (knownChannels.includes(lower)) return lower;
+
+  return "unknown";
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 

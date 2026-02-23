@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { subDays, startOfDay, endOfDay, format } from "date-fns";
-import { Phone, Users, Timer, PhoneCall, Clock, TrendingUp, BarChart3 } from "lucide-react";
+import { subDays, startOfDay, endOfDay, format, differenceInDays } from "date-fns";
+import { Phone, Users, Timer, PhoneCall, Clock, TrendingUp, BarChart3, Shuffle, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { toast } from "sonner";
@@ -79,6 +80,40 @@ type SetterDetail = {
   connectionRate: number;
 };
 
+type DelegationAnalytics = {
+  setter_id: string | null;
+  setter_name: string | null;
+  received_delegations: number | null;
+  leads_lost: number | null;
+  net_leads: number | null;
+  auto_received: number | null;
+  manual_received: number | null;
+  reassignments_received: number | null;
+  unique_contacts_lost: number | null;
+  unique_contacts_received: number | null;
+};
+
+type HotPotatoLead = {
+  contact_id: string | null;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  total_delegations: number | null;
+  unique_owners: number | null;
+  owner_names: string[] | null;
+  auto_delegations: number | null;
+  manual_delegations: number | null;
+  bulk_delegations: number | null;
+  first_assignment: string | null;
+  last_assignment: string | null;
+  lifecycle_stage: string | null;
+  deal_stage: string | null;
+  deal_amount: number | null;
+  attributed_channel: string | null;
+  hubspot_contact_id: string | null;
+  ownership_span: unknown;
+};
+
 const isConnectedCall = (
   callStatus: string | null | undefined,
   callOutcome: string | null | undefined,
@@ -99,6 +134,7 @@ const getSetterName = (call: { caller_name?: string | null; owner_name?: string 
   call.caller_name || call.owner_name || "Unknown";
 
 export default function SetterCommandCenter() {
+  const [activeTab, setActiveTab] = useState("calls");
   const [selectedSetter, setSelectedSetter] = useState<SetterDetail | null>(null);
   const [selectedLead, setSelectedLead] = useState<SpeedToLeadEntry | null>(null);
 
@@ -133,6 +169,37 @@ export default function SetterCommandCenter() {
       if (error) throw error;
       return data || [];
     },
+  });
+
+  // ── Delegation Tracking Queries ──
+
+  const { data: delegationAnalytics = [], isLoading: loadingDelegations } = useDedupedQuery<DelegationAnalytics[]>({
+    queryKey: ["setter-command-center", "delegation-analytics"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("view_delegation_analytics")
+        .select("setter_id, setter_name, received_delegations, leads_lost, net_leads, auto_received, manual_received, reassignments_received, unique_contacts_lost, unique_contacts_received")
+        .order("received_delegations", { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as DelegationAnalytics[];
+    },
+    enabled: activeTab === "delegations",
+  });
+
+  const { data: hotPotatoLeads = [], isLoading: loadingHotPotato } = useDedupedQuery<HotPotatoLead[]>({
+    queryKey: ["setter-command-center", "hot-potato-leads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("view_hot_potato_leads")
+        .select("contact_id, contact_name, email, phone, total_delegations, unique_owners, owner_names, auto_delegations, manual_delegations, bulk_delegations, first_assignment, last_assignment, lifecycle_stage, deal_stage, deal_amount, attributed_channel, hubspot_contact_id, ownership_span")
+        .gte("total_delegations", 3)
+        .order("total_delegations", { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as HotPotatoLead[];
+    },
+    enabled: activeTab === "delegations",
   });
 
   const isLoading = loadingCalls || loadingContacts;
@@ -247,6 +314,25 @@ export default function SetterCommandCenter() {
       .sort((a, b) => a.speedMinutes - b.speedMinutes);
   }, [callRecords, contacts]);
 
+  // ── Delegation Metrics ──
+
+  const delegationMetrics = useMemo(() => {
+    const totalDelegations = delegationAnalytics.reduce(
+      (sum, row) => sum + (row.received_delegations || 0),
+      0,
+    );
+    const totalSetters = delegationAnalytics.length;
+    const avgDelegationsPerSetter = totalSetters
+      ? totalDelegations / totalSetters
+      : 0;
+    const hotPotatoCount = hotPotatoLeads.length;
+    const totalLeadsLost = delegationAnalytics.reduce(
+      (sum, row) => sum + (row.leads_lost || 0),
+      0,
+    );
+    return { totalDelegations, avgDelegationsPerSetter, hotPotatoCount, totalLeadsLost };
+  }, [delegationAnalytics, hotPotatoLeads]);
+
   if (isLoading) {
     return <PageSkeleton variant="dashboard" />;
   }
@@ -266,138 +352,327 @@ export default function SetterCommandCenter() {
       <div>
         <h1 className="text-3xl font-bold">Setter Command Center</h1>
         <p className="text-muted-foreground">
-          Live call KPIs, setter leaderboard, and speed-to-lead visibility.
+          Live call KPIs, setter leaderboard, speed-to-lead, and delegation tracking.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Total Calls Today"
-          value={totalCallsToday}
-          icon={Phone}
-        />
-        <MetricCard
-          label="Avg Call Duration"
-          value={formatDuration(avgCallDurationSeconds)}
-          icon={Timer}
-        />
-        <MetricCard
-          label="Connection Rate"
-          value={`${connectionRateToday.toFixed(1)}%`}
-          icon={PhoneCall}
-        />
-        <MetricCard
-          label="Calls Per Setter"
-          value={callsPerSetter.toFixed(1)}
-          icon={Users}
-        />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="calls">Call Activity</TabsTrigger>
+          <TabsTrigger value="delegations">Delegation Tracking</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Setter Leaderboard (Last 30 Days)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Setter</TableHead>
-                <TableHead>Total Calls</TableHead>
-                <TableHead>Connected</TableHead>
-                <TableHead>Avg Duration</TableHead>
-                <TableHead>Connection Rate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leaderboard.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No call data available for the last 30 days.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                leaderboard.map((setter) => (
-                  <TableRow
-                    key={setter.name}
-                    className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
-                    onClick={() => handleSetterClick(setter)}
-                  >
-                    <TableCell className="font-medium">
-                      {setter.name}
-                    </TableCell>
-                    <TableCell>{setter.total}</TableCell>
-                    <TableCell>{setter.connected}</TableCell>
-                    <TableCell>{formatDuration(setter.avgDuration)}</TableCell>
-                    <TableCell>
-                      <Badge variant={setter.connectionRate >= 50 ? "default" : setter.connectionRate >= 30 ? "secondary" : "destructive"} className="text-xs">
-                        {setter.connectionRate.toFixed(1)}%
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        {/* ── Call Activity Tab ── */}
+        <TabsContent value="calls" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Total Calls Today"
+              value={totalCallsToday}
+              icon={Phone}
+            />
+            <MetricCard
+              label="Avg Call Duration"
+              value={formatDuration(avgCallDurationSeconds)}
+              icon={Timer}
+            />
+            <MetricCard
+              label="Connection Rate"
+              value={`${connectionRateToday.toFixed(1)}%`}
+              icon={PhoneCall}
+            />
+            <MetricCard
+              label="Calls Per Setter"
+              value={callsPerSetter.toFixed(1)}
+              icon={Users}
+            />
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Speed-to-Lead</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lead</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Lead Created</TableHead>
-                <TableHead>First Call</TableHead>
-                <TableHead>Speed</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {speedToLead.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No matching leads found for recent calls.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                speedToLead.map((entry) => (
-                  <TableRow
-                    key={entry.id}
-                    className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
-                    onClick={() => handleLeadClick(entry)}
-                  >
-                    <TableCell className="font-medium">
-                      {entry.name}
-                    </TableCell>
-                    <TableCell>{entry.phone}</TableCell>
-                    <TableCell>
-                      {format(entry.createdAt, "MMM d, yyyy p")}
-                    </TableCell>
-                    <TableCell>
-                      {format(entry.firstCallAt, "MMM d, yyyy p")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={entry.speedMinutes <= 5 ? "default" : entry.speedMinutes <= 30 ? "secondary" : "destructive"} className="text-xs">
-                        {formatMinutes(entry.speedMinutes)}
-                      </Badge>
-                    </TableCell>
+          <Card>
+            <CardHeader>
+              <CardTitle>Setter Leaderboard (Last 30 Days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Setter</TableHead>
+                    <TableHead>Total Calls</TableHead>
+                    <TableHead>Connected</TableHead>
+                    <TableHead>Avg Duration</TableHead>
+                    <TableHead>Connection Rate</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {leaderboard.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        No call data available for the last 30 days.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    leaderboard.map((setter) => (
+                      <TableRow
+                        key={setter.name}
+                        className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                        onClick={() => handleSetterClick(setter)}
+                      >
+                        <TableCell className="font-medium">
+                          {setter.name}
+                        </TableCell>
+                        <TableCell>{setter.total}</TableCell>
+                        <TableCell>{setter.connected}</TableCell>
+                        <TableCell>{formatDuration(setter.avgDuration)}</TableCell>
+                        <TableCell>
+                          <Badge variant={setter.connectionRate >= 50 ? "default" : setter.connectionRate >= 30 ? "secondary" : "destructive"} className="text-xs">
+                            {setter.connectionRate.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Speed-to-Lead</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lead</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Lead Created</TableHead>
+                    <TableHead>First Call</TableHead>
+                    <TableHead>Speed</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {speedToLead.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        No matching leads found for recent calls.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    speedToLead.map((entry) => (
+                      <TableRow
+                        key={entry.id}
+                        className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
+                        onClick={() => handleLeadClick(entry)}
+                      >
+                        <TableCell className="font-medium">
+                          {entry.name}
+                        </TableCell>
+                        <TableCell>{entry.phone}</TableCell>
+                        <TableCell>
+                          {format(entry.createdAt, "MMM d, yyyy p")}
+                        </TableCell>
+                        <TableCell>
+                          {format(entry.firstCallAt, "MMM d, yyyy p")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={entry.speedMinutes <= 5 ? "default" : entry.speedMinutes <= 30 ? "secondary" : "destructive"} className="text-xs">
+                            {formatMinutes(entry.speedMinutes)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Delegation Tracking Tab ── */}
+        <TabsContent value="delegations" className="space-y-6">
+          {loadingDelegations || loadingHotPotato ? (
+            <PageSkeleton variant="dashboard" />
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Total Delegations"
+                  value={delegationMetrics.totalDelegations}
+                  icon={ArrowRightLeft}
+                />
+                <MetricCard
+                  label="Avg Per Setter"
+                  value={delegationMetrics.avgDelegationsPerSetter.toFixed(1)}
+                  icon={Users}
+                />
+                <MetricCard
+                  label="Hot Potato Leads"
+                  value={delegationMetrics.hotPotatoCount}
+                  icon={AlertTriangle}
+                />
+                <MetricCard
+                  label="Total Leads Lost"
+                  value={delegationMetrics.totalLeadsLost}
+                  icon={Shuffle}
+                />
+              </div>
+
+              {/* Delegation Analytics by Setter */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Delegation Analytics by Setter</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Setter</TableHead>
+                        <TableHead>Received</TableHead>
+                        <TableHead>Lost</TableHead>
+                        <TableHead>Net</TableHead>
+                        <TableHead>Auto</TableHead>
+                        <TableHead>Manual</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {delegationAnalytics.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center py-8 text-muted-foreground"
+                          >
+                            No delegation data available.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        delegationAnalytics.map((row) => (
+                          <TableRow key={row.setter_id || row.setter_name}>
+                            <TableCell className="font-medium">
+                              {row.setter_name || "Unknown"}
+                            </TableCell>
+                            <TableCell>{row.received_delegations ?? 0}</TableCell>
+                            <TableCell>{row.leads_lost ?? 0}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={(row.net_leads ?? 0) >= 0 ? "default" : "destructive"}
+                                className="text-xs"
+                              >
+                                {(row.net_leads ?? 0) >= 0 ? "+" : ""}
+                                {row.net_leads ?? 0}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{row.auto_received ?? 0}</TableCell>
+                            <TableCell>{row.manual_received ?? 0}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Hot Potato Leads */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    Hot Potato Leads (3+ Reassignments)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Lead Name</TableHead>
+                        <TableHead>Times Reassigned</TableHead>
+                        <TableHead>Current Owner</TableHead>
+                        <TableHead>Days Since Creation</TableHead>
+                        <TableHead>Stage</TableHead>
+                        <TableHead>Deal Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hotPotatoLeads.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center py-8 text-muted-foreground"
+                          >
+                            No hot potato leads found. Good news — leads are being handled properly.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        hotPotatoLeads.map((lead) => {
+                          const daysSinceCreation = lead.first_assignment
+                            ? differenceInDays(now, new Date(lead.first_assignment))
+                            : null;
+                          const currentOwner =
+                            lead.owner_names && lead.owner_names.length > 0
+                              ? lead.owner_names[lead.owner_names.length - 1]
+                              : "Unassigned";
+
+                          return (
+                            <TableRow key={lead.contact_id}>
+                              <TableCell className="font-medium">
+                                {lead.contact_name || "Unknown"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    (lead.total_delegations ?? 0) >= 5
+                                      ? "destructive"
+                                      : "secondary"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {lead.total_delegations ?? 0}x
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{currentOwner}</TableCell>
+                              <TableCell>
+                                {daysSinceCreation !== null ? (
+                                  <Badge
+                                    variant={
+                                      daysSinceCreation > 30
+                                        ? "destructive"
+                                        : daysSinceCreation > 14
+                                          ? "secondary"
+                                          : "default"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {daysSinceCreation}d
+                                  </Badge>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {lead.deal_stage || lead.lifecycle_stage || "—"}
+                              </TableCell>
+                              <TableCell>
+                                {lead.deal_amount
+                                  ? `AED ${lead.deal_amount.toLocaleString()}`
+                                  : "—"}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Setter Detail Dialog */}
       <Dialog open={!!selectedSetter} onOpenChange={(open) => !open && setSelectedSetter(null)}>
