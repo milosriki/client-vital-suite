@@ -897,6 +897,226 @@ export type Database = {
           },
         ]
       }
+      atlas_actions: {
+        Row: {
+          action_type: string
+          assigned_to: string | null
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string | null
+          deal_id: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          metadata: Json | null
+          priority: number | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_type: string
+          assigned_to?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: number | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_type?: string
+          assigned_to?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: number | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_lead_attribution"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cold_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_call_performance"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_journey_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "dynamic_funnel_view"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_full_journey"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "long_cycle_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mv_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "upcoming_assessments"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_atlas_lead_dna"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_contact_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_enterprise_truth_genome"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "view_lead_follow_up"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_truth_matrix"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "call_attribution"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deal_stripe_revenue"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "view_call_contact_match"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "atlas_actions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "view_lost_deal_followups"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
       attribution_chain: {
         Row: {
           attribution_source: string | null
