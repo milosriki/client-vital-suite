@@ -1,65 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+import { corsHeaders } from "../_shared/error-handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GEMINI_KEY") ?? "";
-const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY") ?? Deno.env.get("DEEPSEEK_KEY") ?? "";
-
-async function callGemini(prompt: string): Promise<string> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 2000 },
-      }),
-    }
-  );
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "No response from Gemini";
-}
-
-async function callDeepSeek(prompt: string): Promise<string> {
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${DEEPSEEK_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "deepseek-chat",
-      messages: [
-        { role: "system", content: "You are a fitness business retention advisor. Give SPECIFIC, ACTIONABLE advice with names, dates, and exact steps. Never be generic." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 2000,
-    }),
-  });
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "No response from DeepSeek";
-}
-
-async function callAI(prompt: string): Promise<string> {
-  // Try Gemini first, fallback to DeepSeek
-  if (GEMINI_KEY) {
-    try { return await callGemini(prompt); } catch (_) { /* fallback */ }
-  }
-  if (DEEPSEEK_KEY) {
-    try { return await callDeepSeek(prompt); } catch (_) { /* fallback */ }
-  }
-  return "No AI provider available. Set GEMINI_API_KEY or DEEPSEEK_API_KEY.";
-}
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const authResponse = await verifyAuth(req);
+  if (authResponse) return authResponse;
 
   try {
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -74,7 +25,7 @@ Deno.serve(async (req) => {
     if (!isAllAtRisk && client_email) {
       // Find by email via packages
       const { data: pkg } = await sb.from("client_packages_live")
-        .select("client_id").eq("client_email", client_email).limit(1).single();
+        .select("client_id").eq("client_email", client_email).maybeSingle();
       if (pkg) predictionsQuery = predictionsQuery.eq("client_id", pkg.client_id);
     } else {
       predictionsQuery = predictionsQuery.gte("churn_score", 50).order("churn_score", { ascending: false }).limit(20);
@@ -94,7 +45,6 @@ Deno.serve(async (req) => {
 
     const { data: allPackages } = await sb.from("client_packages_live").select("*");
     const pkgByClientId = new Map<string, any>();
-    const pkgByEmail = new Map<string, any>();
     for (const p of allPackages ?? []) {
       pkgByClientId.set(p.client_id, p);
       if (p.client_email) pkgByEmail.set(p.client_email.toLowerCase(), p);
@@ -136,7 +86,7 @@ CLIENT: ${pred.client_name}
 - Trend: ${features?.session_trend > 0 ? "↑ improving" : features?.session_trend < 0 ? "↓ declining" : "→ stable"}
 - Momentum: ${features?.momentum_velocity > 0 ? "accelerating" : features?.momentum_velocity < 0 ? "decelerating" : "flat"}
 - Top Risk Factors: ${(cf?.top_risk_factors ?? []).join(", ") || "None identified"}
-- Recent Sessions: ${recentSessions.slice(0, 5).map(s => `${new Date(s.training_date).toLocaleDateString()} (${s.status})`).join(", ") || "None"}
+- Recent Sessions: ${recentSessions.slice(0, 5).map((s: any) => `${new Date(s.training_date).toLocaleDateString()} (${s.status})`).join(", ") || "None"}
       `.trim());
     }
 
@@ -156,7 +106,20 @@ BE SPECIFIC. Use their actual data. Reference exact dates, session counts, packa
 
 ${clientContexts.join("\n\n---\n\n")}`;
 
-    const aiResponse = await callAI(prompt);
+    const aiResponse = await unifiedAI.chat(
+      [
+        { role: "system", content: "You are a fitness business retention advisor. Give SPECIFIC, ACTIONABLE advice with names, dates, and exact steps. Never be generic." },
+        { role: "user", content: prompt }
+      ],
+      {
+        max_tokens: 2000,
+        temperature: 0.3,
+        agentType: "atlas", // Use high-budget agent profile
+        functionName: "ai-client-advisor"
+      }
+    );
+
+    const advisoryText = aiResponse.content;
 
     // Store interventions
     const interventions = predictions.map(pred => {
@@ -184,7 +147,7 @@ ${clientContexts.join("\n\n---\n\n")}`;
     return new Response(JSON.stringify({
       success: true,
       clients_analyzed: predictions.length,
-      advisory: aiResponse,
+      advisory: advisoryText,
       clients: predictions.map(p => ({
         name: p.client_name,
         score: p.churn_score,

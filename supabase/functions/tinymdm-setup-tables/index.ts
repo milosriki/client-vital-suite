@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const pool = new Pool(Deno.env.get("SUPABASE_DB_URL")!, 1);
@@ -8,6 +9,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const authResponse = await verifyAuth(req);
+  if (authResponse) return authResponse;
 
   const conn = await pool.connect();
   try {

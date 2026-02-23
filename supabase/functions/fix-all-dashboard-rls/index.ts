@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const authResponse = await verifyAuth(req);
+  if (authResponse) return authResponse;
 
   try {
     const dbUrl = Deno.env.get("SUPABASE_DB_URL") ??

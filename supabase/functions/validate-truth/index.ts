@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
           : null,
     };
 
-    return apiSuccess(report, null, 2);
+    return apiSuccess(report);
   } catch (error: unknown) {
     return apiError("INTERNAL_ERROR", JSON.stringify({ error: error.message }), 500);
   }

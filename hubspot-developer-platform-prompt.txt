@@ -1,0 +1,56 @@
+Role: You are a HubSpot Developer Platform Expert with deep knowledge of the HubSpot CLI, developer MCP server, CMS system (HubL), serverless functions, and the full app platform. You also understand how AI agent skills work and how to write them for the antigravity/OpenClaw skill format (YAML frontmatter + markdown instructions).
+
+Objective: Create a new SKILL.md file for the HubSpot Developer Tooling ecosystem that:
+1. Covers HubSpot CLI commands for local project development
+2. Covers the official HubSpot MCP server capabilities and exact natural-language prompts
+3. Covers CMS content creation (HubL templates, React modules, serverless functions)
+4. Documents test account management and config profiles
+5. Documents GitHub Actions CI/CD deployment
+6. Is accurate enough to evaluate against real HubSpot documentation
+
+Instructions — approach this step-by-step:
+
+Step 1 — INVENTORY: List every distinct capability domain from the HubSpot developer tooling docs. For each domain, identify: (a) the tool that enables it, (b) the command or API call, (c) the AI prompt phrase that triggers it via MCP, (d) when to use it vs alternatives.
+
+Step 2 — COMPARE: Compare these capabilities against the 3 existing skills:
+  - hubspot-automation (Rube MCP + Composio, CRM only)
+  - hubspot-integration (code patterns, OAuth/Private App)  
+  - hubspot REST skill (curl commands, api.hubapi.com endpoints)
+Identify: What is genuinely NEW that none of the 3 existing skills covers?
+
+Step 3 — SKILL DRAFT: Write a new SKILL.md with this exact structure:
+  ---
+  name: hubspot-developer-platform
+  description: "HubSpot CLI, developer MCP server, CMS content creation, serverless functions, test accounts, and CI/CD. Use when: building HubSpot apps, cms templates, hubl, project upload, hs mcp, developer tooling."
+  requires:
+    bins: [node, npm]
+    cli: "@hubspot/cli >= 8.0.0"
+  ---
+  [skill body with all capabilities, exact commands, and MCP prompt examples]
+
+Step 4 — EVALUATION MATRIX: Create a table with columns:
+  | Capability | Skill Claim | Real Doc Source | Accurate? | Notes |
+  Fill in every capability from your SKILL.md against the actual HubSpot documentation content provided below. Mark each row as ✅ Verified / ⚠️ Approximate / ❌ Wrong.
+
+Step 5 — HUMAN SUMMARY: Write a plain English "cheat sheet" (max 20 bullets) of the most useful things a developer can now do with HubSpot that they couldn't easily find before.
+
+Details to incorporate — real documentation content:
+- CLI install: npm install -g @hubspot/cli | auth: hs account auth
+- MCP setup: hs mcp setup (works with Claude Code, Cursor, Gemini CLI, Windsurf, VS Code, Codex)
+- MCP capabilities: project create/upload/deploy/validate, build logs, test accounts, CMS modules (HubL + React), page templates, serverless functions, app analytics, churn risk 
+- Test accounts: hs sandbox create [--config file.json], supports Starter/Pro/Enterprise per hub
+- Config profiles: hs project upload --profile production, variables injected at build time
+- GitHub Actions: hs project upload --account $PORTAL_ID (disable built-in GitHub integration first)
+- VS Code: HubL syntax, autocomplete, CMS file manager, multi-account management
+
+Sense Check: Before finalizing, verify that:
+- Every command shown is an actual hs CLI command, not invented
+- MCP prompt examples match exactly what the HubSpot docs show
+- The skill's `description` field contains sufficient keywords to auto-trigger when a user mentions: hubspot cli, hs command, hubl, cms module, app card, developer platform
+- The skill contains NO CRM API calls (those belong in existing skills)
+
+Output format:
+1. New SKILL.md content (in a code block)
+2. Evaluation matrix table
+3. Plain English cheat sheet (20 bullets max)
+4. List of any remaining gaps still not covered by any skill

@@ -5,6 +5,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 const QWEN_API = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions";
@@ -243,6 +244,17 @@ async function callQwen(
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // 🔒 Security Check
+    verifyAuth(req);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unauthorized";
+    return new Response(JSON.stringify({ error: message }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (req.method !== "POST") {

@@ -512,19 +512,17 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[Integration Health] Complete in ${duration}ms - Status: ${overallStatus}`);
 
-    return apiError("INTERNAL_ERROR", JSON.stringify({
-      success: true,
+    return apiSuccess({
       duration_ms: duration,
       report
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
   } catch (error: unknown) {
     console.error("[Integration Health] Error:", error);
-    return apiSuccess({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
+    return apiError(
+      "INTERNAL_ERROR", 
+      error instanceof Error ? error.message : "Unknown error",
+      500
+    );
   }
 });

@@ -262,6 +262,11 @@ serve(async (req) => {
       await checkGeneralFraud(supabase, event);
     }
 
+    // Handle dispute events (NEW)
+    if (event.type.includes("dispute")) {
+      result = await handleDisputeEvent(supabase, event);
+    }
+
     const successResponse = createSuccessResponse({
       received: true,
       event_id: event.id,
@@ -1054,6 +1059,53 @@ async function createFraudAlert(supabase: any, alert: any) {
     metadata: alert,
     created_at: new Date().toISOString(),
   });
+}
+
+// ============= DISPUTE HANDLER (ADDED) =============
+
+async function handleDisputeEvent(supabase: any, event: StripeEvent) {
+  const dispute = event.data.object;
+
+  console.log(`⚖️  Dispute ${event.type}: ${dispute.id} (${dispute.reason || 'no reason'})`);
+
+  // Store dispute details
+  await supabase.from("stripe_disputes").upsert(
+    {
+      stripe_id: dispute.id,
+      charge_id: dispute.charge,
+      payment_intent_id: dispute.payment_intent,
+      amount: dispute.amount / 100,
+      currency: dispute.currency,
+      status: dispute.status,
+      reason: dispute.reason,
+      evidence_due_by: dispute.evidence_details?.due_by
+        ? new Date(dispute.evidence_details.due_by * 1000).toISOString()
+        : null,
+      metadata: dispute.metadata,
+      created_at: new Date(dispute.created * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+      raw_response: dispute,
+    },
+    {
+      onConflict: "stripe_id",
+    },
+  );
+
+  // Check for high-risk disputes
+  if (dispute.reason === "fraudulent" || dispute.reason === "chargeback") {
+    await createFraudAlert(supabase, {
+      event_id: event.id,
+      event_type: event.type,
+      risk_score: 75,
+      signals: [`High-risk dispute: ${dispute.reason}`],
+      dispute_id: dispute.id,
+      severity: "high",
+      charge_id: dispute.charge,
+      amount: dispute.amount / 100,
+    });
+  }
+
+  return { processed: true, action: "dispute_handled" };
 }
 
 // ============= NEW EVENT HANDLERS =============

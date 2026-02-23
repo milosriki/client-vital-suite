@@ -1,6 +1,12 @@
 import fs from 'fs';
+import 'dotenv/config';
 
-const GEMINI_API_KEY = "AIzaSyDtyoadQ7oGOrJnNFuH_M9WZjHZ65iivsw";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+if (!GEMINI_API_KEY) {
+  console.error("Missing GEMINI_API_KEY or GOOGLE_API_KEY. Set in .env or .env.local");
+  process.exit(1);
+}
 
 const UNIFIED_LISA_PROMPT = `
 <system_role>

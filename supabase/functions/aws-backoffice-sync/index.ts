@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       };
 
-      return apiSuccess({ summary, data: reconciliations }, null, 2);
+      return apiSuccess({ summary, data: reconciliations });
     } finally {
       await rdsClient.end();
     }

@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
+
+  const authResponse = await verifyAuth(req);
+  if (authResponse) return authResponse;
 
   try {
     const supabase = createClient(

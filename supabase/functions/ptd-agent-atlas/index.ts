@@ -463,7 +463,7 @@ async function saveToMemory(
       query,
       response: response.slice(0, 10000),
       knowledge_extracted: knowledge,
-      embeddings: embedding,
+      embedding: embedding,
     });
 
     for (const pattern of knowledge.detected_patterns) {

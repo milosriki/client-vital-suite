@@ -204,7 +204,7 @@ class UnifiedBrain {
           query,
           response,
           knowledge_extracted: { ...knowledge, source },
-          embeddings: vector,
+          embedding: vector,
         })
         .select("id")
         .single();

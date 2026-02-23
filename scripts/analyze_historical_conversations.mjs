@@ -1,8 +1,18 @@
 import fs from 'fs';
+import 'dotenv/config';
 
-const SUPABASE_URL = "https://ztjndilxurtsfqdsvfds.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY";
-const GEMINI_API_KEY = "AIzaSyDtyoadQ7oGOrJnNFuH_M9WZjHZ65iivsw";
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://ztjndilxurtsfqdsvfds.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+if (!SUPABASE_KEY) {
+  console.error("Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY in .env");
+  process.exit(1);
+}
+if (!GEMINI_API_KEY) {
+  console.error("Missing GEMINI_API_KEY or GOOGLE_API_KEY in .env");
+  process.exit(1);
+}
 
 async function fetchMemories() {
   console.log("Fetching historical conversations from database...");

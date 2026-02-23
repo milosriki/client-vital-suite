@@ -49,30 +49,30 @@ if echo "$RESPONSE" | jq empty 2>/dev/null; then
     
     # Extract and display summary
     echo "📈 Summary:"
-    echo "$RESPONSE" | jq -r '.summary | to_entries[] | "  \(.key): \(.value)"'
+    echo "$RESPONSE" | jq -r '.data.summary | to_entries[] | "  \(.key): \(.value)"'
     echo ""
     
     # Display recommendations
     echo "💡 Recommendations:"
-    echo "$RESPONSE" | jq -r '.recommendations[]'
+    echo "$RESPONSE" | jq -r '.data.recommendations[]'
     echo ""
     
     # Check overall status
-    OVERALL_STATUS=$(echo "$RESPONSE" | jq -r '.summary.overall_status')
+    OVERALL_STATUS=$(echo "$RESPONSE" | jq -r '.data.summary.overall_status')
     if [ "$OVERALL_STATUS" = "✅ ALL REQUIRED KEYS SET" ]; then
         echo "✅ SUCCESS: All required API keys are configured!"
         echo ""
         echo "🔑 Required Keys Status:"
-        echo "$RESPONSE" | jq -r '.supabase_secrets | to_entries[] | "  \(.key): \(.value.status)"'
+        echo "$RESPONSE" | jq -r '.data.supabase_secrets | to_entries[] | "  \(.key): \(.value.status)"'
         echo ""
         echo "🔓 Optional Keys Status:"
-        echo "$RESPONSE" | jq -r '.optional_secrets | to_entries[] | "  \(.key): \(.value.status)"'
+        echo "$RESPONSE" | jq -r '.data.optional_secrets | to_entries[] | "  \(.key): \(.value.status)"'
         exit 0
     else
         echo "⚠️ WARNING: Some required API keys are missing!"
         echo ""
         echo "❌ Missing Keys:"
-        echo "$RESPONSE" | jq -r '.missing_keys[] | "  - \(.key) (used by: \(.used_by | join(", ")))"'
+        echo "$RESPONSE" | jq -r '.data.missing_keys[] | "  - \(.key) (used by: \(.used_by | join(", ")))"'
         echo ""
         echo "Full report saved to api-keys-report.json"
         echo "$RESPONSE" | jq '.' > api-keys-report.json

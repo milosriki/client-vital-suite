@@ -23,25 +23,47 @@ function getSupabaseClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+/**
+ * Generate embeddings using Gemini (project standard).
+ * Falls back to zero vector if key missing or API fails.
+ */
 async function getEmbedding(text: string): Promise<number[]> {
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) return new Array(1536).fill(0);
+  const key =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GEMINI_API_KEY;
+  if (!key) return new Array(1536).fill(0);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openaiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: text.slice(0, 8000),
-      }),
-    });
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": key,
+        },
+        body: JSON.stringify({
+          model: "models/text-embedding-004",
+          content: {
+            parts: [{ text: text.slice(0, 8000) }],
+          },
+          outputDimensionality: 1536,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("[brain] Gemini embedding error:", response.status, err);
+      return new Array(1536).fill(0);
+    }
     const data = await response.json();
-    return data.data?.[0]?.embedding || new Array(1536).fill(0);
-  } catch {
+    const values = data.embedding?.values;
+    return Array.isArray(values) && values.length === 1536
+      ? values
+      : new Array(1536).fill(0);
+  } catch (e) {
+    console.error("[brain] Embedding fetch failed:", e);
     return new Array(1536).fill(0);
   }
 }
@@ -51,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-ptd-key, Authorization");
 
   if (req.method === "OPTIONS") return res.status(200).end();
 

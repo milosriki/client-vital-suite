@@ -173,7 +173,7 @@ export function BrainVisualizer() {
         ) : (
           <span className="text-[10px] text-cyan-400 flex items-center justify-center gap-2">
             <Zap className="w-3 h-3" />
-            SYSTEM: ONLINE // VECTOR_DIM: 768 (GEMINI-004)
+            SYSTEM: ONLINE // VECTOR_DIM: 1536 (GEMINI)
           </span>
         )}
       </div>

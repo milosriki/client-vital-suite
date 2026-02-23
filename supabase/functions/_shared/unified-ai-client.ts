@@ -54,16 +54,22 @@ export interface AIOptions {
 // ============================================================================
 
 // Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
+// UPDATED 2026-02-22: Upgraded for Gemini 3.1 and Claude 4.6 (2026 Era)
 const GEMINI_CASCADE = [
-  "gemini-3-flash-preview",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-3.1-pro",        // Primary: 10M context, deep reasoning
+  "gemini-3.1-flash",      // Setter: High speed, low cost, strong reasoning
+  "gemini-2.0-flash",      // Legacy Fallback
 ] as const;
 
 // DeepSeek fallback when Gemini fails entirely
 const DEEPSEEK_MODELS = [
-  "deepseek-chat",        // DeepSeek V3 — fast, cheap
-  "deepseek-reasoner",    // DeepSeek R1 — reasoning
+  "deepseek-chat",        // DeepSeek V3
+  "deepseek-reasoner",    // DeepSeek R1
+] as const;
+
+const CLAUDE_MODELS = [
+  "claude-4.6-opus",      // CEO-Class Reasoning
+  "claude-3.7-sonnet",    // Coding
 ] as const;
 
 const MODEL_CASCADE = [...GEMINI_CASCADE] as const;
@@ -220,7 +226,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
 
   /**
    * Main entry point: Uses model fallback cascade for resilience.
-   * Primary: gemini-2.5-flash → Fallback: gemini-2.0-flash → Last resort: gemini-1.5-flash
+   * Primary: gemini-3.1-pro → Fallback: gemini-3.1-flash
    * Enforces agent-specific token budgets and auto-compacts on threshold.
    */
   async chat(
@@ -228,6 +234,17 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
     options: AIOptions = {},
   ): Promise<AIResponse> {
     if (!this.googleKey) throw new Error("Google API key missing");
+
+    // Agent-Specific Model Selection (2026 Standards)
+    if (!options.model) {
+      if (options.agentType === "atlas") {
+        options.model = "claude-4.6-opus"; // Riki gets the CEO brain
+      } else if (options.agentType === "lisa") {
+        options.model = "gemini-3.1-flash"; // Lisa gets the Setter brain (Speed + IQ)
+      } else {
+        options.model = "gemini-3.1-flash"; // Default to 3.1 Flash
+      }
+    }
 
     // Enforce agent-specific token budget
     const agentBudget = this.getAgentBudget(options.agentType);

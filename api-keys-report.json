@@ -1,0 +1,478 @@
+{
+  "success": true,
+  "data": {
+    "supabase_secrets": {
+      "GEMINI_API_KEY": {
+        "set": true,
+        "set_length": 39,
+        "used_by": [
+          "ptd-agent-gemini",
+          "ptd-watcher",
+          "smart-agent",
+          "stripe-payouts-ai",
+          "ptd-ultimate-intelligence"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "GOOGLE_API_KEY": {
+        "set": true,
+        "set_length": 39,
+        "used_by": [
+          "ptd-agent-gemini",
+          "ptd-watcher",
+          "smart-agent",
+          "stripe-payouts-ai",
+          "ptd-ultimate-intelligence (fallback if GEMINI_API_KEY not set)"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "GOOGLE_GEMINI_API_KEY": {
+        "set": true,
+        "set_length": 39,
+        "used_by": [
+          "ptd-agent-gemini (legacy, use GEMINI_API_KEY instead)"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "HUBSPOT_API_KEY": {
+        "set": true,
+        "set_length": 44,
+        "used_by": [
+          "sync-hubspot-to-supabase",
+          "sync-hubspot-to-capi",
+          "fetch-hubspot-live",
+          "reassign-owner",
+          "auto-reassign-leads"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "STRIPE_SECRET_KEY": {
+        "set": true,
+        "set_length": 107,
+        "used_by": [
+          "stripe-dashboard-data",
+          "stripe-forensics",
+          "stripe-payouts-ai",
+          "enrich-with-stripe",
+          "stripe-webhook"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "STAPE_CAPIG_API_KEY": {
+        "set": false,
+        "set_length": 0,
+        "used_by": [
+          "send-to-stape-capi",
+          "process-capi-batch"
+        ],
+        "status": "❌ MISSING",
+        "required": true
+      },
+      "STAPE_CAPIG_ID": {
+        "set": true,
+        "set_length": 124,
+        "used_by": [
+          "send-to-stape-capi",
+          "process-capi-batch"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "FB_PIXEL_ID": {
+        "set": true,
+        "set_length": 15,
+        "used_by": [
+          "send-to-stape-capi",
+          "process-capi-batch"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "FB_ACCESS_TOKEN": {
+        "set": true,
+        "set_length": 206,
+        "used_by": [
+          "send-to-stape-capi",
+          "process-capi-batch"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "META_ACCESS_TOKEN": {
+        "set": true,
+        "set_length": 206,
+        "used_by": [
+          "send-to-stape-capi",
+          "process-capi-batch"
+        ],
+        "status": "✅ SET",
+        "required": true
+      },
+      "CALLGEAR_API_KEY": {
+        "set": true,
+        "set_length": 40,
+        "used_by": [
+          "call-tracking functions"
+        ],
+        "status": "✅ SET",
+        "required": true
+      }
+    },
+    "optional_secrets": {
+      "LOVABLE_API_KEY": {
+        "set": false,
+        "set_length": 0,
+        "used_by": [
+          "smart-agent (fallback)",
+          "stripe-payouts-ai (fallback)",
+          "ptd-agent-gemini (fallback)"
+        ],
+        "status": "⚠️ NOT SET (optional)",
+        "required": false
+      }
+    },
+    "vercel_env_vars": {
+      "VITE_SUPABASE_URL": {
+        "expected": true,
+        "used_by": [
+          "Frontend build"
+        ],
+        "note": "Cannot verify from Edge Function - check Vercel dashboard",
+        "status": "⚠️ CHECK MANUALLY"
+      },
+      "VITE_SUPABASE_PUBLISHABLE_KEY": {
+        "expected": true,
+        "used_by": [
+          "Frontend build"
+        ],
+        "note": "Cannot verify from Edge Function - check Vercel dashboard",
+        "status": "⚠️ CHECK MANUALLY"
+      },
+      "VITE_GEMINI_API_KEY": {
+        "expected": true,
+        "used_by": [
+          "Frontend build"
+        ],
+        "note": "Cannot verify from Edge Function - check Vercel dashboard",
+        "status": "⚠️ CHECK MANUALLY"
+      },
+      "FB_PIXEL_ID": {
+        "expected": true,
+        "used_by": [
+          "API routes"
+        ],
+        "note": "Cannot verify from Edge Function - check Vercel dashboard",
+        "status": "⚠️ CHECK MANUALLY"
+      },
+      "FB_ACCESS_TOKEN": {
+        "expected": true,
+        "used_by": [
+          "API routes"
+        ],
+        "note": "Cannot verify from Edge Function - check Vercel dashboard",
+        "status": "⚠️ CHECK MANUALLY"
+      },
+      "EVENT_SOURCE_URL": {
+        "expected": true,
+        "used_by": [
+          "API routes"
+        ],
+        "note": "Cannot verify from Edge Function - check Vercel dashboard",
+        "status": "⚠️ CHECK MANUALLY"
+      }
+    },
+    "missing_keys": [
+      {
+        "platform": "Supabase",
+        "key": "STAPE_CAPIG_API_KEY",
+        "used_by": [
+          "send-to-stape-capi",
+          "process-capi-batch"
+        ],
+        "severity": "critical",
+        "required": true
+      }
+    ],
+    "unused_keys": [],
+    "key_usage_map": {
+      "ptd-agent-gemini": [
+        {
+          "key": "GEMINI_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "GOOGLE_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "ptd-watcher": [
+        {
+          "key": "GEMINI_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "GOOGLE_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "smart-agent": [
+        {
+          "key": "GEMINI_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "GOOGLE_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "stripe-payouts-ai": [
+        {
+          "key": "GEMINI_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "GOOGLE_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "STRIPE_SECRET_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "ptd-ultimate-intelligence": [
+        {
+          "key": "GEMINI_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "ptd-ultimate-intelligence (fallback if GEMINI_API_KEY not set)": [
+        {
+          "key": "GOOGLE_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "ptd-agent-gemini (legacy, use GEMINI_API_KEY instead)": [
+        {
+          "key": "GOOGLE_GEMINI_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "sync-hubspot-to-supabase": [
+        {
+          "key": "HUBSPOT_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "sync-hubspot-to-capi": [
+        {
+          "key": "HUBSPOT_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "fetch-hubspot-live": [
+        {
+          "key": "HUBSPOT_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "reassign-owner": [
+        {
+          "key": "HUBSPOT_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "auto-reassign-leads": [
+        {
+          "key": "HUBSPOT_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "stripe-dashboard-data": [
+        {
+          "key": "STRIPE_SECRET_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "stripe-forensics": [
+        {
+          "key": "STRIPE_SECRET_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "enrich-with-stripe": [
+        {
+          "key": "STRIPE_SECRET_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "stripe-webhook": [
+        {
+          "key": "STRIPE_SECRET_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "send-to-stape-capi": [
+        {
+          "key": "STAPE_CAPIG_API_KEY",
+          "platform": "Supabase",
+          "status": "missing",
+          "required": true
+        },
+        {
+          "key": "STAPE_CAPIG_ID",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "FB_PIXEL_ID",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "FB_ACCESS_TOKEN",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "META_ACCESS_TOKEN",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "process-capi-batch": [
+        {
+          "key": "STAPE_CAPIG_API_KEY",
+          "platform": "Supabase",
+          "status": "missing",
+          "required": true
+        },
+        {
+          "key": "STAPE_CAPIG_ID",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "FB_PIXEL_ID",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "FB_ACCESS_TOKEN",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        },
+        {
+          "key": "META_ACCESS_TOKEN",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "call-tracking functions": [
+        {
+          "key": "CALLGEAR_API_KEY",
+          "platform": "Supabase",
+          "status": "set",
+          "required": true
+        }
+      ],
+      "smart-agent (fallback)": [
+        {
+          "key": "LOVABLE_API_KEY",
+          "platform": "Supabase",
+          "status": "not-set",
+          "required": false
+        }
+      ],
+      "stripe-payouts-ai (fallback)": [
+        {
+          "key": "LOVABLE_API_KEY",
+          "platform": "Supabase",
+          "status": "not-set",
+          "required": false
+        }
+      ],
+      "ptd-agent-gemini (fallback)": [
+        {
+          "key": "LOVABLE_API_KEY",
+          "platform": "Supabase",
+          "status": "not-set",
+          "required": false
+        }
+      ]
+    },
+    "summary": {
+      "supabase_required_total": 11,
+      "supabase_required_set": 10,
+      "supabase_required_missing": 1,
+      "supabase_required_percentage": 91,
+      "supabase_optional_total": 1,
+      "supabase_optional_set": 0,
+      "vercel_total": 6,
+      "vercel_note": "Cannot verify from Edge Function",
+      "missing_keys_count": 1,
+      "overall_status": "⚠️ SOME REQUIRED KEYS MISSING"
+    },
+    "recommendations": [
+      "❌ 1 required key missing in Supabase",
+      "  - STAPE_CAPIG_API_KEY (used by: send-to-stape-capi, process-capi-batch)",
+      "ℹ️ 1 optional key not set (Lovable fallback)",
+      "⚠️ Verify Vercel env vars manually in Vercel dashboard",
+      "📋 Check key_usage_map to see which functions need which keys"
+    ]
+  }
+}

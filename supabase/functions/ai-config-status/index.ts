@@ -342,7 +342,7 @@ serve(async (req) => {
           ? 200
           : 503;
 
-    return apiSuccess(status, null, 2);
+    return apiSuccess(status, undefined, httpStatus);
   } catch (error: unknown) {
     console.error("[ai-config-status] Error:", error);
 

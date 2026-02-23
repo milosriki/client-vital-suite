@@ -60,17 +60,17 @@ async function main() {
 
     const query = `
       SELECT
-        s.id_scheduler::text AS rds_id,
+        s.session_id::text AS rds_id,
         s.id_client::text AS client_id,
-        COALESCE(m.full_name, m.email, 'Client-' || s.id_client::text) AS client_name,
+        COALESCE(m.full_name, m.email, s.client_name, 'Client-' || s.id_client::text) AS client_name,
         m.email AS client_email,
-        s.id_trainer::text AS coach_id,
+        s.id_personal::text AS coach_id,
         s.trainer_name AS coach_name,
         s.training_date_utc AS training_date,
         s.status,
-        s.type_session AS session_type,
-        s.time_slot,
-        s.location_name AS location
+        s.session_type,
+        NULL AS time_slot,
+        NULL AS location
       FROM enhancesch.vw_schedulers s
       LEFT JOIN enhancesch.vw_client_master m ON s.id_client = m.id_client
       WHERE s.status IN ('Completed', 'Attended', 'Confirmed', 'Cancelled', 'No Show')
@@ -136,12 +136,13 @@ async function main() {
     console.log(`  Duration: ${duration}s`);
 
     // 6. Log to sync_logs
-    await supabase.from("sync_logs").insert({
+    const { error: logErr } = await supabase.from("sync_logs").insert({
       source: "aws-session-sync-local",
       status: errors > 0 ? "partial" : "success",
       records_synced: synced,
       details: { mode, fetched: result.rows.length, deduped: rows.length, synced, errors, duration_s: duration },
-    }).catch(() => {});
+    });
+    if (logErr) console.warn("[aws-session-sync] Log warning:", logErr.message);
 
   } finally {
     await rds.end();

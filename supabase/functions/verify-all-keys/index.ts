@@ -263,7 +263,7 @@ serve(async (req) => {
 
     report.recommendations = recommendations;
 
-    return apiSuccess(report, null, 2);
+    return apiSuccess(report, null, 200);
   } catch (error: unknown) {
     console.error("[Key Verification] Error:", error);
     return apiError(
