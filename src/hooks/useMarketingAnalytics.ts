@@ -263,7 +263,7 @@ export const useMetaAds = (dateRange: string) => {
         },
         {
           label: "CPC",
-          value: `$${avgCpc.toFixed(2)}`,
+          value: `AED ${avgCpc.toFixed(0)}`,
           delta: { value: -0.12, type: "positive" as const },
           icon: "DollarSign"
         },
@@ -385,13 +385,13 @@ export const useMoneyMap = (dateRange: string) => {
         },
         {
           label: "True CAC",
-          value: `$${trueCac.toFixed(0)}`,
+          value: `AED ${trueCac.toFixed(0)}`,
           delta: { value: -142, type: "positive" as const },
           icon: "DollarSign"
         },
         {
           label: "LTV",
-          value: `$${ltv.toFixed(0)}`,
+          value: `AED ${ltv.toFixed(0)}`,
           delta: { value: 324, type: "positive" as const },
           icon: "DollarSign"
         },

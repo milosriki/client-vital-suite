@@ -121,6 +121,9 @@ export const Navigation = () => {
       { path: "/coach-locations", label: "Coach GPS", icon: MapPin },
       { path: "/meta-ads", label: "Meta Ads", icon: Megaphone },
       { path: "/lead-tracking", label: "Lead Tracking", icon: Target },
+      { path: "/lead-follow-up", label: "Lead Follow-Up", icon: Target },
+      { path: "/attribution-leaks-detail", label: "Attribution Leaks", icon: ShieldAlert },
+      { path: "/workflow-strategy", label: "Workflow Strategy", icon: Activity },
     ],
     MORE: [
       { path: "/sales-tracker", label: "Sales Tracker", icon: Target },
