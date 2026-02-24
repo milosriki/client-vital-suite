@@ -130,14 +130,15 @@ Deno.serve(async (req: Request) => {
         computeBaseline("overall", "all_campaigns", days, periodInsights, periodDeals)
       );
 
-      // 2. Per-CAMPAIGN baselines (group by campaign_id)
-      const campaignIds = [...new Set(periodInsights.map((r) => r.campaign_id).filter(Boolean))];
-      for (const campaignId of campaignIds) {
-        const campInsights = periodInsights.filter((r) => r.campaign_id === campaignId);
-        // Use campaign_name for readability, fall back to ID
-        const campaignName = campInsights[0]?.campaign_name || campaignId;
+      // 2. Per-CAMPAIGN baselines (group by campaign_name — name is the unique dimension_value)
+      // Aggregate all rows with the same campaign_name together (even if campaign_id differs)
+      const campaignNames = [...new Set(periodInsights.map((r) => r.campaign_name || r.campaign_id).filter(Boolean))];
+      for (const campaignName of campaignNames) {
+        const campInsights = periodInsights.filter(
+          (r) => (r.campaign_name || r.campaign_id) === campaignName
+        );
         entries.push(
-          computeBaseline("campaign", String(campaignName), days, campInsights, periodDeals)
+          computeBaseline("campaign", String(campaignName).slice(0, 200), days, campInsights, periodDeals)
         );
       }
 
@@ -167,15 +168,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Upsert all entries (conflict on unique key)
-    const { error: insertError } = await supabase
+    // Delete existing rows (all rows - use gte on created_at as universal condition)
+    const { error: deleteError } = await supabase
       .from("historical_baselines")
-      .upsert(entries, {
-        onConflict: "dimension_type,dimension_value,period_days",
-        ignoreDuplicates: false,
-      });
+      .delete()
+      .gte("created_at", "2000-01-01T00:00:00Z");
 
-    if (insertError) throw insertError;
+    if (deleteError) {
+      // Log but don't fail — duplicate constraint below will use upsert fallback
+      console.error("[baselines] delete error:", JSON.stringify(deleteError));
+    }
+
+    // Upsert in batches of 50 (handles any remaining duplicates after delete)
+    const BATCH = 50;
+    for (let i = 0; i < entries.length; i += BATCH) {
+      const batch = entries.slice(i, i + BATCH);
+      const { error: insertError } = await supabase
+        .from("historical_baselines")
+        .upsert(batch, {
+          onConflict: "dimension_type,dimension_value,period_days",
+          ignoreDuplicates: false,
+        });
+      if (insertError) throw insertError;
+    }
 
     const summary = {
       total: entries.length,
@@ -193,8 +208,21 @@ Deno.serve(async (req: Request) => {
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: msg }), {
+    let errPayload: Record<string, unknown>;
+    if (error instanceof Error) {
+      errPayload = { error: error.message, stack: error.stack?.split("\n")[0] };
+    } else if (error && typeof error === "object") {
+      const e = error as Record<string, unknown>;
+      errPayload = {
+        error: String(e.message || e.error || JSON.stringify(error)),
+        code: e.code,
+        details: e.details,
+        hint: e.hint,
+      };
+    } else {
+      errPayload = { error: String(error) };
+    }
+    return new Response(JSON.stringify(errPayload), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
