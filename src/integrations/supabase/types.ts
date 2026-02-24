@@ -2775,6 +2775,66 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_gps_patterns: {
+        Row: {
+          analysis_date: string
+          anomalies: Json | null
+          avg_arrival_offset_min: number | null
+          avg_dwell_vs_scheduled_min: number | null
+          coach_name: string
+          created_at: string | null
+          early_departure_count: number | null
+          ghost_session_count: number | null
+          gps_mismatch: number | null
+          gps_verified: number | null
+          id: string
+          late_arrival_count: number | null
+          no_gps: number | null
+          pattern_score: number | null
+          risk_level: string | null
+          total_sessions: number | null
+          verification_rate: number | null
+        }
+        Insert: {
+          analysis_date?: string
+          anomalies?: Json | null
+          avg_arrival_offset_min?: number | null
+          avg_dwell_vs_scheduled_min?: number | null
+          coach_name: string
+          created_at?: string | null
+          early_departure_count?: number | null
+          ghost_session_count?: number | null
+          gps_mismatch?: number | null
+          gps_verified?: number | null
+          id?: string
+          late_arrival_count?: number | null
+          no_gps?: number | null
+          pattern_score?: number | null
+          risk_level?: string | null
+          total_sessions?: number | null
+          verification_rate?: number | null
+        }
+        Update: {
+          analysis_date?: string
+          anomalies?: Json | null
+          avg_arrival_offset_min?: number | null
+          avg_dwell_vs_scheduled_min?: number | null
+          coach_name?: string
+          created_at?: string | null
+          early_departure_count?: number | null
+          ghost_session_count?: number | null
+          gps_mismatch?: number | null
+          gps_verified?: number | null
+          id?: string
+          late_arrival_count?: number | null
+          no_gps?: number | null
+          pattern_score?: number | null
+          risk_level?: string | null
+          total_sessions?: number | null
+          verification_rate?: number | null
+        }
+        Relationships: []
+      }
       coach_performance: {
         Row: {
           active_clients: number | null
@@ -5510,6 +5570,48 @@ export type Database = {
           metadata?: Json | null
           updated_at?: string | null
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      gps_device_alerts: {
+        Row: {
+          alert_type: string
+          coach_name: string | null
+          created_at: string | null
+          device_id: string
+          hours_silent: number | null
+          id: string
+          last_seen_at: string | null
+          message: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          coach_name?: string | null
+          created_at?: string | null
+          device_id: string
+          hours_silent?: number | null
+          id?: string
+          last_seen_at?: string | null
+          message?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          alert_type?: string
+          coach_name?: string | null
+          created_at?: string | null
+          device_id?: string
+          hours_silent?: number | null
+          id?: string
+          last_seen_at?: string | null
+          message?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: string
         }
         Relationships: []
       }
@@ -11745,6 +11847,27 @@ export type Database = {
           load_percentage: number | null
           sessions_14d: number | null
           zone: string | null
+        }
+        Relationships: []
+      }
+      view_coach_pattern_latest: {
+        Row: {
+          analysis_date: string | null
+          anomalies: Json | null
+          avg_arrival_offset_min: number | null
+          avg_dwell_vs_scheduled_min: number | null
+          coach_name: string | null
+          created_at: string | null
+          early_departure_count: number | null
+          ghost_session_count: number | null
+          gps_mismatch: number | null
+          gps_verified: number | null
+          late_arrival_count: number | null
+          no_gps: number | null
+          pattern_score: number | null
+          risk_level: string | null
+          total_sessions: number | null
+          verification_rate: number | null
         }
         Relationships: []
       }
