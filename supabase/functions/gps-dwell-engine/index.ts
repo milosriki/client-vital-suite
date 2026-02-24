@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const PTD_LOCATIONS = [
   { name: "PTD Marina", lat: 25.0801, lng: 55.1408, radius: 200 },
@@ -66,6 +67,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    verifyAuth(req);
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Fetch GPS data — NO postgres client, pure supabase-js
@@ -110,8 +112,9 @@ serve(async (req) => {
       coaches: [...coachMap.values()].length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
+    const status = err?.statusCode ?? 500;
     return new Response(JSON.stringify({ error: err?.message || String(err) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

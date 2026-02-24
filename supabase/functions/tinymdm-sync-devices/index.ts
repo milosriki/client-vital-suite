@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const TINYMDM_BASE = "https://www.tinymdm.net/api/v1";
 const TINYMDM_PUBLIC_KEY = Deno.env.get("TINYMDM_API_KEY_PUBLIC")!;
@@ -29,6 +30,7 @@ serve(async (req) => {
   }
 
   try {
+    verifyAuth(req);
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -87,10 +89,11 @@ serve(async (req) => {
       JSON.stringify({ success: true, total: deviceList.length, upserted }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: any) {
+    const status = error?.statusCode ?? 500;
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: error?.message || String(error) }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

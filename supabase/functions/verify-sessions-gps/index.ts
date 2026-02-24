@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 // Haversine distance in meters
 function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -19,6 +20,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    verifyAuth(req);
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -207,9 +209,10 @@ Deno.serve(async (req: Request) => {
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
+  } catch (err: any) {
+    const status = err?.statusCode ?? 500;
+    return new Response(JSON.stringify({ error: err?.message || String(err) }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
