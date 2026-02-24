@@ -122,7 +122,7 @@ serve(async (req) => {
     // 3. Upsert to Supabase
     const { error } = await supabase
       .from("contacts")
-      .upsert(upsertData, { onConflict: "hubspot_id" });
+      .upsert(upsertData, { onConflict: "hubspot_contact_id" });
 
     if (error) {
       console.error("Supabase Upsert Error:", error);
