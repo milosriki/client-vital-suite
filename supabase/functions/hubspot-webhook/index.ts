@@ -69,11 +69,8 @@ serve(async (req) => {
         .join("");
 
       if (calculatedSignature !== signature) {
-        console.warn("⚠️ Invalid HubSpot Signature");
-        // We throw unauthorized here to be caught by handleError
-        // throw new Error("Invalid HubSpot Signature");
-        // NOTE: For now, we log warning to avoid breaking dev/test if secret is missing or mismatched.
-        // In strict production, uncomment the throw.
+        console.error("❌ Invalid HubSpot Signature — rejecting request");
+        throw new Error("Invalid HubSpot Signature");
       }
     }
 

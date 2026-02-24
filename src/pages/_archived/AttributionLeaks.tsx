@@ -104,13 +104,13 @@ export default function AttributionLeaks() {
   const leakMetrics = [
     {
       label: "Attributed Revenue",
-      value: totalRevenue > 0 ? `$${(totalRevenue / 1000).toFixed(1)}K` : "$0",
+      value: totalRevenue > 0 ? `AED ${(totalRevenue / 1000).toFixed(1)}K` : "AED 0",
       delta: { value: 0, type: "neutral" as const },
       icon: DollarSign
     },
     {
       label: "DB Audit Total",
-      value: dbAuditTotal > 0 ? `$${(dbAuditTotal / 1000).toFixed(1)}K` : "$0",
+      value: dbAuditTotal > 0 ? `AED ${(dbAuditTotal / 1000).toFixed(1)}K` : "AED 0",
       delta: { value: 0, type: "neutral" as const },
       icon: DollarSign
     },
@@ -122,7 +122,7 @@ export default function AttributionLeaks() {
     },
     {
       label: "Amount Difference",
-      value: `$${(discrepancyAmount / 1000).toFixed(1)}K`,
+      value: `AED ${(discrepancyAmount / 1000).toFixed(1)}K`,
       delta: { value: 0, type: discrepancyAmount > 1000 ? "negative" as const : "positive" as const },
       icon: CheckCircle
     },
@@ -148,7 +148,7 @@ export default function AttributionLeaks() {
     field: "attribution",
     supabase: disc.type || "Unknown",
     awsRds: disc.message || "No details",
-    delta: disc.value ? `$${disc.value.toFixed(0)}` : "—",
+    delta: disc.value ? `AED ${disc.value.toFixed(0)}` : "—",
     autoFix: "review",
   }));
 
@@ -228,9 +228,9 @@ export default function AttributionLeaks() {
             data={reconciliationMatrix}
             columns={[
               { key: "campaign", label: "Campaign", render: (item) => item.campaign },
-              { key: "fbAds", label: "FB Ads", render: (item) => `$${(item.fbAds / 1000).toFixed(1)}K` },
-              { key: "hubspot", label: "HubSpot", render: (item) => `$${(item.hubspot / 1000).toFixed(1)}K` },
-              { key: "anytrack", label: "AnyTrack", render: (item) => `$${(item.anytrack / 1000).toFixed(1)}K` },
+              { key: "fbAds", label: "FB Ads", render: (item) => `AED ${(item.fbAds / 1000).toFixed(1)}K` },
+              { key: "hubspot", label: "HubSpot", render: (item) => `AED ${(item.hubspot / 1000).toFixed(1)}K` },
+              { key: "anytrack", label: "AnyTrack", render: (item) => `AED ${(item.anytrack / 1000).toFixed(1)}K` },
               { key: "deltaMax", label: "Δ Max", render: (item) => `${item.deltaMax}%` },
               {
                 key: "status",
@@ -269,7 +269,7 @@ export default function AttributionLeaks() {
                   <YAxis
                     stroke={chartTheme.axis.stroke}
                     tick={{ fill: chartTheme.axis.tick.fill }}
-                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                    tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                   />
                   <Tooltip
                     contentStyle={{
@@ -278,7 +278,7 @@ export default function AttributionLeaks() {
                       borderRadius: chartTheme.tooltip.borderRadius,
                       padding: chartTheme.tooltip.padding,
                     }}
-                    formatter={(value: number) => `$${value.toLocaleString()}`}
+                    formatter={(value: number) => `AED ${value.toLocaleString()}`}
                   />
                   <Legend />
                   <Bar dataKey="fb" fill="#F59E0B" name="FB Ads" />
