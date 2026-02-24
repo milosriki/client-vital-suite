@@ -94,9 +94,9 @@ serve(async (req) => {
     if (clear_fake_data && !cursor) {
       console.log("Clearing fake data...");
 
-      // Clear leads - all test email patterns + test phone numbers
+      // Clear test data from contacts (consolidated from former leads table)
       await supabase
-        .from("leads")
+        .from("contacts")
         .delete()
         .or(
           "email.ilike.%@example.com,email.ilike.%@email.com,email.ilike.%@test.com,phone.ilike.%555-0%",
@@ -553,20 +553,14 @@ serve(async (req) => {
               results.contacts_synced += contactsToUpsert.length;
             }
 
-            // Also sync to leads table (batch)
-            const leadsToUpsert = contacts
+            // Update contacts with setter/coach assignments
+            // (contacts already upserted above — this enriches with staff mapping)
+            const staffUpdates = contacts
               .filter((c: any) => c.properties?.email)
               .map((contact: any) => {
                 const props = contact.properties;
-                // Matthew and other Contact Owners are SETTERS
                 const setterId = props.hubspot_owner_id || "unassigned";
-                const setterName = props.hubspot_owner_id
-                  ? ownerMap[props.hubspot_owner_id] || "Unassigned / Admin"
-                  : "Unassigned / Admin";
-                // Assigned Coach is the CLOSER
                 const closerName = props.assigned_coach || null;
-
-                // Resolve UUIDs
                 const setterUuid = props.hubspot_owner_id
                   ? staffByHubSpotId[props.hubspot_owner_id]
                   : null;
@@ -575,36 +569,26 @@ serve(async (req) => {
                   : null;
 
                 return {
-                  hubspot_id: contact.id,
-                  email: props.email,
-                  first_name: props.firstname,
-                  last_name: props.lastname,
-                  phone: props.phone || props.mobilephone,
-                  source: "hubspot",
-                  status: mapHubspotStatusToLead(
-                    props.lifecyclestage,
-                    props.hs_lead_status,
-                  ),
-                  owner_id: setterId, // This is the Setter ID
-                  assigned_coach: closerName, // This is the Closer
+                  hubspot_contact_id: contact.id,
+                  owner_id: setterId,
+                  assigned_coach: closerName,
                   setter_uuid: setterUuid,
                   coach_uuid: coachUuid,
-                  created_at: props.createdate,
                 };
               });
 
-            const { error: leadsError } = await supabase
-              .from("leads")
-              .upsert(leadsToUpsert, {
-                onConflict: "hubspot_id",
+            const { error: staffError } = await supabase
+              .from("contacts")
+              .upsert(staffUpdates, {
+                onConflict: "hubspot_contact_id",
                 ignoreDuplicates: false,
               });
 
-            if (leadsError) {
-              console.error("Leads sync error:", leadsError.message);
-              results.errors.push(`Leads batch: ${leadsError.message}`);
+            if (staffError) {
+              console.error("Staff assignment sync error:", staffError.message);
+              results.errors.push(`Staff sync: ${staffError.message}`);
             } else {
-              results.leads_synced += leadsToUpsert.length;
+              results.leads_synced += staffUpdates.length;
             }
           }
 

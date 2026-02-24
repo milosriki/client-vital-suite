@@ -416,6 +416,59 @@ Deno.serve(async (req: Request) => {
       results.push(...dailyResults);
     }
 
+    // 2. Generate Recommendations & Log Efficiency (Phase 2.5)
+    if (results.length > 0) {
+      const recommendations: any[] = [];
+      const efficiencyLogs: any[] = [];
+
+      for (const res of results) {
+        // A. Route Optimization
+        if (res.travel_km > 30) {
+          const optimalKm = res.travel_km * 0.7; // Simulating 30% savings for now
+          recommendations.push({
+            coach_id: res.coach_name,
+            type: "ROUTE_OPTIMIZATION",
+            severity: res.travel_km > 50 ? "HIGH" : "MEDIUM",
+            title: `Save ~${Math.round(res.travel_km - optimalKm)}km tomorrow`,
+            description: `Current travel is ${res.travel_km}km. Grouping clients could reduce this significantly.`,
+            action_payload: { current_km: res.travel_km, optimal_km: optimalKm },
+            status: "PENDING"
+          });
+          
+          efficiencyLogs.push({
+            coach_id: res.coach_name,
+            log_date: res.date,
+            total_km_actual: res.travel_km,
+            total_km_optimal: optimalKm,
+            efficiency_score: Math.round((optimalKm / res.travel_km) * 100)
+          });
+        }
+
+        // B. Ghost Session Detection
+        if (res.sessions_completed > 0 && res.session_location_matches === 0) {
+          recommendations.push({
+            coach_id: res.coach_name,
+            type: "GHOST_SESSION",
+            severity: "HIGH",
+            title: "Potential Ghost Session Detected",
+            description: `Coach marked ${res.sessions_completed} sessions complete, but GPS shows no presence at client locations.`,
+            action_payload: { sessions: res.sessions_completed, matches: 0 },
+            status: "PENDING"
+          });
+        }
+      }
+
+      // Bulk Insert Recommendations
+      if (recommendations.length > 0) {
+        await supabase.from("coach_recommendations").upsert(recommendations, { onConflict: "coach_id, type, title" });
+      }
+
+      // Bulk Insert Efficiency Logs
+      if (efficiencyLogs.length > 0) {
+        await supabase.from("route_efficiency_logs").upsert(efficiencyLogs, { onConflict: "coach_id, log_date" });
+      }
+    }
+
     // Summary across all coaches
     const summary = {
       date_range: `${new Date(targetDate).toISOString().split("T")[0]} (${daysBack} days)`,

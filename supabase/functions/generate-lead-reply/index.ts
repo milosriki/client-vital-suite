@@ -59,7 +59,7 @@ serve(async (req: Request) => {
   try {
     // Fetch leads that don't have an AI reply yet
     const { data: leadsToProcess, error: fetchError } = await supabase
-      .from("leads")
+      .from("contacts")
       .select("id, firstname, fitness_goal, budget_range, created_at")
       .is("ai_suggested_reply", null)
       .order("created_at", { ascending: false })
@@ -152,7 +152,7 @@ SMS BEST PRACTICES:
 
         // Update Lead
         const { error: updateError } = await supabase
-          .from("leads")
+          .from("contacts")
           .update({ ai_suggested_reply: suggestedReply })
           .eq("id", lead.id);
 

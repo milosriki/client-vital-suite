@@ -116,7 +116,7 @@ serve(async (req) => {
       }
 
       return {
-        hubspot_id: contact.id,
+        hubspot_contact_id: contact.id,
         email: props.email,
         first_name: props.firstname,
         last_name: props.lastname,
@@ -124,17 +124,18 @@ serve(async (req) => {
         company: props.company,
         status: normalizedStatus, // The calculated smart status
         raw_status: rawStatus, // Keep original for debugging
+        call_status: props.call_status || null,
         hubspot_owner_id: props.hubspot_owner_id,
         lifecycle_stage: props.lifecyclestage || "lead",
-        last_contacted: props.lastmodifieddate,
+        last_contacted_at: props.lastmodifieddate,
         updated_at: new Date().toISOString(),
       };
     });
 
     if (upsertData.length > 0) {
       const { error } = await supabase
-        .from("sales_leads") // We'll need to ensure this table exists or use a generic contacts table
-        .upsert(upsertData, { onConflict: "hubspot_id" });
+        .from("contacts")
+        .upsert(upsertData, { onConflict: "hubspot_contact_id" });
 
       if (error) throw error;
     }

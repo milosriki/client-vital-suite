@@ -56,35 +56,15 @@ serve(async (req) => {
             return { data: data || [], error: null, table: "contacts" as const };
         };
 
-        const selectLeads = async () => {
-            const { data, error } = await supabase
-                .from("leads")
-                .select("id,email,first_name,last_name,name,fitness_goal,budget_range,location,ai_suggested_reply,status,metadata")
-                .is("ai_suggested_reply", null)
-                .eq("status", "NEW")
-                .limit(limit);
-
-            if (error) return { data: null, error, table: undefined };
-            // Map leads fields to match contacts schema
-            const mappedData = (data || []).map((lead: any) => ({
-                ...lead,
-                lead_status: lead.status,
-            }));
-            return { data: mappedData, error: null, table: "leads" as const };
-        };
-
-        // Prefer unified contacts schema; fallback to legacy leads table
-        let leadSource: { data: any[] | null; error: any; table?: "contacts" | "leads" } = await selectContacts();
-        if (!leadSource.table) {
-            leadSource = await selectLeads();
-        }
+        // All contacts are now in the unified contacts table (leads table deprecated)
+        const leadSource = await selectContacts();
 
         if (leadSource.error) {
             throw leadSource.error;
         }
 
         const newLeads = leadSource.data || [];
-        const sourceTable = leadSource.table || "leads";
+        const sourceTable = "contacts" as const;
 
         if (!newLeads || newLeads.length === 0) {
             return jsonResponse({ message: "No new leads to process", processed: 0, sourceTable });

@@ -34,7 +34,7 @@ export function SalesPipelineFeed() {
         {
           event: '*',
           schema: 'public',
-          table: 'sales_leads'
+          table: 'contacts'
         },
         (payload) => {
           

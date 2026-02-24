@@ -268,11 +268,9 @@ async function handleContactUpdate(
   const json = await res.json();
   const props = json.properties;
 
-  // Map to 'leads' table (or 'contacts' table depending on architecture, usually sync to leads for daily ops)
-  const leadPayload = {
-    // Standardize: Schema in 20251213000001 uses 'hubspot_id' but previously we saw 'hubspot_event_id' for appointments.
-    // For leads, 'hubspot_id' is the standard field.
-    hubspot_id: contactId.toString(),
+  // Upsert to unified contacts table (consolidated from former leads table)
+  const contactPayload = {
+    hubspot_contact_id: contactId.toString(),
     email: props.email,
     first_name: props.firstname,
     last_name: props.lastname,
@@ -286,13 +284,12 @@ async function handleContactUpdate(
   };
 
   console.log(
-    `🔍 Attempting to Upsert Lead: ${props.email} (ID: ${contactId})`,
+    `🔍 Attempting to Upsert Contact: ${props.email} (ID: ${contactId})`,
   );
 
-  // Upsert to 'leads' table
   const { data, error } = await supabase
-    .from("leads")
-    .upsert(leadPayload, { onConflict: "hubspot_id" })
+    .from("contacts")
+    .upsert(contactPayload, { onConflict: "hubspot_contact_id" })
     .select();
 
   // 3. BIDIRECTIONAL SYNC: Update 'conversation_intelligence' Brain
