@@ -12,7 +12,7 @@ serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("SUPABASE_DB_URL") ??
-      `postgresql://postgres:${Deno.env.get("SUPABASE_DB_PASSWORD") ?? "Pazi1stazelis"}@db.ztjndilxurtsfqdsvfds.supabase.co:5432/postgres`;
+      `postgresql://postgres:${Deno.env.get("SUPABASE_DB_PASSWORD") ?? ""}@db.ztjndilxurtsfqdsvfds.supabase.co:5432/postgres`;
 
     const { Client } = await import("https://deno.land/x/postgres@v0.19.3/mod.ts");
     const client = new Client(dbUrl);

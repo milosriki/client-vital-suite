@@ -52,19 +52,19 @@ export default function AttributionLeaks() {
   const attributionMetrics = [
     { 
       label: "FB Ads Revenue", 
-      value: financials?.meta_revenue ? `$${(financials.meta_revenue / 1000).toFixed(1)}K` : "—", 
+      value: financials?.meta_revenue ? `AED ${(financials.meta_revenue / 1000).toFixed(1)}K` : "—", 
       delta: { value: 0, type: "neutral" as const }, 
       icon: DollarSign 
     },
     { 
       label: "HubSpot Revenue", 
-      value: financials?.hubspot_revenue ? `$${(financials.hubspot_revenue / 1000).toFixed(1)}K` : "—", 
+      value: financials?.hubspot_revenue ? `AED ${(financials.hubspot_revenue / 1000).toFixed(1)}K` : "—", 
       delta: { value: 0, type: "neutral" as const }, 
       icon: DollarSign 
     },
     { 
       label: "AnyTrack Revenue", 
-      value: financials?.anytrack_revenue ? `$${(financials.anytrack_revenue / 1000).toFixed(1)}K` : "—", 
+      value: financials?.anytrack_revenue ? `AED ${(financials.anytrack_revenue / 1000).toFixed(1)}K` : "—", 
       delta: { value: 0, type: "neutral" as const }, 
       icon: DollarSign 
     },

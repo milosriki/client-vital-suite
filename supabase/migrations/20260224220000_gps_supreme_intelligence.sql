@@ -48,9 +48,12 @@ CREATE TABLE IF NOT EXISTS public.gps_device_alerts (
   message text,
   resolved boolean DEFAULT false,
   resolved_at timestamptz,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(device_id, alert_type, DATE_TRUNC('day', created_at))
+  created_at timestamptz DEFAULT now()
 );
+
+-- Note: expression-based unique index with DATE_TRUNC(timestamptz) not allowed (non-IMMUTABLE).
+-- Deduplication handled at application layer instead.
+-- CREATE UNIQUE INDEX idx_gps_device_alerts_unique ON public.gps_device_alerts(device_id, alert_type, DATE_TRUNC('day', created_at));
 
 ALTER TABLE public.gps_device_alerts ENABLE ROW LEVEL SECURITY;
 

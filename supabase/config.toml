@@ -147,6 +147,14 @@ verify_jwt = true
 [functions.generate-embeddings]
 verify_jwt = true
 
+# CallGear Webhook (External — no JWT, validate via HMAC/IP)
+[functions.callgear-webhook]
+verify_jwt = false
+
+# CallGear Error Handler (External callback)
+[functions.callgear-error-handler]
+verify_jwt = false
+
 # CallGear Sentinel - Real-time Impersonation Detection
 [functions.callgear-sentinel]
 verify_jwt = true

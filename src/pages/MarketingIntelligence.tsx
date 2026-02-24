@@ -1119,6 +1119,228 @@ function SourceTruthTab() {
 }
 
 /* ─────────────────────────────────────────────
+   Tab 6: Creative DNA
+   ───────────────────────────────────────────── */
+
+function CreativeDNATab() {
+  // Fetch creative DNA data from ad_creative_funnel view
+  const { data: creativeData, isLoading: creativeLoading } = useQuery({
+    queryKey: ["creative-dna"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ad_creative_funnel")
+        .select("*")
+        .order("spend", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Also fetch from marketing_recommendations for action signals
+  const { data: recommendations } = useQuery({
+    queryKey: ["marketing-recommendations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("marketing_recommendations")
+        .select("ad_id, action, reasoning, metrics")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) return [];
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Build recommendation lookup by ad_id
+  const recMap = new Map<string, { action: string; reason: string; metadata: Record<string, unknown> }>();
+  (recommendations || []).forEach((r: { ad_id: string; action: string; reasoning: string; metrics: Record<string, unknown> }) => {
+    if (r.ad_id) recMap.set(r.ad_id, { action: r.action, reason: r.reasoning, metadata: r.metrics || {} });
+  });
+
+  // Transform ad_creative_funnel rows into Creative[] for the gallery
+  // View columns: ad_id, ad_name, spend, fb_leads, db_leads, impressions, clicks,
+  //   revenue (deal_revenue alias), stripe_revenue, cpl, roas, true_roas, cpo,
+  //   quality_ranking, engagement_rate_ranking, creative_verdict, video_completion_pct
+  const creatives: Creative[] = (creativeData || []).map((row: Record<string, unknown>) => {
+    const adId = String(row.ad_id || "");
+    const rec = recMap.get(adId);
+    const meta = (rec?.metadata as Record<string, unknown>) || {};
+
+    const spend = Number(row.spend) || 0;
+    const leads = Number(row.db_leads || row.fb_leads || 0);
+    const clicks = Number(row.clicks) || 0;
+    const impressions = Number(row.impressions) || 0;
+    // Use stripe_revenue as primary truth; fall back to deal revenue (aliased as `revenue`)
+    const stripeRevenue = Number(row.stripe_revenue) || 0;
+    const dealRevenue = Number(row.revenue) || 0;
+    const revenue = stripeRevenue || dealRevenue;
+
+    // Frequency comes from marketing_recommendations.metrics (stored by ad-creative-analyst)
+    const frequency = Number(meta.frequency) || 0;
+    const cpa = leads > 0 ? spend / leads : 0;
+    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+    // Use view's true_roas or compute
+    const viewRoas = Number(row.true_roas || row.roas) || 0;
+    const roas = viewRoas || (spend > 0 && revenue > 0 ? revenue / spend : 0);
+
+    let fatigueStatus: Creative["fatigue_status"] = "OK";
+    if (frequency >= 5.0) fatigueStatus = "CRITICAL";
+    else if (frequency >= 3.5) fatigueStatus = "WARNING";
+
+    const action = (rec?.action as Creative["action"]) ?? undefined;
+
+    return {
+      id: adId || String(Math.random()),
+      name: String(row.ad_name || "Unknown Creative"),
+      thumbnail: "",  // Meta creative thumbnails not stored in this view
+      spend,
+      revenue,
+      roas: Math.round(roas * 100) / 100,
+      cpa_aed: Math.round(cpa * 100) / 100,
+      ctr_pct: Math.round(ctr * 1000) / 1000,
+      frequency: frequency > 0 ? Math.round(frequency * 100) / 100 : undefined,
+      fatigue_status: frequency > 0 ? fatigueStatus : undefined,
+      fatigue_reason: String(meta.fatigue_reason || ""),
+      cpl_aed: Number(row.cpl) || Math.round(cpa * 100) / 100,
+      action,
+      action_reason: rec?.reason,
+      quality_ranking: String(meta.quality_ranking || row.quality_ranking || ""),
+    };
+  });
+
+  const killCount = creatives.filter((c) => c.action === "KILL").length;
+  const scaleCount = creatives.filter((c) => c.action === "SCALE").length;
+  const criticalFatigue = creatives.filter((c) => c.fatigue_status === "CRITICAL").length;
+  const warningFatigue = creatives.filter((c) => c.fatigue_status === "WARNING").length;
+  const totalSpend = creatives.reduce((s, c) => s + c.spend, 0);
+
+  if (creativeLoading) return <LoadingSkeleton />;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="bg-black/40">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground mb-1">Creatives Analyzed</p>
+            <p className="text-2xl font-mono font-bold">{creatives.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-black/40 border-red-500/20">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground mb-1">KILL Signals</p>
+            <p className="text-2xl font-mono font-bold text-red-400">{killCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-black/40 border-emerald-500/20">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground mb-1">SCALE Signals</p>
+            <p className="text-2xl font-mono font-bold text-emerald-400">{scaleCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-black/40 border-red-500/20">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground mb-1">Critical Fatigue</p>
+            <div className="flex items-center gap-2">
+              <p className="text-2xl font-mono font-bold text-red-400">{criticalFatigue}</p>
+              {criticalFatigue > 0 && <Flame className="h-4 w-4 text-red-400 animate-pulse" />}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-black/40 border-amber-500/20">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground mb-1">Fatigue Warning</p>
+            <p className="text-2xl font-mono font-bold text-amber-400">{warningFatigue}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Fatigue Alert Banner */}
+      {criticalFatigue > 0 && (
+        <div className="flex items-center gap-3 p-4 rounded-lg border bg-red-500/10 border-red-500/30 text-red-400">
+          <Flame className="h-5 w-5 flex-shrink-0 animate-pulse" />
+          <div>
+            <span className="font-bold">{criticalFatigue} creative{criticalFatigue > 1 ? "s" : ""} at CRITICAL fatigue</span>
+            <span className="ml-2 text-sm opacity-80">— frequency ≥ 5.0. Audience burned. Replace immediately or ROAS will collapse further.</span>
+          </div>
+        </div>
+      )}
+
+      {/* Creative Gallery */}
+      <Card className="bg-black/40">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-primary" />
+            <CardTitle>Creative Performance Gallery</CardTitle>
+          </div>
+          <CardDescription>
+            Per-creative: ROAS, CPA, CTR, frequency, and fatigue status — sorted by spend.
+            {totalSpend > 0 && ` Total spend: AED ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CreativeGallery data={creatives} />
+        </CardContent>
+      </Card>
+
+      {/* Action Table — KILL/SCALE summary */}
+      {(killCount > 0 || scaleCount > 0) && (
+        <Card className="bg-black/40">
+          <CardHeader>
+            <CardTitle>Action Recommendations</CardTitle>
+            <CardDescription>Immediate actions based on ROAS, frequency, and fatigue analysis</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-2 px-3 text-muted-foreground">Action</th>
+                    <th className="text-left py-2 px-3 text-muted-foreground">Creative</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground">Spend</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground">CPA</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground">Freq</th>
+                    <th className="text-left py-2 px-3 text-muted-foreground">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {creatives
+                    .filter((c) => c.action === "KILL" || c.action === "SCALE")
+                    .map((c, i) => (
+                      <tr key={i} className="border-b border-white/10 hover:bg-white/5">
+                        <td className="py-2 px-3">
+                          <Badge
+                            variant="outline"
+                            className={`font-mono text-[10px] uppercase ${
+                              c.action === "KILL" ? "text-red-400 border-red-500/40" : "text-emerald-400 border-emerald-500/40"
+                            }`}
+                          >
+                            {c.action}
+                          </Badge>
+                        </td>
+                        <td className="py-2 px-3 max-w-[180px] truncate">{c.name}</td>
+                        <td className="py-2 px-3 text-right font-mono">AED {c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-3 text-right font-mono">{c.cpa_aed ? `AED ${c.cpa_aed.toFixed(0)}` : "—"}</td>
+                        <td className={`py-2 px-3 text-right font-mono ${c.fatigue_status === "CRITICAL" ? "text-red-400" : c.fatigue_status === "WARNING" ? "text-amber-400" : "text-slate-300"}`}>
+                          {c.frequency != null ? c.frequency.toFixed(1) : "—"}
+                        </td>
+                        <td className="py-2 px-3 text-xs text-muted-foreground max-w-[240px] truncate">{c.action_reason || "—"}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Main Page Component
    ───────────────────────────────────────────── */
 
@@ -1290,6 +1512,12 @@ export default function MarketingIntelligence() {
         <TabsContent value="source-truth" className="mt-6">
           <TabErrorBoundary tabName="Source Truth">
             <SourceTruthTab />
+          </TabErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="creative-dna" className="mt-6">
+          <TabErrorBoundary tabName="Creative DNA">
+            <CreativeDNATab />
           </TabErrorBoundary>
         </TabsContent>
       </Tabs>

@@ -274,31 +274,35 @@ const handler = async (req: Request): Promise<Response> => {
     const killSpend = creatives.filter((c) => c.action === "KILL").reduce((s, c) => s + c.total_spend_aed, 0);
 
     // ── 7. Write Recommendations to marketing_recommendations ───────────────
+    // Schema: ad_id, ad_name, action, confidence, reasoning, metrics, status
+    // Unique index: (ad_id, action)
     const recommendations = creatives
       .filter((c) => ["KILL", "SCALE", "WATCH", "REFRESH"].includes(c.action))
       .map((c) => ({
         ad_id: c.ad_id,
         ad_name: c.ad_name,
-        campaign_id: c.campaign_id,
-        campaign_name: c.campaign_name,
         action: c.action,
-        reason: c.action_reason,
-        status: "pending",
-        metadata: {
+        confidence: c.fatigue_status === "CRITICAL" ? 95 : c.fatigue_status === "WARNING" ? 75 : 60,
+        reasoning: c.action_reason,
+        metrics: {
           fatigue_status: c.fatigue_status,
+          fatigue_reason: c.fatigue_reason,
           frequency: c.frequency,
           cpa_aed: c.cpa_aed,
           ctr_pct: c.ctr_pct,
           spend_aed: c.total_spend_aed,
           quality_ranking: c.quality_ranking,
+          campaign_id: c.campaign_id,
+          campaign_name: c.campaign_name,
         },
+        status: "pending",
         created_at: new Date().toISOString(),
       }));
 
     if (recommendations.length > 0) {
       const { error: recErr } = await supabase
         .from("marketing_recommendations")
-        .upsert(recommendations, { onConflict: "ad_id" });
+        .upsert(recommendations, { onConflict: "ad_id, action" });
 
       if (recErr) {
         structuredLog("ad-creative-analyst", "warn", `Failed to upsert recommendations: ${recErr.message}`);

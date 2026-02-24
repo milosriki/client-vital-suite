@@ -2880,6 +2880,48 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_recommendations: {
+        Row: {
+          action_payload: Json | null
+          coach_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          title: string
+          type: string
+        }
+        Insert: {
+          action_payload?: Json | null
+          coach_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          status?: string
+          title: string
+          type: string
+        }
+        Update: {
+          action_payload?: Json | null
+          coach_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       coach_reviews: {
         Row: {
           ai_recommendations: string | null
@@ -4319,6 +4361,7 @@ export type Database = {
           stage: string | null
           stage_label: string | null
           status: Database["public"]["Enums"]["deal_status"] | null
+          stripe_payment_id: string | null
           updated_at: string | null
           value_aed: number | null
         }
@@ -4345,6 +4388,7 @@ export type Database = {
           stage?: string | null
           stage_label?: string | null
           status?: Database["public"]["Enums"]["deal_status"] | null
+          stripe_payment_id?: string | null
           updated_at?: string | null
           value_aed?: number | null
         }
@@ -4371,6 +4415,7 @@ export type Database = {
           stage?: string | null
           stage_label?: string | null
           status?: Database["public"]["Enums"]["deal_status"] | null
+          stripe_payment_id?: string | null
           updated_at?: string | null
           value_aed?: number | null
         }
@@ -8289,6 +8334,39 @@ export type Database = {
           revenue_90d?: number | null
           total_pipeline?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      route_efficiency_logs: {
+        Row: {
+          coach_id: string
+          created_at: string | null
+          efficiency_score: number | null
+          id: string
+          log_date: string
+          total_km_actual: number | null
+          total_km_optimal: number | null
+          wasted_km: number | null
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string | null
+          efficiency_score?: number | null
+          id?: string
+          log_date?: string
+          total_km_actual?: number | null
+          total_km_optimal?: number | null
+          wasted_km?: number | null
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string | null
+          efficiency_score?: number | null
+          id?: string
+          log_date?: string
+          total_km_actual?: number | null
+          total_km_optimal?: number | null
+          wasted_km?: number | null
         }
         Relationships: []
       }
