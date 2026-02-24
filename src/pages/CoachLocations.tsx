@@ -17,6 +17,7 @@ import {
   Battery, TrendingUp, Route, Users, Download, Timer, Brain,
   MessageSquarePlus, CheckCircle2, XCircle, ChevronDown, ChevronUp,
   Zap, Target, Car, Activity, StickyNote, Send, Filter,
+  ShieldCheck, ShieldAlert, ShieldX, TrendingDown, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
@@ -72,6 +73,24 @@ interface Note {
   created_by: string;
   created_at: string;
   is_resolved: boolean;
+}
+
+interface CoachGpsPattern {
+  coach_name: string;
+  analysis_date: string;
+  total_sessions: number;
+  gps_verified: number;
+  gps_mismatch: number;
+  no_gps: number;
+  ghost_session_count: number;
+  late_arrival_count: number;
+  early_departure_count: number;
+  avg_arrival_offset_min: number;
+  avg_dwell_vs_scheduled_min: number;
+  verification_rate: number;
+  pattern_score: number;
+  risk_level: string; // normal | review | critical
+  anomalies: Record<string, unknown>[];
 }
 
 interface IntelligenceData {
@@ -565,6 +584,203 @@ function NotesPanel({ coachName }: { coachName?: string }) {
   );
 }
 
+// ── GPS Pattern Panel ──
+function GpsPatternPanel({
+  patterns,
+  loading,
+  onRunAnalyzer,
+  running,
+}: {
+  patterns: CoachGpsPattern[];
+  loading: boolean;
+  onRunAnalyzer: () => void;
+  running: boolean;
+}) {
+  const [expandedCoach, setExpandedCoach] = useState<string | null>(null);
+
+  function getRiskBadge(risk: string) {
+    if (risk === "critical") return <Badge variant="destructive" className="text-xs"><ShieldX className="h-3 w-3 mr-1" />Critical</Badge>;
+    if (risk === "review")   return <Badge className="text-xs bg-yellow-500 hover:bg-yellow-600"><ShieldAlert className="h-3 w-3 mr-1" />Review</Badge>;
+    return <Badge variant="secondary" className="text-xs"><ShieldCheck className="h-3 w-3 mr-1" />Normal</Badge>;
+  }
+
+  function getScoreColor(score: number) {
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-600";
+    return "text-red-600";
+  }
+
+  const critical = patterns.filter(p => p.risk_level === "critical");
+  const review   = patterns.filter(p => p.risk_level === "review");
+  const normal   = patterns.filter(p => p.risk_level === "normal");
+  const avgScore = patterns.length > 0 ? Math.round(patterns.reduce((s, p) => s + p.pattern_score, 0) / patterns.length) : 0;
+  const totalGhosts = patterns.reduce((s, p) => s + p.ghost_session_count, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex gap-2 items-center flex-wrap">
+        <Button onClick={onRunAnalyzer} disabled={running} size="sm">
+          <BarChart3 className={`h-4 w-4 mr-1 ${running ? "animate-spin" : ""}`} />
+          {running ? "Analyzing..." : "Run GPS Pattern Analysis"}
+        </Button>
+        {patterns.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            Last analysis: {patterns[0]?.analysis_date}
+          </span>
+        )}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Avg Trust Score</p>
+            <p className={`text-2xl font-bold ${getScoreColor(avgScore)}`}>{avgScore}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">🚨 Critical</p>
+            <p className="text-2xl font-bold text-red-600">{critical.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">⚠️ Under Review</p>
+            <p className="text-2xl font-bold text-yellow-600">{review.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">✅ Normal</p>
+            <p className="text-2xl font-bold text-green-600">{normal.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">👻 Ghost Sessions</p>
+            <p className="text-2xl font-bold text-red-600">{totalGhosts}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+      ) : patterns.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-40" />
+            <p className="text-muted-foreground">No pattern data yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">Click "Run GPS Pattern Analysis" to analyze 30 days of coach behavior.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" /> Coach Trust Leaderboard (30-Day GPS Pattern Score)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Coach</TableHead>
+                    <TableHead className="text-right">Score</TableHead>
+                    <TableHead>Risk</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Verify%</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Sessions</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">👻</TableHead>
+                    <TableHead className="text-right hidden lg:table-cell">Late</TableHead>
+                    <TableHead className="text-right hidden lg:table-cell">Early Out</TableHead>
+                    <TableHead className="hidden lg:table-cell">Avg Arrival</TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...patterns].sort((a, b) => a.pattern_score - b.pattern_score).map((p) => (
+                    <>
+                      <TableRow
+                        key={p.coach_name}
+                        className="cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => setExpandedCoach(expandedCoach === p.coach_name ? null : p.coach_name)}
+                      >
+                        <TableCell className="font-medium text-xs md:text-sm">{p.coach_name}</TableCell>
+                        <TableCell className={`text-right font-bold font-mono ${getScoreColor(p.pattern_score)}`}>
+                          {p.pattern_score}
+                        </TableCell>
+                        <TableCell>{getRiskBadge(p.risk_level)}</TableCell>
+                        <TableCell className={`text-right font-mono hidden md:table-cell ${p.verification_rate < 60 ? "text-red-600" : p.verification_rate < 80 ? "text-yellow-600" : "text-green-600"}`}>
+                          {p.verification_rate}%
+                        </TableCell>
+                        <TableCell className="text-right hidden md:table-cell">
+                          <span className="text-green-600">{p.gps_verified}</span>
+                          <span className="text-muted-foreground">/{p.total_sessions}</span>
+                        </TableCell>
+                        <TableCell className={`text-right hidden md:table-cell font-mono ${p.ghost_session_count > 0 ? "text-red-600 font-bold" : "text-muted-foreground"}`}>
+                          {p.ghost_session_count}
+                        </TableCell>
+                        <TableCell className={`text-right hidden lg:table-cell font-mono ${p.late_arrival_count > 2 ? "text-yellow-600" : ""}`}>
+                          {p.late_arrival_count}
+                        </TableCell>
+                        <TableCell className={`text-right hidden lg:table-cell font-mono ${p.early_departure_count > 2 ? "text-yellow-600" : ""}`}>
+                          {p.early_departure_count}
+                        </TableCell>
+                        <TableCell className={`hidden lg:table-cell font-mono text-xs ${p.avg_arrival_offset_min > 10 ? "text-red-600" : p.avg_arrival_offset_min < -5 ? "text-green-600" : ""}`}>
+                          {p.avg_arrival_offset_min > 0 ? "+" : ""}{p.avg_arrival_offset_min}m
+                        </TableCell>
+                        <TableCell>
+                          {expandedCoach === p.coach_name ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </TableCell>
+                      </TableRow>
+                      {expandedCoach === p.coach_name && (
+                        <TableRow key={`${p.coach_name}-detail`}>
+                          <TableCell colSpan={10} className="bg-muted/20 p-4">
+                            <div className="space-y-3">
+                              {/* Mobile stats */}
+                              <div className="grid grid-cols-4 gap-2 md:hidden text-center text-xs">
+                                <div><p className="text-muted-foreground">Verify</p><p className="font-mono">{p.verification_rate}%</p></div>
+                                <div><p className="text-muted-foreground">Sessions</p><p className="font-mono">{p.gps_verified}/{p.total_sessions}</p></div>
+                                <div><p className="text-muted-foreground">👻 Ghost</p><p className={`font-mono font-bold ${p.ghost_session_count > 0 ? "text-red-600" : ""}`}>{p.ghost_session_count}</p></div>
+                                <div><p className="text-muted-foreground">Arrival</p><p className="font-mono">{p.avg_arrival_offset_min > 0 ? "+" : ""}{p.avg_arrival_offset_min}m</p></div>
+                              </div>
+                              {/* Anomalies */}
+                              {p.anomalies.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold mb-2">Detected Anomalies & Predictions</p>
+                                  <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                    {p.anomalies.map((a, i) => {
+                                      const isPred = (a as Record<string, unknown>).is_prediction;
+                                      const aType = (a as Record<string, unknown>).type as string;
+                                      const detail = (a as Record<string, unknown>).detail as string;
+                                      const icon = isPred ? "🔮" : aType === "ghost_session" ? "👻" : aType === "late_arrival" ? "⏰" : aType === "early_departure" ? "🏃" : aType === "location_mismatch" ? "📍" : "⚡";
+                                      return (
+                                        <p key={i} className={`text-xs ml-2 ${isPred ? "text-blue-700" : aType === "ghost_session" ? "text-red-700" : "text-yellow-700"}`}>
+                                          {icon} <span className="font-mono">[{aType}]</span> {detail}
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ── Intelligence Panel ──
 function IntelligencePanel({ dateRange, selectedCoachName }: { dateRange: number; selectedCoachName: string | null }) {
   const [intel, setIntel] = useState<IntelligenceData | null>(null);
@@ -861,6 +1077,56 @@ export default function CoachLocations() {
     },
   });
 
+  // GPS Pattern data from coach_gps_patterns
+  const { data: gpsPatterns, isLoading: patternsLoading, refetch: refetchPatterns } = useDedupedQuery({
+    queryKey: ["coach-gps-patterns"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("view_coach_pattern_latest")
+        .select("coach_name,analysis_date,total_sessions,gps_verified,gps_mismatch,no_gps,ghost_session_count,late_arrival_count,early_departure_count,avg_arrival_offset_min,avg_dwell_vs_scheduled_min,verification_rate,pattern_score,risk_level,anomalies")
+        .order("pattern_score", { ascending: true });
+      if (error) {
+        console.warn("GPS patterns query failed (view may not exist yet):", error.message);
+        return [] as CoachGpsPattern[];
+      }
+      return (data || []) as CoachGpsPattern[];
+    },
+  });
+
+  const [patternRunning, setPatternRunning] = useState(false);
+  const runPatternAnalyzer = useCallback(async () => {
+    setPatternRunning(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      const res = await fetch("https://ztjndilxurtsfqdsvfds.supabase.co/functions/v1/gps-pattern-analyzer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ days_back: 30 }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        toast.success(`Pattern analysis complete — ${result.coaches_analyzed} coaches, ${result.critical_coaches} critical`);
+        refetchPatterns();
+      } else {
+        toast.error("Pattern analysis failed: " + (result.error || "unknown"));
+      }
+    } catch {
+      toast.error("Pattern analyzer request failed");
+    } finally {
+      setPatternRunning(false);
+    }
+  }, [refetchPatterns]);
+
+  // Build pattern score lookup for report tab (coach_name → pattern)
+  const patternByCoach = useMemo(() => {
+    const map = new Map<string, CoachGpsPattern>();
+    for (const p of gpsPatterns || []) {
+      map.set(p.coach_name, p);
+    }
+    return map;
+  }, [gpsPatterns]);
+
   const [dwellProcessing, setDwellProcessing] = useState(false);
   const runDwellEngine = useCallback(async () => {
     setDwellProcessing(true);
@@ -1045,6 +1311,7 @@ export default function CoachLocations() {
           <TabsTrigger value="hotspots" className="text-xs md:text-sm"><Navigation className="h-3 w-3 md:h-4 md:w-4 mr-1" />Hotspots</TabsTrigger>
           <TabsTrigger value="devices" className="text-xs md:text-sm"><Battery className="h-3 w-3 md:h-4 md:w-4 mr-1" />Devices</TabsTrigger>
           <TabsTrigger value="dwell" className="text-xs md:text-sm"><Timer className="h-3 w-3 md:h-4 md:w-4 mr-1" />Dwell</TabsTrigger>
+          <TabsTrigger value="gps-patterns" className="text-xs md:text-sm"><ShieldCheck className="h-3 w-3 md:h-4 md:w-4 mr-1" />GPS Patterns</TabsTrigger>
         </TabsList>
 
         {/* MAP */}
@@ -1080,6 +1347,7 @@ export default function CoachLocations() {
                         <TableHead className="text-right hidden md:table-cell">Moves</TableHead>
                         <TableHead className="hidden lg:table-cell">Top Areas</TableHead>
                         <TableHead className="hidden md:table-cell">Time (Dubai)</TableHead>
+                        <TableHead className="text-right hidden md:table-cell">Trust</TableHead>
                         <TableHead className="text-right">Batt</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1095,6 +1363,15 @@ export default function CoachLocations() {
                             {r.topAreas.map(([area, cnt]) => `${area} (${cnt})`).join(", ")}
                           </TableCell>
                           <TableCell className="text-xs hidden md:table-cell">{r.firstSeen} → {r.lastSeen}</TableCell>
+                          <TableCell className="text-right hidden md:table-cell">
+                            {(() => {
+                              const pat = patternByCoach.get(r.coach);
+                              if (!pat) return <span className="text-xs text-muted-foreground">—</span>;
+                              const color = pat.pattern_score >= 80 ? "text-green-600" : pat.pattern_score >= 60 ? "text-yellow-600" : "text-red-600";
+                              const icon = pat.risk_level === "critical" ? "🚨" : pat.risk_level === "review" ? "⚠️" : "✅";
+                              return <span className={`font-mono text-xs font-bold ${color}`}>{icon} {pat.pattern_score}</span>;
+                            })()}
+                          </TableCell>
                           <TableCell className={`text-right font-mono ${getBatteryColor(r.device?.battery_level ?? null)}`}>
                             {r.device?.battery_level != null ? `${r.device.battery_level}%` : "—"}
                           </TableCell>
@@ -1287,6 +1564,16 @@ export default function CoachLocations() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* GPS PATTERNS */}
+        <TabsContent value="gps-patterns">
+          <GpsPatternPanel
+            patterns={gpsPatterns || []}
+            loading={patternsLoading}
+            onRunAnalyzer={runPatternAnalyzer}
+            running={patternRunning}
+          />
         </TabsContent>
       </Tabs>
     </div>
