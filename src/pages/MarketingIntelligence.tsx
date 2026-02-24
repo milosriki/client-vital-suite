@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TruthTriangle } from "@/components/analytics/TruthTriangle";
+import { CreativeGallery, type Creative } from "@/components/analytics/CreativeGallery";
 import { MarketingDashboardData } from "@/types/marketing";
 import {
   Card,
@@ -49,6 +50,8 @@ import {
   BarChart3,
   Shield,
   FileText,
+  Palette,
+  Flame,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -1245,12 +1248,15 @@ export default function MarketingIntelligence() {
 
       {/* Tabs */}
       <Tabs defaultValue={initialTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="command-center">Command Center</TabsTrigger>
           <TabsTrigger value="deep-intel">Deep Intel</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="money-map">Money Map</TabsTrigger>
           <TabsTrigger value="source-truth">Source Truth</TabsTrigger>
+          <TabsTrigger value="creative-dna" className="flex items-center gap-1">
+            <Palette className="h-3 w-3" />Creative DNA
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="command-center" className="space-y-8 mt-6">

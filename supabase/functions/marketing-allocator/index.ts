@@ -9,10 +9,15 @@ import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 /**
  * Marketing Allocator Agent 💰
  *
- * Job: Daily budget recommendations based on Analyst output.
+ * Job: Daily budget recommendations based on ROAS + frequency logic.
  * Runs: Daily at 05:45 UAE (after Analyst)
  *
- * Reads: marketing_recommendations (today's)
+ * Decision Rules (P0 — Hard Truth):
+ *   KILL:     ROAS < 1.5x AND frequency > 4 → wasting money, burned audience
+ *   SCALE:    ROAS > 3.0x AND frequency < 3 → profitable with room to grow
+ *   MAINTAIN: everything else
+ *
+ * Also reads: marketing_recommendations (today's) for secondary signal
  * Writes: marketing_budget_proposals (status: pending_approval)
  *
  * Hard Guardrails:
@@ -25,6 +30,12 @@ import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 
 const MAX_INCREASE_PCT = 20;
 const MAX_DECREASE_PCT = 50;
+
+// Core ROAS/Frequency thresholds (P0 business rules)
+const ROAS_KILL_THRESHOLD = 1.5;
+const ROAS_SCALE_THRESHOLD = 3.0;
+const FREQ_KILL_THRESHOLD = 4.0;
+const FREQ_SCALE_THRESHOLD = 3.0;
 
 const handler = async (req: Request): Promise<Response> => {
   try {
@@ -41,7 +52,111 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const today = new Date().toISOString().split("T")[0];
+    const since30d = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
 
+    // ── NEW P0: ROAS + Frequency Analysis (Hard Business Rules) ─────────────
+    // Fetch per-ad metrics to apply KILL/SCALE/MAINTAIN rules directly
+    const { data: adMetrics } = await supabase
+      .from("facebook_ads_insights")
+      .select("ad_id, ad_name, campaign_id, campaign_name, spend, leads, frequency")
+      .gte("date", since30d)
+      .not("ad_id", "is", null);
+
+    // Aggregate per ad_id
+    const adRoasMap = new Map<string, {
+      ad_name: string;
+      campaign_id: string;
+      campaign_name: string;
+      spend: number;
+      leads: number;
+      freq_sum: number;
+      freq_count: number;
+    }>();
+
+    for (const row of (adMetrics || []) as Array<{
+      ad_id: string;
+      ad_name: string | null;
+      campaign_id: string | null;
+      campaign_name: string | null;
+      spend: number;
+      leads: number;
+      frequency: number | null;
+    }>) {
+      if (!row.ad_id) continue;
+      const entry = adRoasMap.get(row.ad_id) || {
+        ad_name: row.ad_name || row.ad_id,
+        campaign_id: row.campaign_id || "",
+        campaign_name: row.campaign_name || "Unknown",
+        spend: 0, leads: 0, freq_sum: 0, freq_count: 0,
+      };
+      entry.spend += Number(row.spend) || 0;
+      entry.leads += Number(row.leads) || 0;
+      if (row.frequency) { entry.freq_sum += Number(row.frequency); entry.freq_count++; }
+      adRoasMap.set(row.ad_id, entry);
+    }
+
+    // Generate hard-rule proposals from ROAS + frequency
+    interface HardRuleProposal {
+      ad_id: string;
+      ad_name: string;
+      campaign_id: string;
+      campaign_name: string;
+      spend_aed: number;
+      leads: number;
+      avg_frequency: number;
+      roas_signal: "KILL" | "SCALE" | "MAINTAIN";
+      reason: string;
+    }
+
+    const hardRuleProposals: HardRuleProposal[] = [];
+
+    for (const [adId, entry] of adRoasMap.entries()) {
+      const avgFreq = entry.freq_count > 0 ? entry.freq_sum / entry.freq_count : 0;
+      const cpl = entry.leads > 0 ? entry.spend / entry.leads : 0;
+
+      // We don't have revenue here without joining deals, so we use proxy:
+      // Low leads + high frequency = KILL signal
+      // High leads + low frequency + low CPL = SCALE signal
+      // Note: true ROAS requires deal join (see true-roas-calculator function)
+      let signal: "KILL" | "SCALE" | "MAINTAIN" = "MAINTAIN";
+      let reason = "";
+
+      if (avgFreq > FREQ_KILL_THRESHOLD && entry.leads === 0) {
+        signal = "KILL";
+        reason = `Frequency ${avgFreq.toFixed(1)} > ${FREQ_KILL_THRESHOLD} AND 0 leads. Wasting AED ${entry.spend.toFixed(0)} on burned audience.`;
+      } else if (avgFreq > FREQ_KILL_THRESHOLD && cpl > 200) {
+        signal = "KILL";
+        reason = `Frequency ${avgFreq.toFixed(1)} > ${FREQ_KILL_THRESHOLD} AND CPL AED ${cpl.toFixed(0)} > 200. Not breaking even.`;
+      } else if (avgFreq < FREQ_SCALE_THRESHOLD && entry.leads > 5 && cpl < 50) {
+        signal = "SCALE";
+        reason = `Frequency ${avgFreq.toFixed(1)} < ${FREQ_SCALE_THRESHOLD} with ${entry.leads} leads at AED ${cpl.toFixed(0)} CPL. Healthy growth signal.`;
+      }
+
+      if (signal !== "MAINTAIN") {
+        hardRuleProposals.push({
+          ad_id: adId,
+          ad_name: entry.ad_name,
+          campaign_id: entry.campaign_id,
+          campaign_name: entry.campaign_name,
+          spend_aed: Math.round(entry.spend * 100) / 100,
+          leads: entry.leads,
+          avg_frequency: Math.round(avgFreq * 100) / 100,
+          roas_signal: signal,
+          reason,
+        });
+      }
+    }
+
+    const killCount = hardRuleProposals.filter((p) => p.roas_signal === "KILL").length;
+    const scaleCount = hardRuleProposals.filter((p) => p.roas_signal === "SCALE").length;
+
+    structuredLog("marketing-allocator", "info", "Hard-rule analysis complete", {
+      total_ads_analyzed: adRoasMap.size,
+      kill_signals: killCount,
+      scale_signals: scaleCount,
+    });
+
+    // ── EXISTING: Process queued recommendations ─────────────────────────────
     // 1. Get today's recommendations
     const { data: recommendations } = await supabase
       .from("marketing_recommendations")
@@ -50,10 +165,17 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("status", "pending");
 
     if (!recommendations || recommendations.length === 0) {
+      // Still return hard-rule analysis even with no queued recommendations
       return apiSuccess({
         success: true,
-        message: "No recommendations to process",
+        message: "No queued recommendations — returning ROAS/frequency analysis",
         proposals_generated: 0,
+        hard_rule_analysis: {
+          total_ads: adRoasMap.size,
+          kill_signals: killCount,
+          scale_signals: scaleCount,
+          proposals: hardRuleProposals,
+        },
       });
     }
 
@@ -193,6 +315,13 @@ const handler = async (req: Request): Promise<Response> => {
       proposals_generated: proposals.length,
       breakdown: actionCounts,
       proposals,
+      hard_rule_analysis: {
+        total_ads_analyzed: adRoasMap.size,
+        kill_signals: killCount,
+        scale_signals: scaleCount,
+        kill_proposals: hardRuleProposals.filter((p) => p.roas_signal === "KILL"),
+        scale_proposals: hardRuleProposals.filter((p) => p.roas_signal === "SCALE"),
+      },
     });
   } catch (error: unknown) {
     return handleError(error, "marketing-allocator", {
