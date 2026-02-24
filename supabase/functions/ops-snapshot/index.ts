@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Client as PostgresClient } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { getRDSConfig } from "../_shared/rds-client.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 /**
  * OPS SNAPSHOT — Pull real-time numbers from AWS RDS
@@ -24,6 +25,14 @@ Deno.serve(async (req) => {
     if (!config.password) {
       return apiError("CONFIG_ERROR", "RDS_BACKOFFICE_PASSWORD not set", 500);
     }
+
+  // Security: Phase 1 Auth Lockdown
+  try { verifyAuth(req); } catch (_e) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
     rdsClient = new PostgresClient(config);
     await rdsClient.connect();
 

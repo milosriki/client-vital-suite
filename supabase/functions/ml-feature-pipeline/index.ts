@@ -1,11 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Security: Phase 1 Auth Lockdown
+  try { verifyAuth(req); } catch (_e) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

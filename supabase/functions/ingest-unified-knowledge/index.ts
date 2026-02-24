@@ -6,9 +6,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Security: Phase 1 Auth Lockdown
+  try { verifyAuth(req); } catch (_e) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
     const { chunks } = (await req.json()) as {

@@ -1229,3 +1229,13 @@ Neither instance alone covered everything. Code is more accurate (fewer errors, 
 > Preserved from previous audit session. See findings 1-23 below for Lisa WhatsApp agent audit results.
 > Lisa Sales Intelligence Score: 0.89/1.0 (improved from 0.74)
 > All P0 bugs resolved. 13/13 eval scenarios passing.
+
+---
+
+## 2026-02-24 Cross-Check Addendum
+
+| # | Finding | Impact | Severity |
+| --- | --- | --- | --- |
+| 1 | Debug/test helpers exposed in production bundle (`src/utils/testFunctions.ts`, `src/utils/verifyBrowserConnection.ts`) | Any user can invoke Supabase functions from the browser console if functions are not strictly protected | HIGH |
+| 2 | Internal key compiled into client (`VITE_PTD_INTERNAL_ACCESS_KEY` used in `src/config/api.ts` and `src/lib/serverMemory.ts`) | Key is exposed to all users; cannot be used as a secret for internal APIs | HIGH |
+| 3 | Public docs shipped from `public/docs` | Internal reports/CSV may be accessible on the public site | MEDIUM |

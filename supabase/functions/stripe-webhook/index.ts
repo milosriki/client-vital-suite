@@ -300,6 +300,73 @@ serve(async (req) => {
 });
 
 // ============================================================================
+// DEAL LINKING — wire Stripe payment ID to matching deal (Phase 2 attribution)
+// ============================================================================
+
+/**
+ * After resolving a contact, find their latest non-paid deal and stamp stripe_payment_id.
+ * This closes the attribution loop: FB ad → contact → deal → payment.
+ */
+async function linkPaymentToDeal(
+  supabase: any,
+  contactId: string,
+  stripePaymentId: string,
+  amountAed: number,
+): Promise<void> {
+  if (!contactId || !stripePaymentId) return;
+
+  // Find the most recent won/closed deal for this contact that has no stripe_payment_id yet
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("id, deal_name, stage, status")
+    .eq("contact_id", contactId)
+    .is("stripe_payment_id", null)
+    .in("status", ["closed", "won"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (deal) {
+    await supabase
+      .from("deals")
+      .update({
+        stripe_payment_id: stripePaymentId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", deal.id);
+
+    console.log(
+      `💰 Linked payment ${stripePaymentId} (AED ${amountAed}) → deal ${deal.id} (${deal.deal_name})`,
+    );
+    return;
+  }
+
+  // Fallback: try any open deal (in case stage isn't marked closed yet)
+  const { data: openDeal } = await supabase
+    .from("deals")
+    .select("id, deal_name")
+    .eq("contact_id", contactId)
+    .is("stripe_payment_id", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (openDeal) {
+    await supabase
+      .from("deals")
+      .update({
+        stripe_payment_id: stripePaymentId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", openDeal.id);
+
+    console.log(
+      `💰 Linked payment ${stripePaymentId} (AED ${amountAed}) → open deal ${openDeal.id} (${openDeal.deal_name})`,
+    );
+  }
+}
+
+// ============================================================================
 // CONTACT LINKING — resolve Stripe customer to Supabase contact
 // ============================================================================
 
@@ -338,7 +405,7 @@ async function linkTransactionToContact(
       .eq("customer_id", customerId)
       .not("customer_email", "is", null)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (existing?.customer_email) {
       email = existing.customer_email;
@@ -361,7 +428,7 @@ async function linkTransactionToContact(
     .select("id")
     .eq("email", email.toLowerCase())
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (contact?.id) {
     // Link transaction to contact
@@ -411,7 +478,7 @@ async function handleCustomerEvent(supabase: any, event: StripeEvent) {
       .select("id")
       .eq("email", email.toLowerCase())
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (contact?.id) {
       const { count } = await supabase
@@ -468,8 +535,11 @@ async function handleCheckoutSession(supabase: any, event: StripeEvent) {
 async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
   const paymentIntent = event.data.object;
 
+  // Stripe stores amounts in fils (smallest unit); divide by 100 for AED
+  const amountAed = paymentIntent.amount / 100;
+
   console.log(
-    `✅ Payment succeeded: ${paymentIntent.id} - ${paymentIntent.amount / 100} ${paymentIntent.currency}`,
+    `✅ Payment succeeded: ${paymentIntent.id} - AED ${amountAed}`,
   );
 
   const email = extractEmail(paymentIntent);
@@ -479,7 +549,7 @@ async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
     {
       stripe_id: paymentIntent.id,
       customer_id: paymentIntent.customer,
-      amount: paymentIntent.amount / 100,
+      amount: amountAed,
       currency: paymentIntent.currency,
       status: "succeeded",
       payment_method: paymentIntent.payment_method,
@@ -492,8 +562,13 @@ async function handlePaymentSucceeded(supabase: any, event: StripeEvent) {
     },
   );
 
-  // Link to contact
-  await linkTransactionToContact(supabase, paymentIntent.id, email, paymentIntent.customer);
+  // Link to contact (returns contact UUID or null)
+  const contactId = await linkTransactionToContact(supabase, paymentIntent.id, email, paymentIntent.customer);
+
+  // Phase 2: wire stripe_payment_id onto the matching deal
+  if (contactId) {
+    await linkPaymentToDeal(supabase, contactId, paymentIntent.id, amountAed);
+  }
 
   return { processed: true, action: "payment_succeeded" };
 }
@@ -526,7 +601,10 @@ async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
   const charge = event.data.object;
   const email = extractEmail(charge);
 
-  console.log(`💳 Charge succeeded: ${charge.id} (${email || 'no email'})`);
+  // Stripe stores amounts in fils (smallest unit); divide by 100 for AED
+  const amountAed = charge.amount / 100;
+
+  console.log(`💳 Charge succeeded: ${charge.id} - AED ${amountAed} (${email || 'no email'})`);
 
   const stripeId = charge.payment_intent || charge.id;
 
@@ -536,7 +614,7 @@ async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
       stripe_id: stripeId,
       charge_id: charge.id,
       customer_id: charge.customer,
-      amount: charge.amount / 100,
+      amount: amountAed,
       currency: charge.currency,
       status: charge.status,
       description: charge.description,
@@ -549,8 +627,13 @@ async function handleChargeSucceeded(supabase: any, event: StripeEvent) {
     },
   );
 
-  // Link to contact
-  await linkTransactionToContact(supabase, stripeId, email, charge.customer);
+  // Link to contact (returns contact UUID or null)
+  const contactId = await linkTransactionToContact(supabase, stripeId, email, charge.customer);
+
+  // Phase 2: wire stripe_payment_id onto the matching deal
+  if (contactId) {
+    await linkPaymentToDeal(supabase, contactId, stripeId, amountAed);
+  }
 
   return { processed: true, action: "charge_succeeded" };
 }

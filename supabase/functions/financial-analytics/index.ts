@@ -52,11 +52,12 @@ serve(async (req) => {
     // 2. Calculate Key SaaS Metrics (CLV, CAC, MRR) — USING REAL DATA
 
     // --- Real active client count from health scores ---
-    const { count: activeClients } = await supabase
+    const { count: activeClients, data: healthData } = await supabase
       .from("client_health_scores")
-      .select("*", { count: "exact", head: true })
+      .select("health_zone, outstanding_sessions")
       .gt("outstanding_sessions", 0);
-    const realActiveClients = activeClients || 1; // Avoid division by zero
+    const realActiveClients = activeClients || healthData?.length || 1; // Avoid division by zero
+    const totalTracked = healthData?.length || 0;
 
     // --- Real churn rate from actual payment/session gaps (last 90 days) ---
     // Churned = was active in past 90d but no session in last 45d AND outstanding_sessions = 0
@@ -136,6 +137,28 @@ serve(async (req) => {
       realNewClients = Math.max(1, Math.round(rawLeads * 0.15));
     }
 
+    // --- Lead & Opportunity counts (for CPL / CPO) ---
+    const totalLeads = latestMonth.reduce(
+      (sum, m) => sum + (m.total_leads_new || 0),
+      0,
+    );
+
+    // Opportunities = contacts with lifecycle stage "salesqualifiedlead" or "opportunity"
+    // created in the last 30 days
+    const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count: opportunityCount } = await supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .in("lifecycle_stage", ["salesqualifiedlead", "opportunity"])
+      .gte("created_at", thirtyDaysAgoIso);
+    const totalOpportunities = opportunityCount || 1; // avoid division by zero
+
+    // CPL = Total Ad Spend / Total Leads  (AED)
+    const cpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
+
+    // CPO = Total Ad Spend / Total Opportunities  (AED)
+    const cpo = totalOpportunities > 0 ? totalSpend / totalOpportunities : 0;
+
     // --- Unit Economics ---
     const cac = realNewClients > 0 ? totalSpend / realNewClients : 0;
     const arpu = realActiveClients > 0 ? totalRevenue / realActiveClients : 0;
@@ -163,11 +186,17 @@ serve(async (req) => {
       churn_rate_pct: (realChurnRate * 100).toFixed(1),
       clients_at_risk: redZoneClients + yellowZoneClients,
       unit_economics: {
-        cac: `$${cac.toFixed(2)}`,
-        clv: `$${clv.toFixed(2)}`,
-        arpu: `$${arpu.toFixed(2)}`,
+        cac: `AED ${cac.toFixed(2)}`,
+        clv: `AED ${clv.toFixed(2)}`,
+        arpu: `AED ${arpu.toFixed(2)}`,
         ltv_cac_ratio: ltvCacRatio > 0 ? ltvCacRatio.toFixed(2) : "N/A",
-        burn_rate: netBurn > 0 ? `$${netBurn.toFixed(2)}/mo` : "Profitable",
+        burn_rate: netBurn > 0 ? `AED ${netBurn.toFixed(2)}/mo` : "Profitable",
+        // Attribution metrics (Phase 2)
+        cpl: `AED ${cpl.toFixed(2)}`,  // Cost Per Lead
+        cpo: `AED ${cpo.toFixed(2)}`,  // Cost Per Opportunity
+        total_leads: totalLeads,
+        total_opportunities: totalOpportunities,
+        ad_spend_aed: totalSpend,
       },
       health_distribution: {
         total_tracked: totalTracked,
@@ -190,12 +219,15 @@ serve(async (req) => {
       CURRENT FINANCIALS (Last 30 Days — ALL REAL DATA):
       ${JSON.stringify(financialSnapshot, null, 2)}
       
-      KEY CONTEXT:
+      KEY CONTEXT (ALL VALUES IN AED):
       - Churn Rate: ${(realChurnRate * 100).toFixed(1)}% (computed from ${redZoneClients} RED + ${yellowZoneClients} YELLOW clients out of ${totalTracked} tracked)
       - Revenue Growth: ${revenueGrowthRate.toFixed(1)}% month-over-month
       - LTV/CAC Ratio: ${ltvCacRatio > 0 ? ltvCacRatio.toFixed(2) : "N/A"} (healthy = 3.0+)
       - Rule of 40: ${(revenueGrowthRate + (monthlyNetCash / (totalRevenue || 1)) * 100).toFixed(1)}% (growth% + margin%)
-      - ARR Run Rate: $${arr.toFixed(0)}
+      - ARR Run Rate: AED ${arr.toFixed(0)}
+      - CPL (Cost Per Lead): AED ${cpl.toFixed(2)} — total_ad_spend / total_leads (${totalLeads} leads)
+      - CPO (Cost Per Opportunity): AED ${cpo.toFixed(2)} — total_ad_spend / total_opportunities (${totalOpportunities} opps)
+      - Attribution note: CPL and CPO are the primary Facebook ad efficiency metrics
       
       TASK:
       Generate a "Scenario Plan" for the next quarter (Q+1).

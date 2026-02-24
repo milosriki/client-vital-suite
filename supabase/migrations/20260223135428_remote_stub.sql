@@ -1,0 +1,2 @@
+-- Remote-only migration (applied via Supabase dashboard on 2026-02-23 13:54:28)
+-- No local SQL file existed; stub created during Phase 0 stabilization

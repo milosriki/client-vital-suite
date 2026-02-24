@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const PB_URL = "https://mcp.pipeboard.co/meta-ads-mcp";
 const PTD_MAIN_ACCOUNT = "act_349832333681399";
@@ -62,6 +63,14 @@ async function listPipeboardTools(): Promise<unknown> {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
+
+  // Security: Phase 1 Auth Lockdown
+  try { verifyAuth(req); } catch (_e) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   }
 
   try {

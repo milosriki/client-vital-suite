@@ -378,6 +378,11 @@ serve(async (req) => {
                 attributed_ad_id: props.ad_id || props.facebook_ad_id || null,
                 attributed_campaign_id: props.campaign_id || props.facebook_campaign_id || null,
                 attribution_source: (props.ad_id || props.facebook_ad_id) ? "hubspot_sync" : null,
+                // Phase 2: direct fb_ad_id / fb_campaign_id columns (for attribution chain)
+                // facebook_ad_id = AnyTrack-injected FB ad ID
+                // hs_analytics_source_data_1 = HubSpot's paid social ad ID fallback
+                fb_ad_id: props.facebook_ad_id || props.ad_id || props.hs_analytics_source_data_1 || null,
+                fb_campaign_id: props.facebook_campaign_id || props.campaign_id || null,
                 owner_id: ownerId,
                 owner_name: ownerName,
                 setter_uuid: setterUuid,
@@ -650,20 +655,22 @@ serve(async (req) => {
             const assocData = await assocResponse.json();
             associationResults = assocData.results || [];
           } else {
-          consconsole.warn("⚠️ Failed to fetch associations batch.");
+            const errText = await assocResponse.text().catch(() => "unknown");
+            console.warn(`⚠️ Failed to fetch associations batch: HTTP ${assocResponse.status} - ${errText.substring(0, 200)}`);
           }
 
           // Map Deal ID -> Contact ID (HubSpot)
           const dealToContactHSId: Record<string, string> = {};
           associationResults.forEach((res: any) => {
             const dealId = res.from.id;
-            const contactId = res.to?.[0]?.id; // Take first contact
+            // v3 API returns { id } per association entry
+            const contactId = res.to?.[0]?.id;
             if (dealId && contactId) {
               dealToContactHSId[dealId] = contactId;
             }
           });
 
-          //consOOKUP STEP: Resolve HubSpot Contact IDs to Supabase UUIDs
+          // LOOKUP STEP: Resolve HubSpot Contact IDs to Supabase UUIDs
           const uniqueHSContactIds = Object.values(dealToContactHSId);
 
           let contactMap: Record<string, string> = {}; // HS_ID -> UUID
@@ -780,13 +787,17 @@ serve(async (req) => {
             props.hs_call_direction?.toLowerCase() ||
             (props.hs_call_from_number ? "outbound" : "inbound");
 
+          // FIX: caller_number must be the CONTACT's phone so JOIN on contacts.phone works.
+          // For outbound: agent calls lead → hs_call_to_number is the lead's phone.
+          // For inbound: lead calls agent → hs_call_from_number is the lead's phone.
+          const contactPhone =
+            direction === "outbound"
+              ? props.hs_call_to_number || props.called_phone_number || props.hs_call_from_number || "Unknown"
+              : props.hs_call_from_number || props.hs_call_to_number || props.called_phone_number || "Unknown";
+
           return {
             provider_call_id: `hubspot_${call.id}`,
-            caller_number:
-              props.hs_call_from_number ||
-              props.hs_call_to_number ||
-              props.called_phone_number ||
-              "Unknown",
+            caller_number: contactPhone,
             call_status: mapHubspotCallStatus(
               props.hs_call_status,
               props.hs_call_disposition,
@@ -801,6 +812,61 @@ serve(async (req) => {
         });
 
         if (callsToUpsert.length > 0) {
+          // Phase 2: Improve contact_id population via phone matching
+          // Extract unique caller numbers (normalise: strip spaces/dashes/+)
+          const normalise = (num: string) =>
+            num.replace(/[\s\-\(\)\+]/g, "").replace(/^00/, "");
+
+          const rawNumbers = callsToUpsert
+            .map((c: any) => c.caller_number)
+            .filter((n: any) => n && n !== "Unknown");
+
+          const normalisedNumbers = [...new Set(rawNumbers.map(normalise))];
+
+          if (normalisedNumbers.length > 0) {
+            // Fetch contacts with matching phones — try both phone & mobilephone columns
+            const { data: matchedContacts } = await supabase
+              .from("contacts")
+              .select("id, phone")
+              .not("phone", "is", null);
+
+            if (matchedContacts?.length) {
+              // Build phone → contact_id map (normalised)
+              const phoneToContactId: Record<string, string> = {};
+              for (const contact of matchedContacts) {
+                const normPhone = normalise(contact.phone || "");
+                if (normPhone) {
+                  phoneToContactId[normPhone] = contact.id;
+                }
+              }
+
+              // Stamp contact_id on each call record where we have a match
+              let phoneMatches = 0;
+              for (const callRecord of callsToUpsert as any[]) {
+                if (!callRecord.contact_id && callRecord.caller_number && callRecord.caller_number !== "Unknown") {
+                  const normCaller = normalise(callRecord.caller_number);
+                  // Try exact match first, then suffix match (last 9 digits)
+                  const matchId =
+                    phoneToContactId[normCaller] ||
+                    phoneToContactId[normCaller.slice(-9)] ||
+                    Object.entries(phoneToContactId).find(
+                      ([phone]) =>
+                        phone.endsWith(normCaller.slice(-9)) ||
+                        normCaller.endsWith(phone.slice(-9)),
+                    )?.[1] ||
+                    null;
+
+                  if (matchId) {
+                    callRecord.contact_id = matchId;
+                    phoneMatches++;
+                  }
+                }
+              }
+
+              console.log(`📞 Phone matched ${phoneMatches}/${callsToUpsert.length} call records to contacts`);
+            }
+          }
+
           const { error } = await supabase
             .from("call_records")
             .upsert(callsToUpsert, {

@@ -1,11 +1,20 @@
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 const DATABASE_URL = Deno.env.get("SUPABASE_DB_URL") ??
   `postgresql://postgres.ztjndilxurtsfqdsvfds:${Deno.env.get("DB_PASSWORD") ?? ""}@aws-0-ap-south-1.pooler.supabase.com:6543/postgres`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Security: Phase 1 Auth Lockdown
+  try { verifyAuth(req); } catch (_e) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   const pool = new Pool(DATABASE_URL, 1);
   const conn = await pool.connect();

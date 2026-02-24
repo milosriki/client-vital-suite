@@ -1,10 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+
+  // Security: Phase 1 Auth Lockdown
+  try { verifyAuth(req); } catch (_e) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   }
 
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
