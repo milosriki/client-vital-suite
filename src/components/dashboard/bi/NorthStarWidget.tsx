@@ -29,7 +29,13 @@ interface StrategyData {
   };
 }
 
-export function NorthStarWidget({ data }: { data: StrategyData }) {
+interface NorthStarWidgetProps {
+  data: StrategyData;
+  /** Display label for the north star goal. Defaults to "500k ARR". */
+  northStarLabel?: string;
+}
+
+export function NorthStarWidget({ data, northStarLabel = "500k ARR" }: NorthStarWidgetProps) {
   if (!data?.okrs) return null;
 
   const arrMetric = data.okrs.key_results.find(
@@ -54,7 +60,7 @@ export function NorthStarWidget({ data }: { data: StrategyData }) {
         {/* North Star Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">North Star: 500k ARR</span>
+            <span className="text-muted-foreground">North Star: {northStarLabel}</span>
             <span className="text-foreground font-bold">
               {progress.toFixed(1)}%
             </span>

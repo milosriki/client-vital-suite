@@ -347,6 +347,60 @@ serve(async (req: Request) => {
         }
       }
 
+      // WAVE 2: Feed high churn scores into proactive_insights
+      // Any client with churn_probability > 70 (0.7 on [0,1] scale) gets an alert
+      const highChurnPredictions = predictions.filter(
+        (p) => p.churn_probability > 70,
+      );
+
+      if (highChurnPredictions.length > 0) {
+        try {
+          const proactiveInserts = highChurnPredictions.map((pred) => ({
+            // Schema: insight_type, priority, title, content, source_agent, source_data, affected_entities, is_read
+            insight_type: "churn_alert",
+            priority: pred.risk_category === "CRITICAL" ? "critical" : "high" as "critical" | "high",
+            title: `Churn Risk: ${pred.name || pred.email} (${pred.churn_probability}%)`,
+            content:
+              `${pred.risk_category} churn risk detected (${pred.churn_probability}% probability). ` +
+              (pred.recommended_actions?.length
+                ? `Recommended action: ${pred.recommended_actions[0]}`
+                : "Immediate intervention required."),
+            source_agent: "churn-predictor",
+            source_data: {
+              churn_probability: pred.churn_probability,
+              risk_category: pred.risk_category,
+              risk_factors: pred.risk_factors,
+              days_to_churn_estimate: pred.days_to_churn_estimate,
+              ai_insight: pred.ai_insight,
+            },
+            affected_entities: {
+              clients: [{ email: pred.email, name: pred.name || pred.email }],
+              count: 1,
+            },
+            is_read: false,
+            is_dismissed: false,
+          }));
+
+          const { error: insightInsertErr } = await supabase
+            .from("proactive_insights")
+            .insert(proactiveInserts);
+
+          if (insightInsertErr) {
+            throw insightInsertErr;
+          }
+
+          console.log(
+            `[Churn Predictor] ✅ Inserted ${proactiveInserts.length} churn alerts into proactive_insights`,
+          );
+        } catch (insightError) {
+          // Non-critical: log but don't fail the main response
+          console.error(
+            "[Churn Predictor] Failed to insert into proactive_insights:",
+            insightError,
+          );
+        }
+      }
+
       // TRIGGER NEXT AGENT: Intervention Recommender
       // Only trigger if we found critical/high risk clients
       if (criticalPredictions.length > 0) {

@@ -331,6 +331,59 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── PROACTIVE INSIGHTS WIRE-UP ──────────────────────────────────────────────
+    // Any client with churn_score >= 70 gets a manager-visible alert in proactive_insights.
+    // Team managers see: "Client X likely to churn — 85% — reason: inactive 21 days"
+    const highRiskForInsights = predictions.filter(p => p.churn_score >= 70);
+    if (highRiskForInsights.length > 0) {
+      // Archive old ML churn insights before inserting fresh ones
+      await sb
+        .from("proactive_insights")
+        .update({ is_dismissed: true })
+        .eq("insight_type", "ml_churn_risk")
+        .eq("is_dismissed", false);
+
+      const churnInsights = highRiskForInsights.map(p => {
+        const topReason = p.churn_factors.top_risk_factors?.[0] ?? "multiple risk signals";
+        const revenueStr = p.revenue_at_risk > 0
+          ? ` (AED ${Math.round(p.revenue_at_risk).toLocaleString()} at risk)`
+          : "";
+        const urgency = p.churn_score >= 80 ? "CRITICAL" : "HIGH";
+        return {
+          insight_type: "ml_churn_risk",
+          title: `${p.client_name} likely to churn — ${p.churn_score}% probability`,
+          description: `${urgency}: ${p.churn_factors.recommended_action}. Top reason: ${topReason}${revenueStr}.`,
+          priority: urgency === "CRITICAL" ? "critical" : "high",
+          data: {
+            client_id: p.client_id,
+            client_name: p.client_name,
+            churn_score: p.churn_score,
+            ml_score_7d: p.churn_factors.ml_score_7d,
+            ml_score_30d: p.churn_factors.ml_score_30d,
+            ml_score_90d: p.churn_factors.ml_score_90d,
+            top_risk_factors: p.churn_factors.top_risk_factors,
+            recommended_action: p.churn_factors.recommended_action,
+            revenue_at_risk: p.revenue_at_risk,
+            predicted_churn_date: p.predicted_churn_date,
+            coach: p.churn_factors.coach,
+            phone: p.churn_factors.phone,
+          },
+          source_agent: "ml-churn-score",
+          is_dismissed: false,
+        };
+      });
+
+      const { error: insightErr } = await sb
+        .from("proactive_insights")
+        .insert(churnInsights);
+      if (insightErr) {
+        console.error("[ML-Churn] proactive_insights insert error:", insightErr.message);
+      } else {
+        console.log(`[ML-Churn] ✅ Inserted ${churnInsights.length} churn alerts into proactive_insights`);
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     const dist = { critical: 0, high: 0, medium: 0, low: 0 };
     for (const p of predictions) {
       if (p.churn_score >= 80) dist.critical++;

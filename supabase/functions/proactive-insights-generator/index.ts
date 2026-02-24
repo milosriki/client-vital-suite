@@ -72,6 +72,9 @@ serve(async (req) => {
       { data: enhancedLeads },
       { data: deals },
       { data: coachPerformance },
+      { data: mlChurnPredictions },
+      { data: revenueTriangle },
+      { data: gpsAnomalies },
     ] = await Promise.all([
       supabase
         .from("leads")
@@ -105,6 +108,26 @@ serve(async (req) => {
         .select("id, coach_name, report_date, total_clients, avg_health_score, red_clients, clients_improving, clients_declining")
         .order("report_date", { ascending: false })
         .limit(10),
+      // ML Churn: specific probability per client (from ml-churn-score output)
+      supabase
+        .from("client_predictions")
+        .select("client_id, client_name, churn_score, churn_factors, revenue_at_risk, predicted_churn_date, updated_at")
+        .gte("churn_score", 70)
+        .order("churn_score", { ascending: false })
+        .limit(10),
+      // Revenue Truth Triangle: month-by-month Meta vs HubSpot vs Stripe
+      supabase
+        .from("view_truth_triangle")
+        .select("month, meta_ad_spend, hubspot_deal_value, stripe_gross_revenue, true_roas_cash, gap_stripe_hubspot")
+        .order("month", { ascending: false })
+        .limit(2), // current + previous month
+      // GPS anomalies: coaches with low truth score (missed visits)
+      supabase
+        .from("view_coach_behavior_scorecard")
+        .select("coach_name, sessions_scheduled, gps_verified_visits, truth_score")
+        .lt("truth_score", 60) // Below 60% GPS verification = anomaly
+        .order("truth_score", { ascending: true })
+        .limit(5),
     ]);
 
     const insights: any[] = [];
@@ -177,7 +200,7 @@ serve(async (req) => {
       });
     }
 
-    // INSIGHT 4: Clients at churn risk
+    // INSIGHT 4: Clients at churn risk (generic health zone)
     const atRiskClients =
       clientHealth?.filter(
         (client) =>
@@ -196,6 +219,79 @@ serve(async (req) => {
         call_script:
           'Check-in call: "Hi [Name], I noticed we haven\'t connected in a while. I wanted to personally check in and see how your fitness journey is going..."',
       });
+    }
+
+    // INSIGHT 4b: ML Churn Predictions (specific clients with probability + reason)
+    if (mlChurnPredictions && mlChurnPredictions.length > 0) {
+      const topChurner = mlChurnPredictions[0];
+      const topReason = topChurner.churn_factors?.top_risk_factors?.[0] ?? "multiple risk signals";
+      const totalRevAtRisk = mlChurnPredictions.reduce((sum: number, p: any) => sum + (p.revenue_at_risk || 0), 0);
+      const clientList = mlChurnPredictions
+        .slice(0, 5)
+        .map((p: any) => `${p.client_name} (${p.churn_score}%)`)
+        .join(", ");
+
+      insights.push({
+        insight_type: "ml_churn_predictions",
+        priority: "critical",
+        status: "active",
+        recommended_action: `${mlChurnPredictions.length} clients with >70% ML churn probability. AED ${Math.round(totalRevAtRisk).toLocaleString()} revenue at risk. Top: ${clientList}. Top risk: ${topReason}.`,
+        reason: `ML model identified high-probability churners from 33 behavioral features`,
+        best_call_time: isBusinessHours ? "Now — CRITICAL retention window" : "Tomorrow 10:00 AM sharp",
+        call_script: `Personal intervention: "Hi [Name], I'm personally reaching out because I care about your progress. I noticed we haven't seen you as often — what's been going on? Let's find a schedule that works for you."`,
+      });
+    }
+
+    // INSIGHT 8: GPS Anomaly Alerts (coach accountability)
+    if (gpsAnomalies && gpsAnomalies.length > 0) {
+      const coachList = gpsAnomalies
+        .map((c: any) => `${c.coach_name} (${Math.round(c.truth_score || 0)}% verified, ${c.sessions_scheduled ?? '?'} scheduled vs ${c.gps_verified_visits ?? '?'} GPS-confirmed)`)
+        .join("; ");
+
+      insights.push({
+        insight_type: "gps_anomaly",
+        priority: "high",
+        status: "active",
+        recommended_action: `${gpsAnomalies.length} coach(es) with GPS truth score <60%. Possible session inflation. Immediate manager review required. Coaches: ${coachList}.`,
+        reason: "GPS-verified visits don't match scheduled/claimed sessions",
+        best_call_time: isBusinessHours ? "Today — review before client billing" : "Tomorrow morning",
+        call_script: `Manager action: "Review ${gpsAnomalies[0]?.coach_name}'s session log vs GPS data for the last 30 days. Cross-check with client sign-off sheets."`,
+      });
+    }
+
+    // INSIGHT 9: Revenue Drop Alert (Truth Triangle)
+    if (revenueTriangle && revenueTriangle.length >= 2) {
+      const current = revenueTriangle[0] as any;
+      const previous = revenueTriangle[1] as any;
+      const stripeDrop = (previous.stripe_gross_revenue || 0) - (current.stripe_gross_revenue || 0);
+      const dropPct = previous.stripe_gross_revenue > 0
+        ? Math.round((stripeDrop / previous.stripe_gross_revenue) * 100)
+        : 0;
+      const hubspotStripeGap = current.gap_stripe_hubspot ?? 0;
+
+      if (dropPct > 15) {
+        insights.push({
+          insight_type: "revenue_drop",
+          priority: "critical",
+          status: "active",
+          recommended_action: `Stripe revenue dropped ${dropPct}% vs last month (AED ${Math.round(current.stripe_gross_revenue).toLocaleString()} vs AED ${Math.round(previous.stripe_gross_revenue).toLocaleString()}). True ROAS: ${(current.true_roas_cash || 0).toFixed(2)}x. Immediate review needed.`,
+          reason: `Month-over-month Stripe cash drop >${dropPct}% (Truth Triangle validation)`,
+          best_call_time: "CEO review today",
+          call_script: `ATLAS analysis: Cross-check renewals pipeline, check payment failures in Stripe, verify no reconciliation errors.`,
+        });
+      }
+
+      if (Math.abs(hubspotStripeGap) > 50000) {
+        insights.push({
+          insight_type: "revenue_discrepancy",
+          priority: "high",
+          status: "active",
+          recommended_action: `AED ${Math.round(Math.abs(hubspotStripeGap)).toLocaleString()} gap between HubSpot deals and Stripe collections. ${hubspotStripeGap < 0 ? "HubSpot over-reporting" : "Stripe collecting more than booked — check for unrecorded deals"}.`,
+          reason: "Truth Triangle: HubSpot deal value ≠ Stripe gross revenue",
+          best_call_time: "Finance review this week",
+          call_script: `Run stripe-forensics reconciliation and check for unlinked Stripe charges.`,
+        });
+      }
     }
 
     // INSIGHT 5: Missed calls to follow up
@@ -309,24 +405,32 @@ Enhance these ${insights.length} insights with better call scripts and actions:\
 
     // Store insights in proactive_insights table
     if (aiEnhancedInsights.length > 0) {
-      // Clear old active insights first
+      // Archive old active insights from this agent (not from ml-churn-score which manages its own)
       await supabase
         .from("proactive_insights")
-        .update({ status: "archived" })
-        .eq("status", "active");
+        .update({ is_dismissed: true })
+        .eq("source_agent", "proactive_insights_generator")
+        .eq("is_dismissed", false);
 
-      // Insert new insights
+      // Insert new insights using the real table schema:
+      // id, insight_type, title, description, priority, data (JSONB), source_agent, is_dismissed, actioned_at, created_at
       const { error: insertError } = await supabase
         .from("proactive_insights")
         .insert(
           aiEnhancedInsights.map((insight) => ({
             insight_type: insight.insight_type,
+            title: insight.recommended_action?.slice(0, 200) ?? insight.insight_type,
+            description: insight.reason ?? null,
             priority: insight.priority,
-            status: "active",
-            recommended_action: insight.recommended_action,
-            reason: insight.reason,
-            best_call_time: insight.best_call_time,
-            call_script: insight.call_script,
+            data: {
+              recommended_action: insight.recommended_action,
+              reason: insight.reason,
+              best_call_time: insight.best_call_time,
+              call_script: insight.call_script,
+              status: "active",
+            },
+            source_agent: "proactive_insights_generator",
+            is_dismissed: false,
           })),
         );
 

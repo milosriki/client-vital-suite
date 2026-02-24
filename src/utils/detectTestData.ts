@@ -149,22 +149,22 @@ export async function detectTestData(): Promise<TestDataReport> {
       }
     }
 
-    // Check enhanced_leads for fake emails
-    const { data: enhancedLeads, count: enhancedCount } = await supabase
-      .from('enhanced_leads')
+    // Check contacts for additional fake email patterns (migrated from enhanced_leads)
+    const { data: contactsFakeExtra, count: contactsFakeExtraCount } = await supabase
+      .from('contacts')
       .select('id, email', { count: 'exact' })
-      .or('email.ilike.%@example.com,email.ilike.%@test.com,email.ilike.%@fake.com,email.ilike.test%@%')
+      .or('email.ilike.%@mailinator.com,email.ilike.%@guerrillamail.com,email.ilike.%@10minutemail.com,email.ilike.%@tempmail.com')
       .limit(5);
 
-    if (enhancedCount && enhancedCount > 0) {
-      affectedTables.add('enhanced_leads');
-      totalCount += enhancedCount;
+    if (contactsFakeExtraCount && contactsFakeExtraCount > 0) {
+      affectedTables.add('contacts');
+      totalCount += contactsFakeExtraCount;
       issues.push({
-        table: 'enhanced_leads',
-        pattern: 'multiple_fake_patterns',
-        count: enhancedCount,
+        table: 'contacts',
+        pattern: 'disposable_email_domains',
+        count: contactsFakeExtraCount,
         severity: 'high',
-        sampleRecords: (enhancedLeads || []).map(d => ({
+        sampleRecords: (contactsFakeExtra || []).map(d => ({
           id: d.id,
           email: d.email
         }))
@@ -296,7 +296,7 @@ export async function autoFixTestData(options: {
   deletedCount: number;
   details: Record<string, number>;
 }> {
-  const { tables = ['contacts', 'leads', 'enhanced_leads', 'client_health_scores'], dryRun = false } = options;
+  const { tables = ['contacts', 'leads', 'client_health_scores'], dryRun = false } = options;
 
   try {
     // Use the cleanup-fake-contacts function

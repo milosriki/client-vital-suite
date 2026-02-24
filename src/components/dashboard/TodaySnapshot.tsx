@@ -39,7 +39,7 @@ export function TodaySnapshot() {
           .gte('scheduled_at', startOfToday)
           .lte('scheduled_at', endOfToday),
         supabase
-          .from('enhanced_leads')
+          .from('contacts')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', startOfToday)
           .lte('created_at', endOfToday),

@@ -106,7 +106,8 @@ export const useHubSpotRealtime = (timeframe: string) => {
     },
   });
 
-  // Fetch enhanced leads
+  // Fetch contacts for quality/conversion enrichment (migrated from enhanced_leads)
+  // Uses contacts table as the canonical source; maps fields to legacy interface
   const {
     data: enhancedLeadsData,
     isLoading: loadingEnhanced,
@@ -115,14 +116,26 @@ export const useHubSpotRealtime = (timeframe: string) => {
     queryKey: ["db-enhanced-leads", timeframe],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("enhanced_leads")
-        .select("id, first_name, last_name, email, phone, created_at, lead_quality, conversion_status, source")
+        .from("contacts")
+        .select("id, first_name, last_name, email, phone, created_at, lead_status, latest_traffic_source, first_touch_source, total_value")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+
+      // Map contacts fields to the legacy enhanced_leads interface
+      return (data || []).map((c) => ({
+        ...c,
+        // Compute lead_quality from total_value (matches leadsData scoring)
+        lead_quality: c.total_value
+          ? c.total_value > 5000 ? "premium" : c.total_value > 1000 ? "high" : c.total_value > 300 ? "medium" : "low"
+          : "pending",
+        // conversion_status ← lead_status (canonical CRM field)
+        conversion_status: c.lead_status ?? "new",
+        // source ← first available traffic source
+        source: c.latest_traffic_source ?? c.first_touch_source ?? "direct",
+      }));
     },
   });
 

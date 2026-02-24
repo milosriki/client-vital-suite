@@ -127,30 +127,32 @@ export const tools: ToolDefinition[] = [
   {
     name: "intelligence_control",
     description:
-      "Business Intelligence Engine: Analyze retention, conversion, churn, revenue patterns, and COACH PERFORMANCE.",
+      "Business Intelligence Engine: Analyze retention, conversion, churn, revenue patterns, and COACH PERFORMANCE. Use churn_analysis for 'Who's about to churn?', get_truth_triangle for revenue reconciliation (Meta+HubSpot+Stripe), get_coach_scorecard for GPS vs scheduled session truth.",
     input_schema: {
       type: "object",
       properties: {
         action: {
           type: "string",
           enum: [
-            "coach_retention", // Best coaches
-            "coach_performance", // Specific coach stats
-            "goal_conversion", // Best niches
-            "churn_analysis", // Why are people leaving?
-            "revenue_trends", // General revenue trends
-            "daily_summary", // Daily business snapshot
-            "get_lead_dna", // Full lead profile with attribution (view_atlas_lead_dna)
-            "get_contact_360", // 7-source unified contact view
-            "get_capacity_alert", // Coach capacity vs ad spend alert
-            "get_discrepancies", // Cross-source data disagreements
+            "coach_retention",          // Best coaches by retention rate
+            "coach_performance",         // Specific coach stats (performance table + GPS scorecard)
+            "goal_conversion",           // Best niches / conversion rates
+            "churn_analysis",            // WHO is about to churn? ML scores + health zones + revenue at risk
+            "revenue_trends",            // Month-by-month: Meta spend vs HubSpot deals vs Stripe cash
+            "daily_summary",             // Daily business snapshot
+            "get_lead_dna",              // Full lead profile with attribution (view_atlas_lead_dna)
+            "get_contact_360",           // 7-source unified contact view
+            "get_capacity_alert",        // Coach capacity vs ad spend alert
+            "get_discrepancies",         // Cross-source data disagreements
             "get_marketing_attribution", // Which ad/campaign drove each contact
-            "data_freshness", // Platform data staleness check
+            "data_freshness",            // Platform data staleness check
+            "get_truth_triangle",        // Revenue validation: Meta spend vs HubSpot deals vs Stripe cash collected
+            "get_coach_scorecard",       // GPS truth score: scheduled sessions vs actual GPS-verified visits
           ],
-          description: "Analysis to run.",
+          description: "Analysis to run. For churn questions use churn_analysis. For revenue questions use revenue_trends or get_truth_triangle. For coach accountability use get_coach_scorecard.",
         },
-        coach_name: { type: "string", description: "Optional: specific coach" },
-        date: { type: "string", description: "Optional: date for summary" },
+        coach_name: { type: "string", description: "Optional: specific coach name filter" },
+        date: { type: "string", description: "Optional: date for summary (YYYY-MM-DD)" },
         email: { type: "string", description: "Optional: filter by email" },
         name: { type: "string", description: "Optional: filter by name" },
         campaign_name: { type: "string", description: "Optional: filter by campaign" },

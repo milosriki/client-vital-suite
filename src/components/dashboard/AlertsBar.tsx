@@ -24,13 +24,14 @@ export function AlertsBar() {
     queryFn: async () => {
       const alertsList: Alert[] = [];
 
-      // Check SLA breaches (leads waiting > 30 min with no contact)
+      // Check SLA breaches (contacts waiting > 30 min with no contact action)
+      // "new" contacts = lead_status is null (not yet contacted/converted)
       const slaThreshold = subMinutes(now, 30).toISOString();
       const { count: slaCount } = await supabase
-        .from('enhanced_leads')
+        .from('contacts')
         .select('id', { count: 'exact', head: true })
         .lt('created_at', slaThreshold)
-        .eq('conversion_status', 'new');
+        .is('lead_status', null);
 
       if (slaCount && slaCount > 0) {
         alertsList.push({

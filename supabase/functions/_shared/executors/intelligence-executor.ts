@@ -84,6 +84,160 @@ export async function executeIntelligenceTools(
         return JSON.stringify({ ...summary, details: results }, null, 2);
       }
 
+      // ── CHURN ANALYSIS ── Who's about to churn? Full ML + health score view ──
+      if (action === "churn_analysis") {
+        const { limit: queryLimit = 20 } = input;
+        const [predResult, healthResult] = await Promise.all([
+          supabase
+            .from("client_predictions")
+            .select("client_id, client_name, churn_score, churn_factors, revenue_at_risk, predicted_churn_date, updated_at")
+            .gte("churn_score", 60)
+            .order("churn_score", { ascending: false })
+            .limit(queryLimit),
+          supabase
+            .from("client_health_scores")
+            .select("email, health_zone, health_score, churn_risk_score, assigned_coach, days_since_last_session")
+            .in("health_zone", ["RED", "YELLOW"])
+            .order("churn_risk_score", { ascending: false })
+            .limit(queryLimit),
+        ]);
+
+        const predictions = predResult.data || [];
+        const healthRisk = healthResult.data || [];
+        const totalRevenueAtRisk = predictions.reduce((sum: number, p: any) => sum + (p.revenue_at_risk || 0), 0);
+        const critical = predictions.filter((p: any) => p.churn_score >= 80);
+        const high = predictions.filter((p: any) => p.churn_score >= 60 && p.churn_score < 80);
+
+        return JSON.stringify({
+          summary: {
+            total_at_risk: predictions.length,
+            critical_count: critical.length,
+            high_risk_count: high.length,
+            total_revenue_at_risk_aed: Math.round(totalRevenueAtRisk),
+          },
+          critical_clients: critical.slice(0, 10).map((p: any) => ({
+            name: p.client_name,
+            churn_score: p.churn_score,
+            top_reason: p.churn_factors?.top_risk_factors?.[0] ?? "multiple signals",
+            action: p.churn_factors?.recommended_action ?? "Urgent outreach",
+            revenue_at_risk: p.revenue_at_risk,
+            predicted_churn_date: p.predicted_churn_date,
+            coach: p.churn_factors?.coach,
+            phone: p.churn_factors?.phone,
+          })),
+          high_risk_clients: high.slice(0, 10).map((p: any) => ({
+            name: p.client_name,
+            churn_score: p.churn_score,
+            top_reason: p.churn_factors?.top_risk_factors?.[0] ?? "watch closely",
+            action: p.churn_factors?.recommended_action,
+            revenue_at_risk: p.revenue_at_risk,
+          })),
+          red_zone_from_health: healthRisk.filter((h: any) => h.health_zone === "RED").slice(0, 10).map((h: any) => ({
+            email: h.email,
+            health_score: h.health_score,
+            days_inactive: h.days_since_last_session,
+            coach: h.assigned_coach,
+          })),
+          source: "client_predictions + client_health_scores",
+        }, null, 2);
+      }
+
+      // ── REVENUE TRENDS ── Month-by-month truth triangle ──
+      if (action === "revenue_trends") {
+        const { data: triangle, error: triangleErr } = await supabase
+          .from("view_truth_triangle")
+          .select("*")
+          .order("month", { ascending: false })
+          .limit(6);
+        if (triangleErr) {
+          // Fallback: use stripe charges grouped by month
+          const { data: stripe } = await supabase
+            .from("stripe_charges")
+            .select("amount, created")
+            .eq("status", "succeeded")
+            .order("created", { ascending: false })
+            .limit(500);
+          return JSON.stringify({ source: "stripe_charges_fallback", data: stripe || [] }, null, 2);
+        }
+        return JSON.stringify({
+          source: "view_truth_triangle",
+          description: "Month-by-month: Meta ad spend vs HubSpot deals vs Stripe cash",
+          trends: triangle || [],
+        }, null, 2);
+      }
+
+      // ── DAILY SUMMARY ── (handled by intelligence_control too) ──
+      if (action === "daily_summary") {
+        const { date } = input;
+        const targetDate = date || new Date().toISOString().split("T")[0];
+        const [summary, health, pipeline] = await Promise.all([
+          supabase.from("daily_summary").select("*").eq("summary_date", targetDate).maybeSingle(),
+          supabase.from("client_health_scores").select("health_zone").then(({ data }: { data: any[] | null }) => {
+            const zones: Record<string, number> = { RED: 0, YELLOW: 0, GREEN: 0, PURPLE: 0 };
+            for (const c of data || []) zones[c.health_zone] = (zones[c.health_zone] || 0) + 1;
+            return zones;
+          }),
+          supabase.from("deals").select("amount, stage").eq("stage", "Closed Won").then(({ data }: { data: any[] | null }) => {
+            return (data || []).reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+          }),
+        ]);
+        return JSON.stringify({
+          date: targetDate,
+          daily_summary: summary.data,
+          health_zones: health,
+          total_closed_revenue_aed: Math.round(pipeline),
+          source: "live_query",
+        }, null, 2);
+      }
+
+      // ── COACH PERFORMANCE ── (via intelligence_control) ──
+      if (action === "coach_performance") {
+        const { coach_name, limit: queryLimit = 20 } = input;
+        // 1. Standard coach_performance table
+        let perfQuery = supabase
+          .from("coach_performance")
+          .select("*")
+          .order("report_date", { ascending: false });
+        if (coach_name) perfQuery = perfQuery.ilike("coach_name", `%${coach_name}%`);
+        const { data: perf } = await perfQuery.limit(queryLimit);
+
+        // 2. Coach behavior scorecard (GPS vs scheduled)
+        let scorecardQuery = supabase.from("view_coach_behavior_scorecard").select("*");
+        if (coach_name) scorecardQuery = scorecardQuery.ilike("coach_name", `%${coach_name}%`);
+        const { data: scorecard } = await scorecardQuery.limit(queryLimit);
+
+        return JSON.stringify({
+          source: "coach_performance + view_coach_behavior_scorecard",
+          performance: perf || [],
+          gps_vs_scheduled_scorecard: scorecard || [],
+        }, null, 2);
+      }
+
+      // ── TRUTH TRIANGLE ── Validate revenue across Meta + HubSpot + Stripe ──
+      if (action === "get_truth_triangle") {
+        const { data, error } = await supabase
+          .from("view_truth_triangle")
+          .select("*")
+          .order("month", { ascending: false })
+          .limit(12);
+        if (error) return `Error: ${error.message}`;
+        return JSON.stringify({ source: "view_truth_triangle", data: data || [] }, null, 2);
+      }
+
+      // ── COACH BEHAVIOR SCORECARD ── GPS truth vs scheduled sessions ──
+      if (action === "get_coach_scorecard") {
+        const { coach_name } = input;
+        let query = supabase.from("view_coach_behavior_scorecard").select("*");
+        if (coach_name) query = query.ilike("coach_name", `%${coach_name}%`);
+        const { data, error } = await query.limit(30);
+        if (error) return `Error: ${error.message}`;
+        return JSON.stringify({
+          source: "view_coach_behavior_scorecard",
+          description: "Compares scheduled sessions (AWS) vs GPS-verified visits (TinyMDM). Truth Score = how often coaches actually show up.",
+          data: data || [],
+        }, null, 2);
+      }
+
       return "Unknown intelligence action";
     }
 

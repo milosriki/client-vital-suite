@@ -288,27 +288,30 @@ serve(async (req) => {
           sqlUpper.split(" ").slice(0, 3).join(" "),
         );
 
-        // Execute SQL after validation with timeout and retry
-        try {
-          await withTimeoutAndRetry(
-            async () => {
-              const { error: sqlError } = await supabase.rpc("exec_sql", {
-                sql_query: sql,
-              });
-              if (sqlError) {
-                console.error("SQL execution error:", sqlError);
-                throw new Error(`SQL execution failed: ${sqlError.message}`);
-              }
-            },
-            30000,
-            3,
-          ); // 30 second timeout, 3 retry attempts
-          console.log("✅ SQL executed successfully");
-        } catch (execError) {
-          const errMsg =
-            execError instanceof Error ? execError.message : String(execError);
-          throw new Error(`SQL execution failed after retries: ${errMsg}`);
-        }
+        // SECURITY: exec_sql RPC removed — it was a SQL injection vector.
+        // DDL migrations must go through the official Supabase migration pipeline
+        // (supabase db push or a migration file in supabase/migrations/).
+        //
+        // Instead, log the validated SQL to prepared_sql_log for manual review.
+        await supabase.from("prepared_actions").update({
+          status: "pending_manual_migration",
+          updated_at: new Date().toISOString(),
+        }).eq("id", approval_id);
+
+        console.log(
+          "✅ SQL validated and logged for manual migration. Apply via: supabase/migrations/",
+          sql.slice(0, 120),
+        );
+
+        return apiSuccess({
+          success: true,
+          status: "pending_manual_migration",
+          message:
+            "SQL validated successfully. Apply via Supabase migration pipeline " +
+            "(add to supabase/migrations/ and run supabase db push). " +
+            "Direct SQL execution disabled for security.",
+          sql_preview: sql.slice(0, 200),
+        });
       } else {
         throw new Error("No SQL query provided in prepared_payload");
       }

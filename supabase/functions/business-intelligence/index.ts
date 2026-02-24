@@ -280,17 +280,8 @@ OUTPUT FORMAT (JSON):
       };
     }
 
-    // 4. SAVE TO DASHBOARD
-    await supabase.from("daily_summary").upsert(
-      {
-        summary_date: today,
-        executive_briefing: aiResponse.executive_summary,
-        system_health_status: aiResponse.system_status,
-        max_utilization_rate: utilizationRate,
-        action_plan: aiResponse.action_plan,
-      },
-      { onConflict: "summary_date" },
-    );
+    // NOTE: daily_summary is written exclusively by the daily-report function
+    // to avoid race conditions. business-intelligence does NOT write to daily_summary.
 
     // Log success
     await supabase.from("sync_logs").insert({
