@@ -1477,9 +1477,9 @@ export default function MarketingIntelligence() {
 
       {/* Tabs */}
       <Tabs defaultValue={initialTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="command-center">Command Center</TabsTrigger>
-          {/* <TabsTrigger value="deep-intel">Deep Intel</TabsTrigger> */}
+          <TabsTrigger value="deep-intel">Deep Intel</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="money-map">Money Map</TabsTrigger>
           <TabsTrigger value="source-truth">Source Truth</TabsTrigger>

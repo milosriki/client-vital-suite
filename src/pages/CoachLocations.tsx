@@ -1065,10 +1065,10 @@ export default function CoachLocations() {
   });
 
   const { data: dwellVisits, isLoading: dwellLoading, refetch: refetchDwell } = useDedupedQuery({
-    queryKey: ["coach-visits"],
+    queryKey: ["mdm-visits"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("coach_visits")
+        .from("mdm_visits")
         .select("id, device_id, coach_name, location_name, latitude, longitude, arrival_time, departure_time, dwell_minutes, is_ptd_location, created_at")
         .order("arrival_time", { ascending: false })
         .limit(5000);

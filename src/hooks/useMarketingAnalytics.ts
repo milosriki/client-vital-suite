@@ -168,7 +168,7 @@ export const useDeepAnalysis = (dateRange: string) => {
         cac: number;
         trend: string;
       };
-      const cohortAnalysis: CohortAnalysisEntry[] = [];
+      const cohortData: { roas: number; month: string; leads: number; conv: number; revenue: number; cac: number }[] = [];
       for (let i = 0; i < 5; i++) {
         const monthStart = new Date(endDate);
         monthStart.setMonth(monthStart.getMonth() - i);
@@ -190,21 +190,31 @@ export const useDeepAnalysis = (dateRange: string) => {
           const revenue = monthData.reduce((sum, row) => sum + (row.purchase_value || 0), 0);
           const roas = totalSpend > 0 ? revenue / totalSpend : 0;
 
-          cohortAnalysis.push({
+          cohortData.push({
             month: monthStart.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
             leads: totalLeads,
             conv: metrics.conversionRate,
             revenue,
             roas,
             cac: metrics.cpl,
-            trend: i === 0 ? "—" : `${Math.random() > 0.5 ? "+" : "-"}${Math.floor(Math.random() * 15)}%`,
           });
         }
       }
 
+      // Reverse so oldest month is first (index 0), newest is last
+      cohortData.reverse();
+
+      const cohortAnalysis: CohortAnalysisEntry[] = cohortData.map((m, i) => {
+        const prevMonthData = i > 0 ? cohortData[i - 1] : null;
+        const trend = prevMonthData && prevMonthData.roas > 0
+          ? ((m.roas - prevMonthData.roas) / prevMonthData.roas * 100).toFixed(1) + "%"
+          : "—";
+        return { ...m, trend };
+      });
+
       return {
         baselineComparison,
-        cohortAnalysis: cohortAnalysis.reverse(),
+        cohortAnalysis,
         rawData: currentData,
       };
     },
@@ -218,12 +228,18 @@ export const useMetaAds = (dateRange: string) => {
   return useQuery({
     queryKey: ["marketing-meta-ads", dateRange],
     queryFn: async () => {
-      const { startDate, endDate } = getDateRangeFromPreset(dateRange);
+      const { startDate: since, endDate } = getDateRangeFromPreset(dateRange);
+
+      // Fetch campaign-level ROAS from the funnel view
+      const { data: funnelData } = await supabase
+        .from("campaign_full_funnel")
+        .select("campaign, roas, revenue, spend");
+      const funnelMap = new Map((funnelData || []).map(f => [f.campaign, f]));
 
       const { data, error } = await supabase
         .from("facebook_ads_insights")
         .select("spend, leads, clicks, impressions, frequency, ctr, date, campaign_name")
-        .gte("date", startDate)
+        .gte("date", since)
         .lte("date", endDate);
 
       if (error) throw error;
@@ -232,6 +248,7 @@ export const useMetaAds = (dateRange: string) => {
       const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
       const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
       const totalSpend = data.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
+      const totalLeads = data.reduce((sum, row) => sum + (row.leads || 0), 0);
       const avgFrequency = data.length > 0
         ? data.reduce((sum, row) => sum + (row.frequency || 0), 0) / data.length
         : 0;
@@ -240,37 +257,74 @@ export const useMetaAds = (dateRange: string) => {
         : 0;
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
+      // Compute prior period for real deltas
+      const presetToDays: Record<string, number> = {
+        today: 1, yesterday: 1, this_week: 7, last_week: 14,
+        this_month: 30, last_month: 60, this_quarter: 90, last_quarter: 180, this_year: 365,
+      };
+      const periodDays = presetToDays[dateRange] || 30;
+      const priorEnd = since;
+      const priorStartDate = new Date(since);
+      priorStartDate.setDate(priorStartDate.getDate() - periodDays);
+      const priorStart = priorStartDate.toISOString().split("T")[0];
+
+      const { data: priorRaw } = await supabase
+        .from("facebook_ads_insights")
+        .select("spend, impressions, clicks, leads, frequency, ctr")
+        .gte("date", priorStart)
+        .lt("date", priorEnd);
+
+      const prior = (priorRaw || []).reduce((a, r) => ({
+        spend: a.spend + Number(r.spend || 0),
+        impressions: a.impressions + Number(r.impressions || 0),
+        clicks: a.clicks + Number(r.clicks || 0),
+        leads: a.leads + Number(r.leads || 0),
+        frequency: a.frequency + Number(r.frequency || 0),
+        ctr: a.ctr + Number(r.ctr || 0),
+        count: a.count + 1,
+      }), { spend: 0, impressions: 0, clicks: 0, leads: 0, frequency: 0, ctr: 0, count: 0 });
+
+      const priorAvgFrequency = prior.count > 0 ? prior.frequency / prior.count : 0;
+      const priorAvgCtr = prior.count > 0 ? prior.ctr / prior.count : 0;
+      const priorAvgCpc = prior.clicks > 0 ? prior.spend / prior.clicks : 0;
+
+      const calcDelta = (current: number, priorVal: number) => {
+        if (priorVal === 0) return { value: 0, type: "neutral" as const };
+        const pct = Math.round(((current - priorVal) / priorVal) * 100);
+        return { value: Math.abs(pct), type: pct >= 0 ? "positive" as const : "negative" as const };
+      };
+
       const metrics = [
         {
           label: "Impressions",
           value: totalImpressions >= 1000000
             ? `${(totalImpressions / 1000000).toFixed(1)}M`
             : totalImpressions.toLocaleString(),
-          delta: { value: 15, type: "positive" as const },
+          delta: calcDelta(totalImpressions, prior.impressions),
           icon: "BarChart3"
         },
         {
           label: "Clicks",
           value: totalClicks.toLocaleString(),
-          delta: { value: 18, type: "positive" as const },
+          delta: calcDelta(totalClicks, prior.clicks),
           icon: "Target"
         },
         {
           label: "CTR",
           value: `${avgCtr.toFixed(2)}%`,
-          delta: { value: 0.1, type: "positive" as const },
+          delta: calcDelta(avgCtr, priorAvgCtr),
           icon: "TrendingUp"
         },
         {
           label: "CPC",
           value: `AED ${avgCpc.toFixed(0)}`,
-          delta: { value: -0.12, type: "positive" as const },
+          delta: calcDelta(avgCpc, priorAvgCpc),
           icon: "DollarSign"
         },
         {
           label: "Frequency",
           value: avgFrequency.toFixed(1),
-          delta: { value: 0.3, type: "neutral" as const },
+          delta: calcDelta(avgFrequency, priorAvgFrequency),
           icon: "BarChart3"
         },
       ];
@@ -295,7 +349,7 @@ export const useMetaAds = (dateRange: string) => {
         } else {
           campaignMap.set(campaignName, {
             campaign: campaignName,
-            status: "Active", // Could be derived from data if available
+            status: Number(row.spend) > 0 ? "Active" : "Paused",
             spend: Number(row.spend) || 0,
             leads: row.leads || 0,
             cpl: 0,
@@ -304,11 +358,12 @@ export const useMetaAds = (dateRange: string) => {
         }
       });
 
-      // Calculate CPL and ROAS for each campaign
+      // Calculate CPL and ROAS for each campaign using real funnel data
       const campaigns = Array.from(campaignMap.values()).map((c) => ({
         ...c,
+        status: c.spend > 0 ? "Active" : "Paused",
         cpl: c.leads > 0 ? c.spend / c.leads : 0,
-        roas: c.spend > 0 ? (c.leads * 100) / c.spend : 0, // Simplified ROAS calculation
+        roas: funnelMap.get(c.campaign)?.roas || 0,
       }));
 
       return {
@@ -360,15 +415,15 @@ export const useMoneyMap = (dateRange: string) => {
       // Calculate totals
       const totalSpend = adsData.reduce((sum, row) => sum + (Number(row.spend) || 0), 0);
       const totalLeads = adsData.reduce((sum, row) => sum + (row.leads || 0), 0);
-      
+
       // Closed won deals — revenue in AED (not cents)
       const wonStages = ["closedwon", "1070353735"];
       const closedDeals = dealsData.filter((d) => wonStages.includes(d.stage || ""));
       const totalDealValue = closedDeals.reduce((sum, d) => sum + (Number(d.deal_value) || Number(d.amount) || 0), 0);
-      
+
       // Stripe revenue (amounts already in AED for this account)
       const totalStripeRevenue = transactionsData.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-      
+
       // Use stripe revenue if available, otherwise use deal value
       const actualRevenue = totalStripeRevenue > 0 ? totalStripeRevenue : totalDealValue;
       const totalROI = totalSpend > 0 ? actualRevenue / totalSpend : 0;
@@ -376,35 +431,92 @@ export const useMoneyMap = (dateRange: string) => {
       const ltv = closedDeals.length > 0 ? actualRevenue / closedDeals.length : 0;
       const ltvCacRatio = trueCac > 0 ? ltv / trueCac : 0;
 
+      // Real payback calculation: months to recoup CAC from monthly LTV
+      const payback = trueCac > 0 && ltv > 0
+        ? (trueCac / (ltv / 12)).toFixed(1) + " mo"
+        : "—";
+
+      // Compute prior period for real deltas
+      const presetToDays: Record<string, number> = {
+        today: 1, yesterday: 1, this_week: 7, last_week: 14,
+        this_month: 30, last_month: 60, this_quarter: 90, last_quarter: 180, this_year: 365,
+      };
+      const periodDays = presetToDays[dateRange] || 30;
+      const priorEnd = startDate;
+      const priorStartDate = new Date(startDate);
+      priorStartDate.setDate(priorStartDate.getDate() - periodDays);
+      const priorStart = priorStartDate.toISOString().split("T")[0];
+
+      // Prior period ads
+      const { data: priorAdsRaw } = await supabase
+        .from("facebook_ads_insights")
+        .select("spend, leads")
+        .gte("date", priorStart)
+        .lt("date", priorEnd);
+      const priorTotalSpend = (priorAdsRaw || []).reduce((s, r) => s + Number(r.spend || 0), 0);
+      const priorTotalLeads = (priorAdsRaw || []).reduce((s, r) => s + Number(r.leads || 0), 0);
+
+      // Prior period deals
+      const { data: priorDealsRaw } = await supabase
+        .from("deals")
+        .select("deal_value, amount, stage, created_at")
+        .gte("created_at", priorStart)
+        .lt("created_at", priorEnd);
+      const priorClosedDeals = (priorDealsRaw || []).filter((d) => wonStages.includes(d.stage || ""));
+      const priorDealValue = priorClosedDeals.reduce((s, d) => s + (Number(d.deal_value) || Number(d.amount) || 0), 0);
+
+      // Prior period stripe
+      const { data: priorStripeRaw } = await supabase
+        .from("stripe_transactions")
+        .select("amount, status, created_at")
+        .eq("status", "succeeded")
+        .gte("created_at", priorStart)
+        .lt("created_at", priorEnd);
+      const priorStripeRevenue = (priorStripeRaw || []).reduce((s, r) => s + Number(r.amount || 0), 0);
+
+      const priorRevenue = priorStripeRevenue > 0 ? priorStripeRevenue : priorDealValue;
+      const priorROI = priorTotalSpend > 0 ? priorRevenue / priorTotalSpend : 0;
+      const priorCac = priorTotalLeads > 0 ? priorTotalSpend / priorTotalLeads : 0;
+      const priorLtv = priorClosedDeals.length > 0 ? priorRevenue / priorClosedDeals.length : 0;
+      const priorLtvCacRatio = priorCac > 0 ? priorLtv / priorCac : 0;
+      const priorPaybackVal = priorCac > 0 && priorLtv > 0 ? priorCac / (priorLtv / 12) : 0;
+      const currentPaybackVal = trueCac > 0 && ltv > 0 ? trueCac / (ltv / 12) : 0;
+
+      const calcDelta = (current: number, priorVal: number) => {
+        if (priorVal === 0) return { value: 0, type: "neutral" as const };
+        const pct = Math.round(((current - priorVal) / priorVal) * 100);
+        return { value: Math.abs(pct), type: pct >= 0 ? "positive" as const : "negative" as const };
+      };
+
       const metrics = [
         {
           label: "Total ROI",
           value: `${totalROI.toFixed(1)}x`,
-          delta: { value: 1.2, type: "positive" as const },
+          delta: calcDelta(totalROI, priorROI),
           icon: "TrendingUp"
         },
         {
           label: "True CAC",
           value: `AED ${trueCac.toFixed(0)}`,
-          delta: { value: -142, type: "positive" as const },
+          delta: calcDelta(trueCac, priorCac),
           icon: "DollarSign"
         },
         {
           label: "LTV",
           value: `AED ${ltv.toFixed(0)}`,
-          delta: { value: 324, type: "positive" as const },
+          delta: calcDelta(ltv, priorLtv),
           icon: "DollarSign"
         },
         {
           label: "LTV:CAC",
           value: `${ltvCacRatio.toFixed(1)}:1`,
-          delta: { value: 0.3, type: "positive" as const },
+          delta: calcDelta(ltvCacRatio, priorLtvCacRatio),
           icon: "Target"
         },
         {
           label: "Payback",
-          value: "3.2 mo", // Simplified - would need more data for accurate calc
-          delta: { value: -0.8, type: "positive" as const },
+          value: payback,
+          delta: calcDelta(currentPaybackVal, priorPaybackVal),
           icon: "BarChart3"
         },
       ];

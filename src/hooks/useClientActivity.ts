@@ -35,7 +35,7 @@ export function useClientActivity() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("client_packages_live" as never)
-        .select("id, client_name, client_phone, client_email, package_name, remaining_sessions, total_sessions, package_value, last_coach, last_session_date, sessions_per_week, future_booked, next_session_date, depletion_priority, days_until_depleted, synced_at")
+        .select("id, client_name, client_phone, client_email, package_name, remaining_sessions, pack_size, package_value, last_coach, last_session_date, sessions_per_week, future_booked, next_session_date, depletion_priority, days_until_depleted, synced_at")
         .order("remaining_sessions", { ascending: true });
       if (error) throw error;
       return (data ?? []) as unknown as ClientPackage[];
@@ -50,7 +50,7 @@ export function useClientActivity() {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("training_sessions_live" as never)
-        .select("id, client_name, coach_name, session_date, session_type")
+        .select("id, client_name, coach_name, training_date, session_type")
         .gte("training_date", sevenDaysAgo)
         .order("training_date", { ascending: false });
       if (error) throw error;

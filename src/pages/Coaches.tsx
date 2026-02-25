@@ -185,7 +185,7 @@ export default function Coaches() {
   const { data: sessions } = useDedupedQuery<TrainingSessionLive[]>({
     queryKey: ["training-sessions-live"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("training_sessions_live").select("client_id, client_name, session_date, date");
+      const { data, error } = await supabase.from("training_sessions_live").select("client_id, client_name, training_date");
       if (error) throw error;
       return data || [];
     },
@@ -280,9 +280,9 @@ export default function Coaches() {
 
         const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
         const fourWeeksAgo = new Date(now.getTime() - 28 * 86400000);
-        const recent14 = clientSessions.filter((s: any) => new Date(s.session_date || s.date) >= twoWeeksAgo).length;
+        const recent14 = clientSessions.filter((s: any) => new Date(s.training_date) >= twoWeeksAgo).length;
         const prior14 = clientSessions.filter((s: any) => {
-          const d = new Date(s.session_date || s.date);
+          const d = new Date(s.training_date);
           return d >= fourWeeksAgo && d < twoWeeksAgo;
         }).length;
 
@@ -317,7 +317,7 @@ export default function Coaches() {
           last_session_date: pkg.last_session_date || null,
           days_since_last: daysSince,
           sessions_last_14d: recent14,
-          sessions_last_30d: clientSessions.filter((s: any) => new Date(s.session_date || s.date) >= new Date(now.getTime() - 30 * 86400000)).length,
+          sessions_last_30d: clientSessions.filter((s: any) => new Date(s.training_date) >= new Date(now.getTime() - 30 * 86400000)).length,
           total_sessions: clientSessions.length,
           health_score: health?.health_score ?? (pred?.churn_score != null ? (100 - (pred?.churn_score ?? 0)) : null),
           health_zone: health?.health_zone ?? (pred?.churn_score >= 70 ? "RED" : pred?.churn_score >= 40 ? "YELLOW" : "GREEN"),

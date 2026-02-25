@@ -14,6 +14,16 @@
       "count": 1,
       "last": "2026-02-16T04:39:44.156Z",
       "title": "**6. Add `attribution_intelligence` tool to tool-definitions.ts** — New tool that queries `view_atlas_lead_dna`. Actions: `get_lead_dna` (single lead full trace), `get_ad_performance` (ad-level ROI with real revenue), `get_setter_performance` (funnel by setter), `get_coach_performance` (client outcomes by coach), `get_revenue_attribution` (which campaigns/ads drove actual Stripe payments), `get_capacity_alert` (which segments are full). Add to tool-executor.ts."
+    },
+    "markdown:PRD-PHASE1-TRUTH-ENGINE.md:13": {
+      "count": 1,
+      "last": "2026-02-25T00:20:27.433Z",
+      "title": "Create SQL migration for view_attribution_coverage: Shows % of contacts with attribution data by lifecycle_stage. Answers \"how much of our pipeline has ad tracking?\""
+    },
+    "markdown:PRD-PHASE0-SAFETY.md:12": {
+      "count": 1,
+      "last": "2026-02-25T00:20:48.835Z",
+      "title": "Remove Anthropic dead code from these 11 files: ptd-ultimate-intelligence, system-health-check, ai-config-status, super-agent-orchestrator, churn-predictor, generate-lead-replies, intervention-recommender, verify-all-keys, unified-ai-client.ts. Remove commented-out Claude imports, dead model branches, and the ANTHROPIC_API_KEY references."
     }
   }
 }

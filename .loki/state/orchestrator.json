@@ -1,14 +1,32 @@
 {
   "currentPhase": "DEVELOPMENT",
-  "tasksCompleted": 1,
+  "sprint": "marketing-intelligence-completion",
+  "tasksCompleted": 0,
   "tasksFailed": 0,
-  "prdPhases": {
-    "phase1_deployment_verification": "in_progress",
-    "phase2_security_foundation": "not_started",
-    "phase3_api_hardening": "not_started",
-    "phase4_performance_validation": "not_started",
-    "phase5_attribution_pipeline": "not_started",
-    "phase6_testing": "not_started",
-    "phase7_cleanup": "not_started"
+  "tracks": {
+    "A_fix_hooks": {
+      "status": "pending",
+      "tasks": ["A1_useMarketingAnalytics", "A2_useTruthTriangle", "A3_useDeepIntelligence"],
+      "blockedBy": [],
+      "parallel": true
+    },
+    "B_fix_tabs": {
+      "status": "blocked",
+      "tasks": ["B1_wire_TruthTriangle", "B2_fix_thumbnails", "B3_unhide_DeepIntel", "B4_wire_StressTest"],
+      "blockedBy": ["A_fix_hooks"],
+      "parallel": true
+    },
+    "C_new_components": {
+      "status": "blocked",
+      "tasks": ["C1_SourceTruthMatrix", "C2_DailyOptimization", "C3_CohortWaterfall"],
+      "blockedBy": ["A_fix_hooks"],
+      "parallel": true
+    },
+    "D_final_wiring": {
+      "status": "blocked",
+      "tasks": ["D1_wire_page", "D2_build_check", "D3_commit"],
+      "blockedBy": ["B_fix_tabs", "C_new_components"],
+      "parallel": false
+    }
   }
 }

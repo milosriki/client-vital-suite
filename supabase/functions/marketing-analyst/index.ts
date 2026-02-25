@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -36,6 +37,23 @@ interface AnalystRecommendation {
   };
   signal_id: string | null;
 }
+
+export const AnalystRecommendationSchema = z.object({
+  ad_id: z.string().min(1),
+  ad_name: z.string().nullable(),
+  action: z.enum(["SCALE", "HOLD", "WATCH", "KILL", "REFRESH"]),
+  confidence: z.number().min(0).max(100),
+  reasoning: z.string(),
+  metrics: z.object({
+    roas_7d: z.number(),
+    show_rate: z.number(),
+    ghost_rate: z.number(),
+    health_avg: z.number(),
+    spend_7d: z.number(),
+    revenue_7d: z.number(),
+  }),
+  signal_id: z.string().nullable(),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   try {
@@ -173,16 +191,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     // 4. Validate + upsert recommendations
     const validRecs = recommendations.filter((r) => {
-      if (!r.action || !["SCALE", "HOLD", "WATCH", "KILL", "REFRESH"].includes(r.action)) {
-        console.warn("[Analyst] Dropping rec: invalid action", r.action);
-        return false;
-      }
-      if (typeof r.confidence !== "number" || r.confidence < 0 || r.confidence > 100) {
-        console.warn("[Analyst] Dropping rec: invalid confidence", r.confidence);
-        return false;
-      }
-      if (!r.ad_id) {
-        console.warn("[Analyst] Dropping rec: missing ad_id");
+      const result = AnalystRecommendationSchema.safeParse(r);
+      if (!result.success) {
+        structuredLog("marketing-analyst", "warn", "[Analyst] Dropping invalid recommendation", {
+          ad_id: r.ad_id,
+          errors: result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
+        });
         return false;
       }
       return true;

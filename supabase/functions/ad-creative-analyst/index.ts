@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -76,6 +77,30 @@ interface CreativeDNA {
   action_reason: string;
   priority: number; // 1 = highest
 }
+
+export const CreativeDNASchema = z.object({
+  ad_id: z.string().min(1),
+  ad_name: z.string(),
+  campaign_id: z.string(),
+  campaign_name: z.string(),
+  adset_id: z.string(),
+  adset_name: z.string(),
+  total_spend_aed: z.number().min(0),
+  cpa_aed: z.number().min(0),
+  cpc_aed: z.number().min(0),
+  ctr_pct: z.number().min(0),
+  conversion_rate_pct: z.number().min(0),
+  frequency: z.number().min(0),
+  quality_ranking: z.string(),
+  engagement_rate_ranking: z.string(),
+  conversion_rate_ranking: z.string(),
+  video_completion_rate_pct: z.number().min(0),
+  fatigue_status: z.enum(["OK", "WARNING", "CRITICAL"]),
+  fatigue_reason: z.string(),
+  action: z.enum(["KILL", "SCALE", "WATCH", "REFRESH", "HOLD"]),
+  action_reason: z.string(),
+  priority: z.number().int().min(1),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   try {
@@ -265,18 +290,35 @@ const handler = async (req: Request): Promise<Response> => {
     // Sort by priority then spend
     creatives.sort((a, b) => a.priority - b.priority || b.total_spend_aed - a.total_spend_aed);
 
+    // ── 5b. Validate creative DNA outputs ──────────────────────────────────
+    const validCreatives = creatives.filter((c) => {
+      const result = CreativeDNASchema.safeParse(c);
+      if (!result.success) {
+        structuredLog("ad-creative-analyst", "warn", "[CreativeAnalyst] Dropping invalid creative", {
+          ad_id: c.ad_id,
+          errors: result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
+        });
+        return false;
+      }
+      return true;
+    });
+    const droppedCount = creatives.length - validCreatives.length;
+    if (droppedCount > 0) {
+      structuredLog("ad-creative-analyst", "warn", `[CreativeAnalyst] ${droppedCount} creatives dropped by validation`);
+    }
+
     // ── 6. Summary Stats ────────────────────────────────────────────────────
-    const killCount = creatives.filter((c) => c.action === "KILL").length;
-    const scaleCount = creatives.filter((c) => c.action === "SCALE").length;
-    const criticalCount = creatives.filter((c) => c.fatigue_status === "CRITICAL").length;
-    const warningCount = creatives.filter((c) => c.fatigue_status === "WARNING").length;
-    const totalSpend = creatives.reduce((s, c) => s + c.total_spend_aed, 0);
-    const killSpend = creatives.filter((c) => c.action === "KILL").reduce((s, c) => s + c.total_spend_aed, 0);
+    const killCount = validCreatives.filter((c) => c.action === "KILL").length;
+    const scaleCount = validCreatives.filter((c) => c.action === "SCALE").length;
+    const criticalCount = validCreatives.filter((c) => c.fatigue_status === "CRITICAL").length;
+    const warningCount = validCreatives.filter((c) => c.fatigue_status === "WARNING").length;
+    const totalSpend = validCreatives.reduce((s, c) => s + c.total_spend_aed, 0);
+    const killSpend = validCreatives.filter((c) => c.action === "KILL").reduce((s, c) => s + c.total_spend_aed, 0);
 
     // ── 7. Write Recommendations to marketing_recommendations ───────────────
     // Schema: ad_id, ad_name, action, confidence, reasoning, metrics, status
     // Unique index: (ad_id, action)
-    const recommendations = creatives
+    const recommendations = validCreatives
       .filter((c) => ["KILL", "SCALE", "WATCH", "REFRESH"].includes(c.action))
       .map((c) => ({
         ad_id: c.ad_id,
@@ -312,7 +354,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     structuredLog("ad-creative-analyst", "info", "Creative DNA analysis complete", {
-      total_creatives: creatives.length,
+      total_creatives: validCreatives.length,
       kill: killCount,
       scale: scaleCount,
       critical_fatigue: criticalCount,
@@ -323,7 +365,7 @@ const handler = async (req: Request): Promise<Response> => {
       success: true,
       analysis_period_days: days,
       summary: {
-        total_creatives_analyzed: creatives.length,
+        total_creatives_analyzed: validCreatives.length,
         kill_recommendations: killCount,
         scale_recommendations: scaleCount,
         critical_fatigue: criticalCount,
@@ -332,7 +374,7 @@ const handler = async (req: Request): Promise<Response> => {
         kill_spend_at_risk_aed: Math.round(killSpend),
         recommendations_written: recommendations.length,
       },
-      creatives,
+      creatives: validCreatives,
     });
   } catch (error: unknown) {
     return handleError(error, "ad-creative-analyst", {

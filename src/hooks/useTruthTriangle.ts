@@ -30,17 +30,18 @@ export function useTruthTriangle() {
         .maybeSingle();
 
       if (error) throw error;
+      if (!data) return null;
 
       return {
         month: data.month || "",
-        meta_ad_spend: data.meta_ad_spend || 0,
-        hubspot_deal_value: data.hubspot_deal_value || 0,
-        stripe_gross_revenue: data.stripe_gross_revenue || 0,
-        meta_reported_revenue: data.meta_reported_revenue || 0,
-        hubspot_deal_count: data.hubspot_deal_count || 0,
-        gap_stripe_hubspot: data.gap_stripe_hubspot || 0,
-        true_roas_cash: data.true_roas_cash || 0,
-        pipeline_roas_booked: data.pipeline_roas_booked || 0,
+        meta_ad_spend: Number(data.meta_ad_spend) || 0,
+        hubspot_deal_value: Number(data.hubspot_deal_value) || 0,
+        stripe_gross_revenue: Number(data.stripe_gross_revenue) || 0,
+        meta_reported_revenue: Number(data.meta_reported_revenue) || 0,
+        hubspot_deal_count: Number(data.hubspot_deal_count) || 0,
+        gap_stripe_hubspot: Number(data.gap_stripe_hubspot) || 0,
+        true_roas_cash: Number(data.true_roas_cash) || 0,
+        pipeline_roas_booked: Number(data.pipeline_roas_booked) || 0,
       } as TruthTriangleData;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - this is monthly aggregated data

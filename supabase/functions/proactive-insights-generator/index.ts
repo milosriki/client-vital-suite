@@ -7,6 +7,7 @@ import {
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
@@ -17,6 +18,18 @@ import {
   apiCorsPreFlight,
 } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
+
+export const ProactiveInsightSchema = z.object({
+  insight_type: z.string().min(1),
+  priority: z.enum(["critical", "high", "medium", "low", "info"]),
+  status: z.string().optional(),
+  recommended_action: z.string().min(1),
+  reason: z.string(),
+  best_call_time: z.string(),
+  call_script: z.string(),
+});
+
+export const ProactiveInsightArraySchema = z.array(ProactiveInsightSchema);
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -389,11 +402,14 @@ Enhance these ${insights.length} insights with better call scripts and actions:\
         const content = response.content;
         try {
           const jsonMatch = content.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            aiEnhancedInsights = JSON.parse(jsonMatch[0]);
+          const rawParsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
+          const validation = ProactiveInsightArraySchema.safeParse(rawParsed);
+          if (validation.success) {
+            aiEnhancedInsights = validation.data;
           } else {
-            // Try parsing the whole thing if no array brackets found, might be a single object or just JSON
-            aiEnhancedInsights = JSON.parse(content);
+            structuredLog("proactive-insights-generator", "warn", "AI output failed schema validation, using original insights", {
+              errors: validation.error.issues.map((i) => `[${i.path.join(".")}]: ${i.message}`),
+            });
           }
         } catch (e) {
           console.log("AI response not JSON, using original insights");

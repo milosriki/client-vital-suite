@@ -112,15 +112,10 @@ export function useDeepIntelligence() {
   return useQuery({
     queryKey: ["deep-intelligence"],
     queryFn: async () => {
-      const [
-        baselinesRes,
-        funnelRes,
-        lossRes,
-        sourceRes,
-        projectionsRes,
-        truthRes,
-        briefRes,
-      ] = await Promise.all([
+      const safeResult = <T, F>(result: PromiseSettledResult<T>, fallback: F): T | F =>
+        result.status === 'fulfilled' ? result.value : fallback;
+
+      const results = await Promise.allSettled([
         // 1. Historical baselines (overall, 90d)
         supabase
           .from("historical_baselines")
@@ -170,6 +165,15 @@ export function useDeepIntelligence() {
           .order("brief_date", { ascending: false })
           .limit(1),
       ]);
+
+      const fallback = { data: null, error: null } as { data: null; error: null };
+      const baselinesRes = safeResult(results[0], fallback);
+      const funnelRes = safeResult(results[1], fallback);
+      const lossRes = safeResult(results[2], fallback);
+      const sourceRes = safeResult(results[3], fallback);
+      const projectionsRes = safeResult(results[4], fallback);
+      const truthRes = safeResult(results[5], fallback);
+      const briefRes = safeResult(results[6], fallback);
 
       // Aggregate loss reasons client-side
       const lossData = lossRes.data || [];

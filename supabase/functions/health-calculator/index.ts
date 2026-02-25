@@ -5,6 +5,7 @@ import {
 } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -520,6 +521,29 @@ export function calculateHealthScoreV3(
 }
 
 // ============================================
+// OUTPUT VALIDATION SCHEMA
+// ============================================
+
+export const HealthScoreUpsertSchema = z.object({
+  email: z.string().email(),
+  health_score: z.number().int().min(0).max(100),
+  health_zone: z.enum(["RED", "YELLOW", "GREEN", "PURPLE"]),
+  churn_risk_score: z.number().int().min(0).max(100),
+  health_trend: z.enum(["DECLINING", "STABLE", "IMPROVING"]),
+  calculated_at: z.string(),
+  calculation_version: z.string(),
+  sessions_last_7d: z.number().int().min(0),
+  sessions_last_30d: z.number().int().min(0),
+  engagement_score: z.number().min(0).max(100),
+  momentum_score: z.number().min(0).max(100),
+  package_health_score: z.number().min(0).max(100),
+  momentum_indicator: z.enum(["STABLE", "ACCELERATING", "DECLINING"]),
+  intervention_priority: z.enum(["CRITICAL", "HIGH", "NONE"]),
+  outstanding_sessions: z.number().min(0),
+  sessions_purchased: z.number().min(0),
+});
+
+// ============================================
 // HANDLER
 // ============================================
 
@@ -676,21 +700,35 @@ export async function handleRequest(req: Request) {
       });
     }
 
-    // 6. Write — use service role, upsert by email
+    // 6. Validate upsert payloads before writing
+    const validUpserts = upserts.filter((row) => {
+      const result = HealthScoreUpsertSchema.safeParse(row);
+      if (!result.success) {
+        console.warn(`[Health] Dropping invalid upsert for ${row.email}:`,
+          result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
+        return false;
+      }
+      return true;
+    });
+    if (validUpserts.length < upserts.length) {
+      console.warn(`[Health] ${upserts.length - validUpserts.length} rows dropped by schema validation`);
+    }
+
+    // 7. Write — use service role, upsert by email
     let writeSuccess = 0;
     let writeErrors: string[] = [];
-    if (upserts.length) {
+    if (validUpserts.length) {
       // Try batch first
       const { error: batchErr } = await supabase
         .from("client_health_scores")
-        .upsert(upserts, { onConflict: "email" });
-      
+        .upsert(validUpserts, { onConflict: "email" });
+
       if (batchErr) {
         console.error(`[Health] Batch upsert failed:`, JSON.stringify(batchErr));
         writeErrors.push(`Batch: ${batchErr.message}`);
-        
+
         // Fallback: individual writes
-        for (const row of upserts) {
+        for (const row of validUpserts) {
           const { error: singleErr } = await supabase
             .from("client_health_scores")
             .upsert(row, { onConflict: "email" });
@@ -702,7 +740,7 @@ export async function handleRequest(req: Request) {
         }
         console.log(`[Health] Individual writes: ${writeSuccess} ok, ${writeErrors.length - 1} failed`);
       } else {
-        writeSuccess = upserts.length;
+        writeSuccess = validUpserts.length;
         console.log(`[Health] Batch upsert OK: ${writeSuccess} rows`);
       }
     }

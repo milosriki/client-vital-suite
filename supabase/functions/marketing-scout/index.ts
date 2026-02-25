@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -28,6 +29,16 @@ interface ScoutSignal {
   evidence: Record<string, number>;
   agent_name: "scout";
 }
+
+export const ScoutSignalSchema = z.object({
+  signal_type: z.enum(["fatigue", "ghost_spike", "new_winner", "spend_anomaly"]),
+  ad_id: z.string().min(1),
+  ad_name: z.string().nullable(),
+  campaign_name: z.string().nullable(),
+  severity: z.enum(["info", "warning", "critical", "opportunity"]),
+  evidence: z.record(z.number()),
+  agent_name: z.literal("scout"),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   try {
@@ -188,16 +199,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     // 4. Validate + upsert signals
     const validSignals = signals.filter((s) => {
-      if (!s.signal_type || !["fatigue", "ghost_spike", "new_winner", "spend_anomaly"].includes(s.signal_type)) {
-        console.warn("[Scout] Dropping invalid signal: missing/invalid signal_type");
-        return false;
-      }
-      if (!s.ad_id) {
-        console.warn("[Scout] Dropping signal: missing ad_id");
-        return false;
-      }
-      if (!s.severity || !["info", "warning", "critical", "opportunity"].includes(s.severity)) {
-        console.warn("[Scout] Dropping signal: invalid severity");
+      const result = ScoutSignalSchema.safeParse(s);
+      if (!result.success) {
+        structuredLog("marketing-scout", "warn", "[Scout] Dropping invalid signal", {
+          ad_id: s.ad_id,
+          errors: result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
+        });
         return false;
       }
       return true;
