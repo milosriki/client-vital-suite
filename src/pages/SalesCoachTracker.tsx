@@ -88,10 +88,10 @@ interface CoachPerfRecord {
   id: number;
   coach_name: string;
   total_clients: number | null;
-  avg_health_score: number | null;
+  avg_client_health: number | null;
   clients_improving: number | null;
   clients_declining: number | null;
-  trend: string | null;
+  health_trend: string | null;
   report_date: string;
 }
 
@@ -174,7 +174,7 @@ const SalesCoachTracker = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("coach_performance")
-        .select("id, coach_name, total_clients, avg_health_score, clients_improving, clients_declining, trend, report_date")
+        .select("id, coach_name, total_clients, avg_client_health, clients_improving, clients_declining, health_trend, report_date")
         .order("report_date", { ascending: false });
       if (error) throw error;
       const seen = new Set<string>();
@@ -541,14 +541,14 @@ const SalesCoachTracker = () => {
                           <Badge
                             variant="secondary"
                             className={
-                              (cp.avg_health_score || 0) >= 70
+                              (cp.avg_client_health || 0) >= 70
                                 ? "bg-emerald-500/10 text-emerald-500"
-                                : (cp.avg_health_score || 0) >= 40
+                                : (cp.avg_client_health || 0) >= 40
                                   ? "bg-yellow-500/10 text-yellow-500"
                                   : "bg-red-500/10 text-red-500"
                             }
                           >
-                            {(cp.avg_health_score || 0).toFixed(0)}
+                            {(cp.avg_client_health || 0).toFixed(0)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-emerald-500">
@@ -558,8 +558,8 @@ const SalesCoachTracker = () => {
                           {cp.clients_declining || 0}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={cp.trend === "IMPROVING" ? "secondary" : cp.trend === "DECLINING" ? "destructive" : "outline"}>
-                            {cp.trend || "—"}
+                          <Badge variant={cp.health_trend === "IMPROVING" ? "secondary" : cp.health_trend === "DECLINING" ? "destructive" : "outline"}>
+                            {cp.health_trend || "—"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -761,8 +761,8 @@ const SalesCoachTracker = () => {
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Avg Health Score</p>
-                  <p className={`text-2xl font-bold ${(selectedCoach.avg_health_score || 0) >= 70 ? "text-emerald-500" : (selectedCoach.avg_health_score || 0) >= 40 ? "text-yellow-500" : "text-red-500"}`}>
-                    {(selectedCoach.avg_health_score || 0).toFixed(0)}
+                  <p className={`text-2xl font-bold ${(selectedCoach.avg_client_health || 0) >= 70 ? "text-emerald-500" : (selectedCoach.avg_client_health || 0) >= 40 ? "text-yellow-500" : "text-red-500"}`}>
+                    {(selectedCoach.avg_client_health || 0).toFixed(0)}
                   </p>
                 </div>
               </div>
@@ -780,8 +780,8 @@ const SalesCoachTracker = () => {
 
               <div className="p-3 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Trend</p>
-                <Badge variant={selectedCoach.trend === "IMPROVING" ? "secondary" : selectedCoach.trend === "DECLINING" ? "destructive" : "outline"} className="text-sm">
-                  {selectedCoach.trend || "—"}
+                <Badge variant={selectedCoach.health_trend === "IMPROVING" ? "secondary" : selectedCoach.health_trend === "DECLINING" ? "destructive" : "outline"} className="text-sm">
+                  {selectedCoach.health_trend || "—"}
                 </Badge>
               </div>
 
@@ -797,7 +797,7 @@ const SalesCoachTracker = () => {
                 <p className="text-sm font-medium">
                   {(selectedCoach.clients_declining || 0) > (selectedCoach.clients_improving || 0)
                     ? "More clients declining than improving — review coaching approach"
-                    : (selectedCoach.avg_health_score || 0) >= 70
+                    : (selectedCoach.avg_client_health || 0) >= 70
                     ? "Strong performance — clients are healthy and engaged"
                     : "Mixed results — focus on at-risk clients"}
                 </p>

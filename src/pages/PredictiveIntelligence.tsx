@@ -280,18 +280,19 @@ export default function PredictiveIntelligence() {
   };
 
   const getRecommendedAction = (c: ClientPrediction) => {
+    const f = c.churn_factors;
     // Use ML-generated action if available
-    const mlAction = (c.churn_factors as Record<string, unknown>)?.recommended_action as string | undefined;
+    const mlAction = (f as Record<string, unknown>)?.recommended_action as string | undefined;
     if (mlAction) return mlAction;
 
     if (c.churn_score >= 70) {
-      if (c.churn_factors.days_since_last_session > 21) return "Urgent: Schedule a personal check-in call immediately";
-      if (c.churn_factors.future_booked === 0) return "Book a complimentary session to re-engage";
+      if ((f?.days_since_last_session ?? 0) > 21) return "Urgent: Schedule a personal check-in call immediately";
+      if ((f?.future_booked ?? 1) === 0) return "Book a complimentary session to re-engage";
       return "Assign to retention specialist for immediate outreach";
     }
     if (c.churn_score >= 40) {
-      if (c.churn_factors.decline_rate > 0.3) return "Review program fit — consider switching coach or modality";
-      if (c.churn_factors.cancel_rate > 0.2) return "Address scheduling issues — offer flexible time slots";
+      if ((f?.decline_rate ?? 0) > 0.3) return "Review program fit — consider switching coach or modality";
+      if ((f?.cancel_rate ?? 0) > 0.2) return "Address scheduling issues — offer flexible time slots";
       return "Send personalized progress update and milestone reminder";
     }
     return "Continue current engagement — monitor monthly";
@@ -403,12 +404,12 @@ export default function PredictiveIntelligence() {
                           ))}
                           {!(factors?.top_risk_factors?.length) && (
                             <>
-                              {c.churn_factors.days_since_last_session > 14 && (
+                              {(factors?.days_since_last_session ?? 0) > 14 && (
                                 <Badge variant="outline" className="text-[10px]">
-                                  {c.churn_factors.days_since_last_session}d inactive
+                                  {factors?.days_since_last_session ?? 0}d inactive
                                 </Badge>
                               )}
-                              {c.churn_factors.future_booked === 0 && (
+                              {(factors?.future_booked ?? 1) === 0 && (
                                 <Badge variant="outline" className="text-[10px]">No bookings</Badge>
                               )}
                             </>
@@ -417,23 +418,23 @@ export default function PredictiveIntelligence() {
                       </TableCell>
                       <TableCell className="font-mono">{fmt(c.revenue_at_risk)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {c.churn_factors.days_since_last_session}d ago
+                        {factors?.days_since_last_session ?? 0}d ago
                       </TableCell>
                       <TableCell>
                         {getUrgencyBadge(factors?.action_urgency)}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          {c.churn_factors.phone && (
+                          {factors?.phone && (
                             <>
                               <Button variant="ghost" size="icon" className="h-7 w-7 cursor-pointer" asChild>
-                                <a href={`tel:${c.churn_factors.phone}`}>
+                                <a href={`tel:${factors.phone}`}>
                                   <Phone className="h-3.5 w-3.5" />
                                 </a>
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7 cursor-pointer" asChild>
                                 <a
-                                  href={`https://wa.me/${c.churn_factors.phone.replace(/[^0-9]/g, '')}`}
+                                  href={`https://wa.me/${factors.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
@@ -550,8 +551,8 @@ export default function PredictiveIntelligence() {
                   {(cf?.top_risk_factors ?? []).map((f: string, i: number) => (
                     <Badge key={i} variant="destructive" className="text-xs">{f}</Badge>
                   ))}
-                  {selectedClient.churn_factors.remaining_sessions !== undefined && (
-                    <Badge variant="outline" className="text-xs">{selectedClient.churn_factors.remaining_sessions} sessions remaining</Badge>
+                  {cf?.remaining_sessions !== undefined && (
+                    <Badge variant="outline" className="text-xs">{cf.remaining_sessions} sessions remaining</Badge>
                   )}
                 </div>
               </div>
@@ -600,15 +601,15 @@ export default function PredictiveIntelligence() {
               )}
 
               {/* Contact Actions */}
-              {selectedClient.churn_factors.phone && (
+              {cf?.phone && (
                 <div className="flex gap-2">
                   <Button className="flex-1 cursor-pointer" variant="outline" asChild>
-                    <a href={`tel:${selectedClient.churn_factors.phone}`}>
+                    <a href={`tel:${cf.phone}`}>
                       <Phone className="h-4 w-4 mr-2" /> Call Client
                     </a>
                   </Button>
                   <Button className="flex-1 cursor-pointer" variant="outline" asChild>
-                    <a href={`https://wa.me/${selectedClient.churn_factors.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer">
+                    <a href={`https://wa.me/${cf.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer">
                       <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
                     </a>
                   </Button>

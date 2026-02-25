@@ -116,7 +116,7 @@ function SuspenseTable({ children }: { children: React.ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<PageSkeleton variant="table" />}>{children}</Suspense></ErrorBoundary>;
 }
 function SuspenseDetail({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<PageSkeleton variant="detail" />}>{children}</Suspense>;
+  return <ErrorBoundary><Suspense fallback={<PageSkeleton variant="detail" />}>{children}</Suspense></ErrorBoundary>;
 }
 
 // Initialize Sentry
@@ -154,9 +154,9 @@ const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     children: [
       // Primary routes
-      { index: true, element: <SuspensePage><ErrorBoundary><ExecutiveOverview /></ErrorBoundary></SuspensePage> },
-      { path: "/dashboard", element: <SuspensePage><ErrorBoundary><ExecutiveOverview /></ErrorBoundary></SuspensePage> },
-      { path: "/command-center", element: <SuspensePage><ErrorBoundary><CommandCenter /></ErrorBoundary></SuspensePage> },
+      { index: true, element: <SuspensePage><ExecutiveOverview /></SuspensePage> },
+      { path: "/dashboard", element: <SuspensePage><ExecutiveOverview /></SuspensePage> },
+      { path: "/command-center", element: <SuspensePage><CommandCenter /></SuspensePage> },
       { path: "/marketing", element: <SuspensePage><MarketingIntelligence /></SuspensePage> },
       { path: "/sales-pipeline", element: <SuspensePage><SalesPipeline /></SuspensePage> },
       { path: "/revenue", element: <SuspensePage><RevenueIntelligence /></SuspensePage> },

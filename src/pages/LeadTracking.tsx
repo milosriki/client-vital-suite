@@ -52,10 +52,9 @@ interface Contact {
   email: string | null;
   phone: string | null;
   lifecycle_stage: string | null;
-  lead_source: string | null;
-  hs_analytics_source: string | null;
-  hs_analytics_source_data_1: string | null;
-  hs_analytics_source_data_2: string | null;
+  attribution_source: string | null;
+  latest_source_data_1: string | null;
+  latest_source_data_2: string | null;
   created_at: string | null;
   city: string | null;
   state: string | null;
@@ -118,7 +117,7 @@ export default function LeadTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contacts")
-        .select("id, first_name, last_name, email, phone, lifecycle_stage, lead_source, hs_analytics_source, hs_analytics_source_data_1, hs_analytics_source_data_2, created_at, city, state")
+        .select("id, first_name, last_name, email, phone, lifecycle_stage, attribution_source, latest_source_data_1, latest_source_data_2, created_at, city, state")
         .limit(15000);
       if (error) throw error;
       return (data ?? []) as Contact[];
@@ -236,7 +235,7 @@ function PipelineTab({ contacts, isLoading }: { contacts: Contact[]; isLoading: 
   const sourceBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     contacts.forEach((c) => {
-      const src = c.hs_analytics_source || "Unknown";
+      const src = c.attribution_source || "Unknown";
       map[src] = (map[src] || 0) + 1;
     });
     return Object.entries(map)
@@ -328,7 +327,7 @@ function PipelineTab({ contacts, isLoading }: { contacts: Contact[]; isLoading: 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" /> Top Sources (hs_analytics_source)
+            <BarChart3 className="h-5 w-5" /> Top Sources
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -372,7 +371,7 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
 
   const sources = useMemo(() => {
     const s = new Set<string>();
-    leads.forEach((l) => { if (l.hs_analytics_source) s.add(l.hs_analytics_source); });
+    leads.forEach((l) => { if (l.attribution_source) s.add(l.attribution_source); });
     return Array.from(s).sort();
   }, [leads]);
 
@@ -380,7 +379,7 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
 
   const displayed = useMemo(() => {
     let rows = [...leads];
-    if (sourceFilter !== "all") rows = rows.filter((r) => r.hs_analytics_source === sourceFilter);
+    if (sourceFilter !== "all") rows = rows.filter((r) => r.attribution_source === sourceFilter);
     if (search) {
       const q = search.toLowerCase();
       rows = rows.filter(
@@ -426,7 +425,7 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
         `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
         r.email ?? "",
         r.phone ?? "",
-        r.hs_analytics_source ?? "",
+        r.attribution_source ?? "",
         r.created_at ? format(new Date(r.created_at), "yyyy-MM-dd") : "",
         String(daysSince(r.created_at)),
       ]),
@@ -505,7 +504,7 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
                     <td className="p-3 text-muted-foreground">{c.email ?? "—"}</td>
                     <td className="p-3 text-muted-foreground">{c.phone ?? "—"}</td>
                     <td className="p-3">
-                      <Badge variant="outline" className="text-xs">{c.hs_analytics_source ?? "—"}</Badge>
+                      <Badge variant="outline" className="text-xs">{c.attribution_source ?? "—"}</Badge>
                     </td>
                     <td className="p-3 text-muted-foreground">
                       {c.created_at ? format(new Date(c.created_at), "MMM d, yyyy") : "—"}
@@ -542,15 +541,15 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> {selectedContact.email ?? "—"}</div>
                 <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> {selectedContact.phone ?? "—"}</div>
-                <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-muted-foreground" /> {selectedContact.hs_analytics_source ?? "—"}</div>
+                <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-muted-foreground" /> {selectedContact.attribution_source ?? "—"}</div>
                 <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" /> {selectedContact.created_at ? format(new Date(selectedContact.created_at), "MMM d, yyyy") : "—"}</div>
                 <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" /> {daysSince(selectedContact.created_at)} days old</div>
                 <div className="flex items-center gap-2"><Target className="h-4 w-4 text-muted-foreground" /> {selectedContact.lifecycle_stage ?? "—"}</div>
               </div>
-              {selectedContact.hs_analytics_source_data_1 && (
+              {selectedContact.latest_source_data_1 && (
                 <div className="text-sm text-muted-foreground">
-                  Source detail: {selectedContact.hs_analytics_source_data_1}
-                  {selectedContact.hs_analytics_source_data_2 && ` · ${selectedContact.hs_analytics_source_data_2}`}
+                  Source detail: {selectedContact.latest_source_data_1}
+                  {selectedContact.latest_source_data_2 && ` · ${selectedContact.latest_source_data_2}`}
                 </div>
               )}
               {contactDeals.length > 0 && (
@@ -695,7 +694,7 @@ function SourceAnalysisTab({ contacts, isLoading }: { contacts: Contact[]; isLoa
   const analysis = useMemo(() => {
     const map: Record<string, { total: number; leads: number; opportunities: number; customers: number }> = {};
     contacts.forEach((c) => {
-      const src = c.hs_analytics_source || "Unknown";
+      const src = c.attribution_source || "Unknown";
       if (!map[src]) map[src] = { total: 0, leads: 0, opportunities: 0, customers: 0 };
       map[src].total++;
       const stage = (c.lifecycle_stage ?? "").toLowerCase();
