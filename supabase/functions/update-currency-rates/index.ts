@@ -7,6 +7,24 @@ const corsHeaders = {
 };
 
 /**
+ * Inverts open.er-api.com rates (which are X-per-1-AED) to AED-per-1-X.
+ * Exported for unit testing.
+ */
+export function invertRates(
+  rawRates: Record<string, number>,
+): Record<string, number> {
+  const rates: Record<string, number> = {};
+  for (const [currency, rateFromAED] of Object.entries(rawRates)) {
+    const key = currency.toLowerCase();
+    if (rateFromAED && typeof rateFromAED === "number" && rateFromAED > 0) {
+      rates[key] = parseFloat((1 / rateFromAED).toFixed(6));
+    }
+  }
+  rates["aed"] = 1;
+  return rates;
+}
+
+/**
  * update-currency-rates
  * ─────────────────────
  * Fetches live AED exchange rates from open.er-api.com (free, no key required)
@@ -15,7 +33,7 @@ const corsHeaders = {
  * Cron: daily at 06:00 Dubai time (02:00 UTC)
  * Scheduled via pg_cron — see migration 20260225000001_add_currency_rate_cron.sql
  */
-serve(async (req: Request) => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -41,20 +59,8 @@ serve(async (req: Request) => {
 
     // open.er-api.com returns { "rates": { "USD": 0.272, "EUR": 0.251, ... } }
     // We store the INVERSE (currency → AED) for stripe-dashboard-data compatibility
-    const rates: Record<string, number> = {};
     const rawRates: Record<string, number> = payload.rates || {};
-
-    for (const [currency, rateFromAED] of Object.entries(rawRates)) {
-      const key = currency.toLowerCase();
-      // rateFromAED = how many of this currency per 1 AED
-      // We want: how many AED per 1 of this currency → inverse
-      if (rateFromAED && typeof rateFromAED === "number" && rateFromAED > 0) {
-        rates[key] = parseFloat((1 / rateFromAED).toFixed(6));
-      }
-    }
-
-    // Always ensure AED = 1
-    rates["aed"] = 1;
+    const rates = invertRates(rawRates);
 
     const storedValue = {
       rates,
@@ -114,4 +120,6 @@ serve(async (req: Request) => {
       },
     );
   }
-});
+}
+
+serve(handler);
