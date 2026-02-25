@@ -404,7 +404,7 @@ serve(async (req: Request) => {
     // 3. Fetch training sessions for last N days
     const { data: sessions, error: sessErr } = await supabase
       .from("training_sessions_live")
-      .select("id, coach_name, client_name, training_date, status, time_slot, session_start, session_end")
+      .select("id, coach_name, client_name, training_date, status, time_slot")
       .gte("training_date", since)
       .lte("training_date", `${targetDate}T23:59:59`);
     if (sessErr) throw sessErr;
@@ -548,7 +548,7 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : typeof err === "object" ? JSON.stringify(err) : String(err);
     console.error("[gps-pattern-analyzer] Error:", msg);
     return new Response(JSON.stringify({ success: false, error: msg }), {
       status: 500,
