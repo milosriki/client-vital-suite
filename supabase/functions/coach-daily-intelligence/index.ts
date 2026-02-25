@@ -2,25 +2,16 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-interface CoachDay {
-  coach_name: string;
-  sessions_scheduled: number;
-  sessions_completed: number;
-  sessions_cancelled: number;
-  cancel_rate: number;
-  completion_rate: number;
-}
-
-interface GPSPattern {
-  coach_name: string;
-  gps_verified: number;
-  gps_mismatch: number;
-  no_gps: number;
-  ghost_session_count: number;
-  verification_rate: number;
-  late_arrival_count: number;
-  early_departure_count: number;
-}
+/**
+ * Coach Daily Intelligence v2.0
+ * 
+ * FIXES from engineering audit:
+ * 1. GPS data is per-day (only counts sessions ON target date, not cumulative)
+ * 2. Trust score ignores 'mismatch' (PTD is home-visit — not-at-POI is NORMAL)
+ * 3. Formula based on ghost_rate + cancel_rate (ratios, not raw counts)
+ * 4. Name normalization via coach_name_map table
+ * 5. Properly separates daily metrics from cumulative patterns
+ */
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -30,13 +21,11 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const targetDate = new URL(req.url).searchParams.get("date") || 
+  const targetDate = new URL(req.url).searchParams.get("date") ||
     new Date().toISOString().split("T")[0];
 
-  const results: string[] = [];
-
   try {
-    // 1. Get session stats for the target date
+    // 1. Get ALL sessions for the target date
     const { data: sessions } = await supabase
       .from("training_sessions_live")
       .select("coach_name, status, time_slot, training_date, location, client_name")
@@ -44,42 +33,70 @@ Deno.serve(async (req) => {
       .lte("training_date", `${targetDate}T23:59:59`);
 
     if (!sessions || sessions.length === 0) {
-      return new Response(JSON.stringify({ 
-        date: targetDate, message: "No sessions found", results: [] 
+      return new Response(JSON.stringify({
+        date: targetDate, message: "No sessions found", results: []
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Group by coach
-    const byCoach: Record<string, typeof sessions> = {};
-    for (const s of sessions) {
-      if (!byCoach[s.coach_name]) byCoach[s.coach_name] = [];
-      byCoach[s.coach_name].push(s);
-    }
-
-    // 2. Get GPS patterns (latest analysis)
-    const { data: gpsPatterns } = await supabase
-      .from("coach_gps_patterns")
-      .select("coach_name, gps_verified, gps_mismatch, no_gps, ghost_session_count, verification_rate, late_arrival_count, early_departure_count")
-      .eq("analysis_date", targetDate);
-
-    const gpsMap: Record<string, GPSPattern> = {};
-    for (const g of (gpsPatterns || [])) {
-      gpsMap[g.coach_name.toLowerCase().trim()] = g;
-    }
-
-    // 3. Get name mappings for fuzzy match
+    // 2. Get name mappings for normalization
     const { data: nameMaps } = await supabase
       .from("coach_name_map")
       .select("gps_name, session_name");
 
-    const sessionToGPS: Record<string, string> = {};
+    // Build bidirectional normalize map: any variant → canonical name
+    const normalizeMap: Record<string, string> = {};
     for (const m of (nameMaps || [])) {
-      sessionToGPS[m.session_name.toLowerCase().trim()] = m.gps_name.toLowerCase().trim();
+      // Use session_name as canonical (since sessions are the business truth)
+      const canonical = m.session_name.trim();
+      normalizeMap[m.gps_name.toLowerCase().trim()] = canonical;
+      normalizeMap[m.session_name.toLowerCase().trim()] = canonical;
     }
 
-    // 4. Build trust ledger entries
+    function normalize(name: string): string {
+      const key = name.toLowerCase().trim();
+      return normalizeMap[key] || name.trim();
+    }
+
+    // 3. Group sessions by NORMALIZED coach name
+    const byCoach: Record<string, typeof sessions> = {};
+    for (const s of sessions) {
+      const name = normalize(s.coach_name);
+      if (!byCoach[name]) byCoach[name] = [];
+      byCoach[name].push(s);
+    }
+
+    // 4. Get GPS data FOR THIS DAY ONLY
+    //    We need raw location events + device data, not the cumulative patterns
+    const { data: devices } = await supabase
+      .from("mdm_devices")
+      .select("tinymdm_device_id, coach_name, last_location_at, battery_level, is_online")
+      .not("coach_name", "like", "SM-%");
+
+    // Build coach → device IDs map (normalized)
+    const coachDevices: Record<string, string[]> = {};
+    for (const d of (devices || [])) {
+      const name = normalize(d.coach_name);
+      if (!coachDevices[name]) coachDevices[name] = [];
+      coachDevices[name].push(d.tinymdm_device_id);
+    }
+
+    // Get GPS pings for target date
+    const { data: pings } = await supabase
+      .from("mdm_location_events")
+      .select("device_id, recorded_at, lat, lng")
+      .gte("recorded_at", `${targetDate}T00:00:00`)
+      .lte("recorded_at", `${targetDate}T23:59:59`);
+
+    // Group pings by device
+    const pingsByDevice: Record<string, Array<{ recorded_at: string; lat: number; lng: number }>> = {};
+    for (const p of (pings || [])) {
+      if (!pingsByDevice[p.device_id]) pingsByDevice[p.device_id] = [];
+      pingsByDevice[p.device_id].push(p);
+    }
+
+    // 5. For each coach, count daily GPS metrics
     const ledgerEntries = [];
-    const alerts: Array<{coach: string; type: string; detail: string; severity: string}> = [];
+    const alerts: Array<{ coach: string; type: string; detail: string; severity: string }> = [];
 
     for (const [coach, coachSessions] of Object.entries(byCoach)) {
       const total = coachSessions.length;
@@ -88,66 +105,148 @@ Deno.serve(async (req) => {
       const cancelRate = total > 0 ? (cancelled / total) * 100 : 0;
       const completionRate = total > 0 ? (completed / total) * 100 : 0;
 
-      // Find GPS data (try exact match, then fuzzy)
-      const coachKey = coach.toLowerCase().trim();
-      const gpsKey = sessionToGPS[coachKey] || coachKey;
-      const gps = gpsMap[gpsKey] || gpsMap[coachKey];
+      // Get this coach's pings for the day
+      const deviceIds = coachDevices[coach] || [];
+      const coachPings: Array<{ recorded_at: string; lat: number; lng: number }> = [];
+      for (const devId of deviceIds) {
+        coachPings.push(...(pingsByDevice[devId] || []));
+      }
 
-      const ghosts = gps?.ghost_session_count || 0;
-      const verified = gps?.gps_verified || 0;
-      const mismatch = gps?.gps_mismatch || 0;
-      const noGps = gps?.no_gps || 0;
-      const vfyRate = gps?.verification_rate || 0;
-      const lateArrivals = gps?.late_arrival_count || 0;
-      const earlyDepartures = gps?.early_departure_count || 0;
+      // Count per-session GPS status (DAILY, not cumulative)
+      let dailyVerified = 0;
+      let dailyNoGps = 0;
+      let dailyGhost = 0;
+      let dailyActive = 0; // GPS active but not at POI — NORMAL for home visits
 
-      // Trust score calculation (0-100)
+      // CRITICAL: Check if coach had ANY GPS pings today
+      // If zero pings all day → infrastructure issue (no_data), NOT ghost
+      // Ghost = device was ON that day but no pings near session window
+      const coachHadGpsToday = coachPings.length > 0;
+
+      for (const session of coachSessions) {
+        // Parse session time window
+        const timeSlot = session.time_slot || "";
+        const trainingDate = session.training_date || "";
+
+        // Build session window (±30min)
+        let sessionStart: Date | null = null;
+        let sessionEnd: Date | null = null;
+
+        if (timeSlot && trainingDate) {
+          const dateStr = trainingDate.split("T")[0];
+          const timeMatch = timeSlot.match(/^(\d{2}):(\d{2})/);
+          if (timeMatch) {
+            // time_slot is in Dubai time (UTC+4), training_date is in UTC
+            const h = parseInt(timeMatch[1]);
+            const m = parseInt(timeMatch[2]);
+            sessionStart = new Date(`${dateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00Z`);
+            // Adjust from Dubai to UTC: subtract 4 hours
+            sessionStart = new Date(sessionStart.getTime() - 4 * 3600000);
+            sessionEnd = new Date(sessionStart.getTime() + 60 * 60000); // 60min session
+          }
+        }
+
+        if (!sessionStart || !sessionEnd) {
+          dailyNoGps++; // Can't verify without time
+          continue;
+        }
+
+        // Search window: ±30 min
+        const searchStart = new Date(sessionStart.getTime() - 30 * 60000);
+        const searchEnd = new Date(sessionEnd.getTime() + 30 * 60000);
+
+        // Filter pings in window
+        const pingsInWindow = coachPings.filter(p => {
+          const t = new Date(p.recorded_at);
+          return t >= searchStart && t <= searchEnd;
+        });
+
+        const isCompleted = session.status === "Completed";
+
+        if (pingsInWindow.length === 0) {
+          if (!coachHadGpsToday) {
+            // No GPS infrastructure that day — NOT a ghost, just missing data
+            dailyNoGps++;
+          } else {
+            // Device was ON today but no pings during THIS session
+            // This is a REAL ghost if session was marked Completed
+            if (isCompleted) {
+              dailyGhost++;
+            } else {
+              dailyNoGps++;
+            }
+          }
+        } else {
+          // GPS was active during session — for home visits, this IS verification
+          // (coach is out and about, device is on)
+          dailyActive++;
+          dailyVerified++; // GPS active = verified presence (for home-visit model)
+        }
+      }
+
+      // TRUST SCORE v2.0 — designed for home-visit PT business
+      // Only penalize: ghosts (device OFF during completed session) + cancellations
+      // Do NOT penalize 'mismatch' (not-at-POI is normal for home visits)
       let trustScore = 100;
-      trustScore -= ghosts * 10;          // -10 per ghost
-      trustScore -= mismatch * 3;         // -3 per mismatch
-      trustScore -= noGps * 2;            // -2 per no-GPS
-      trustScore -= cancelled * 5;        // -5 per cancel
-      trustScore += verified * 5;         // +5 per verified
-      trustScore += completed * 2;        // +2 per completed
+
+      // Ghost penalty: -15 per ghost (device OFF during session is serious)
+      trustScore -= dailyGhost * 15;
+
+      // Cancel penalty: proportional to rate, not count
+      if (cancelRate > 40) trustScore -= 30;
+      else if (cancelRate > 25) trustScore -= 15;
+      else if (cancelRate > 10) trustScore -= 5;
+
+      // No-GPS penalty: -3 per session with no data (mild — could be network issue)
+      trustScore -= dailyNoGps * 3;
+
+      // Completion bonus: +3 per completed session
+      trustScore += completed * 3;
+
+      // Verification bonus: +2 per GPS-confirmed session
+      trustScore += dailyVerified * 2;
+
       trustScore = Math.max(0, Math.min(100, trustScore));
 
-      const riskLevel = ghosts > 5 ? "critical" : ghosts > 2 ? "high" : 
-        cancelRate > 30 ? "high" : cancelRate > 15 ? "medium" : "normal";
+      const ghostRate = total > 0 ? (dailyGhost / total) * 100 : 0;
+      const riskLevel =
+        dailyGhost >= 2 && ghostRate > 50 ? "critical" :
+        dailyGhost >= 1 || cancelRate > 40 ? "high" :
+        cancelRate > 20 || dailyNoGps > total * 0.5 ? "medium" :
+        "normal";
 
-      // Generate anomalies
+      // Generate anomalies (DAILY)
       const anomalies: string[] = [];
-      if (ghosts > 0) anomalies.push(`${ghosts} ghost sessions`);
-      if (cancelRate > 30) anomalies.push(`${cancelRate.toFixed(0)}% cancel rate`);
-      if (noGps > total * 0.5) anomalies.push(`${noGps}/${total} sessions with no GPS`);
-      if (lateArrivals > 0) anomalies.push(`${lateArrivals} late arrivals`);
+      if (dailyGhost > 0) anomalies.push(`${dailyGhost} ghost sessions TODAY`);
+      if (cancelRate > 30) anomalies.push(`${cancelRate.toFixed(0)}% cancel rate TODAY`);
+      if (dailyNoGps > 0 && dailyNoGps === total) anomalies.push(`ALL ${total} sessions had no GPS`);
 
-      // Generate alerts
-      if (ghosts >= 3) {
-        alerts.push({ coach, type: "GHOST_SESSIONS", 
-          detail: `${ghosts} ghost sessions detected — device inactive during booked sessions`, 
-          severity: "critical" });
-      }
-      if (cancelRate > 40) {
-        alerts.push({ coach, type: "HIGH_CANCELLATION",
-          detail: `${cancelRate.toFixed(0)}% cancel rate (${cancelled}/${total} sessions)`,
-          severity: "high" });
-      }
-      if (noGps === total && total > 2) {
-        alerts.push({ coach, type: "GPS_DARK",
-          detail: `Zero GPS data for ALL ${total} sessions — device may be disabled`,
-          severity: "critical" });
-      }
-
-      // AI insights based on patterns
+      // Generate insights
       const aiInsights: string[] = [];
-      if (ghosts > 0 && cancelRate > 20) {
-        aiInsights.push(`Combined ghost sessions (${ghosts}) and cancellations (${cancelRate.toFixed(0)}%) suggest potential attendance issues`);
+      if (dailyGhost > 0 && cancelled > 0) {
+        aiInsights.push(`Both ghost (${dailyGhost}) and cancel (${cancelled}) on same day — may indicate no-show pattern`);
       }
-      if (verified > 0 && mismatch > verified * 3) {
-        aiInsights.push(`Only ${verified} verified vs ${mismatch} mismatches — coach may be consistently at non-POI locations (home visits?)`);
+      if (completed > 3 && dailyGhost === 0 && cancelRate < 10) {
+        aiInsights.push(`Strong day: ${completed} completions, GPS active, low cancellation`);
       }
-      if (completed > 5 && ghosts === 0 && cancelRate < 10) {
-        aiInsights.push(`Strong performer: ${completed} completions, 0 ghosts, low cancellation`);
+      if (dailyNoGps === total && total > 0) {
+        aiInsights.push(`Device may be off or out of battery — zero GPS all day (${total} sessions)`);
+      }
+
+      // Alerts
+      if (dailyGhost >= 2) {
+        alerts.push({
+          coach, type: "GHOST_SESSIONS",
+          detail: `${dailyGhost} ghost sessions TODAY — device offline during completed sessions`,
+          severity: "critical"
+        });
+      }
+      if (cancelRate > 50 && total >= 3) {
+        alerts.push({
+          coach, type: "HIGH_CANCELLATION",
+          detail: `${cancelRate.toFixed(0)}% cancel rate today (${cancelled}/${total})`,
+          severity: "high"
+        });
       }
 
       ledgerEntries.push({
@@ -156,55 +255,64 @@ Deno.serve(async (req) => {
         sessions_scheduled: total,
         sessions_completed: completed,
         sessions_cancelled: cancelled,
-        gps_verified: verified,
-        gps_mismatch: mismatch,
-        gps_no_data: noGps,
-        ghost_sessions: ghosts,
-        late_arrivals: lateArrivals,
-        early_departures: earlyDepartures,
+        gps_verified: dailyVerified,
+        gps_mismatch: 0, // NOT used in home-visit model
+        gps_no_data: dailyNoGps,
+        ghost_sessions: dailyGhost,
+        late_arrivals: 0,
+        early_departures: 0,
         trust_score: trustScore,
         risk_level: riskLevel,
         cancel_rate: cancelRate,
         completion_rate: completionRate,
-        verification_rate: vfyRate,
+        verification_rate: total > 0 ? (dailyVerified / total) * 100 : 0,
         anomalies: JSON.stringify(anomalies),
         ai_insights: JSON.stringify(aiInsights),
       });
     }
 
-    // 5. Upsert to trust ledger
+    // 6. Upsert to trust ledger
     const { error: upsertError } = await supabase
       .from("coach_trust_ledger")
       .upsert(ledgerEntries, { onConflict: "coach_name,ledger_date" });
 
+    const resultMessages: string[] = [];
     if (upsertError) {
-      results.push(`❌ Ledger upsert error: ${upsertError.message}`);
+      resultMessages.push(`❌ Ledger upsert error: ${upsertError.message}`);
     } else {
-      results.push(`✅ ${ledgerEntries.length} coach-days written to trust ledger`);
+      resultMessages.push(`✅ ${ledgerEntries.length} coach-days written to trust ledger`);
     }
 
-    // 6. Build daily intelligence report
+    // 7. Build report
     const report = {
       date: targetDate,
+      version: "2.0",
+      model: "home-visit-pt",
       total_sessions: sessions.length,
       total_coaches: Object.keys(byCoach).length,
       completed: sessions.filter(s => s.status === "Completed").length,
       cancelled: sessions.filter(s => (s.status || "").includes("Cancel")).length,
-      cancel_rate: (sessions.filter(s => (s.status || "").includes("Cancel")).length / sessions.length * 100).toFixed(1),
+      gps_pings_today: (pings || []).length,
+      devices_with_data: Object.keys(pingsByDevice).length,
       alerts_critical: alerts.filter(a => a.severity === "critical").length,
       alerts_high: alerts.filter(a => a.severity === "high").length,
-      fraud_suspects: ledgerEntries.filter(e => e.ghost_sessions > 5).map(e => ({
-        coach: e.coach_name, ghosts: e.ghost_sessions, trust_score: e.trust_score
-      })),
-      high_risk: ledgerEntries.filter(e => e.risk_level === "high" || e.risk_level === "critical").map(e => ({
-        coach: e.coach_name, ghosts: e.ghost_sessions, cancel_rate: e.cancel_rate.toFixed(0),
-        trust_score: e.trust_score
-      })),
-      top_performers: ledgerEntries.filter(e => e.trust_score >= 80).map(e => ({
-        coach: e.coach_name, completed: e.sessions_completed, trust: e.trust_score
-      })),
+      high_risk: ledgerEntries
+        .filter(e => e.risk_level === "high" || e.risk_level === "critical")
+        .map(e => ({
+          coach: e.coach_name, ghosts: e.ghost_sessions, noGps: e.gps_no_data,
+          cancel_rate: e.cancel_rate.toFixed(0), trust: e.trust_score, risk: e.risk_level
+        })),
+      top_performers: ledgerEntries
+        .filter(e => e.trust_score >= 80 && e.sessions_completed > 0)
+        .map(e => ({ coach: e.coach_name, completed: e.sessions_completed, trust: e.trust_score })),
+      formula_notes: [
+        "Trust v2.0: ghost=-15, cancel(>40%)=-30, noGPS=-3, completed=+3, verified=+2",
+        "Mismatch NOT penalized (home-visit model: not-at-POI is expected)",
+        "Ghost = device OFF during Completed session (most serious signal)",
+        "All metrics are PER-DAY (not cumulative)"
+      ],
       alerts,
-      results,
+      results: resultMessages,
     };
 
     return new Response(JSON.stringify(report), {

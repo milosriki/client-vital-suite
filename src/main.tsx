@@ -105,13 +105,15 @@ const EnterpriseKnowledgeBase = lazyWithRetry(() => import("./pages/enterprise/K
 // Suspense wrapper helpers with per-route skeleton variants
 function SuspensePage({ children, variant = "dashboard" }: { children: React.ReactNode; variant?: "dashboard" | "table" | "detail" | "cards" }) {
   return (
-    <Suspense fallback={<PageSkeleton variant={variant} />}>
-      {children}
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<PageSkeleton variant={variant} />}>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 function SuspenseTable({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<PageSkeleton variant="table" />}>{children}</Suspense>;
+  return <ErrorBoundary><Suspense fallback={<PageSkeleton variant="table" />}>{children}</Suspense></ErrorBoundary>;
 }
 function SuspenseDetail({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageSkeleton variant="detail" />}>{children}</Suspense>;

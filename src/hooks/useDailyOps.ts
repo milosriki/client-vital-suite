@@ -71,24 +71,35 @@ export function useDailyOps() {
       if (error) throw error;
 
       const row = data as Record<string, unknown>;
+
+      // JSONB fields may be stored as strings — safely parse
+      function parseJsonField<T>(val: unknown, fallback: T): T {
+        if (val == null) return fallback;
+        if (typeof val === "string") {
+          try { return JSON.parse(val) as T; }
+          catch { return fallback; }
+        }
+        return val as T;
+      }
+
       return {
-        snapshot_date: row.snapshot_date as string,
-        sessions_today: row.sessions_today as number,
-        sessions_confirmed_today: row.sessions_confirmed_today as number,
-        active_clients_30d: row.active_clients_30d as number,
-        total_packages_active: row.total_packages_active as number,
-        packages_critical: row.packages_critical as number,
-        packages_high: row.packages_high as number,
-        packages_medium: row.packages_medium as number,
-        clients_increasing: row.clients_increasing as number,
-        clients_decreasing: row.clients_decreasing as number,
-        clients_stable: row.clients_stable as number,
-        coach_leaderboard: (row.coach_leaderboard ?? []) as CoachLeaderboardEntry[],
-        critical_packages: (row.critical_packages ?? []) as CriticalPackage[],
-        high_packages: (row.high_packages ?? []) as CriticalPackage[],
-        declining_clients: (row.declining_clients ?? []) as DecliningClient[],
-        daily_sessions: (row.daily_sessions ?? []) as Record<string, unknown>[],
-        frequency_trends: (row.frequency_trends ?? []) as Record<string, unknown>[],
+        snapshot_date: (row.snapshot_date as string) ?? "—",
+        sessions_today: (row.sessions_today as number) ?? 0,
+        sessions_confirmed_today: (row.sessions_confirmed_today as number) ?? 0,
+        active_clients_30d: (row.active_clients_30d as number) ?? 0,
+        total_packages_active: (row.total_packages_active as number) ?? 0,
+        packages_critical: (row.packages_critical as number) ?? 0,
+        packages_high: (row.packages_high as number) ?? 0,
+        packages_medium: (row.packages_medium as number) ?? 0,
+        clients_increasing: (row.clients_increasing as number) ?? 0,
+        clients_decreasing: (row.clients_decreasing as number) ?? 0,
+        clients_stable: (row.clients_stable as number) ?? 0,
+        coach_leaderboard: parseJsonField<CoachLeaderboardEntry[]>(row.coach_leaderboard, []),
+        critical_packages: parseJsonField<CriticalPackage[]>(row.critical_packages, []),
+        high_packages: parseJsonField<CriticalPackage[]>(row.high_packages, []),
+        declining_clients: parseJsonField<DecliningClient[]>(row.declining_clients, []),
+        daily_sessions: parseJsonField<Record<string, unknown>[]>(row.daily_sessions, []),
+        frequency_trends: parseJsonField<Record<string, unknown>[]>(row.frequency_trends, []),
       };
     },
     staleTime: 2 * 60 * 1000,
