@@ -63,6 +63,12 @@ import { usePeriodComparison } from "@/hooks/usePeriodComparison";
 import { useDeepIntelligence } from "@/hooks/useDeepIntelligence";
 import { useDeepAnalysis, useMetaAds, useMoneyMap } from "@/hooks/useMarketingAnalytics";
 import { CHART_COLORS } from "@/lib/chartColors";
+import { SourceTruthMatrix } from "@/components/analytics/SourceTruthMatrix";
+import { DailyOptimization } from "@/components/analytics/DailyOptimization";
+import { CohortWaterfall } from "@/components/analytics/CohortWaterfall";
+import { useDailyOptimization } from "@/hooks/useDailyOptimization";
+import { useCohortProgression } from "@/hooks/useCohortProgression";
+import { StressTestDashboard } from "@/components/marketing/StressTestDashboard";
 
 /* ─────────────────────────────────────────────
    Shared inline components
@@ -421,9 +427,9 @@ function DeepIntelTab() {
   const { zone_a, zone_b, zone_c, zone_d, truth, meta } = data || {};
   const ceoBrief = zone_a?.metrics || {};
   const projections = ceoBrief?.projections || (zone_a?.projections as Record<string, unknown> | null)?.projections;
-  const baselines = [];
+  const baselines = data?.baselines || [];
   const funnel = zone_c?.funnel || {};
-  const lossReasons = [];
+  const lossReasons = data?.lossReasons || [];
   const assessmentTruth = truth || {};
 
   return (
@@ -711,6 +717,20 @@ function DeepIntelTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Stress Test Section */}
+      <Card className="bg-black/40 border-primary/20">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            <CardTitle>Marketing Stress Test</CardTitle>
+          </div>
+          <CardDescription>Live diagnostic across Meta, HubSpot, and Stripe</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StressTestDashboard />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1121,6 +1141,11 @@ function SourceTruthTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Source Truth Matrix — Daily alignment grid */}
+      {sourceAlignment?.details && sourceAlignment.details.length > 0 && (
+        <SourceTruthMatrix data={sourceAlignment.details} />
+      )}
     </div>
   );
 }
@@ -1202,7 +1227,7 @@ function CreativeDNATab() {
     return {
       id: adId || String(Math.random()),
       name: String(row.ad_name || "Unknown Creative"),
-      thumbnail: "",  // Meta creative thumbnails not stored in this view
+      thumbnail: adId ? `https://pipeboard.com/api/meta/creative/${adId}/thumbnail` : "",
       spend,
       revenue,
       roas: Math.round(roas * 100) / 100,
@@ -1400,6 +1425,24 @@ class TabErrorBoundary extends Component<
   }
 }
 
+/* ─────────────────────────────────────────────
+   Tab 7: Daily Pulse
+   ───────────────────────────────────────────── */
+
+function DailyPulseTab() {
+  const { data, isLoading } = useDailyOptimization();
+  return <DailyOptimization data={data} isLoading={isLoading} />;
+}
+
+/* ─────────────────────────────────────────────
+   Tab 8: Funnel
+   ───────────────────────────────────────────── */
+
+function FunnelTab() {
+  const { data, isLoading } = useCohortProgression();
+  return <CohortWaterfall data={data} isLoading={isLoading} />;
+}
+
 export default function MarketingIntelligence() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1477,15 +1520,17 @@ export default function MarketingIntelligence() {
 
       {/* Tabs */}
       <Tabs defaultValue={initialTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
           <TabsTrigger value="command-center">Command Center</TabsTrigger>
-          {/* <TabsTrigger value="deep-intel">Deep Intel</TabsTrigger> */}
+          <TabsTrigger value="deep-intel">Deep Intel</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="money-map">Money Map</TabsTrigger>
           <TabsTrigger value="source-truth">Source Truth</TabsTrigger>
           <TabsTrigger value="creative-dna" className="flex items-center gap-1">
             <Palette className="h-3 w-3" />Creative DNA
           </TabsTrigger>
+          <TabsTrigger value="daily-pulse">Daily Pulse</TabsTrigger>
+          <TabsTrigger value="funnel">Funnel</TabsTrigger>
         </TabsList>
 
         <TabsContent value="command-center" className="space-y-8 mt-6">
@@ -1525,6 +1570,18 @@ export default function MarketingIntelligence() {
         <TabsContent value="creative-dna" className="mt-6">
           <TabErrorBoundary tabName="Creative DNA">
             <CreativeDNATab />
+          </TabErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="daily-pulse" className="mt-6">
+          <TabErrorBoundary tabName="Daily Pulse">
+            <DailyPulseTab />
+          </TabErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="funnel" className="mt-6">
+          <TabErrorBoundary tabName="Funnel">
+            <FunnelTab />
           </TabErrorBoundary>
         </TabsContent>
       </Tabs>

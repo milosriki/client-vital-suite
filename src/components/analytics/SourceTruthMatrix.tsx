@@ -17,15 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-interface SourceDiscrepancy {
-  date: string;
-  fb_leads: number;
-  anytrack_leads: number;
-  hubspot_contacts: number;
-  gap_fb_anytrack: number;
-  gap_anytrack_hubspot: number;
-  trust_verdict: "ALIGNED" | "DRIFTING" | "BROKEN" | "NO_DATA";
-}
+import type { SourceDiscrepancy } from "@/hooks/useDeepIntelligence";
 
 interface SourceTruthMatrixProps {
   data: SourceDiscrepancy[];
@@ -80,8 +72,15 @@ function getGapBg(gap: number): string {
   return "bg-red-500/10";
 }
 
-function VerdictCell({ verdict }: { verdict: SourceDiscrepancy["trust_verdict"] }) {
-  const config = VERDICT_CONFIG[verdict];
+type Verdict = "ALIGNED" | "DRIFTING" | "BROKEN" | "NO_DATA";
+
+function toVerdict(v: string): Verdict {
+  if (v === "ALIGNED" || v === "DRIFTING" || v === "BROKEN") return v;
+  return "NO_DATA";
+}
+
+function VerdictCell({ verdict }: { verdict: string }) {
+  const config = VERDICT_CONFIG[toVerdict(verdict)];
   const Icon = config.icon;
 
   return (
@@ -114,12 +113,12 @@ function GapCell({ gap }: { gap: number }) {
   );
 }
 
-function computeOverallVerdict(data: SourceDiscrepancy[]): SourceDiscrepancy["trust_verdict"] {
-  const withData = data.filter((d) => d.trust_verdict !== "NO_DATA");
+function computeOverallVerdict(data: SourceDiscrepancy[]): Verdict {
+  const withData = data.filter((d) => toVerdict(d.trust_verdict) !== "NO_DATA");
   if (withData.length === 0) return "NO_DATA";
 
-  const brokenCount = withData.filter((d) => d.trust_verdict === "BROKEN").length;
-  const driftingCount = withData.filter((d) => d.trust_verdict === "DRIFTING").length;
+  const brokenCount = withData.filter((d) => toVerdict(d.trust_verdict) === "BROKEN").length;
+  const driftingCount = withData.filter((d) => toVerdict(d.trust_verdict) === "DRIFTING").length;
 
   if (brokenCount / withData.length > 0.3) return "BROKEN";
   if ((brokenCount + driftingCount) / withData.length > 0.5) return "DRIFTING";
@@ -146,14 +145,13 @@ export function SourceTruthMatrix({ data }: SourceTruthMatrixProps) {
   }
 
   const overallVerdict = computeOverallVerdict(data);
-  const overallConfig = VERDICT_CONFIG[overallVerdict];
+  const overallConfig = VERDICT_CONFIG[toVerdict(String(overallVerdict))];
 
   const withData = data.filter((d) => d.trust_verdict !== "NO_DATA");
-  const avgFb = withData.length > 0 ? withData.reduce((s, d) => s + d.fb_leads, 0) / withData.length : 0;
-  const avgAnytrack = withData.length > 0 ? withData.reduce((s, d) => s + d.anytrack_leads, 0) / withData.length : 0;
-  const avgHubspot = withData.length > 0 ? withData.reduce((s, d) => s + d.hubspot_contacts, 0) / withData.length : 0;
-  const avgGapFbAt = withData.length > 0 ? withData.reduce((s, d) => s + d.gap_fb_anytrack, 0) / withData.length : 0;
-  const avgGapAtHs = withData.length > 0 ? withData.reduce((s, d) => s + d.gap_anytrack_hubspot, 0) / withData.length : 0;
+  const avgFb = withData.length > 0 ? withData.reduce((s, d) => s + Number(d.fb_reported_leads || 0), 0) / withData.length : 0;
+  const avgAnytrack = withData.length > 0 ? withData.reduce((s, d) => s + Number(d.anytrack_leads || 0), 0) / withData.length : 0;
+  const avgHubspot = withData.length > 0 ? withData.reduce((s, d) => s + Number(d.supabase_contacts || 0), 0) / withData.length : 0;
+  const avgGap = withData.length > 0 ? withData.reduce((s, d) => s + Number(d.max_discrepancy_pct || 0), 0) / withData.length : 0;
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm overflow-hidden">
@@ -175,26 +173,24 @@ export function SourceTruthMatrix({ data }: SourceTruthMatrixProps) {
         <TableHeader>
           <TableRow className="border-white/10 hover:bg-transparent">
             <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider">Date</TableHead>
+            <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider">Campaign</TableHead>
             <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-right">FB Leads</TableHead>
             <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-right">AnyTrack</TableHead>
-            <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-right">HubSpot</TableHead>
-            <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-center">FB↔AT Gap</TableHead>
-            <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-center">AT↔HS Gap</TableHead>
+            <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-right">Supabase</TableHead>
+            <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-center">Max Gap</TableHead>
             <TableHead className="text-slate-400 text-[11px] uppercase tracking-wider text-center">Verdict</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((row) => (
-            <TableRow key={row.date} className="border-white/5 hover:bg-white/5">
-              <TableCell className="text-slate-300 text-xs font-mono">{formatDate(row.date)}</TableCell>
-              <TableCell className="text-slate-200 text-xs font-mono text-right">{row.fb_leads.toLocaleString()}</TableCell>
-              <TableCell className="text-slate-200 text-xs font-mono text-right">{row.anytrack_leads.toLocaleString()}</TableCell>
-              <TableCell className="text-slate-200 text-xs font-mono text-right">{row.hubspot_contacts.toLocaleString()}</TableCell>
+          {data.map((row, i) => (
+            <TableRow key={`${row.report_date}-${i}`} className="border-white/5 hover:bg-white/5">
+              <TableCell className="text-slate-300 text-xs font-mono">{formatDate(row.report_date)}</TableCell>
+              <TableCell className="text-slate-300 text-xs truncate max-w-[140px]">{row.campaign_name || "—"}</TableCell>
+              <TableCell className="text-slate-200 text-xs font-mono text-right">{Number(row.fb_reported_leads || 0).toLocaleString()}</TableCell>
+              <TableCell className="text-slate-200 text-xs font-mono text-right">{Number(row.anytrack_leads || 0).toLocaleString()}</TableCell>
+              <TableCell className="text-slate-200 text-xs font-mono text-right">{Number(row.supabase_contacts || 0).toLocaleString()}</TableCell>
               <TableCell className="text-center">
-                <GapCell gap={row.gap_fb_anytrack} />
-              </TableCell>
-              <TableCell className="text-center">
-                <GapCell gap={row.gap_anytrack_hubspot} />
+                <GapCell gap={Number(row.max_discrepancy_pct || 0)} />
               </TableCell>
               <TableCell className="text-center">
                 <VerdictCell verdict={row.trust_verdict} />
@@ -205,14 +201,12 @@ export function SourceTruthMatrix({ data }: SourceTruthMatrixProps) {
         <TableFooter className="border-white/10 bg-white/5">
           <TableRow className="hover:bg-white/5">
             <TableCell className="text-slate-300 text-xs font-bold uppercase tracking-wider">Avg</TableCell>
+            <TableCell className="text-slate-300 text-xs">—</TableCell>
             <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{avgFb.toFixed(0)}</TableCell>
             <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{avgAnytrack.toFixed(0)}</TableCell>
             <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{avgHubspot.toFixed(0)}</TableCell>
             <TableCell className="text-center">
-              <GapCell gap={avgGapFbAt} />
-            </TableCell>
-            <TableCell className="text-center">
-              <GapCell gap={avgGapAtHs} />
+              <GapCell gap={avgGap} />
             </TableCell>
             <TableCell className="text-center">
               <VerdictCell verdict={overallVerdict} />
