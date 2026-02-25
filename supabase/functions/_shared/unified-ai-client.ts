@@ -745,7 +745,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       this.tokenBudget.totalCost += cost;
 
       console.log(
-        `[UnifiedAI] 📊 Tokens: in=${inputTokens} out=${outputTokens} | Cost: $${cost.toFixed(6)} | Latency: ${latencyMs}ms`,
+        `[UnifiedAI] 📊 [${options?.functionName || "unknown"}] in=${inputTokens} out=${outputTokens} cost=$${cost.toFixed(6)} latency=${latencyMs}ms`,
       );
 
       // Enhanced metrics logging to ai_execution_metrics
