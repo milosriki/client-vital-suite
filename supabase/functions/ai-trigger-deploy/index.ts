@@ -13,6 +13,7 @@ import {
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { validateSql } from "../_shared/sql-validator.ts";
 
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 const GITHUB_REPO =
@@ -205,101 +206,23 @@ serve(async (req) => {
 
       const sql = action.prepared_payload?.sql;
       if (sql) {
-        // ========================================
-        // SQL VALIDATION - Prevent SQL Injection
-        // ========================================
-        const sqlUpper = sql.trim().toUpperCase();
-        const sqlNormalized = sql.trim().replace(/\s+/g, " ").toUpperCase();
-
-        // Block dangerous operations
-        const dangerousPatterns = [
-          /DROP\s+(TABLE|DATABASE|SCHEMA|FUNCTION|TRIGGER)/i,
-          /TRUNCATE\s+/i,
-          /DELETE\s+FROM\s+\w+\s*;?\s*$/i, // DELETE without WHERE
-          /UPDATE\s+\w+\s+SET\s+.*\s*;?\s*$/i, // UPDATE without WHERE
-          /GRANT\s+/i,
-          /REVOKE\s+/i,
-          /ALTER\s+USER/i,
-          /CREATE\s+USER/i,
-          /DROP\s+USER/i,
-          /--\s*$/m, // SQL comments at end
-          /\/\*/i, // Block comments
-        ];
-
-        const isDangerous = dangerousPatterns.some((pattern) =>
-          pattern.test(sql),
-        );
-
-        if (isDangerous) {
-          throw new Error(
-            "SQL validation failed: Dangerous operation detected. Only safe operations (CREATE TABLE, ALTER TABLE, INSERT with WHERE) are allowed.",
-          );
-        }
-
-        // Only allow specific safe operations
-        const allowedOperations = [
-          /^CREATE\s+TABLE\s+/i,
-          /^CREATE\s+INDEX\s+/i,
-          /^ALTER\s+TABLE\s+\w+\s+ADD\s+COLUMN/i,
-          /^INSERT\s+INTO\s+\w+\s*\(/i,
-          /^UPDATE\s+\w+\s+SET\s+.*\s+WHERE\s+/i, // UPDATE with WHERE clause
-          /^DELETE\s+FROM\s+\w+\s+WHERE\s+/i, // DELETE with WHERE clause
-        ];
-
-        const isAllowed = allowedOperations.some((pattern) =>
-          pattern.test(sql),
-        );
-
-        if (!isAllowed) {
-          throw new Error(
-            `SQL validation failed: Operation not allowed. Permitted operations: CREATE TABLE, CREATE INDEX, ALTER TABLE ADD COLUMN, INSERT INTO, UPDATE with WHERE, DELETE with WHERE.`,
-          );
-        }
-
-        // Additional security: Prevent WHERE clause bypass attacks
-        const whereClauseBypass = [
-          /WHERE\s+(1\s*=\s*1|true|'1'\s*=\s*'1')/i,
-          /WHERE\s+\w+\s+LIKE\s+'%'/i, // WHERE col LIKE '%' matches everything
-          /WHERE\s+\w+\s+IS\s+NOT\s+NULL/i, // WHERE col IS NOT NULL might match everything
-        ];
-
-        const hasBypass = whereClauseBypass.some((pattern) =>
-          pattern.test(sql),
-        );
-
-        if (hasBypass) {
-          throw new Error(
-            "SQL validation failed: WHERE clause bypass detected. WHERE conditions must be specific (e.g., WHERE id=123, WHERE email='user@example.com').",
-          );
-        }
-
-        // Additional security: Check for multiple statements
-        const statementCount = sql
-          .split(";")
-          .filter((s: string) => s.trim().length > 0).length;
-        if (statementCount > 1) {
-          throw new Error(
-            "SQL validation failed: Multiple statements not allowed. Execute one statement at a time.",
-          );
+        const validation = validateSql(sql);
+        if (!validation.valid) {
+          throw new Error(validation.error);
         }
 
         console.log(
           "✅ SQL validation passed:",
-          sqlUpper.split(" ").slice(0, 3).join(" "),
+          sql.trim().toUpperCase().split(" ").slice(0, 3).join(" "),
         );
 
-        // SECURITY: exec_sql RPC removed — it was a SQL injection vector.
-        // DDL migrations must go through the official Supabase migration pipeline
-        // (supabase db push or a migration file in supabase/migrations/).
-        //
-        // Instead, log the validated SQL to prepared_sql_log for manual review.
         await supabase.from("prepared_actions").update({
           status: "pending_manual_migration",
           updated_at: new Date().toISOString(),
         }).eq("id", approval_id);
 
         console.log(
-          "✅ SQL validated and logged for manual migration. Apply via: supabase/migrations/",
+          "✅ SQL validated — apply via supabase/migrations/:",
           sql.slice(0, 120),
         );
 
@@ -307,25 +230,12 @@ serve(async (req) => {
           success: true,
           status: "pending_manual_migration",
           message:
-            "SQL validated successfully. Apply via Supabase migration pipeline " +
-            "(add to supabase/migrations/ and run supabase db push). " +
-            "Direct SQL execution disabled for security.",
+            "SQL validated. Add to supabase/migrations/ and run supabase db push.",
           sql_preview: sql.slice(0, 200),
         });
       } else {
         throw new Error("No SQL query provided in prepared_payload");
       }
-
-      await supabase
-        .from("prepared_actions")
-        .update({ status: "executed", executed_at: new Date().toISOString() })
-        .eq("id", approval_id);
-
-      return apiSuccess({
-          success: true,
-          status: "executed",
-          message: "Database migration completed",
-        });
     } else {
       // ========================================
       // OTHER ACTIONS (intervention, analysis, etc.)
