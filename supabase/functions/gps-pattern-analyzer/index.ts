@@ -3,8 +3,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 
-// ─── PTD Gym Locations ────────────────────────────────────────────────────────
-const PTD_LOCATIONS = [
+// ─── PTD Locations — loaded dynamically from mdm_pois, fallback to hardcoded ─
+let PTD_LOCATIONS: { name: string; lat: number; lng: number; radius: number }[] = [
   { name: "PTD Marina",    lat: 25.0801, lng: 55.1408, radius: 500 },
   { name: "PTD JBR",      lat: 25.0780, lng: 55.1330, radius: 500 },
   { name: "PTD Downtown", lat: 25.1972, lng: 55.2744, radius: 500 },
@@ -106,6 +106,24 @@ function parseSessionWindow(
         scheduledMin: (endUtc.getTime() - startUtc.getTime()) / 60000,
       };
     }
+
+    // Handle single time format: "09:00:00" or "09:00" — assume 60 min session
+    const singleMatch = slot.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (singleMatch) {
+      const [, h, m] = singleMatch;
+      const start = new Date(base);
+      start.setHours(parseInt(h), parseInt(m), 0, 0);
+      const end = new Date(start.getTime() + 60 * 60000); // +60 min
+      // Adjust for Dubai UTC+4
+      const startUtc = new Date(start.getTime() - 4 * 3600000);
+      const endUtc = new Date(end.getTime() - 4 * 3600000);
+      return {
+        start: startUtc,
+        end: endUtc,
+        scheduledMin: 60,
+      };
+    }
+
     return null;
   } catch {
     return null;
@@ -367,6 +385,20 @@ serve(async (req: Request) => {
     ).toISOString();
 
     console.log(`[gps-pattern-analyzer] Analyzing ${daysBack} days back from ${targetDate}`);
+
+    // 0. Load POIs from database (20 areas, not just 4 gyms)
+    const { data: pois } = await supabase.from("mdm_pois").select("name, lat, lng, radius_m");
+    if (pois && pois.length > 0) {
+      PTD_LOCATIONS = pois.map((p: { name: string; lat: number; lng: number; radius_m: number }) => ({
+        name: p.name,
+        lat: p.lat,
+        lng: p.lng,
+        radius: p.radius_m,
+      }));
+      console.log(`[gps-pattern-analyzer] Loaded ${PTD_LOCATIONS.length} POIs from mdm_pois`);
+    } else {
+      console.log(`[gps-pattern-analyzer] Using ${PTD_LOCATIONS.length} hardcoded locations (mdm_pois empty)`);
+    }
 
     // 1. Fetch devices
     const { data: devices, error: devErr } = await supabase
