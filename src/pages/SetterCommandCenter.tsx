@@ -45,7 +45,6 @@ const formatMinutes = (minutes: number) => {
 type CallRecord = {
   id: string;
   caller_number: string | null;
-  caller_name?: string | null;
   owner_name?: string | null;
   call_status?: string | null;
   call_outcome?: string | null;
@@ -130,8 +129,8 @@ const getCallTimestamp = (call: { created_at?: string | null; started_at?: strin
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const getSetterName = (call: { caller_name?: string | null; owner_name?: string | null }) =>
-  call.caller_name || call.owner_name || "Unknown";
+const getSetterName = (call: { owner_name?: string | null }) =>
+  call.owner_name || "Unknown";
 
 export default function SetterCommandCenter() {
   const [activeTab, setActiveTab] = useState("calls");
@@ -148,7 +147,7 @@ export default function SetterCommandCenter() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("call_records")
-        .select("id, caller_number, caller_name, owner_name, call_status, call_outcome, duration_seconds, created_at, started_at")
+        .select("id, caller_number, owner_name, call_status, call_outcome, duration_seconds, created_at, started_at")
         .gte("created_at", startOfRange.toISOString())
         .lte("created_at", endOfToday.toISOString())
         .order("created_at", { ascending: false });
@@ -377,12 +376,12 @@ export default function SetterCommandCenter() {
             />
             <MetricCard
               label="Connection Rate"
-              value={`${connectionRateToday.toFixed(1)}%`}
+              value={`${(connectionRateToday ?? 0).toFixed(1)}%`}
               icon={PhoneCall}
             />
             <MetricCard
               label="Calls Per Setter"
-              value={callsPerSetter.toFixed(1)}
+              value={(callsPerSetter ?? 0).toFixed(1)}
               icon={Users}
             />
           </div>
@@ -427,7 +426,7 @@ export default function SetterCommandCenter() {
                         <TableCell>{formatDuration(setter.avgDuration)}</TableCell>
                         <TableCell>
                           <Badge variant={setter.connectionRate >= 50 ? "default" : setter.connectionRate >= 30 ? "secondary" : "destructive"} className="text-xs">
-                            {setter.connectionRate.toFixed(1)}%
+                            {(setter.connectionRate ?? 0).toFixed(1)}%
                           </Badge>
                         </TableCell>
                       </TableRow>

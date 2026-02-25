@@ -94,7 +94,7 @@ export default function CallTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("call_records")
-        .select("id, caller_number, call_status, call_outcome, duration_seconds, call_score, lead_quality, transcription, recording_url, appointment_set, created_at, owner_name, call_type, direction")
+        .select("id, caller_number, call_status, call_outcome, duration_seconds, call_score, lead_quality, transcription, recording_url, appointment_set, created_at, owner_name, call_type, call_direction")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -103,7 +103,7 @@ export default function CallTracking() {
 
   // Enhanced leads
   const { data: enhancedLeads, isLoading: loadingLeads } = useDedupedQuery({
-    queryKey: ["contacts-for-calls"],
+    queryKey: ["contacts-for-calls-enriched"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contacts")

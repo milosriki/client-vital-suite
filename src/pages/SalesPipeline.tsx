@@ -261,7 +261,7 @@ export default function SalesPipeline() {
     queryKey: ["deals-summary", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
-      let query = supabase.from("deals").select("id, deal_name, stage, status, deal_value, cash_collected, amount, close_date, contact_id, owner_name, pipeline_id, org_id, created_at, updated_at");
+      let query = supabase.from("deals").select("id, deal_name, stage, status, deal_value, cash_collected, amount, close_date, contact_id, owner_name, pipeline, created_at, updated_at");
       if (dateFilter) {
         query = query.gte("created_at", dateFilter);
       }

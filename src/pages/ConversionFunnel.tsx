@@ -74,18 +74,18 @@ function conversionBadge(rate: number) {
   if (rate > 20)
     return (
       <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-        {rate.toFixed(1)}%
+        {(rate ?? 0).toFixed(1)}%
       </Badge>
     );
   if (rate >= 10)
     return (
       <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-        {rate.toFixed(1)}%
+        {(rate ?? 0).toFixed(1)}%
       </Badge>
     );
   return (
     <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
-      {rate.toFixed(1)}%
+      {(rate ?? 0).toFixed(1)}%
     </Badge>
   );
 }
@@ -93,7 +93,7 @@ function conversionBadge(rate: number) {
 function formatAED(n: number) {
   if (n >= 1_000_000) return `AED ${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `AED ${(n / 1_000).toFixed(0)}K`;
-  return `AED ${n.toFixed(0)}`;
+  return `AED ${(n ?? 0).toFixed(0)}`;
 }
 
 // ── Data hooks ─────────────────────────────────────────────────────────────
@@ -106,14 +106,14 @@ function useDealStages(range: TimeRange) {
       // So we fetch all dealstage + amount and aggregate client-side (limited columns, fast)
       let q = supabase
         .from("deals")
-        .select("dealstage, amount, created_at");
+        .select("stage, amount, created_at");
       if (cutoff) q = q.gte("created_at", cutoff);
       const { data, error } = await q;
       if (error) throw error;
 
       const map = new Map<string, { count: number; amount: number }>();
       for (const row of data ?? []) {
-        const stage = row.dealstage ?? "unknown";
+        const stage = row.stage ?? "unknown";
         const prev = map.get(stage) ?? { count: 0, amount: 0 };
         prev.count++;
         prev.amount += Number(row.amount ?? 0);
@@ -164,33 +164,33 @@ function useLeadJourney() {
       // Get contacts with lifecycle_stage = customer and their created_at
       const { data: customers, error: cErr } = await supabase
         .from("contacts")
-        .select("email, created_at, lifecycle_stage")
+        .select("id, email, created_at, lifecycle_stage")
         .eq("lifecycle_stage", "customer");
       if (cErr) throw cErr;
 
       // Get closed-won deals with closedate
       const { data: wonDeals, error: dErr } = await supabase
         .from("deals")
-        .select("contact_email, closedate, created_at")
-        .eq("dealstage", "closedwon");
+        .select("contact_id, close_date, created_at")
+        .eq("stage", "closedwon");
       if (dErr) throw dErr;
 
-      // Build a map of contact_email -> earliest deal closedate
+      // Build a map of contact_id -> earliest deal close_date
       const dealMap = new Map<string, string>();
       for (const d of wonDeals ?? []) {
-        const email = d.contact_email;
-        if (!email) continue;
-        const existing = dealMap.get(email);
-        if (!existing || (d.closedate && d.closedate < existing)) {
-          dealMap.set(email, d.closedate ?? d.created_at ?? "");
+        const cid = d.contact_id;
+        if (!cid) continue;
+        const existing = dealMap.get(cid);
+        if (!existing || (d.close_date && d.close_date < existing)) {
+          dealMap.set(cid, d.close_date ?? d.created_at ?? "");
         }
       }
 
       // Calculate average days from contact created → deal closed
       const daysToClose: number[] = [];
       for (const c of customers ?? []) {
-        if (!c.email || !c.created_at) continue;
-        const close = dealMap.get(c.email);
+        if (!c.id || !c.created_at) continue;
+        const close = dealMap.get(c.id);
         if (!close) continue;
         const diff =
           (new Date(close).getTime() - new Date(c.created_at).getTime()) /
@@ -231,7 +231,7 @@ function exportCSV(dealStages: StageRow[], lifecycle: { stage: string; label: st
         ? (s.count / dealStages[i - 1].count) * 100
         : 0;
     lines.push(
-      `Deal Pipeline,${s.label},${s.count},${s.amount},${rate.toFixed(1)}`
+      `Deal Pipeline,${s.label},${s.count},${s.amount},${(rate ?? 0).toFixed(1)}`
     );
   }
   for (let i = 0; i < lifecycle.length; i++) {
@@ -242,7 +242,7 @@ function exportCSV(dealStages: StageRow[], lifecycle: { stage: string; label: st
         : lifecycle[i - 1].count > 0
         ? (s.count / lifecycle[i - 1].count) * 100
         : 0;
-    lines.push(`Lifecycle,${s.label},${s.count},,${rate.toFixed(1)}`);
+    lines.push(`Lifecycle,${s.label},${s.count},,${(rate ?? 0).toFixed(1)}`);
   }
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

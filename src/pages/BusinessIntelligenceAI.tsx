@@ -60,10 +60,10 @@ function useBusinessSnapshot() {
       ] = await Promise.all([
         supabase.from("deals").select("id, deal_value, amount, stage, created_at, close_date, owner_id").gte("created_at", start),
         supabase.from("contacts").select("id, email, lifecycle_stage, lead_status, hubspot_owner_id, created_at", { count: "exact" }).gte("created_at", start),
-        supabase.from("call_records").select("id, call_type, duration, is_lost, owner_name, created_at").gte("created_at", start),
+        supabase.from("call_records").select("id, call_type, duration_seconds, is_lost, owner_name, created_at").gte("created_at", start),
         supabase.from("facebook_ads_insights").select("spend, impressions, clicks, leads, ctr, cpc, roas, campaign_name, date").gte("date", start),
         supabase.from("client_health_scores").select("health_score, health_zone, outstanding_sessions, package_value_aed, assigned_coach").order("calculated_at", { ascending: false }).limit(500),
-        supabase.from("coach_performance").select("id, coach_name, total_clients, avg_health_score, clients_improving, clients_declining, trend").limit(50),
+        supabase.from("coach_performance").select("id, coach_name, total_clients, avg_client_health, clients_improving, clients_declining, health_trend").limit(50),
       ]);
 
       const deals = dealsRes.data || [];
@@ -181,15 +181,15 @@ function useAIChat(snapshot: ReturnType<typeof useBusinessSnapshot>["data"]) {
 LIVE BUSINESS DATA (Last 30 Days):
 - Revenue: AED ${snapshot.kpis.totalRevenue.toLocaleString()}
 - Total Deals: ${snapshot.kpis.totalDeals} (Closed Won: ${snapshot.kpis.closedCount}, Lost: ${snapshot.kpis.lostDeals})
-- Close Rate: ${snapshot.kpis.closeRate.toFixed(1)}%
+- Close Rate: ${(snapshot.kpis?.closeRate ?? 0).toFixed(1)}%
 - New Leads: ${snapshot.kpis.newLeads}
 - Total Calls: ${snapshot.kpis.totalCalls} (Missed: ${snapshot.kpis.missedCalls})
-- Ad Spend: AED ${snapshot.kpis.totalAdSpend.toLocaleString()} | CPL: AED ${snapshot.kpis.avgCpl.toFixed(0)} | ROAS: ${snapshot.kpis.roas.toFixed(2)}x
+- Ad Spend: AED ${snapshot.kpis.totalAdSpend.toLocaleString()} | CPL: AED ${(snapshot.kpis?.avgCpl ?? 0).toFixed(0)} | ROAS: ${(snapshot.kpis?.roas ?? 0).toFixed(2)}x
 - FB Leads: ${snapshot.kpis.totalFbLeads}
 - Client Health: ${snapshot.kpis.criticalClients} critical, ${snapshot.kpis.warningClients} warning, ${snapshot.kpis.healthyClients} healthy
 - Revenue at Risk: AED ${snapshot.kpis.revenueAtRisk.toLocaleString()}
 - Conversion Funnel: ${snapshot.funnel.leads} leads → ${snapshot.funnel.assessments} assessments → ${snapshot.funnel.proposals} proposals → ${snapshot.funnel.closed} closed / ${snapshot.funnel.lost} lost
-- Top Campaigns: ${snapshot.topCampaigns.map(c => `${c.name}: AED ${c.spend.toFixed(0)} spend, ${c.leads} leads, CPL AED ${c.cpl.toFixed(0)}`).join(" | ")}
+- Top Campaigns: ${snapshot.topCampaigns.map(c => `${c.name}: AED ${(c.spend ?? 0).toFixed(0)} spend, ${c.leads} leads, CPL AED ${(c.cpl ?? 0).toFixed(0)}`).join(" | ")}
 ` : "No data loaded yet.";
 
       // Call smart-ai-advisor first; only fall back to business-intelligence if it fails
@@ -315,11 +315,11 @@ const QUICK_ACTIONS: QuickAction[] = [
 
 function KPIGrid({ kpis }: { kpis: ReturnType<typeof useBusinessSnapshot>["data"] extends infer T ? T extends { kpis: infer K } ? K : never : never }) {
   const cards = [
-    { label: "Revenue", value: `AED ${(kpis.totalRevenue / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400", sub: `${kpis.closedCount} deals closed` },
-    { label: "ROAS", value: `${kpis.roas.toFixed(1)}x`, icon: TrendingUp, color: kpis.roas >= 3 ? "text-emerald-400" : "text-amber-400", sub: `AED ${(kpis.totalAdSpend / 1000).toFixed(0)}K spend` },
-    { label: "New Leads", value: kpis.newLeads.toLocaleString(), icon: Users, color: "text-blue-400", sub: `CPL AED ${kpis.avgCpl.toFixed(0)}` },
-    { label: "Close Rate", value: `${kpis.closeRate.toFixed(1)}%`, icon: Target, color: kpis.closeRate >= 20 ? "text-emerald-400" : "text-amber-400", sub: `${kpis.lostDeals} lost` },
-    { label: "Calls", value: kpis.totalCalls.toLocaleString(), icon: Phone, color: "text-cyan-400", sub: `${kpis.missedCalls} missed (${kpis.totalCalls > 0 ? ((kpis.missedCalls / kpis.totalCalls) * 100).toFixed(0) : 0}%)` },
+    { label: "Revenue", value: `AED ${((kpis.totalRevenue ?? 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400", sub: `${kpis.closedCount} deals closed` },
+    { label: "ROAS", value: `${(kpis.roas ?? 0).toFixed(1)}x`, icon: TrendingUp, color: kpis.roas >= 3 ? "text-emerald-400" : "text-amber-400", sub: `AED ${((kpis.totalAdSpend ?? 0) / 1000).toFixed(0)}K spend` },
+    { label: "New Leads", value: kpis.newLeads.toLocaleString(), icon: Users, color: "text-blue-400", sub: `CPL AED ${(kpis.avgCpl ?? 0).toFixed(0)}` },
+    { label: "Close Rate", value: `${(kpis.closeRate ?? 0).toFixed(1)}%`, icon: Target, color: kpis.closeRate >= 20 ? "text-emerald-400" : "text-amber-400", sub: `${kpis.lostDeals} lost` },
+    { label: "Calls", value: kpis.totalCalls.toLocaleString(), icon: Phone, color: "text-cyan-400", sub: `${kpis.missedCalls} missed (${kpis.totalCalls > 0 ? ((kpis.totalCalls ? (kpis.missedCalls / kpis.totalCalls) * 100 : 0)).toFixed(0) : 0}%)` },
     { label: "At Risk", value: `AED ${(kpis.revenueAtRisk / 1000).toFixed(0)}K`, icon: AlertTriangle, color: kpis.revenueAtRisk > 50000 ? "text-rose-400" : "text-amber-400", sub: `${kpis.criticalClients} critical clients` },
   ];
 
@@ -571,10 +571,10 @@ function TopCampaigns({ campaigns }: { campaigns: Array<{ name: string; spend: n
             <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
               <div className="truncate max-w-[200px] text-sm">{c.name}</div>
               <div className="flex items-center gap-4 text-xs font-mono">
-                <span className="text-muted-foreground">AED {c.spend.toFixed(0)}</span>
+                <span className="text-muted-foreground">AED {(c.spend ?? 0).toFixed(0)}</span>
                 <span className="text-blue-400">{c.leads} leads</span>
                 <span className={c.cpl < 150 ? "text-emerald-400" : c.cpl < 300 ? "text-amber-400" : "text-rose-400"}>
-                  CPL {c.cpl.toFixed(0)}
+                  CPL {(c.cpl ?? 0).toFixed(0)}
                 </span>
               </div>
             </div>

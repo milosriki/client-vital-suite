@@ -395,7 +395,7 @@ const SalesCoachTracker = () => {
                         <TableCell className="text-right">
                           <Badge variant={Number(s.held_to_close_pct || 0) >= 5 ? "default" : "secondary"}>
                             {s.held_to_close_pct != null
-                              ? `${Number(s.held_to_close_pct).toFixed(1)}%`
+                              ? `${Number(s.held_to_close_pct ?? 0).toFixed(1)}%`
                               : "—"}
                           </Badge>
                         </TableCell>
@@ -408,7 +408,7 @@ const SalesCoachTracker = () => {
                             }
                           >
                             {s.ghost_rate_pct != null
-                              ? `${Number(s.ghost_rate_pct).toFixed(0)}%`
+                              ? `${Number(s.ghost_rate_pct ?? 0).toFixed(0)}%`
                               : "—"}
                           </Badge>
                         </TableCell>

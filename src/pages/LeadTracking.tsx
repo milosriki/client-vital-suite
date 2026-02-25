@@ -67,8 +67,8 @@ interface EnhancedLead {
   first_name: string | null;
   last_name: string | null;
   lead_score: number | null;
-  engagement_level: string | null;
-  recommended_action: string | null;
+  lead_quality: string | null;
+  urgency: string | null;
   phone: string | null;
   lifecycle_stage: string | null;
   created_at: string | null;
@@ -77,10 +77,10 @@ interface EnhancedLead {
 interface Deal {
   id: string;
   deal_name: string | null;
-  deal_stage: string | null;
+  stage: string | null;
   amount: number | null;
   close_date: string | null;
-  contact_email: string | null;
+  contact_id: string | null;
 }
 
 // ── Helpers ──
@@ -132,7 +132,7 @@ export default function LeadTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enhanced_leads")
-        .select("id, email, first_name, last_name, lead_score, engagement_level, recommended_action, phone, lifecycle_stage, created_at")
+        .select("id, email, first_name, last_name, lead_score, lead_quality, urgency, phone, lifecycle_stage, created_at")
         .limit(1000);
       if (error) throw error;
       return (data ?? []) as EnhancedLead[];
@@ -146,7 +146,7 @@ export default function LeadTracking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
-        .select("id, deal_name, deal_stage, amount, close_date, contact_email")
+        .select("id, deal_name, stage, amount, close_date, contact_id")
         .limit(20000);
       if (error) throw error;
       return (data ?? []) as Deal[];
@@ -416,7 +416,7 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
 
   const contactDeals = useMemo(() => {
     if (!selectedContact?.email) return [];
-    return deals.filter((d) => d.contact_email === selectedContact.email);
+    return deals.filter((d) => d.contact_id === selectedContact.id);
   }, [selectedContact, deals]);
 
   const handleExport = () => {
@@ -561,7 +561,7 @@ function ActiveLeadsTab({ contacts, deals, isLoading }: { contacts: Contact[]; d
                       <div key={d.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-2 text-sm">
                         <span>{d.deal_name ?? "Untitled"}</span>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline">{d.deal_stage ?? "—"}</Badge>
+                          <Badge variant="outline">{d.stage ?? "—"}</Badge>
                           {d.amount != null && <span className="font-mono">${d.amount.toLocaleString()}</span>}
                         </div>
                       </div>
@@ -603,13 +603,13 @@ function ScoringTab({ leads, isLoading, timeRange }: { leads: EnhancedLead[]; is
 
   const handleExport = () => {
     exportCSV(
-      ["Name", "Email", "Score", "Engagement", "Recommended Action"],
+      ["Name", "Email", "Score", "Quality", "Urgency"],
       filtered.map((r) => [
         `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
         r.email ?? "",
         String(r.lead_score ?? 0),
-        r.engagement_level ?? "",
-        r.recommended_action ?? "",
+        r.lead_quality ?? "",
+        r.urgency ?? "",
       ]),
       "lead-scoring.csv"
     );
@@ -654,8 +654,8 @@ function ScoringTab({ leads, isLoading, timeRange }: { leads: EnhancedLead[]; is
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Email</th>
                   <th className="text-left p-3 font-medium">Score</th>
-                  <th className="text-left p-3 font-medium">Engagement</th>
-                  <th className="text-left p-3 font-medium">Recommended Action</th>
+                  <th className="text-left p-3 font-medium">Quality</th>
+                  <th className="text-left p-3 font-medium">Urgency</th>
                 </tr>
               </thead>
               <tbody>
@@ -672,11 +672,11 @@ function ScoringTab({ leads, isLoading, timeRange }: { leads: EnhancedLead[]; is
                       </span>
                     </td>
                     <td className="p-3">
-                      <Badge variant="outline" className={engagementColor(lead.engagement_level)}>
-                        {lead.engagement_level ?? "—"}
+                      <Badge variant="outline" className={engagementColor(lead.lead_quality)}>
+                        {lead.lead_quality ?? "—"}
                       </Badge>
                     </td>
-                    <td className="p-3 text-sm max-w-[300px] truncate">{lead.recommended_action ?? "—"}</td>
+                    <td className="p-3 text-sm max-w-[300px] truncate">{lead.urgency ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -724,8 +724,8 @@ function SourceAnalysisTab({ contacts, isLoading }: { contacts: Contact[]; isLoa
         String(a.leads),
         String(a.opportunities),
         String(a.customers),
-        a.oppRate.toFixed(1),
-        a.custRate.toFixed(1),
+        (a.oppRate ?? 0).toFixed(1),
+        (a.custRate ?? 0).toFixed(1),
       ]),
       "source-analysis.csv"
     );
@@ -801,10 +801,10 @@ function SourceAnalysisTab({ contacts, isLoading }: { contacts: Contact[]; isLoa
                     <td className="p-3 text-right font-mono">{a.opportunities}</td>
                     <td className="p-3 text-right font-mono">{a.customers}</td>
                     <td className="p-3 text-right">
-                      <Badge variant={a.oppRate > 5 ? "default" : "secondary"}>{a.oppRate.toFixed(1)}%</Badge>
+                      <Badge variant={a.oppRate > 5 ? "default" : "secondary"}>{(a.oppRate ?? 0).toFixed(1)}%</Badge>
                     </td>
                     <td className="p-3 text-right">
-                      <Badge variant={a.custRate > 2 ? "default" : "secondary"}>{a.custRate.toFixed(1)}%</Badge>
+                      <Badge variant={a.custRate > 2 ? "default" : "secondary"}>{(a.custRate ?? 0).toFixed(1)}%</Badge>
                     </td>
                   </tr>
                 ))}

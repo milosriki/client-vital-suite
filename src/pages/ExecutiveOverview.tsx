@@ -183,7 +183,7 @@ export default function ExecutiveOverview() {
               <div className="space-y-1">
                 <p className="text-xs text-slate-500 uppercase tracking-wider">7d ROAS</p>
                 <p className={`text-lg font-semibold ${(morningBrief.rolling_7d_roas ?? 0) >= 1 ? "text-emerald-400" : "text-red-400"}`}>
-                  {morningBrief.rolling_7d_roas != null ? `${morningBrief.rolling_7d_roas.toFixed(2)}x` : "—"}
+                  {morningBrief.rolling_7d_roas != null ? `${(morningBrief.rolling_7d_roas ?? 0).toFixed(2)}x` : "—"}
                 </p>
               </div>
             </div>
@@ -211,7 +211,7 @@ export default function ExecutiveOverview() {
                   <span>7d Revenue: <span className="text-slate-300">{formatAED(morningBrief.rolling_7d_revenue)}</span></span>
                 )}
                 {morningBrief.rolling_7d_ghost_rate != null && (
-                  <span>7d Ghost Rate: <span className="text-slate-300">{(morningBrief.rolling_7d_ghost_rate * 100).toFixed(1)}%</span></span>
+                  <span>7d Ghost Rate: <span className="text-slate-300">{((morningBrief.rolling_7d_ghost_rate ?? 0) * 100).toFixed(1)}%</span></span>
                 )}
                 {morningBrief.yesterday_assessments != null && (
                   <span>Assessments: <span className="text-slate-300">{morningBrief.yesterday_assessments}</span></span>

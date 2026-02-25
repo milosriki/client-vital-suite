@@ -510,7 +510,7 @@ export default function Coaches() {
                     </div>
                     <div className="text-right">
                       <div className={`text-2xl font-bold ${coach.avg_health >= 70 ? "text-green-500" : coach.avg_health >= 50 ? "text-yellow-500" : "text-red-500"}`}>
-                        {coach.avg_health.toFixed(0)}
+                        {(coach.avg_health ?? 0).toFixed(0)}
                       </div>
                       <div className="text-[10px] text-muted-foreground">Health</div>
                     </div>
@@ -535,13 +535,13 @@ export default function Coaches() {
                     </div>
                     <div>
                       <div className="font-semibold text-orange-400">
-                        {coach.total_revenue_at_risk > 0 ? `${(coach.total_revenue_at_risk / 1000).toFixed(0)}K` : "0"}
+                        {coach.total_revenue_at_risk > 0 ? `${((coach.total_revenue_at_risk ?? 0) / 1000).toFixed(0)}K` : "0"}
                       </div>
                       <div className="text-muted-foreground">AED Risk</div>
                     </div>
                     <div>
                       <div className="font-semibold text-blue-400">
-                        {coach.total_revenue > 0 ? `${(coach.total_revenue / 1000).toFixed(0)}K` : "0"}
+                        {coach.total_revenue > 0 ? `${((coach.total_revenue ?? 0) / 1000).toFixed(0)}K` : "0"}
                       </div>
                       <div className="text-muted-foreground">Revenue</div>
                     </div>
@@ -595,7 +595,7 @@ export default function Coaches() {
                   <div className="text-[10px] text-muted-foreground">At Risk</div>
                 </CardContent></Card>
                 <Card className="bg-muted/50"><CardContent className="p-3 text-center">
-                  <div className="text-lg font-bold">{selectedSummary.avg_health.toFixed(0)}</div>
+                  <div className="text-lg font-bold">{(selectedSummary.avg_health ?? 0).toFixed(0)}</div>
                   <div className="text-[10px] text-muted-foreground">Avg Health</div>
                 </CardContent></Card>
                 <Card className="bg-muted/50"><CardContent className="p-3 text-center">
