@@ -103,11 +103,23 @@
 
 ---
 
-## PHASE 3: MODEL MIGRATION (P1 — Before March 31)
-> Estimated: 2-3 hours | Deadline: gemini-2.0-flash shutdown March 31, 2026
+## PHASE 3: MODEL MIGRATION (P0 — URGENT, Before March 9!)
+> Estimated: 3-4 hours | ⚠️ HARD DEADLINE: March 9, 2026 (Google email confirmed)
+> Affected Google projects: `ptd-fitness-demo`, `gen-lang-client-0427673522`
+
+### 3.0 🚨 OpenClaw Agent Model Migration (MARCH 9 DEADLINE!)
+Google confirmed: **gemini-3-pro-preview discontinued March 9, 2026**.
+4 OpenClaw agents currently use it and will BREAK:
+- [ ] **riki** → `google-gemini-cli/gemini-3-pro-preview` → change to `google-gemini-cli/gemini-3.1-pro-preview`
+- [ ] **marketing** → `google/gemini-3-pro-preview` → change to `google/gemini-3.1-pro-preview`
+- [ ] **forensic** → `google-gemini-cli/gemini-3-pro-preview` → change to `google-gemini-cli/gemini-3.1-pro-preview`
+- [ ] **forge** → `google-gemini-cli/gemini-3-pro-preview` → change to `google-gemini-cli/gemini-3.1-pro-preview`
+- [ ] **Gateway restart** after config update
+- [ ] **Exit criteria**: `openclaw agents list` shows 0 agents on gemini-3-pro-preview
 
 ### 3.1 Gemini 2.0-flash → 2.5-flash (10 occurrences, 6 files)
-- [ ] `supabase/functions/_shared/unified-ai-client.ts`
+> gemini-2.0-flash also being discontinued (previously March 31, likely earlier now)
+- [ ] `supabase/functions/_shared/unified-ai-client.ts` (fallback list)
 - [ ] `supabase/functions/vision-analytics/index.ts`
 - [ ] `supabase/functions/ai-ceo-master/index.ts` (3 refs)
 - [ ] `supabase/functions/multi-agent-orchestrator/index.ts` (2 refs)
@@ -115,11 +127,14 @@
 - [ ] `supabase/functions/ptd-ultimate-intelligence/index.ts` (3 refs)
 - [ ] **Exit criteria**: `rg "gemini-2.0-flash" supabase src api` returns 0
 
-### 3.2 text-embedding-004 → gemini-embedding-001
-- [ ] **`api/brain.ts`**: Switch to `gemini-embedding-001` with `outputDimensionality: 1536`
-- [ ] **Update endpoint**: `POST generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`
-- [ ] **Add L2 normalization** for non-3072 dims
-- [ ] **Exit criteria**: Brain API returns embeddings from new model; `rg "text-embedding-004"` returns 0
+### 3.2 text-embedding-004 → gemini-embedding-001 (6 refs, 5 files)
+- [ ] **`api/brain.ts`** (2 refs): Switch to `gemini-embedding-001` with `outputDimensionality: 1536`
+- [ ] **`supabase/functions/process-knowledge/index.ts`**: Update model ref
+- [ ] **`supabase/functions/ptd-agent-gemini/index.ts`**: Update embeddings call
+- [ ] **`supabase/functions/openai-embeddings/index.ts`**: Update to gemini-embedding-001
+- [ ] **`supabase/functions/ptd-agent-atlas/index.ts`**: Update embeddings call
+- [ ] **Add L2 normalization** for 1536-dim output
+- [ ] **Exit criteria**: `rg "text-embedding-004"` returns 0
 
 ### 3.3 Raw Gemini Fetch → unified-ai-client (5 bypass files)
 - [ ] `supabase/functions/ai-analyst-engine/index.ts`
@@ -128,6 +143,11 @@
 - [ ] `supabase/functions/smart-ai-advisor/index.ts`
 - [ ] `supabase/functions/super-agent-orchestrator/index.ts`
 - [ ] **Exit criteria**: Only `unified-ai-client.ts` calls `generativelanguage.googleapis.com`
+
+### 3.4 Verify `gemini-3-flash-preview` stability
+- [ ] Confirm `gemini-3-flash-preview` is NOT being deprecated alongside `gemini-3-pro-preview`
+- [ ] If also deprecated: migrate 16 refs to `gemini-3.1-flash-preview` or `gemini-2.5-flash`
+- [ ] **Exit criteria**: All model strings point to actively supported models
 
 ---
 
@@ -152,11 +172,14 @@
 - [ ] **Update `introspect_schema_verbose`** RPC
 - [ ] **Exit criteria**: Demographics available in Supabase
 
-### 4.4 Health Score v3 (TODO 3 — depends on 4.2 + 4.3)
+### 4.4 Health Score v3 (TODO 3 — depends on 4.1 + 4.2 + 4.3)
+> **KEY FACT (from memory)**: All client health scores come from AWS. v2 scores 218 active package holders.
+> PowerBI views have MORE data (reviews, demographics, pricing). Cron `health-calculator` runs 4x/day.
 - [ ] **Add to `health-score-engine`**: Satisfaction (10pts, from reviews), Revenue Value (10pts, session price), Demographic Risk (5pts)
-- [ ] **Resolve split-brain**: Cut over all callers from `calculate-health-scores` → `health-score-engine`
+- [ ] **Resolve split-brain**: Cut over all 15 callers from `calculate-health-scores` → `health-score-engine`
 - [ ] **Update cron schedule** to use v3 engine as canonical scorer
-- [ ] **Exit criteria**: One health scorer, one cron, all callers unified
+- [ ] **Write to `client_health_daily`** (not legacy `client_health_scores`)
+- [ ] **Exit criteria**: One health scorer, one cron, all callers unified, writing to correct table
 
 ### 4.5 Attribution Pipeline Stabilization
 - [ ] **Resolve conflicting `view_call_attribution`** definitions in migrations `20260224230000` and `20260225000002`
@@ -246,23 +269,32 @@
 |-------|-------|----------|------------|------------|
 | 1. Security Lockdown | 19 | P0 | 4-6h | — |
 | 2. Test Stabilization | 15 | P0 | 3-4h | — |
-| 3. Model Migration | 8 | P1 | 2-3h | Phase 1 |
+| 3. Model Migration | 15 | **P0** ⚠️ | 3-4h | — (MARCH 9 DEADLINE) |
 | 4. Data Pipeline | 10 | P1 | 6-8h | Phase 1 |
 | 5. Stale Cleanup | 8 | P2 | 4-5h | Phase 2 |
 | 6. CORS & Policy | 5 | P2 | 2-3h | Phase 1 |
 | 7. Deploy & Verify | 5 | P1 | 2h | All above |
-| **TOTAL** | **70** | — | **23-31h** | — |
+| **TOTAL** | **77** | — | **24-33h** | — |
 
 ---
 
-## EXECUTION ORDER (Optimal)
+## EXECUTION ORDER (Revised — Model deadline forces priority)
 
 ```
-DAY 1 (Today):  Phase 1 (Security) + Phase 2 (Tests)
-DAY 2:          Phase 3 (Models) + Phase 4 (Data Pipeline)
+DAY 1 (Today):  Phase 3.0 (OpenClaw agent models — 10 min fix, prevents March 9 breakage)
+                Phase 1 (Security Lockdown)
+                Phase 2 (Tests)
+DAY 2:          Phase 3.1-3.4 (Codebase model migration)
+                Phase 4 (Data Pipeline)
 DAY 3:          Phase 5 (Cleanup) + Phase 6 (CORS/RLS)
 DAY 4:          Phase 7 (Deploy + Full Verification)
 ```
+
+### ⚠️ CRITICAL TIMELINE
+- **March 6**: Google switches `-latest` alias to gemini-3.1-pro-preview
+- **March 9**: gemini-3-pro-preview DISCONTINUED (4 OpenClaw agents break!)
+- **March 31**: gemini-2.0-flash shutdown (10 edge function refs break!)
+- **Action**: Phase 3.0 must happen TODAY. Phase 3.1 must happen before March 31.
 
 ## NON-GOALS (Explicit)
 - ❌ No new features until all 70 items are done
