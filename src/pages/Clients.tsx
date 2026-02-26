@@ -32,14 +32,14 @@ const Clients = () => {
   });
 
   const { data: coaches } = useQuery({
-    queryKey: ['client-coaches'],
+    queryKey: ['client-coaches-v2'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('client_health_scores')
-        .select('assigned_coach')
-        .not('assigned_coach', 'is', null)
-        .order('assigned_coach');
-      const unique = [...new Set((data || []).map(d => d.assigned_coach).filter(Boolean))];
+        .from('client_health_daily' as never)
+        .select('coach_name')
+        .not('coach_name', 'is', null)
+        .order('coach_name');
+      const unique = [...new Set((data || []).map((d: any) => d.coach_name).filter(Boolean))];
       return unique as string[];
     },
     staleTime: 5 * 60 * 1000,
