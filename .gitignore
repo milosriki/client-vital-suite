@@ -72,3 +72,5 @@ response_smart.json
 # Telegram secrets (never commit)
 telegram_tokens*.yaml
 *telegram*token*.yaml
+.env.stripe
+.env.stripe-check
