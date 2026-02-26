@@ -285,7 +285,7 @@ serve(async (req) => {
 When users ask about "LangSmith", "LangChain", "tracing", or "AI connection status":
 - LangSmith/LangChain Tracing: ${langsmithConfigured ? "✅ CONFIGURED AND ACTIVE" : "❌ NOT CONFIGURED"}
 - This AI is powered by: ${GEMINI_API_KEY ? "Google Gemini API (Direct)" : "Lovable AI Gateway"}
-- AI Model: gemini-3.0-flash / gemini-3.0-flash
+- AI Model: gemini-3-flash-preview / gemini-3-flash-preview
 
 If asked about LangSmith/LangChain: ${
           langsmithConfigured

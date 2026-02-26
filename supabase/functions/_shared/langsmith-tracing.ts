@@ -287,9 +287,9 @@ const MODEL_PROVIDER_MAP: Record<string, AIProvider> = {
   "gpt-4o": "openai",
   "gpt-4o-mini": "openai",
   "gpt-3.5-turbo": "openai",
-  "gemini-pro": "google",
-  "gemini-3.0-flash": "google",
-  "gemini-1.5-flash": "google",
+  "gemini-2.5-pro": "google",
+  "gemini-3-flash-preview": "google",
+  "gemini-2.5-flash": "google",
 };
 
 /**

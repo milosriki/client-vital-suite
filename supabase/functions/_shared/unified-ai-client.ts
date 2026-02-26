@@ -56,8 +56,8 @@ export interface AIOptions {
 // Model cascade: primary → fallback1 → fallback2 (per llm-app-patterns skill)
 // UPDATED 2026-02-23: Gemini 3.1 cascade + DeepSeek fallback
 const GEMINI_CASCADE = [
-  "gemini-3.1-pro",        // Primary: 10M context, deep reasoning
-  "gemini-3.1-flash",      // Setter: High speed, low cost, strong reasoning
+  "gemini-3.1-pro-preview",        // Primary: 10M context, deep reasoning
+  "gemini-3-flash-preview",      // Setter: High speed, low cost, strong reasoning
   "gemini-2.0-flash",      // Legacy Fallback
 ] as const;
 
@@ -190,8 +190,8 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
           { role: "system", content: "You are a conversation summarizer." },
           { role: "user", content: summaryPrompt },
         ],
-        { max_tokens: 256, model: "gemini-1.5-flash" }, // Use cheapest model
-        "gemini-1.5-flash",
+        { max_tokens: 256, model: "gemini-2.5-flash" }, // Use cheapest model
+        "gemini-2.5-flash",
       );
 
       const compactedMessages: ChatMessage[] = [];
@@ -221,7 +221,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
 
   /**
    * Main entry point: Uses model fallback cascade for resilience.
-   * Primary: gemini-3.1-pro → Fallback: gemini-3.1-flash
+   * Primary: gemini-3.1-pro → Fallback: gemini-3-flash-preview
    * Enforces agent-specific token budgets and auto-compacts on threshold.
    */
   async chat(
@@ -233,11 +233,11 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
     // Agent-Specific Model Selection (2026 Standards)
     if (!options.model) {
       if (options.agentType === "atlas") {
-        options.model = "gemini-3.1-pro"; // Atlas gets the deep reasoning brain
+        options.model = "gemini-3.1-pro-preview"; // Atlas gets the deep reasoning brain
       } else if (options.agentType === "lisa") {
-        options.model = "gemini-3.1-flash"; // Lisa gets the Setter brain (Speed + IQ)
+        options.model = "gemini-3-flash-preview"; // Lisa gets the Setter brain (Speed + IQ)
       } else {
-        options.model = "gemini-3.1-flash"; // Default to 3.1 Flash
+        options.model = "gemini-3-flash-preview"; // Default to 3.1 Flash
       }
     }
 

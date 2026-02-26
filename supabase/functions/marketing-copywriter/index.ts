@@ -153,7 +153,7 @@ ${
             { role: "user", content: userPrompt },
           ],
           {
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             temperature: 0.8,
             max_tokens: 1024,
             jsonMode: true,

@@ -595,7 +595,7 @@ async function generateWithAI(
       childRun = await parentRun.createChild({
         name: "unified_ai_call",
         run_type: "llm",
-        inputs: { query, model: "gemini-flash" },
+        inputs: { query, model: "gemini-2.5-flash" },
       });
       await childRun.postRun();
     } catch { childRun = null; }

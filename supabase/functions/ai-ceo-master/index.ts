@@ -289,7 +289,7 @@ RESPOND WITH VALID JSON ONLY:
   const childRun = await parentRun.createChild({
     name: "unified_ai_call",
     run_type: "llm",
-    inputs: { command, model: "gemini-3.0-flash" },
+    inputs: { command, model: "gemini-3-flash-preview" },
   });
   await childRun.postRun();
 

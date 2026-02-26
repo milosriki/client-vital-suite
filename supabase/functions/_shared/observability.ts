@@ -40,8 +40,8 @@ interface ExecutionMetrics {
 // Cost per 1M tokens (in USD)
 const COST_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
   // Google
-  "gemini-3.0-flash": { input: 0.10, output: 0.40 },
-  "gemini-3.0-flash-preview-05-20": { input: 0.15, output: 0.60 },
+  "gemini-3-flash-preview": { input: 0.10, output: 0.40 },
+  "gemini-3-flash-preview": { input: 0.15, output: 0.60 },
   // OpenAI
   "gpt-4o": { input: 2.50, output: 10.0 },
   "gpt-4o-mini": { input: 0.15, output: 0.60 },
