@@ -42,8 +42,8 @@ serve(async (req) => {
     const { eventData, mode = 'test' } = await req.json();
     
     const STAPE_CAPIG_API_KEY = Deno.env.get('STAPE_CAPIG_API_KEY');
-    const STAPE_URL = Deno.env.get('STAPE_URL') || 'https://ap.stape.info';
-    const CAPIG_IDENTIFIER = Deno.env.get('STAPE_CAPIG_IDENTIFIER') || 'ecxdsmmg';
+    const STAPE_URL = Deno.env.get('STAPE_URL') || 'https://me.stape.info';
+    const CAPIG_IDENTIFIER = Deno.env.get('STAPE_CAPIG_IDENTIFIER') || 'lngxbkcr';
     
     // Stape is optional - if no key, return success but don't send
     if (!STAPE_CAPIG_API_KEY) {
