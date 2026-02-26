@@ -507,7 +507,7 @@ export default function SetterCommandCenter() {
                 />
                 <MetricCard
                   label="Avg Per Setter"
-                  value={delegationMetrics.avgDelegationsPerSetter.toFixed(1)}
+                  value={(delegationMetrics.avgDelegationsPerSetter ?? 0).toFixed(1)}
                   icon={Users}
                 />
                 <MetricCard
@@ -701,8 +701,8 @@ export default function SetterCommandCenter() {
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                     <TrendingUp className="h-3.5 w-3.5" /> Connection Rate
                   </div>
-                  <p className={`text-2xl font-bold ${selectedSetter.connectionRate >= 50 ? "text-emerald-500" : selectedSetter.connectionRate >= 30 ? "text-yellow-500" : "text-red-500"}`}>
-                    {selectedSetter.connectionRate.toFixed(1)}%
+                  <p className={`text-2xl font-bold ${(selectedSetter.connectionRate ?? 0) >= 50 ? "text-emerald-500" : (selectedSetter.connectionRate ?? 0) >= 30 ? "text-yellow-500" : "text-red-500"}`}>
+                    {(selectedSetter.connectionRate ?? 0).toFixed(1)}%
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30">
@@ -719,8 +719,8 @@ export default function SetterCommandCenter() {
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-lg font-bold">{selectedSetter.connected} / {selectedSetter.total}</p>
-                  <Badge variant={selectedSetter.connectionRate >= 50 ? "default" : "secondary"}>
-                    {selectedSetter.connectionRate.toFixed(1)}%
+                  <Badge variant={(selectedSetter.connectionRate ?? 0) >= 50 ? "default" : "secondary"}>
+                    {(selectedSetter.connectionRate ?? 0).toFixed(1)}%
                   </Badge>
                 </div>
               </div>
