@@ -31,8 +31,9 @@ const corsHeaders = {
 };
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_KEY") || "";
-const GEMINI_MODEL = "gemini-2.0-flash";
-const MAX_ACTIONS = 20; // Analyze top 20 per run (cost control)
+// Gemini 2.5 Flash with thinking mode — deeper reasoning, better analysis
+const GEMINI_MODEL = "gemini-2.5-flash";
+const MAX_ACTIONS = 10; // 10 per run × ~8s each = ~80s (well within 150s edge function limit)
 
 interface AnalysisResult {
   root_cause: string;
@@ -55,6 +56,7 @@ async function callGemini(prompt: string): Promise<string> {
     });
   }
 
+  // Gemini 2.5 with thinking mode — model reasons internally before answering
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -63,9 +65,13 @@ async function callGemini(prompt: string): Promise<string> {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.3, // Low temp for analytical precision
-          maxOutputTokens: 500,
+          temperature: 1.0, // Required for thinking mode (Gemini 2.5 ignores other values)
+          maxOutputTokens: 2048,
           responseMimeType: "application/json",
+          // Enable thinking (deep reasoning before answering)
+          thinkingConfig: {
+            thinkingBudget: 512, // tokens for internal reasoning (fast but deep)
+          },
         },
       }),
     }
@@ -77,7 +83,11 @@ async function callGemini(prompt: string): Promise<string> {
   }
 
   const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  // With thinking mode, response may have thought + answer parts
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  // Get the last non-thought part (the actual response)
+  const textPart = parts.filter((p: any) => !p.thought).pop();
+  return textPart?.text || parts[parts.length - 1]?.text || "{}";
 }
 
 serve(async (req: Request) => {
@@ -177,34 +187,52 @@ serve(async (req: Request) => {
         const clientName = action.prepared_payload?.client_name || action.action_title;
         const health = healthMap[clientName];
 
-        const prompt = `You are a fitness business analyst for PTD Fitness Dubai (home-visit personal training, 27 coaches, 218 active clients).
+        const prompt = `You are a senior fitness business intelligence analyst for PTD Fitness Dubai.
 
-ALERT: ${action.action_title}
-TYPE: ${action.action_type}
-DETAILS: ${action.action_description}
-REASONING: ${action.reasoning}
+BUSINESS CONTEXT:
+- Home-visit personal training company (coaches go to client homes)
+- 27 active coaches, 218 clients with active packages
+- Revenue: AED-based packages (AED 3,000 to AED 43,000+)
+- High cancel rates = revenue leakage (each cancelled session costs ~AED 400)
+- Coaches are independent — scheduling conflicts, motivation vary
 
-CLIENT CONTEXT:
-${health ? `- Health Score: ${health.total_score}/100 (${health.tier})
+ALERT TO ANALYZE:
+Title: ${action.action_title}
+Type: ${action.action_type}
+Details: ${action.action_description}
+System's initial reasoning: ${action.reasoning}
+Expected impact: ${action.expected_impact || "Unknown"}
+
+CLIENT DATA:
+${health ? `- Health Score: ${health.total_score}/100 (Tier: ${health.tier})
 - Trend: ${health.trend}
-- Days since training: ${health.days_since_training}
-- Sessions last 30d: ${health.sessions_30d}
-- Cancels last 30d: ${health.cancels_30d}` : "- No health data available"}
-- Package info: ${JSON.stringify(action.prepared_payload || {})}
+- Days since last training: ${health.days_since_training}
+- Sessions completed last 30 days: ${health.sessions_30d}
+- Sessions cancelled last 30 days: ${health.cancels_30d}` : "- No health scoring data available for this client"}
+- Full payload: ${JSON.stringify(action.prepared_payload || {})}
 
-AVAILABLE COACHES (sorted by capacity):
-${availableCoaches.slice(0, 10).map(c => `${c.name}: ${c.clients} clients, ${c.completed_30d} sessions/30d, ${c.cancel_rate}% cancel`).join("\n")}
+COACHES AVAILABLE FOR REASSIGNMENT (sorted by lowest load):
+${availableCoaches.slice(0, 10).map(c => `• ${c.name}: ${c.clients} clients, ${c.completed_30d} completed/30d, ${c.cancel_rate}% cancel rate`).join("\n")}
 
-${patternContext ? `HISTORICAL PATTERN DATA:\n${patternContext}` : ""}
+${patternContext ? `LEARNED PATTERNS FROM PREVIOUS ACTIONS:\n${patternContext}\nUse these patterns to calibrate your confidence.` : ""}
 
-Analyze this situation and respond in JSON:
+THINK DEEPLY about this situation. Consider:
+1. What's the REAL root cause? (Not just symptoms — dig into WHY)
+2. Is this a client problem, coach problem, or system problem?
+3. If recommending a coach, match based on: workload, cancel rate, area proximity
+4. What's the revenue impact if we don't act?
+5. Have we seen similar patterns before? What happened?
+
+Respond in JSON format:
 {
-  "root_cause": "The most likely reason this is happening (be specific, not generic)",
-  "specific_recommendation": "Exact action to take. If reassignment needed, name the best coach match.",
+  "root_cause": "Deep analysis of WHY this is happening (2-3 sentences, specific to this case)",
+  "specific_recommendation": "Exact step-by-step action. If reassigning, name the coach and explain why they're the best match.",
   "urgency": "immediate | this_week | monitor",
   "confidence": 0.0-1.0,
-  "suggested_owner": "Who should handle this (team_leader/sales/admin)",
-  "similar_cases": "Brief note on whether you've seen this pattern before"
+  "suggested_owner": "team_leader | sales | admin | coach_name",
+  "revenue_impact": "What's at stake in AED if no action taken",
+  "similar_cases": "Pattern match to other clients/situations if applicable",
+  "follow_up": "What to check in 7 days to verify the action worked"
 }`;
 
         const response = await callGemini(prompt);
