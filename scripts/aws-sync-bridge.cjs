@@ -31,7 +31,7 @@ const RDS_CONFIG = {
   port: 5432,
   database: "ptd",
   user: "ptd-milos",
-  password: process.env.RDS_PASSWORD || "tiM6s1uzuspOsipr",
+  password: process.env.RDS_PASSWORD || (() => { throw new Error("RDS_PASSWORD env var required"); })(),
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 30000,
   statement_timeout: 120000,

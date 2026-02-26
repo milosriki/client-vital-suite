@@ -34,7 +34,7 @@ SELECT current_database() as db_name;
 ALTER DATABASE postgres SET app.settings.supabase_url = 'https://ztjndilxurtsfqdsvfds.supabase.co';
 
 -- Step 3: Set cron secret
-ALTER DATABASE postgres SET app.cron_secret = '152bd25836768729ac62122db53ad38c0d7b1d68621e8d86b4133f0521872117';
+ALTER DATABASE postgres SET app.cron_secret = '${CRON_SECRET:?CRON_SECRET env var required}';
 
 -- Step 4: Verify (open NEW tab first!)
 SELECT
