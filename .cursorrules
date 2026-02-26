@@ -1,8 +1,16 @@
 - We are building a "Living Being" architecture for PTD Fitness.
 
+- Read CRAW-FINDINGS-2026-02-26.md FIRST — it has today's AWS deep dive, view mapping, bug fixes, cancel status discovery, and TODO list.
+
 - Read KNOWLEDGE.md before writing new code — it contains findings, plans, and key decisions.
 
 - Always check 'WIRING_ANALYSIS.md' before writing new code.
+
+- AWS RDS is READ-ONLY (replica). Both users (ptd-milos / 4revops) have identical access. All intelligence runs in Supabase.
+
+- AWS cancel statuses are hyphenated: 'Cancelled-Trainer Charged', 'Cancelled-Trainer Not Charged', 'Cancelled-Client is Charged', 'Cancelled-Client is not Charged'. There is NO plain 'Cancelled'. 'Cancelled-Rebooked' is NOT a real cancel. Use: status LIKE 'Cancelled-%' AND status != 'Cancelled-Rebooked'
+
+- Switch to PowerBI views for richer data: vw_powerbi_schedulers (pricing, reviews), vw_powerbi_clientpackages (payment info), vw_powerbi_clients (demographics).
 
 - Every time you create a new database table, you MUST update the 'introspect_schema_verbose' SQL function in Supabase so the agent can see it.
 

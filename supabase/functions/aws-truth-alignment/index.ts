@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
           SELECT COUNT(*)
           FROM enhancesch.vw_schedulers s
           WHERE s.id_client = m.id_client
-            AND s.status IN ('Cancelled', 'No Show')
+            AND (s.status LIKE 'Cancelled-%' AND s.status != 'Cancelled-Rebooked')
         ) AS total_sessions_cancelled
       FROM enhancesch.vw_client_master m
       JOIN enhancesch.vw_client_packages p ON m.id_client = p.id_client

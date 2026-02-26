@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
             s.trainer_name,
             COUNT(*) as total_sessions,
             COUNT(CASE WHEN s.status IN ('Completed', 'Attended') THEN 1 END) as completed,
-            COUNT(CASE WHEN s.status = 'Cancelled' THEN 1 END) as cancelled,
+            COUNT(CASE WHEN s.status LIKE 'Cancelled-%' AND s.status != 'Cancelled-Rebooked' THEN 1 END) as cancelled,
             COUNT(CASE WHEN s.status = 'No Show' THEN 1 END) as no_shows,
             ROUND(
               COUNT(CASE WHEN s.status IN ('Completed', 'Attended') THEN 1 END)::numeric / 

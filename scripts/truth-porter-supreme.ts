@@ -100,7 +100,7 @@ async function portTruth() {
       LEFT JOIN (
         SELECT s.id_client,
           COUNT(CASE WHEN s.status IN ('Completed', 'Attended') THEN 1 END) as attended,
-          COUNT(CASE WHEN s.status = 'Cancelled' THEN 1 END) as cancelled
+          COUNT(CASE WHEN s.status LIKE 'Cancelled-%' AND s.status != 'Cancelled-Rebooked' THEN 1 END) as cancelled
         FROM enhancesch.vw_schedulers s
         GROUP BY s.id_client
       ) sess ON m.id_client = sess.id_client

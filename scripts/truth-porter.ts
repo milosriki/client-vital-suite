@@ -72,7 +72,7 @@ async function portTruth() {
       SELECT 
         m.email,
         COUNT(CASE WHEN s.status IN ('Completed', 'Attended') THEN 1 END) as total_sessions_attended,
-        COUNT(CASE WHEN s.status = 'Cancelled' THEN 1 END) as total_sessions_cancelled,
+        COUNT(CASE WHEN s.status LIKE 'Cancelled-%' AND s.status != 'Cancelled-Rebooked' THEN 1 END) as total_sessions_cancelled,
         SUM(p.amounttotal) as lifetime_revenue
       FROM enhancesch.vw_client_master m
       LEFT JOIN enhancesch.vw_schedulers s ON m.id_client = s.id_client

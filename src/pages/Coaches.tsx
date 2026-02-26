@@ -325,7 +325,14 @@ export default function Coaches() {
           churn_factors: pred?.churn_factors ?? null,
           revenue_at_risk: pred?.revenue_at_risk ?? pkg.package_value ?? 0,
           predicted_churn_date: pred?.predicted_churn_date ?? null,
-          depletion_priority: depletion,
+          depletion_priority: (() => {
+            // Upgrade priority based on churn risk (not just depletion)
+            const churn = pred?.churn_score ?? health?.churn_risk_score ?? 0;
+            let priority = depletion;
+            if (churn >= 60 && (priority === "LOW" || priority === "MEDIUM")) priority = "HIGH";
+            else if (churn >= 40 && priority === "LOW") priority = "MEDIUM";
+            return priority;
+          })(),
           days_until_depleted: daysUntilDepleted,
           trend,
           last_call_date: lastCall,

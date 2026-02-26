@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
         COUNT(*) AS total_sessions,
         COUNT(*) FILTER (WHERE s.status IN ('Completed', 'Attended')) AS completed,
         COUNT(*) FILTER (WHERE s.status = 'No Show') AS no_shows,
-        COUNT(*) FILTER (WHERE s.status = 'Cancelled') AS cancelled,
+        COUNT(*) FILTER (WHERE s.status LIKE 'Cancelled-%' AND s.status != 'Cancelled-Rebooked') AS cancelled,
         COUNT(*) FILTER (WHERE s.status IN ('Scheduled', 'Confirmed')) AS scheduled
       FROM enhancesch.vw_schedulers s
       WHERE s.training_date_utc::date >= CURRENT_DATE - INTERVAL '3 days'
