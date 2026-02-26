@@ -251,6 +251,107 @@ async function syncPackages(rds) {
 }
 
 // ═══ REPORT TO SUPABASE ═══
+/**
+ * ENRICH PACKAGES — Post-sync step
+ * Populates last_coach, last_session_date, sessions_per_week, future_booked
+ * by querying AWS RDS for the latest completed session per client.
+ */
+async function enrichPackages(rds) {
+  log("[ENRICH] Querying AWS for session enrichment data...");
+
+  // Get last completed session + stats per client from AWS
+  const { rows: enrichData } = await rds.query(`
+    WITH latest_completed AS (
+      SELECT 
+        id_client,
+        trainer_name,
+        training_date_utc,
+        ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY training_date_utc DESC) as rn
+      FROM enhancesch.vw_schedulers
+      WHERE status = 'Completed'
+    ),
+    client_stats AS (
+      SELECT 
+        id_client,
+        ROUND(COUNT(*) FILTER (WHERE status = 'Completed' AND training_date_utc >= NOW() - INTERVAL '60 days') / 8.57, 1) as sessions_per_week,
+        COUNT(*) FILTER (WHERE training_date_utc > NOW() AND status IN ('Confirmed','Scheduled')) as future_booked
+      FROM enhancesch.vw_schedulers
+      GROUP BY id_client
+    )
+    SELECT 
+      lc.id_client,
+      lc.trainer_name as last_coach,
+      lc.training_date_utc as last_session_date,
+      COALESCE(cs.sessions_per_week, 0) as sessions_per_week,
+      COALESCE(cs.future_booked, 0) as future_booked
+    FROM latest_completed lc
+    LEFT JOIN client_stats cs ON cs.id_client = lc.id_client
+    WHERE lc.rn = 1
+  `);
+
+  log(`[ENRICH] Got ${enrichData.length} client enrichment records from AWS`);
+
+  // Build a map of client_id → enrichment data
+  const enrichMap = {};
+  for (const row of enrichData) {
+    enrichMap[String(row.id_client)] = {
+      last_coach: row.last_coach || null,
+      last_session_date: row.last_session_date ? new Date(row.last_session_date).toISOString() : null,
+      sessions_per_week: parseFloat(row.sessions_per_week) || 0,
+      future_booked: parseInt(row.future_booked) || 0,
+    };
+  }
+
+  // Get all package client_ids from Supabase to know which ones to update
+  const pkgRes = await fetch(`${SUPABASE_URL}/rest/v1/client_packages_live?select=client_id&limit=10000`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  const pkgData = await pkgRes.json();
+  const uniqueClientIds = [...new Set((pkgData || []).map(p => String(p.client_id)))];
+  log(`[ENRICH] ${uniqueClientIds.length} unique client_ids in packages`);
+
+  // Batch update: 20 concurrent PATCH requests
+  let updated = 0;
+  let errors = 0;
+  const CONCURRENCY = 20;
+
+  for (let i = 0; i < uniqueClientIds.length; i += CONCURRENCY) {
+    const batch = uniqueClientIds.slice(i, i + CONCURRENCY);
+    const promises = batch.map(async (clientId) => {
+      const enrich = enrichMap[clientId];
+      if (!enrich) return; // No session data for this client
+
+      try {
+        const url = `${SUPABASE_URL}/rest/v1/client_packages_live?client_id=eq.${clientId}`;
+        const res = await fetch(url, {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify(enrich),
+        });
+        if (res.ok) updated++;
+        else {
+          const errText = await res.text();
+          if (errors < 3) log(`[ENRICH] PATCH ${clientId}: ${res.status} ${errText}`);
+          errors++;
+        }
+      } catch (e) {
+        if (errors < 3) log(`[ENRICH] Error ${clientId}: ${e.message}`);
+        errors++;
+      }
+    });
+    await Promise.all(promises);
+    if ((i + CONCURRENCY) % 200 === 0) log(`[ENRICH] Progress: ${i + CONCURRENCY}/${uniqueClientIds.length}`);
+  }
+
+  log(`[ENRICH] Updated ${updated} packages, ${errors} errors`);
+  return { updated, errors, total: enrichData.length };
+}
+
 async function reportSync(summary) {
   try {
     // Log sync result for the intelligence engine to see
@@ -294,6 +395,10 @@ async function main() {
     const packageResult = await syncPackages(rds);
     log(`✅ Packages: ${packageResult.synced} synced, ${packageResult.errors} errors`);
 
+    // Enrich packages with session data (last_coach, last_session_date, etc.)
+    const enrichResult = await enrichPackages(rds);
+    log(`✅ Enrichment: ${enrichResult.updated} packages enriched`);
+
     const elapsed = Date.now() - startTime;
     const summary = {
       success: sessionResult.errors === 0 && packageResult.errors === 0,
@@ -308,6 +413,7 @@ async function main() {
     log(`  DONE in ${(elapsed / 1000).toFixed(1)}s`);
     log(`  Sessions: ${sessionResult.synced}/${sessionResult.total}`);
     log(`  Packages: ${packageResult.synced}/${packageResult.total}`);
+    log(`  Enriched: ${enrichResult.updated} packages`);
     log("═══════════════════════════════════════");
 
     await reportSync(summary);
