@@ -58,7 +58,7 @@ export interface AIOptions {
 const GEMINI_CASCADE = [
   "gemini-3.1-pro-preview",        // Primary: 10M context, deep reasoning
   "gemini-3-flash-preview",      // Setter: High speed, low cost, strong reasoning
-  "gemini-2.0-flash",      // Legacy Fallback
+  "gemini-2.5-flash",      // Legacy Fallback
 ] as const;
 
 // DeepSeek fallback when Gemini fails entirely

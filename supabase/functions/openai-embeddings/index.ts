@@ -39,7 +39,7 @@ serve(async (req) => {
     return apiSuccess({
       embedding,
       dimensions: embedding.length,
-      model: "text-embedding-004", // Gemini embedding model
+      model: "gemini-embedding-001", // Gemini embedding model
     });
   } catch (error: unknown) {
     console.error("Embeddings error:", error);

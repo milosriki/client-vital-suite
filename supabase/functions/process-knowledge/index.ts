@@ -88,7 +88,7 @@ serve(async (req) => {
         embedding: embedding,
         metadata: {
           ...metadata,
-          embedding_model: "text-embedding-004",
+          embedding_model: "gemini-embedding-001",
           total_chunks: chunks.length,
         },
       });

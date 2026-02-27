@@ -26,7 +26,7 @@ serve(async (req) => {
 
     const genAI = new GoogleGenerativeAI(Deno.env.get("GOOGLE_API_KEY") || "");
     // Upgrade to Gemini 3 Pro for Multimodal Reasoning
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Fetch the image
     const imageResp = await fetch(imageUrl);

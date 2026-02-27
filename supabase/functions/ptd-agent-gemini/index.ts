@@ -239,7 +239,7 @@ const PTD_STATIC_KNOWLEDGE_LOCAL = PTD_STATIC_KNOWLEDGE;
 
 // ============= PERSISTENT MEMORY SYSTEM + RAG =============
 
-// UNIFIED EMBEDDINGS: All embedding calls use Gemini text-embedding-004
+// UNIFIED EMBEDDINGS: All embedding calls use Gemini gemini-embedding-001
 // This eliminates the dual-provider fragmentation (OpenAI vs Gemini)
 async function getEmbeddings(text: string): Promise<number[] | null> {
   try {

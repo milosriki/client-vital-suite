@@ -696,7 +696,7 @@ ${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
       temperature: 0.4,
       tools: intelligenceTools,
       // toolMode: needsTools ? "ANY" : undefined, // Disabled: SDK may not support
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       agentType: "atlas",
       functionName: "ptd-ultimate-intelligence",
     });
@@ -744,7 +744,7 @@ ${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
         temperature: 0.4,
         tools: intelligenceTools,
         toolMode: "AUTO",
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         agentType: "atlas",
         functionName: "ptd-ultimate-intelligence",
       });
@@ -780,7 +780,7 @@ ${persona.name === "REVENUE" ? ROI_MANAGERIAL_PROMPT : ""}`;
     const usage = currentResponse.usage || {};
     supabase.from("ai_execution_metrics").insert({
       function_name: "ptd-ultimate-intelligence",
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       tokens_in: usage.prompt_tokens || 0,
       tokens_out: usage.completion_tokens || 0,
       latency_ms: 0,

@@ -125,7 +125,7 @@ async function runAgent(
   prompt: string,
   data: any,
 ): Promise<AgentResponse> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const fullPrompt = `${getConstitutionalSystemMessage()}
 
@@ -169,7 +169,7 @@ async function synthesize(
   query: string,
   responses: AgentResponse[],
 ): Promise<{ synthesis: string; actionPlan: string[]; projectedROI: number }> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const synthesisPrompt = `${getConstitutionalSystemMessage()}
 

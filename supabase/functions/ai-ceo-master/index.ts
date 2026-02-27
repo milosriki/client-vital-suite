@@ -316,7 +316,7 @@ RESPOND WITH VALID JSON ONLY:
     const MAX_TOOL_RESULT_CHARS = 3000;
 
     let currentResponse = await unifiedAI.chat(messages, {
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       temperature: 0.2,
       jsonMode: true,
       tools: ceoTools,
@@ -358,7 +358,7 @@ RESPOND WITH VALID JSON ONLY:
       });
 
       currentResponse = await unifiedAI.chat(messages, {
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         temperature: 0.2,
         jsonMode: true,
         tools: ceoTools,
