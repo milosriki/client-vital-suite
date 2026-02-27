@@ -36,7 +36,7 @@ async function getEmbedding(text: string): Promise<number[]> {
 
   try {
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
       {
         method: "POST",
         headers: {
@@ -44,7 +44,7 @@ async function getEmbedding(text: string): Promise<number[]> {
           "x-goog-api-key": key,
         },
         body: JSON.stringify({
-          model: "models/text-embedding-004",
+          model: "models/gemini-embedding-001",
           content: {
             parts: [{ text: text.slice(0, 8000) }],
           },

@@ -11,7 +11,7 @@ async function callGemini(systemPrompt: string, userPrompt: string) {
     return "MOCK RESPONSE: Hey! I hear you, exams are brutal. honestly, proud of you for prioritizing yourself despite the stress. I can squeeze you in Tuesday at 4pm if that helps you decompress?";
   }
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-preview:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
