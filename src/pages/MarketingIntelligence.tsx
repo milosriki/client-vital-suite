@@ -70,6 +70,11 @@ import { useDailyOptimization } from "@/hooks/useDailyOptimization";
 import { useCohortProgression } from "@/hooks/useCohortProgression";
 import { StressTestDashboard } from "@/components/marketing/StressTestDashboard";
 
+const toFixedSafe = (value: unknown, digits = 2): string => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : "—";
+};
+
 /* ─────────────────────────────────────────────
    Shared inline components
    ───────────────────────────────────────────── */
@@ -475,16 +480,16 @@ function DeepIntelTab() {
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Yesterday CPL</p>
-                <p className="text-lg font-mono font-bold">AED {zone_a?.metrics?.cpl?.toFixed(2) ?? "—"}</p>
+                <p className="text-lg font-mono font-bold">AED {toFixedSafe(zone_a?.metrics?.cpl, 2)}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">7d ROAS</p>
-                <p className="text-lg font-mono font-bold text-emerald-400">{zone_a?.metrics?.true_roas?.toFixed(2) ?? "—"}x</p>
+                <p className="text-lg font-mono font-bold text-emerald-400">{toFixedSafe(zone_a?.metrics?.true_roas, 2)}x</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">7d Ghost Rate</p>
                 <p className={`text-lg font-mono font-bold ${(zone_d?.top_performers?.[0]?.ghost_rate_pct || 0) > 30 ? "text-rose-400" : "text-amber-400"}`}>
-                  {zone_d?.top_performers?.[0]?.ghost_rate_pct?.toFixed(0) ?? "—"}%
+                  {toFixedSafe(zone_d?.top_performers?.[0]?.ghost_rate_pct, 0)}%
                 </p>
               </div>
             </div>
@@ -554,7 +559,7 @@ function DeepIntelTab() {
           <CardHeader>
             <CardTitle>7-Stage Funnel Health</CardTitle>
             <CardDescription>
-              {funnel.metric_date ? format(new Date(funnel.metric_date), "MMM d, yyyy") : "Latest"} — Overall lead→customer: {funnel.overall_lead_to_customer_pct?.toFixed(1)}%
+              {funnel.metric_date ? format(new Date(funnel.metric_date), "MMM d, yyyy") : "Latest"} — Overall lead→customer: {toFixedSafe(funnel.overall_lead_to_customer_pct, 1)}%
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -711,7 +716,7 @@ function DeepIntelTab() {
             {projections.roas_30d && (
               <div className="mt-3 flex gap-4 justify-center text-sm text-muted-foreground">
                 <span>Projected 30d Spend: AED {projections.spend_30d?.toLocaleString() ?? "—"}</span>
-                <span>Projected 30d ROAS: {projections.roas_30d?.toFixed(2) ?? "—"}x</span>
+                <span>Projected 30d ROAS: {toFixedSafe(projections.roas_30d, 2)}x</span>
               </div>
             )}
           </CardContent>
@@ -1355,9 +1360,9 @@ function CreativeDNATab() {
                         </td>
                         <td className="py-2 px-3 max-w-[180px] truncate">{c.name}</td>
                         <td className="py-2 px-3 text-right font-mono">AED {c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                        <td className="py-2 px-3 text-right font-mono">{c.cpa_aed ? `AED ${c.cpa_aed.toFixed(0)}` : "—"}</td>
+                        <td className="py-2 px-3 text-right font-mono">AED {toFixedSafe(c?.cpa_aed, 0)}</td>
                         <td className={`py-2 px-3 text-right font-mono ${c.fatigue_status === "CRITICAL" ? "text-red-400" : c.fatigue_status === "WARNING" ? "text-amber-400" : "text-slate-300"}`}>
-                          {c.frequency != null ? c.frequency.toFixed(1) : "—"}
+                          {toFixedSafe(c?.frequency, 1)}
                         </td>
                         <td className="py-2 px-3 text-xs text-muted-foreground max-w-[240px] truncate">{c.action_reason || "—"}</td>
                       </tr>

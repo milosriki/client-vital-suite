@@ -69,6 +69,7 @@ export function useDailyOps() {
         .maybeSingle();
 
       if (error) throw error;
+      if (!data) return null;
 
       const row = data as Record<string, unknown>;
 
