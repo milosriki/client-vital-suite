@@ -21,6 +21,45 @@ serve(async (req) => {
     return handleCorsPreFlight();
   }
 
+  // Calendly webhook signing: verify signature if CALENDLY_WEBHOOK_SECRET is set
+  const webhookSecret = Deno.env.get("CALENDLY_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const signature = req.headers.get("calendly-webhook-signature");
+    if (!signature) {
+      return new Response(JSON.stringify({ error: "Missing webhook signature" }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+    // Calendly uses t=timestamp,v1=signature format
+    const parts = Object.fromEntries(
+      signature.split(",").map((p: string) => p.split("=") as [string, string])
+    );
+    if (!parts.t || !parts.v1) {
+      return new Response(JSON.stringify({ error: "Invalid signature format" }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+    // Clone body for verification then re-parse
+    const bodyText = await req.text();
+    const payload = `${parts.t}.${bodyText}`;
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(webhookSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+    const expectedSig = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+    if (expectedSig !== parts.v1) {
+      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+    // Re-inject parsed body for downstream — Calendly signature verified ✅
+    (req as unknown as Record<string, unknown>)._verifiedBody = JSON.parse(bodyText);
+  }
+
   let supabase = null;
 
   try {

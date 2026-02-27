@@ -53,6 +53,17 @@ serve(async (req) => {
     return handleCorsPreFlight();
   }
 
+  // Shared-secret verification: reject if ANYTRACK_WEBHOOK_SECRET is set and doesn't match
+  const webhookSecret = Deno.env.get("ANYTRACK_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const providedSecret = req.headers.get("x-webhook-secret") || new URL(req.url).searchParams.get("secret");
+    if (providedSecret !== webhookSecret) {
+      return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+  }
+
   let supabase = null;
 
   try {

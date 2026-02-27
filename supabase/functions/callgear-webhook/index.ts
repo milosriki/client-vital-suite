@@ -86,9 +86,16 @@ serve(async (req) => {
       );
     }
 
-    // TODO: Add HMAC-SHA256 signature verification when CallGear provides webhook signing
-    // const signature = req.headers.get("X-CallGear-Signature");
-    // if (signature) { verify(signature, body, secret); }
+    // Shared-secret verification: reject if CALLGEAR_WEBHOOK_SECRET is set and doesn't match
+    const webhookSecret = Deno.env.get("CALLGEAR_WEBHOOK_SECRET");
+    if (webhookSecret) {
+      const providedSecret = req.headers.get("x-webhook-secret") || new URL(req.url).searchParams.get("secret");
+      if (providedSecret !== webhookSecret) {
+        return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
