@@ -89,9 +89,10 @@ const MetaAds = lazyWithRetry(() => import("./pages/MetaAds"));
 const LeadTracking = lazyWithRetry(() => import("./pages/LeadTracking"));
 const ConversionFunnel = lazyWithRetry(() => import("./pages/ConversionFunnel"));
 // Restored archived pages — data sources verified
-const LeadFollowUp = lazyWithRetry(() => import("./pages/_archived/LeadFollowUp"));
-const AttributionLeaks = lazyWithRetry(() => import("./pages/_archived/AttributionLeaks"));
-const WorkflowStrategy = lazyWithRetry(() => import("./pages/_archived/WorkflowStrategy"));
+// Archived pages — redirect to active equivalents
+// LeadFollowUp → /lead-tracking
+// AttributionLeaks → /marketing  
+// WorkflowStrategy → /command-center
 
 // Enterprise pages — real data, production hooks
 const EnterpriseStrategy = lazyWithRetry(() => import("./pages/enterprise/EnterpriseStrategy"));
@@ -183,9 +184,9 @@ const router = createBrowserRouter([
       { path: "/meta-ads", element: <SuspensePage><MetaAds /></SuspensePage> },
       { path: "/lead-tracking", element: <SuspensePage><LeadTracking /></SuspensePage> },
       // Restored archived pages
-      { path: "/lead-follow-up", element: <SuspenseTable><LeadFollowUp /></SuspenseTable> },
-      { path: "/attribution-leaks-detail", element: <SuspensePage><AttributionLeaks /></SuspensePage> },
-      { path: "/workflow-strategy", element: <SuspensePage><WorkflowStrategy /></SuspensePage> },
+      { path: "/lead-follow-up", element: <Navigate to="/lead-tracking" replace /> },
+      { path: "/attribution-leaks-detail", element: <Navigate to="/marketing" replace /> },
+      { path: "/workflow-strategy", element: <Navigate to="/command-center" replace /> },
 
       // Enterprise pages
       { path: "/enterprise/strategy", element: <SuspensePage><EnterpriseStrategy /></SuspensePage> },
