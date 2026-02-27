@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 // SUPABASE EDGE FUNCTION: meta-ads-proxy
-// DUAL AI: Anthropic (MCP tools) + Qwen (analysis)
+// AI: Anthropic (MCP tools via Pipeboard) — ONLY
 // ═══════════════════════════════════════════════════════════
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -9,7 +9,6 @@ import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
-const QWEN_API = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions";
 const PIPEBOARD_MCP = "https://mcp.pipeboard.co/meta-ads-mcp";
 const ANTHROPIC_VERSION = "2023-06-01";
 const MCP_BETA = "mcp-client-2025-11-20";
@@ -76,7 +75,7 @@ const TOOL_PROFILES: Record<string, object> = {
   },
 };
 
-// ─── Model maps ───────────────────────────────────────────
+// ─── Model map ────────────────────────────────────────────
 const ANTHROPIC_MODEL_MAP: Record<string, string> = {
   data_fetch: "claude-haiku-4-5-20251001",
   campaign_list: "claude-haiku-4-5-20251001",
@@ -86,17 +85,6 @@ const ANTHROPIC_MODEL_MAP: Record<string, string> = {
   audience_insights: "claude-sonnet-4-20250514",
   chat: "claude-sonnet-4-20250514",
   strategic_planning: "claude-sonnet-4-20250514",
-};
-
-const QWEN_MODEL_MAP: Record<string, string> = {
-  data_fetch: "qwen-turbo",
-  campaign_list: "qwen-turbo",
-  performance_alerts: "qwen-plus",
-  budget_optimization: "qwen-plus",
-  creative_analysis: "qwen-plus",
-  audience_insights: "qwen-plus",
-  chat: "qwen-plus",
-  strategic_planning: "qwen3-max",
 };
 
 // ─── PTD system prompt ────────────────────────────────────
@@ -144,7 +132,7 @@ async function crossValidate(supabaseClient: ReturnType<typeof createClient>): P
   const metaConversions = metaData.reduce((s: number, r: Record<string, unknown>) => s + (Number(r.conversions) || 0), 0);
   const metaPurchaseValue = metaData.reduce((s: number, r: Record<string, unknown>) => s + (Number(r.purchase_value) || 0), 0);
   const hubspotNewContacts = contacts.length;
-  const stripeRevenue = stripeEvents.reduce((s: number, r: Record<string, unknown>) => s + (Number(r.amount) || 0), 0) / 100; // cents to AED
+  const stripeRevenue = stripeEvents.reduce((s: number, r: Record<string, unknown>) => s + (Number(r.amount) || 0), 0) / 100;
 
   const metaCPA = metaConversions > 0 ? totalSpend / metaConversions : 0;
   const metaROAS = totalSpend > 0 ? metaPurchaseValue / totalSpend : 0;
@@ -203,46 +191,13 @@ async function callAnthropic(
   });
 }
 
-// ─── Qwen request ─────────────────────────────────────────
-async function callQwen(
-  apiKey: string,
-  body: Record<string, unknown>
-): Promise<Response> {
-  const {
-    messages,
-    system,
-    stream = false,
-    taskType = "chat",
-    maxTokens = 4096,
-  } = body;
-
-  const model = QWEN_MODEL_MAP[taskType as string] || "qwen-plus";
-  const systemMsg = { role: "system", content: (system as string) || PTD_SYSTEM_PROMPT };
-  const allMessages = [systemMsg, ...(messages as Array<Record<string, string>>)];
-
-  return fetch(QWEN_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: allMessages,
-      max_tokens: maxTokens,
-      stream,
-      temperature: 0.3,
-    }),
-  });
-}
-
+// ─── Main handler ─────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // 🔒 Security Check
     verifyAuth(req);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unauthorized";
@@ -261,10 +216,16 @@ Deno.serve(async (req: Request) => {
 
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
   const pipeboardToken = Deno.env.get("PIPEBOARD_TOKEN") || "";
-  const qwenKey = Deno.env.get("QWEN_API_KEY") || "sk-c3579d82bf5c465ea294c58487210125";
 
   if (!anthropicKey) {
     return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!pipeboardToken) {
+    return new Response(JSON.stringify({ error: "PIPEBOARD_TOKEN not configured" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -289,63 +250,11 @@ Deno.serve(async (req: Request) => {
       messages: inputMessages,
       stream = false,
       taskType = "chat",
-      useMcp = false,
     } = body;
 
     const messages = inputMessages || [{ role: "user", content: prompt }];
     const fullBody = { ...body, messages };
 
-    // ─── Route: MCP tasks → Anthropic, analysis → Qwen ─
-    if (useMcp && pipeboardToken) {
-      // Anthropic + Pipeboard MCP path
-      const response = await callAnthropic(anthropicKey, pipeboardToken, fullBody);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return new Response(
-          JSON.stringify({ error: `Anthropic API error: ${response.status}`, details: errorText }),
-          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (stream) {
-        return new Response(response.body, {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-          },
-        });
-      }
-
-      const data = await response.json();
-      const textContent = (data.content || [])
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
-        .join("\n");
-
-      const toolResults = (data.content || [])
-        .filter((b: { type: string }) => b.type === "mcp_tool_result")
-        .map((b: { tool_use_id: string; is_error: boolean; content: unknown }) => ({
-          toolUseId: b.tool_use_id,
-          isError: b.is_error,
-          content: b.content,
-        }));
-
-      return new Response(
-        JSON.stringify({
-          text: textContent,
-          toolResults,
-          usage: data.usage,
-          model: data.model,
-          stopReason: data.stop_reason,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // ─── Qwen path (analysis, chat, no MCP tools) ────
     // Enrich with cached data for analysis tasks
     let enrichedMessages = messages;
     if (["performance_alerts", "budget_optimization", "audience_insights", "creative_analysis"].includes(taskType)) {
@@ -373,60 +282,49 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const qwenResponse = await callQwen(qwenKey, { ...fullBody, messages: enrichedMessages });
+    // All requests → Anthropic + Pipeboard MCP
+    const response = await callAnthropic(anthropicKey, pipeboardToken, { ...fullBody, messages: enrichedMessages });
 
-    if (!qwenResponse.ok) {
-      // Fallback to Anthropic if Qwen fails
-      const anthropicResponse = await callAnthropic(anthropicKey, pipeboardToken, fullBody);
-      if (!anthropicResponse.ok) {
-        const errorText = await anthropicResponse.text();
-        return new Response(
-          JSON.stringify({ error: `Both AI providers failed. Anthropic: ${anthropicResponse.status}`, details: errorText }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (stream) {
-        return new Response(anthropicResponse.body, {
-          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-        });
-      }
-
-      const data = await anthropicResponse.json();
-      const textContent = (data.content || [])
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
-        .join("\n");
-
+    if (!response.ok) {
+      const errorText = await response.text();
       return new Response(
-        JSON.stringify({ text: textContent, toolResults: [], usage: data.usage, model: data.model, stopReason: data.stop_reason }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `Anthropic API error: ${response.status}`, details: errorText }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (stream) {
-      // Qwen streaming — convert to SSE format compatible with client
-      return new Response(qwenResponse.body, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      return new Response(response.body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
       });
     }
 
-    // Non-streaming Qwen response
-    const qwenData = await qwenResponse.json();
-    const choice = qwenData.choices?.[0];
-    const text = choice?.message?.content || "";
-    const qwenUsage = qwenData.usage || {};
+    const data = await response.json();
+    const textContent = (data.content || [])
+      .filter((b: { type: string }) => b.type === "text")
+      .map((b: { text: string }) => b.text)
+      .join("\n");
+
+    const toolResults = (data.content || [])
+      .filter((b: { type: string }) => b.type === "mcp_tool_result")
+      .map((b: { tool_use_id: string; is_error: boolean; content: unknown }) => ({
+        toolUseId: b.tool_use_id,
+        isError: b.is_error,
+        content: b.content,
+      }));
 
     return new Response(
       JSON.stringify({
-        text,
-        toolResults: [],
-        usage: {
-          input_tokens: qwenUsage.prompt_tokens || 0,
-          output_tokens: qwenUsage.completion_tokens || 0,
-        },
-        model: qwenData.model || QWEN_MODEL_MAP[taskType] || "qwen-plus",
-        stopReason: choice?.finish_reason || "stop",
+        text: textContent,
+        toolResults,
+        usage: data.usage,
+        model: data.model,
+        stopReason: data.stop_reason,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
