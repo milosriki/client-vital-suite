@@ -24,9 +24,9 @@ SELECT
   cr.id                                                          AS call_id,
   cr.caller_number,
   cr.call_direction,
-  cr.call_duration,
+  cr.duration_seconds,
   cr.call_status,
-  cr.recorded_at,
+  cr.started_at,
   -- Contact
   c.id                                                           AS contact_db_id,
   c.hubspot_contact_id,
@@ -51,13 +51,13 @@ SELECT
   END                                                            AS attribution_quality,
   -- Match method used
   CASE
-    WHEN cr.contact_id = c.hubspot_contact_id THEN 'contact_id'
+    WHEN cr.contact_id::text = c.hubspot_contact_id THEN 'contact_id'
     ELSE 'phone_match'
   END                                                            AS match_method
 FROM public.call_records cr
 LEFT JOIN public.contacts c ON (
   -- Primary: direct contact_id link (most reliable)
-  cr.contact_id = c.hubspot_contact_id
+  cr.contact_id::text = c.hubspot_contact_id
   OR
   -- Fallback: normalized 9-digit phone match (handles +971, 00971, local)
   RIGHT(REGEXP_REPLACE(cr.caller_number, '[^0-9]', '', 'g'), 9) =
@@ -492,8 +492,8 @@ CREATE INDEX IF NOT EXISTS idx_contacts_phone_normalized
   WHERE phone IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_attr_events_phone_normalized
-  ON public.attribution_events (RIGHT(REGEXP_REPLACE(COALESCE(phone, user_data->>'ph', ''), '[^0-9]', '', 'g'), 9))
-  WHERE COALESCE(phone, user_data->>'ph') IS NOT NULL;
+  ON public.attribution_events (RIGHT(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g'), 9))
+  WHERE phone IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_call_records_caller_normalized
   ON public.call_records (RIGHT(REGEXP_REPLACE(COALESCE(caller_number, ''), '[^0-9]', '', 'g'), 9))

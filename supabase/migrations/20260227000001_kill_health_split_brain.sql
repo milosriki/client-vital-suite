@@ -1,6 +1,12 @@
 -- Kill split-brain: remove legacy health-calculator cron (every 30min)
 -- Keep only: daily-health-score-calculator (daily, health-score-engine v2)
-SELECT cron.unschedule('health-calculator');
+-- Use DO block to handle case where job doesn't exist
+DO $$
+BEGIN
+  PERFORM cron.unschedule('health-calculator');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'health-calculator cron not found, skipping';
+END $$;
 
 -- Verify only one health scorer remains
 DO $$

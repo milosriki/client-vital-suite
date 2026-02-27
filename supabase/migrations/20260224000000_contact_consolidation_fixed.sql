@@ -9,6 +9,7 @@
 
 -- Step 1: Add missing columns from leads table to contacts
 -- NOTE: company column SKIPPED — contacts table uses company_name already
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS hubspot_owner_id TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS ai_suggested_reply TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS ai_reply_generated_at TIMESTAMPTZ;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes TEXT;

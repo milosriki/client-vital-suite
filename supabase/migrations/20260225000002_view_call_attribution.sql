@@ -12,18 +12,19 @@ CREATE INDEX IF NOT EXISTS idx_call_records_caller_last9
   ON public.call_records (RIGHT(regexp_replace(caller_number, '[^0-9]', '', 'g'), 9))
   WHERE caller_number IS NOT NULL;
 
+DROP VIEW IF EXISTS public.view_call_attribution CASCADE;
 CREATE OR REPLACE VIEW public.view_call_attribution AS
 SELECT
     -- Call identity
     cr.id                                                   AS call_id,
-    cr.call_id                                              AS call_external_id,
-    cr.direction                                            AS call_direction,
-    cr.status                                               AS call_status,
-    cr.outcome                                              AS call_outcome,
-    cr.duration                                             AS duration_seconds,
+    cr.provider_call_id                                     AS call_external_id,
+    cr.call_direction                                       AS call_direction,
+    cr.call_status                                           AS call_status,
+    cr.call_outcome                                         AS call_outcome,
+    cr.duration_seconds                                     AS duration_seconds,
     cr.started_at,
     cr.caller_number,
-    cr.called_number,
+    cr.tracking_number_id,
     cr.appointment_set,
     cr.lead_quality,
     cr.call_score,

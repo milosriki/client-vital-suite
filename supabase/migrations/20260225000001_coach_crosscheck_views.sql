@@ -1,3 +1,6 @@
+DROP VIEW IF EXISTS public.view_session_gps_crosscheck CASCADE;
+DROP VIEW IF EXISTS public.view_coach_trust_summary CASCADE;
+
 CREATE OR REPLACE VIEW public.view_session_gps_crosscheck AS
 WITH session_stats AS (
   SELECT coach_name,
@@ -65,6 +68,7 @@ CREATE TABLE IF NOT EXISTS public.coach_trust_ledger (
   UNIQUE(coach_name, ledger_date)
 );
 ALTER TABLE public.coach_trust_ledger ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "anon_read_trust" ON public.coach_trust_ledger;
 CREATE POLICY "anon_read_trust" ON public.coach_trust_ledger FOR SELECT USING (true);
 CREATE POLICY "service_all_trust" ON public.coach_trust_ledger FOR ALL TO service_role USING (true);
 
