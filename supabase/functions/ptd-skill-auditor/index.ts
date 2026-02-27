@@ -89,7 +89,7 @@ serve(async (req) => {
           { role: "system", content: AUDIT_PROMPT },
           { role: "user", content: `TRANSCRIPT FOR ${phone}:\n${transcript}` },
         ],
-        { jsonMode: true, model: "gemini-3-flash-preview" },
+        { jsonMode: true, model: "gemini-3.1-flash-preview" },
       );
 
       const grading = JSON.parse(result.content);

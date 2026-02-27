@@ -14,7 +14,7 @@ export interface ApiResponse<T = any> {
 export interface ApiMetadata {
   duration_ms?: number;
   request_id?: string;
-  model?: string; // e.g., "gemini-3-flash-preview"
+  model?: string; // e.g., "gemini-3.1-flash-preview"
   timestamp?: string;
   usage?: {
     total_tokens?: number;

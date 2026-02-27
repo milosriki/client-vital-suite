@@ -250,7 +250,7 @@ async function buildBusinessContext(supabase: any, coachFilter?: string): Promis
 // ── Gemini API call ──
 async function callGemini(systemPrompt: string, userMessage: string): Promise<string> {
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-preview:generateContent?key=${GEMINI_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

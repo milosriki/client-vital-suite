@@ -30,70 +30,70 @@ export const SPECIALIST_AGENTS: Record<string, AgentSpecialist> = {
     name: 'Fraud Detective',
     focus: 'Stripe fraud patterns, suspicious transactions, payout anomalies',
     tools: ['stripe_control', 'fraud_scan', 'payment_analysis'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   churn_predictor: {
     name: 'Churn Predictor', 
     focus: 'Client dropout risk, engagement decline, health zone transitions',
     tools: ['client_control', 'health_analysis', 'intervention_trigger'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   sales_optimizer: {
     name: 'Sales Optimizer',
     focus: 'Pipeline leaks, conversion optimization, deal velocity',
     tools: ['sales_flow_control', 'lead_control', 'deal_analyzer'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   coach_analyzer: {
     name: 'Coach Analyzer',
     focus: 'Coach performance, client distribution, workload balance',
     tools: ['coach_control', 'performance_metrics', 'client_assignment'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   revenue_engineer: {
     name: 'Revenue Engineer',
     focus: 'Revenue leaks, pricing optimization, LTV maximization',
     tools: ['revenue_control', 'pricing_analysis', 'upsell_detector'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   lead_router: {
     name: 'Lead Router',
     focus: 'Lead scoring, assignment optimization, response time',
     tools: ['lead_control', 'assignment_logic', 'priority_queue'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   campaign_analyst: {
     name: 'Campaign Analyst',
     focus: 'Ad performance, ROAS optimization, attribution analysis',
     tools: ['campaign_control', 'attribution_analysis', 'ad_optimization'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   call_whisperer: {
     name: 'Call Whisperer',
     focus: 'Call transcriptions, sentiment analysis, objection patterns',
     tools: ['call_control', 'sentiment_analysis', 'keyword_extraction'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   hubspot_guardian: {
     name: 'HubSpot Guardian',
     focus: 'CRM sync, data quality, workflow optimization',
     tools: ['hubspot_control', 'data_validation', 'workflow_trigger'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   },
   pattern_hunter: {
     name: 'Pattern Hunter',
     focus: 'Anomaly detection, trend identification, predictive patterns',
     tools: ['analytics_control', 'pattern_detection', 'anomaly_alert'],
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-preview',
     active: true
   }
 };

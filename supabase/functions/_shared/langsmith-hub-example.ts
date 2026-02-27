@@ -56,7 +56,7 @@ export async function exampleAIFunction(
   userMessage: string,
   sessionId?: string
 ): Promise<string> {
-  const MODEL = "gemini-3-flash-preview";
+  const MODEL = "gemini-3.1-flash-preview";
   const FUNCTION_NAME = "example-ai-function";
 
   // Create trace config with provider metadata (for cost tracking)

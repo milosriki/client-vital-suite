@@ -57,8 +57,8 @@ export interface AIOptions {
 // UPDATED 2026-02-23: Gemini 3.1 cascade + DeepSeek fallback
 const GEMINI_CASCADE = [
   "gemini-3.1-pro-preview",        // Primary: 10M context, deep reasoning
-  "gemini-3-flash-preview",      // Setter: High speed, low cost, strong reasoning
-  "gemini-2.5-flash",      // Legacy Fallback
+  "gemini-3.1-flash-preview",      // Setter: High speed, low cost, strong reasoning
+  "gemini-3.1-flash-preview",      // Legacy Fallback
 ] as const;
 
 // DeepSeek fallback when Gemini fails entirely
@@ -190,8 +190,8 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
           { role: "system", content: "You are a conversation summarizer." },
           { role: "user", content: summaryPrompt },
         ],
-        { max_tokens: 256, model: "gemini-2.5-flash" }, // Use cheapest model
-        "gemini-2.5-flash",
+        { max_tokens: 256, model: "gemini-3.1-flash-preview" }, // Use cheapest model
+        "gemini-3.1-flash-preview",
       );
 
       const compactedMessages: ChatMessage[] = [];
@@ -221,7 +221,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
 
   /**
    * Main entry point: Uses model fallback cascade for resilience.
-   * Primary: gemini-3.1-pro → Fallback: gemini-3-flash-preview
+   * Primary: gemini-3.1-pro → Fallback: gemini-3.1-flash-preview
    * Enforces agent-specific token budgets and auto-compacts on threshold.
    */
   async chat(
@@ -235,9 +235,9 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       if (options.agentType === "atlas") {
         options.model = "gemini-3.1-pro-preview"; // Atlas gets the deep reasoning brain
       } else if (options.agentType === "lisa") {
-        options.model = "gemini-3-flash-preview"; // Lisa gets the Setter brain (Speed + IQ)
+        options.model = "gemini-3.1-flash-preview"; // Lisa gets the Setter brain (Speed + IQ)
       } else {
-        options.model = "gemini-3-flash-preview"; // Default to 3.1 Flash
+        options.model = "gemini-3.1-flash-preview"; // Default to 3.1 Flash
       }
     }
 
@@ -439,7 +439,7 @@ ${olderMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")}`;
       );
       const genAI = new GoogleGenerativeAI(this.googleKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-flash-preview",
         generationConfig: { responseMimeType: "application/json" },
       });
 

@@ -289,7 +289,7 @@ RESPOND WITH VALID JSON ONLY:
   const childRun = await parentRun.createChild({
     name: "unified_ai_call",
     run_type: "llm",
-    inputs: { command, model: "gemini-3-flash-preview" },
+    inputs: { command, model: "gemini-3.1-flash-preview" },
   });
   await childRun.postRun();
 
@@ -316,7 +316,7 @@ RESPOND WITH VALID JSON ONLY:
     const MAX_TOOL_RESULT_CHARS = 3000;
 
     let currentResponse = await unifiedAI.chat(messages, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-flash-preview",
       temperature: 0.2,
       jsonMode: true,
       tools: ceoTools,
@@ -358,7 +358,7 @@ RESPOND WITH VALID JSON ONLY:
       });
 
       currentResponse = await unifiedAI.chat(messages, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.1-flash-preview",
         temperature: 0.2,
         jsonMode: true,
         tools: ceoTools,

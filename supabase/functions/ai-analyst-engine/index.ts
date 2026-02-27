@@ -32,7 +32,7 @@ const corsHeaders = {
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_KEY") || "";
 // Gemini 2.5 Flash with thinking mode — deeper reasoning, better analysis
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-preview";
 const MAX_ACTIONS = 10; // 10 per run × ~8s each = ~80s (well within 150s edge function limit)
 
 interface AnalysisResult {
