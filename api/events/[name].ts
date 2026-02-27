@@ -80,9 +80,9 @@ async function sendToMeta(events: any) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://personaltrainersdubai.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -90,6 +90,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Auth: require PTD_INTERNAL_ACCESS_KEY
+  const ptdKey = process.env.PTD_INTERNAL_ACCESS_KEY;
+  if (!ptdKey) {
+    return res.status(500).json({ error: 'Server misconfigured: PTD_INTERNAL_ACCESS_KEY not set' });
+  }
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${ptdKey}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
