@@ -125,7 +125,7 @@ async function checkHealthCalculation(): Promise<PipelineStage> {
   // Check when health scores were last calculated
   try {
     const { data: latestScores, error } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("calculated_at")
       .order("calculated_at", { ascending: false })
       .limit(1);
@@ -147,7 +147,7 @@ async function checkHealthCalculation(): Promise<PipelineStage> {
   // Check for calculation errors
   try {
     const { count, error } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("*", { count: "exact", head: true })
       .is("health_score", null);
 
@@ -164,7 +164,7 @@ async function checkHealthCalculation(): Promise<PipelineStage> {
   // Check for zone distribution sanity
   try {
     const { data: zoneCounts, error } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("health_zone")
       .not("health_zone", "is", null);
 

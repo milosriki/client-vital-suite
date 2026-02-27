@@ -135,7 +135,7 @@ async function checkHubSpot(): Promise<IntegrationStatus> {
     try {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { count: recentUpdates, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("*", { count: "exact", head: true })
         .gte("updated_at", hourAgo);
 
@@ -333,7 +333,7 @@ async function checkSupabaseHealth(): Promise<IntegrationStatus> {
   try {
     // Check database connectivity
     const startTime = Date.now();
-    const { error } = await supabase.from("client_health_scores").select("id").limit(1);
+    const { error } = await supabase.from("client_health_daily").select("id").limit(1);
     latency = Date.now() - startTime;
 
     checks.push({
@@ -344,7 +344,7 @@ async function checkSupabaseHealth(): Promise<IntegrationStatus> {
     });
 
     // Check table row counts
-    const tables = ["client_health_scores", "intervention_log", "daily_summary", "capi_events_enriched"];
+    const tables = ["client_health_daily", "intervention_log", "daily_summary", "capi_events_enriched"];
     for (const table of tables) {
       try {
         const { count, error: countError } = await supabase

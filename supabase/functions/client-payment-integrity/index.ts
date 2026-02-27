@@ -19,7 +19,7 @@ serve(async (req: Request) => {
 
     // 1. Load Reference Data
     const { data: catalog } = await supabase.from('package_catalog').select('*');
-    const { data: activeClients } = await supabase.from('client_health_scores').select('*').gt('sessions_last_30d', 0);
+    const { data: activeClients } = await supabase.from('client_health_daily').select('*').gt('sessions_last_30d', 0);
     const { data: signatures } = await supabase.from('forensic_signatures').select('*');
 
     const auditResults = [];
@@ -81,7 +81,7 @@ serve(async (req: Request) => {
         const sessionsPurchased = catalog?.find((p: any) => lastInv?.lines.data[0]?.description?.includes(p.package_name))?.session_count || 0;
         
         // Calculate remaining sessions based on usage in DB
-        // (Assuming we track sessions_remaining in client_health_scores)
+        // (Assuming we track sessions_remaining in client_health_daily)
         const weeklyUsage = client.sessions_last_30d / 4;
         const sessionsRemaining = client.sessions_remaining || 0; 
         

@@ -127,7 +127,7 @@ async function checkDatabase(supabaseUrl: string, serviceKey: string): Promise<{
   try {
     const supabase = createClient(supabaseUrl, serviceKey);
     
-    const tables = ["client_health_scores", "contacts", "deals", "intervention_log", "agent_memory"];
+    const tables = ["client_health_daily", "contacts", "deals", "intervention_log", "agent_memory"];
     const tableCounts: Record<string, number> = {};
     
     for (const table of tables) {

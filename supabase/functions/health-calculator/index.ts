@@ -720,7 +720,7 @@ export async function handleRequest(req: Request) {
     if (validUpserts.length) {
       // Try batch first
       const { error: batchErr } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .upsert(validUpserts, { onConflict: "email" });
 
       if (batchErr) {
@@ -730,7 +730,7 @@ export async function handleRequest(req: Request) {
         // Fallback: individual writes
         for (const row of validUpserts) {
           const { error: singleErr } = await supabase
-            .from("client_health_scores")
+            .from("client_health_daily")
             .upsert(row, { onConflict: "email" });
           if (singleErr) {
             writeErrors.push(`${row.email}: ${singleErr.message}`);

@@ -95,7 +95,7 @@ export async function executeIntelligenceTools(
             .order("churn_score", { ascending: false })
             .limit(queryLimit),
           supabase
-            .from("client_health_scores")
+            .from("client_health_daily")
             .select("email, health_zone, health_score, churn_risk_score, assigned_coach, days_since_last_session")
             .in("health_zone", ["RED", "YELLOW"])
             .order("churn_risk_score", { ascending: false })
@@ -138,7 +138,7 @@ export async function executeIntelligenceTools(
             days_inactive: h.days_since_last_session,
             coach: h.assigned_coach,
           })),
-          source: "client_predictions + client_health_scores",
+          source: "client_predictions + client_health_daily",
         }, null, 2);
       }
 
@@ -172,7 +172,7 @@ export async function executeIntelligenceTools(
         const targetDate = date || new Date().toISOString().split("T")[0];
         const [summary, health, pipeline] = await Promise.all([
           supabase.from("daily_summary").select("*").eq("summary_date", targetDate).maybeSingle(),
-          supabase.from("client_health_scores").select("health_zone").then(({ data }: { data: any[] | null }) => {
+          supabase.from("client_health_daily").select("health_zone").then(({ data }: { data: any[] | null }) => {
             const zones: Record<string, number> = { RED: 0, YELLOW: 0, GREEN: 0, PURPLE: 0 };
             for (const c of data || []) zones[c.health_zone] = (zones[c.health_zone] || 0) + 1;
             return zones;
@@ -258,7 +258,7 @@ export async function executeIntelligenceTools(
 
     case "get_at_risk_clients": {
       const { zone = "red", limit = 20 } = input;
-      let query = supabase.from("client_health_scores").select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at");
+      let query = supabase.from("client_health_daily").select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at");
       if (zone !== "all") {
         query = query.eq("health_zone", zone);
       }
@@ -274,7 +274,7 @@ export async function executeIntelligenceTools(
 
       const [clients, coachPerf] = await Promise.all([
         supabase
-          .from("client_health_scores")
+          .from("client_health_daily")
           .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session")
           .ilike("assigned_coach", searchName)
           .order("health_score", { ascending: true }),

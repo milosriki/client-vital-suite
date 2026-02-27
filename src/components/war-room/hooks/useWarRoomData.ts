@@ -89,7 +89,7 @@ export const useWarRoomData = () => {
     queryKey: ["war-room-clients"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("id, email, health_score, health_zone, churn_risk_score, package_value_aed, created_at")
         .not("email", "ilike", "%@example.com")
         .not("email", "ilike", "%@test.com")

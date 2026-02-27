@@ -24,7 +24,7 @@ serve(async (req) => {
 
     // ============= CRITICAL HEALTH MONITORING =============
     const { data: criticalClients } = await supabase
-      .from('client_health_scores')
+      .from('client_health_daily')
       .select('email, firstname, lastname, health_zone, health_score, churn_risk_score, assigned_coach, package_value_aed')
       .eq('health_zone', 'red')
       .order('health_score', { ascending: true })
@@ -51,7 +51,7 @@ serve(async (req) => {
 
     // ============= CHURN RISK SPIKE DETECTION =============
     const { data: highChurnRisk } = await supabase
-      .from('client_health_scores')
+      .from('client_health_daily')
       .select('email, firstname, churn_risk_score')
       .gte('churn_risk_score', 80)
       .order('churn_risk_score', { ascending: false })
@@ -105,7 +105,7 @@ serve(async (req) => {
 
     // ============= ZONE DISTRIBUTION ANALYTICS =============
     const { data: allClients } = await supabase
-      .from('client_health_scores')
+      .from('client_health_daily')
       .select('health_zone, health_score');
 
     const zoneDistribution = (allClients || []).reduce((acc: Record<string, number>, c: any) => {

@@ -69,7 +69,7 @@ async function generateReport(): Promise<DailyReport> {
 
   // Get today's health scores
   const { data: todayScores, error: todayError } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, firstname, lastname, health_zone, health_score, predictive_risk_score, days_since_last_session, momentum_indicator, outstanding_sessions, package_value_aed, assigned_coach, calculated_on")
     .gte("calculated_on", today);
 
@@ -80,7 +80,7 @@ async function generateReport(): Promise<DailyReport> {
 
   // Get yesterday's for comparison
   const { data: yesterdayScores, error: yesterdayError } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, health_zone, health_score")
     .eq("calculated_on", yesterday);
 

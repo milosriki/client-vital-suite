@@ -30,7 +30,7 @@ serve(async (req) => {
       "business_calibration",
       "business_goals",
       "call_records",
-      "client_health_scores",
+      "client_health_daily",
       "client_payment_history",
       "coach_client_notes",
       "coach_performance",

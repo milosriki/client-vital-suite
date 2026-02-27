@@ -78,7 +78,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
         })) || [];
       } else if (type === "clients") {
         const { data } = await supabase
-          .from("client_health_scores")
+          .from("client_health_daily")
           .select("firstname, lastname, health_score, assigned_coach")
           .order("health_score", { ascending: false })
           .limit(5);
@@ -104,7 +104,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
         })) || [];
       } else {
         const { data } = await supabase
-          .from("client_health_scores")
+          .from("client_health_daily")
           .select("firstname, lastname, health_score, churn_risk_score")
           .lt("health_score", 50)
           .order("health_score", { ascending: true })

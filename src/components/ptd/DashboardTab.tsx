@@ -36,7 +36,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
     queryKey: ["health-stats"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("health_zone, health_score, health_trend");
       
       if (error) throw error;

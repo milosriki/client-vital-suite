@@ -36,7 +36,7 @@ interface ResearchFinding {
 // ============= DATA COLLECTION TOOLS =============
 async function queryClientHealth(supabase: any, filters?: any): Promise<any> {
   const { data, error } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("*")
     .order("health_score", { ascending: true })
     .limit(100);
@@ -257,7 +257,7 @@ You are a PTD Fitness business analyst. Create a research plan for this query:
 "${state.query}"
 
 Available data sources:
-1. client_health_scores - Client health zones (Red/Yellow/Green/Purple), engagement, churn risk
+1. client_health_daily - Client health zones (Red/Yellow/Green/Purple), engagement, churn risk
 2. deals - Pipeline, revenue, deal stages
 3. coach_performance - Coach metrics, client distribution
 4. stripe_transactions/subscriptions - Payment data, fraud alerts

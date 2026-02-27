@@ -8,7 +8,7 @@ export function useAIAdvisorQueue() {
     queryKey: QUERY_KEYS.aiAdvisor.queue,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("id, email, firstname, lastname, health_score, health_zone, days_since_last_session, assigned_coach, outstanding_sessions")
         .or("health_zone.eq.RED,health_zone.eq.YELLOW")
         .order("health_score", { ascending: true });

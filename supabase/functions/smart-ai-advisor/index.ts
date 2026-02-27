@@ -97,7 +97,7 @@ async function buildBusinessContext(supabase: any, coachFilter?: string): Promis
     { data: recentCalls },
   ] = await Promise.all([
     supabase.from("client_packages_live").select("*"),
-    supabase.from("client_health_scores")
+    supabase.from("client_health_daily")
       .select("*")
       .order("calculated_on", { ascending: false })
       .limit(300),

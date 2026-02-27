@@ -20,7 +20,7 @@ export async function executeHubSpotTools(
         const validatedEmail = validateEmail(email);
         const [health, calls, deals, activities] = await Promise.all([
           supabase
-            .from("client_health_scores")
+            .from("client_health_daily")
             .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at")
             .eq("email", validatedEmail)
             .single(),
@@ -54,7 +54,7 @@ export async function executeHubSpotTools(
       if (action === "get_health") {
         const validatedEmail = validateEmail(email);
         const { data } = await supabase
-          .from("client_health_scores")
+          .from("client_health_daily")
           .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score, days_since_last_session, calculated_at")
           .eq("email", validatedEmail)
           .single();

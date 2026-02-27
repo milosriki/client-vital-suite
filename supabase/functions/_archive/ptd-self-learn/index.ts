@@ -55,7 +55,7 @@ serve(async (req) => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     
     const [healthData, eventsData, callsData, dealsData] = await Promise.all([
-      supabase.from('client_health_scores')
+      supabase.from('client_health_daily')
         .select('health_zone, health_score, assigned_coach')
         .gte('calculated_at', sevenDaysAgo).limit(200),
       supabase.from('events')

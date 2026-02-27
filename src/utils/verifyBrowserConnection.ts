@@ -31,7 +31,7 @@ export async function verifySupabaseConnection(): Promise<ConnectionStatus['supa
   try {
     // Test connection by querying a simple table
     const { error } = await supabase
-      .from('client_health_scores')
+      .from('client_health_daily')
       .select('id')
       .limit(1);
 

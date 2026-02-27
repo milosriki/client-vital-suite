@@ -333,7 +333,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         
         if (args.action === "get_all") {
           const [health, calls, deals, activities] = await Promise.all([
-            supabase.from('client_health_scores').select('*').eq('email', email).single(),
+            supabase.from('client_health_daily').select('*').eq('email', email).single(),
             supabase.from('call_records').select('*').limit(10),
             supabase.from('deals').select('*').limit(10),
             supabase.from('contact_activities').select('*').limit(20)
@@ -349,7 +349,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         
         if (args.action === "get_health") {
           const { data, error } = await supabase
-            .from('client_health_scores')
+            .from('client_health_daily')
             .select('*')
             .eq('email', email)
             .single();
@@ -621,7 +621,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
       // TOOL 8: Analytics Control
       case "analytics_control": {
         if (args.dashboard === "health") {
-          const { data } = await supabase.from('client_health_scores').select('health_zone, health_score');
+          const { data } = await supabase.from('client_health_daily').select('health_zone, health_score');
           const zones: Record<string, { count: number; avg_score: number; scores: number[] }> = {};
           
           (data || []).forEach((c: any) => {
@@ -690,7 +690,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
       
       // TOOL 9: At Risk Clients
       case "get_at_risk_clients": {
-        let query = supabase.from('client_health_scores').select('*');
+        let query = supabase.from('client_health_daily').select('*');
         
         if (args.zone === 'red') {
           query = query.eq('health_zone', 'red');
@@ -824,7 +824,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
           ).limit(10),
           
           // Health scores by email or name
-          supabase.from('client_health_scores').select('*').or(
+          supabase.from('client_health_daily').select('*').or(
             `email.ilike.${searchLike},firstname.ilike.${searchLike},lastname.ilike.${searchLike}`
           ).limit(5),
           
@@ -937,7 +937,7 @@ async function executeTool(supabase: any, toolName: string, args: any): Promise<
         
         // Search for clients assigned to this coach
         const [clients, coachPerf] = await Promise.all([
-          supabase.from('client_health_scores')
+          supabase.from('client_health_daily')
             .select('*')
             .ilike('assigned_coach', searchName)
             .order('health_score', { ascending: true }),

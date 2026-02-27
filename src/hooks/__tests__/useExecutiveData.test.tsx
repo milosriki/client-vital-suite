@@ -135,7 +135,7 @@ describe('useExecutiveData', () => {
         mockOrder.mockResolvedValue(mockCallsResponse);
       } else if (table === 'facebook_ads_insights') {
         mockOrder.mockResolvedValue(mockAdInsightsResponse);
-      } else if (table === 'client_health_scores') {
+      } else if (table === 'client_health_daily') {
         mockOrder.mockResolvedValue(mockHealthResponse);
         mockLimit.mockResolvedValue(mockHealthResponse);
       }

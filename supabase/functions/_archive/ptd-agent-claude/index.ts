@@ -261,7 +261,7 @@ async function runAgent(
   const systemPrompt = `${basePrompt}
 
 === PTD QUICK REFERENCE ===
-TABLES: client_health_scores, contacts, deals, call_records, coach_performance, intervention_log, campaign_performance
+TABLES: client_health_daily, contacts, deals, call_records, coach_performance, intervention_log, campaign_performance
 HEALTH ZONES: Purple(85-100)=Champion, Green(70-84)=Healthy, Yellow(50-69)=AtRisk, Red(0-49)=Critical
 STAGES: lead→mql→sql→opportunity→customer
 

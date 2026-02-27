@@ -118,7 +118,7 @@ async function executeAction(
       case 'update_client_zone': {
         const { email, zone, priority } = params;
         const { data, error } = await supabase
-          .from('client_health_scores')
+          .from('client_health_daily')
           .update({ 
             health_zone: zone,
             intervention_priority: priority || 'medium',
@@ -171,7 +171,7 @@ async function executeAction(
       case 'reassign_coach': {
         const { email, new_coach, reason } = params;
         const { data, error } = await supabase
-          .from('client_health_scores')
+          .from('client_health_daily')
           .update({ 
             assigned_coach: new_coach,
             updated_at: new Date().toISOString()

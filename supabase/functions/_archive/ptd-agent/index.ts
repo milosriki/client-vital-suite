@@ -341,7 +341,7 @@ async function getLiveDashboardData() {
     let atRiskClients = null;
     try {
       const { data } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("email, firstname, lastname, health_score, health_zone, predictive_risk_score, momentum_indicator, days_since_last_session, outstanding_sessions, sessions_last_7d, sessions_last_30d, assigned_coach")
         .in("health_zone", ["RED", "YELLOW"])
         .order("predictive_risk_score", { ascending: false })
@@ -422,9 +422,9 @@ async function lookupClientsByEmail(emails: string[]) {
   };
 
   try {
-    // Check client_health_scores
+    // Check client_health_daily
     const { data: healthData } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("*")
       .in("email", emails);
     results.healthScores = healthData || [];

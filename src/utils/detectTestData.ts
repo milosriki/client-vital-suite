@@ -211,18 +211,18 @@ export async function detectTestData(): Promise<TestDataReport> {
       });
     }
 
-    // Check client_health_scores for fake emails
+    // Check client_health_daily for fake emails
     const { data: fakeHealthScores, count: fakeHealthCount } = await supabase
-      .from('client_health_scores')
+      .from('client_health_daily')
       .select('email, firstname, lastname', { count: 'exact' })
       .or('email.ilike.%@example.com,email.ilike.%@test.com,email.ilike.%@fake.com')
       .limit(5);
 
     if (fakeHealthCount && fakeHealthCount > 0) {
-      affectedTables.add('client_health_scores');
+      affectedTables.add('client_health_daily');
       totalCount += fakeHealthCount;
       issues.push({
-        table: 'client_health_scores',
+        table: 'client_health_daily',
         pattern: 'fake_email_domains',
         count: fakeHealthCount,
         severity: 'high',
@@ -247,8 +247,8 @@ export async function detectTestData(): Promise<TestDataReport> {
     if (bySeverity.high > 0) {
       recommendations.push(`Found ${bySeverity.high} high-severity test records that should be removed immediately.`);
     }
-    if (affectedTables.has('client_health_scores')) {
-      recommendations.push('Test data in client_health_scores can affect health calculations and interventions.');
+    if (affectedTables.has('client_health_daily')) {
+      recommendations.push('Test data in client_health_daily can affect health calculations and interventions.');
     }
     if (affectedTables.has('leads')) {
       recommendations.push('Test leads should be removed to ensure accurate lead tracking and reporting.');
@@ -296,7 +296,7 @@ export async function autoFixTestData(options: {
   deletedCount: number;
   details: Record<string, number>;
 }> {
-  const { tables = ['contacts', 'leads', 'client_health_scores'], dryRun = false } = options;
+  const { tables = ['contacts', 'leads', 'client_health_daily'], dryRun = false } = options;
 
   try {
     // Use the cleanup-fake-contacts function

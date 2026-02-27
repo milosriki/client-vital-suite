@@ -103,7 +103,7 @@ export function useRealtimeHealthScores() {
         {
           event: '*',
           schema: 'public',
-          table: 'client_health_scores'
+          table: 'client_health_daily'
         },
         (payload) => {
           

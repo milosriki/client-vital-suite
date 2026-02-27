@@ -30,7 +30,7 @@ SCHEMA:
 - contacts: email, lifecycle_stage, utm_campaign, first_touch_source, assigned_coach, owner_id
 - deals: deal_value, stage, status, contact_id
 - call_records: caller_number, transcription, call_outcome
-- client_health_scores: health_score, health_zone
+- client_health_daily: health_score, health_zone
 - daily_business_metrics: date, total_leads_new, total_revenue_booked, ad_spend_facebook, roas_daily
 - staff: name, email, role, status
 

@@ -338,7 +338,7 @@ serve(async (req) => {
     // ═══════════════════════════════════════════
     if (target === "all" || target === "intervention_log") {
       const { data: redClients } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("email, firstname, lastname, hubspot_contact_id, health_score, health_zone, health_trend, churn_risk_score, assigned_coach, package_value_aed")
         .eq("health_zone", "RED")
         .gt("churn_risk_score", 80)

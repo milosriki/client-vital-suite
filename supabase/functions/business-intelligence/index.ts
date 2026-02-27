@@ -155,7 +155,7 @@ serve(async (req) => {
       .eq("status", "PENDING");
 
     const { count: unassignedAtRisk } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("*", { count: "exact", head: true })
       .in("health_zone", ["RED", "YELLOW"])
       .is("assigned_coach", null);

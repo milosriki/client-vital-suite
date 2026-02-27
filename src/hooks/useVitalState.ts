@@ -91,12 +91,12 @@ export function useVitalState(): VitalStateReturn {
   useEffect(() => {
     const channels: RealtimeChannel[] = [];
 
-    // Subscribe to client_health_scores changes (also handles churn risk alerts)
+    // Subscribe to client_health_daily changes (also handles churn risk alerts)
     const healthScoresChannel = supabase
       .channel('vital-health-scores')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'client_health_scores' },
+        { event: '*', schema: 'public', table: 'client_health_daily' },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.clients.all });
           queryClient.invalidateQueries({ queryKey: ['client-health-scores-dashboard'] });

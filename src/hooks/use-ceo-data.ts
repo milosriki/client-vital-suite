@@ -172,7 +172,7 @@ export function useCEOData() {
     queryKey: ["ceo-client-health"],
     queryFn: async (): Promise<ClientHealthMetrics> => {
       const { data: latestDate } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
@@ -190,7 +190,7 @@ export function useCEOData() {
         };
 
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select(
           "health_zone, health_score, churn_risk_score, package_value_aed",
         )
@@ -258,7 +258,7 @@ export function useCEOData() {
     queryKey: ["ceo-churn-alerts"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select(
           "firstname, lastname, email, churn_risk_score, health_zone, package_value_aed",
         )

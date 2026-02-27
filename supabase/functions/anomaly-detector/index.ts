@@ -67,7 +67,7 @@ async function detectZoneDistributionAnomalies(): Promise<Anomaly[]> {
 
   // Get current zone distribution
   const { data: clients, error } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("health_zone, email");
 
   if (error) {
@@ -232,7 +232,7 @@ async function detectCoachAnomalies(): Promise<Anomaly[]> {
 
   // Get coach performance data
   const { data: coachData, error } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("assigned_coach, health_zone, momentum_indicator, health_score")
     .not("assigned_coach", "is", null);
 
@@ -375,7 +375,7 @@ async function detectDataPatternAnomalies(): Promise<Anomaly[]> {
 
   // Check for unusual patterns in client data
   const { data: clients, error } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select(
       "email, sessions_last_7d, sessions_last_30d, days_since_last_session",
     );

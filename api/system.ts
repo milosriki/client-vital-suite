@@ -13,7 +13,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const _authKey = process.env.PTD_INTERNAL_ACCESS_KEY; if (_authKey && (req.headers["x-ptd-key"] as string) !== _authKey && (req.headers["authorization"] as string) !== _authKey) { res.status(401).json({ error: "Unauthorized" }); return; }
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://personaltrainersdubai.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

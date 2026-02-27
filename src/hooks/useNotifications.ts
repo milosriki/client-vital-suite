@@ -49,7 +49,7 @@ export const useNotifications = () => {
       .channel("health-monitor")
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "client_health_scores" },
+        { event: "UPDATE", schema: "public", table: "client_health_daily" },
         async (payload) => {
           const client = payload.new as { churn_risk_score: number; firstname: string; lastname: string };
           if (client.churn_risk_score && client.churn_risk_score > 80) {

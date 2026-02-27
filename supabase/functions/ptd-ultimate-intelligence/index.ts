@@ -265,7 +265,7 @@ YOU MUST FOLLOW THESE RULES WITHOUT EXCEPTION:
 
 2. CITE EVERY NUMBER
    ❌ NEVER: "Churn rate is 8%"
-   ✅ ALWAYS: "Churn rate: 8.2% (source: client_health_scores, 12 churns / 146 clients, last 30 days)"
+   ✅ ALWAYS: "Churn rate: 8.2% (source: client_health_daily, 12 churns / 146 clients, last 30 days)"
 
 3. FACT VS INFERENCE
    ❌ NEVER: "Client Ahmed is going to churn"
@@ -306,7 +306,7 @@ async function buildBusinessContext(supabase: any) {
   // IMPORTANT: health_scores has 4280 rows but 99.7% are leads, not active clients
   // Filter to ACTIVE clients: sessions_purchased > 0 (meaning they bought a package)
   const [healthRes, leadRes, goalsRes, calibRes, pendingRes, treasuryRes] = await Promise.all([
-    supabase.from("client_health_scores").select("health_zone, health_score").gt("sessions_purchased", 0),
+    supabase.from("client_health_daily").select("health_zone, health_score").gt("sessions_purchased", 0),
     supabase.from("contacts").select("lifecycle_stage, lead_status").gte("created_at", thirtyDaysAgo),
     supabase.from("business_goals").select("goal_name, metric_name, current_value, target_value, baseline_value, deadline").eq("status", "active"),
     supabase.from("business_calibration").select("scenario_description, ai_recommendation, your_decision, was_ai_correct").order("learning_weight", { ascending: false }).limit(5),

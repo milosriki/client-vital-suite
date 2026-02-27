@@ -2313,7 +2313,7 @@ export type Database = {
         }
         Relationships: []
       }
-      client_health_scores: {
+      client_health_daily: {
         Row: {
           assigned_coach: string | null
           calculated_at: string | null

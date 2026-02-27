@@ -60,7 +60,7 @@ async function checkZoneDistribution(): Promise<Insight[]> {
   const insights: Insight[] = [];
 
   const { data: healthScores } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, firstname, lastname, health_zone, health_score, predictive_risk_score")
     .order("calculated_at", { ascending: false });
 
@@ -151,7 +151,7 @@ async function checkCoachPerformance(): Promise<Insight[]> {
   const insights: Insight[] = [];
 
   const { data: healthScores } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, assigned_coach, health_zone, momentum_indicator, health_score")
     .not("assigned_coach", "is", null);
 
@@ -231,7 +231,7 @@ async function checkEarlyWarnings(): Promise<Insight[]> {
 
   // Find GREEN clients with DECLINING momentum (early warning)
   const { data: earlyWarnings } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, firstname, lastname, health_score, momentum_indicator, rate_of_change_percent, sessions_last_7d")
     .eq("health_zone", "GREEN")
     .eq("momentum_indicator", "DECLINING")
@@ -269,7 +269,7 @@ async function checkPackageDepletion(): Promise<Insight[]> {
 
   // Find clients with low package remaining
   const { data: lowPackage } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, firstname, lastname, outstanding_sessions, sessions_purchased, sessions_last_7d, health_zone")
     .lt("outstanding_sessions", 5)
     .gt("outstanding_sessions", 0);

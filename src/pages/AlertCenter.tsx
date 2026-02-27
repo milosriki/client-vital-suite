@@ -19,7 +19,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type ClientPackageLive = Database["public"]["Tables"]["client_packages_live"]["Row"];
 type ClientPrediction = Database["public"]["Tables"]["client_predictions"]["Row"];
-type ClientHealthScore = Database["public"]["Tables"]["client_health_scores"]["Row"];
+type ClientHealthScore = Database["public"]["Tables"]["client_health_daily"]["Row"];
 type SessionDepletionAlert = Database["public"]["Tables"]["session_depletion_alerts"]["Row"];
 
 // ── Types ──
@@ -77,14 +77,14 @@ const AlertCenter = () => {
     queryKey: ["alert-health"],
     queryFn: async () => {
       const { data: latest } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!latest?.calculated_on) return [];
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("calculated_on, email, health_zone, churn_risk_score")
         .eq("calculated_on", latest.calculated_on);
       if (error) throw error;

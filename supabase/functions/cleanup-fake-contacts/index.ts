@@ -158,7 +158,7 @@ async function cleanupOrphanedRecords(supabase: any): Promise<OrphanedResult[]> 
   try {
     // Clean up intervention_log for non-existent clients
     const { data: healthEmails } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("email");
 
     if (healthEmails) {
@@ -254,7 +254,7 @@ serve(async (req) => {
     const allResults: CleanupResult[] = [];
 
     // Tables to clean
-    const tablesToClean = ["contacts", "leads", "enhanced_leads", "client_health_scores"];
+    const tablesToClean = ["contacts", "leads", "enhanced_leads", "client_health_daily"];
 
     // Clean by patterns
     for (const table of tablesToClean) {

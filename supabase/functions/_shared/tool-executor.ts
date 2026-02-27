@@ -290,7 +290,7 @@ async function executeUniversalSearch(supabase: any, input: any) {
         .or(`deal_name.ilike.${searchLike},hubspot_deal_id.ilike.${searchLike}`)
         .limit(10),
       supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("id, email, firstname, lastname, health_score, health_zone, assigned_coach, churn_risk_score")
         .or(
           `email.ilike.${searchLike},firstname.ilike.${searchLike},lastname.ilike.${searchLike}`,

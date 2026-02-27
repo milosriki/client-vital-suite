@@ -116,7 +116,7 @@ export async function learnRecentData() {
     // Fetch data with error handling
     const [healthData, eventsData, callsData, dealsData] = await Promise.allSettled([
       retryWithBackoff(async () => {
-        const { data, error } = await supabase.from('client_health_scores')
+        const { data, error } = await supabase.from('client_health_daily')
           .select('health_zone, health_score, assigned_coach, package_type')
           .gte('calculated_at', sevenDaysAgo);
 

@@ -411,7 +411,7 @@ async function discoverSystem(
         "contacts",
         "leads",
         "deals",
-        "client_health_scores",
+        "client_health_daily",
         "call_records",
         "sync_logs",
         "sync_errors",
@@ -559,7 +559,7 @@ async function runValidation(
     const criticalTables = [
       "contacts",
       "deals",
-      "client_health_scores",
+      "client_health_daily",
       "sync_logs",
     ];
     const schemaResults: Record<string, boolean> = {};

@@ -53,7 +53,7 @@ serve(async (req) => {
 
     // --- Real active client count from health scores ---
     const { count: activeClients, data: healthData } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("health_zone, outstanding_sessions")
       .gt("outstanding_sessions", 0);
     const realActiveClients = activeClients || healthData?.length || 1; // Avoid division by zero

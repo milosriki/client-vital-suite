@@ -8,7 +8,7 @@ export const UNIFIED_DATA_SCHEMA = {
     DEALS: 'deals', // HubSpot deals synced to Supabase
     CALLS: 'call_records', // CallGear + HubSpot calls
     APPOINTMENTS: 'appointments', // Calendly appointments
-    HEALTH_SCORES: 'client_health_scores', // Calculated health scores
+    HEALTH_SCORES: 'client_health_daily', // Calculated health scores
     ATTRIBUTION: 'attribution_events', // AnyTrack + Facebook attribution
     EVENTS: 'events', // All events (AnyTrack, HubSpot, Facebook)
     CAPI_EVENTS: 'capi_events_enriched', // Facebook CAPI events
@@ -50,7 +50,7 @@ export const UNIFIED_DATA_SCHEMA = {
     ATTRIBUTION: 'anytrack > hubspot > facebook', // AnyTrack has best attribution
     PII: 'hubspot > anytrack > facebook', // HubSpot has most complete PII
     CONVERSION: 'hubspot', // HubSpot deal closed_won is source of truth
-    HEALTH: 'client_health_scores', // Calculated table is source of truth
+    HEALTH: 'client_health_daily', // Calculated table is source of truth
   },
 };
 
@@ -62,7 +62,7 @@ PRIMARY TABLES (ALWAYS QUERY LIVE DATA):
 - deals: HubSpot deals (stage, status, deal_value, close_date)
 - call_records: All calls (caller_number, transcription, call_outcome)
 - appointments: Calendly appointments (scheduled_at, status)
-- client_health_scores: Calculated health (health_score, health_zone, churn_risk_score)
+- client_health_daily: Calculated health (health_score, health_zone, churn_risk_score)
 - attribution_events: Attribution data (source, campaign, platform, fb_campaign_id)
 - events: All events (AnyTrack, HubSpot, Facebook)
 - capi_events_enriched: Facebook CAPI events (hashed PII)
@@ -72,13 +72,13 @@ STANDARD FIELD NAMES (Use consistently):
 - Lifecycle Stage: contacts.lifecycle_stage (lead, mql, sql, opportunity, customer)
 - Deal Stage: deals.stage (HubSpot stage ID - use formatDealStage() to convert)
 - Attribution Source: attribution_events.source (from AnyTrack - BEST attribution)
-- Health Score: client_health_scores.health_score (0-100)
+- Health Score: client_health_daily.health_score (0-100)
 
 DATA PRIORITY RULES (When sources conflict):
 1. Attribution: AnyTrack > HubSpot > Facebook (AnyTrack has best attribution data)
 2. PII: HubSpot > AnyTrack > Facebook (HubSpot has most complete contact data)
 3. Conversion: HubSpot deals.closed_won is source of truth
-4. Health: client_health_scores table is calculated source of truth
+4. Health: client_health_daily table is calculated source of truth
 
 CRITICAL RULES:
 - ALWAYS query LIVE data from Supabase tables

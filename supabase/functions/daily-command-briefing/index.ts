@@ -61,7 +61,7 @@ async function generateBriefing(): Promise<BriefingData> {
     supabase.from("cold_leads").select("id", { count: "exact", head: true }),
     supabase.from("assessment_truth_matrix").select("id", { count: "exact", head: true })
       .in("truth_status", ["BOOKED_NOT_ATTENDED", "HUBSPOT_ONLY_NO_AWS_PROOF"]),
-    supabase.from("client_health_scores")
+    supabase.from("client_health_daily")
       .select("firstname, lastname, health_score, health_trend, churn_risk_score")
       .in("health_trend", ["DECLINING", "CLIFF_FALL"])
       .order("churn_risk_score", { ascending: false }).limit(5),

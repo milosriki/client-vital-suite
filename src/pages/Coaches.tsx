@@ -24,7 +24,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type ClientPackageLive = Database["public"]["Tables"]["client_packages_live"]["Row"];
 type ClientPrediction = Database["public"]["Tables"]["client_predictions"]["Row"];
-type ClientHealthScore = Database["public"]["Tables"]["client_health_scores"]["Row"];
+type ClientHealthScore = Database["public"]["Tables"]["client_health_daily"]["Row"];
 type TrainingSessionLive = Database["public"]["Tables"]["training_sessions_live"]["Row"];
 type CallRecord = Database["public"]["Tables"]["call_records"]["Row"];
 
@@ -166,14 +166,14 @@ export default function Coaches() {
     queryKey: ["client-health-latest"],
     queryFn: async () => {
       const { data: latest } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("calculated_on")
         .order("calculated_on", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!latest?.calculated_on) return [];
       const { data, error } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("id, email, health_score, health_zone, churn_risk_score, calculated_on, assigned_coach, firstname, lastname, outstanding_sessions, package_value_aed, sessions_last_7d, sessions_last_30d")
         .eq("calculated_on", latest.calculated_on);
       if (error) throw error;

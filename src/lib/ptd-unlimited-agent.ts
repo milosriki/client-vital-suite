@@ -243,7 +243,7 @@ async function executeApprovedAction(
     switch (action) {
       case 'update_client_zone':
         result = await supabase
-          .from('client_health_scores')
+          .from('client_health_daily')
           .update({ 
             health_zone: params.zone,
             intervention_priority: params.priority || 'medium'
@@ -274,7 +274,7 @@ async function executeApprovedAction(
 
       case 'reassign_coach':
         result = await supabase
-          .from('client_health_scores')
+          .from('client_health_daily')
           .update({ assigned_coach: params.new_coach })
           .eq('email', params.email);
         break;
@@ -359,7 +359,7 @@ export async function runMonitoringScan(): Promise<{
 
   // 1. Check for critical health zone changes
   const { data: criticalClients } = await supabase
-    .from('client_health_scores')
+    .from('client_health_daily')
     .select('email, firstname, lastname, health_zone, health_score, churn_risk_score')
     .eq('health_zone', 'red')
     .order('health_score', { ascending: true })
@@ -396,7 +396,7 @@ export async function runMonitoringScan(): Promise<{
 
   // 3. Get health zone distribution
   const { data: healthStats } = await supabase
-    .from('client_health_scores')
+    .from('client_health_daily')
     .select('health_zone');
 
   const zoneDistribution = (healthStats || []).reduce((acc: Record<string, number>, c: any) => {

@@ -311,7 +311,7 @@ function getPercentileValue(sortedValues: number[], percentile: number): number 
 async function analyzeCoachesSmartly(): Promise<SmartCoachMetrics[]> {
   // Fetch all clients with health scores
   const { data: clients, error } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, firstname, lastname, assigned_coach, health_score, health_zone, momentum_indicator, sessions_last_7d, sessions_last_30d, sessions_last_90d, outstanding_sessions, sessions_purchased, next_session_is_booked, last_package_cost, of_future_booked_sessions, hubspot_contact_id");
 
   if (error) {

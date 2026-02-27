@@ -13,7 +13,7 @@ import { useDedupedQuery } from "@/hooks/useDedupedQuery";
  * - Leads: contacts table (filtered by lifecycle stage)
  * - Calls: call_records table (with date filtering)
  * - Ad Spend: facebook_ads_insights table (aggregated)
- * - Health: client_health_scores table
+ * - Health: client_health_daily table
  * - Activity: Recent deal/contact/call changes
  *
  * Usage:
@@ -101,14 +101,14 @@ export function useExecutiveData(filters: ExecutiveFilters) {
 
         // Query 6: Client Health Scores (latest calculated scores)
         supabase
-          .from("client_health_scores")
+          .from("client_health_daily")
           .select("id, health_score, health_zone, churn_risk_score, calculated_on")
           .order("calculated_on", { ascending: false })
           .limit(200),
 
         // Query 7: Health Distribution (group by zone)
         supabase
-          .from("client_health_scores")
+          .from("client_health_daily")
           .select("health_zone")
           .order("calculated_on", { ascending: false }),
 

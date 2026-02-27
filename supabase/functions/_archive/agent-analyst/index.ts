@@ -60,7 +60,7 @@ serve(async (req: Request) => {
 
     if (context?.client_id) {
       const { data: client } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("*")
         .eq("email", context.client_id)
         .order("calculated_at", { ascending: false })

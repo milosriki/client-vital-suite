@@ -61,7 +61,7 @@ export function AlertsBar() {
 
       // Check critical clients
       const { count: criticalCount } = await supabase
-        .from('client_health_scores')
+        .from('client_health_daily')
         .select('id', { count: 'exact', head: true })
         .eq('health_zone', 'RED');
 

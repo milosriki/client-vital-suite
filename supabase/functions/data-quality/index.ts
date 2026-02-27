@@ -52,14 +52,14 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
 
   // Check for missing emails
   const { data: missingEmails, count: missingEmailCount } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("id, firstname, lastname", { count: "exact" })
     .or("email.is.null,email.eq.")
     .limit(10);
 
   if ((missingEmailCount || 0) > 0) {
     issues.push({
-      table: "client_health_scores",
+      table: "client_health_daily",
       issue_type: "missing",
       severity: "critical",
       description: "Clients without email addresses",
@@ -74,14 +74,14 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
 
   // Check for invalid health scores
   const { data: invalidScores, count: invalidScoreCount } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, health_score", { count: "exact" })
     .or("health_score.lt.0,health_score.gt.100")
     .limit(10);
 
   if ((invalidScoreCount || 0) > 0) {
     issues.push({
-      table: "client_health_scores",
+      table: "client_health_daily",
       issue_type: "invalid",
       severity: "high",
       description: "Health scores outside valid range (0-100)",
@@ -97,13 +97,13 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
   // Check for stale data (not updated in 7 days)
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { count: staleCount } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("*", { count: "exact", head: true })
     .lt("calculated_at", weekAgo);
 
   if ((staleCount || 0) > 10) {
     issues.push({
-      table: "client_health_scores",
+      table: "client_health_daily",
       issue_type: "stale",
       severity: "medium",
       description: "Health scores not updated in 7+ days",
@@ -115,7 +115,7 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
 
   // Check for zone inconsistencies
   const { data: inconsistentZones } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, health_score, health_zone")
     .or(
       "and(health_score.gte.85,health_zone.neq.PURPLE),and(health_score.lt.50,health_zone.neq.RED)",
@@ -124,7 +124,7 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
 
   if ((inconsistentZones || []).length > 0) {
     issues.push({
-      table: "client_health_scores",
+      table: "client_health_daily",
       issue_type: "inconsistent",
       severity: "high",
       description: "Health zone doesn't match health score",
@@ -138,7 +138,7 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
 
   // Check for missing coach assignments
   const { data: missingCoach, count: missingCoachCount } = await supabase
-    .from("client_health_scores")
+    .from("client_health_daily")
     .select("email, firstname", { count: "exact" })
     .or("assigned_coach.is.null,assigned_coach.eq.")
     .in("health_zone", ["RED", "YELLOW"])
@@ -146,7 +146,7 @@ async function checkClientHealthScores(): Promise<DataIssue[]> {
 
   if ((missingCoachCount || 0) > 0) {
     issues.push({
-      table: "client_health_scores",
+      table: "client_health_daily",
       issue_type: "missing",
       severity: "high",
       description: "At-risk clients without assigned coach",
@@ -274,17 +274,17 @@ async function checkDuplicates(): Promise<DataIssue[]> {
   const issues: DataIssue[] = [];
 
   try {
-    // Check for duplicate emails in client_health_scores using RPC or direct query
+    // Check for duplicate emails in client_health_daily using RPC or direct query
     let duplicateClients: { email: string; count: number }[] | null = null;
     try {
       const { data: rpcData } = await supabase.rpc("get_duplicate_emails", {
-        table_name: "client_health_scores",
+        table_name: "client_health_daily",
       });
       duplicateClients = rpcData;
     } catch {
       // Fallback: Use aggregation query
       const { data } = await supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("email");
 
       if (data) {
@@ -304,7 +304,7 @@ async function checkDuplicates(): Promise<DataIssue[]> {
 
     if (duplicateClients && duplicateClients.length > 0) {
       issues.push({
-        table: "client_health_scores",
+        table: "client_health_daily",
         issue_type: "duplicate",
         severity: "high",
         description: "Duplicate email addresses found",
@@ -368,7 +368,7 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
 
     if (orphanedInterventions) {
       const clientEmails = new Set(
-        (await supabase.from("client_health_scores").select("email")).data?.map(
+        (await supabase.from("client_health_daily").select("email")).data?.map(
           (c) => c.email.toLowerCase(),
         ) || [],
       );
@@ -411,7 +411,7 @@ async function checkOrphanedRecords(): Promise<DataIssue[]> {
       if (sampleCAPI) {
         const clientEmails = new Set(
           (
-            await supabase.from("client_health_scores").select("email")
+            await supabase.from("client_health_daily").select("email")
           ).data?.map((c) => c.email.toLowerCase()) || [],
         );
 
@@ -528,9 +528,9 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
   const issues: DataIssue[] = [];
 
   try {
-    // Check for contacts in client_health_scores but not in contacts table
+    // Check for contacts in client_health_daily but not in contacts table
     const { data: healthClients } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("email")
       .limit(1000);
 
@@ -549,7 +549,7 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
 
       if (missingInContacts.length > 0) {
         issues.push({
-          table: "client_health_scores",
+          table: "client_health_daily",
           issue_type: "inconsistent",
           severity: "medium",
           description: "Health scores for contacts not in contacts table",
@@ -563,13 +563,13 @@ async function checkDataConsistency(): Promise<DataIssue[]> {
 
     // Check for invalid enum values
     const { data: invalidZones } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("email, health_zone")
       .not("health_zone", "in", "(RED,YELLOW,GREEN,PURPLE)");
 
     if (invalidZones && invalidZones.length > 0) {
       issues.push({
-        table: "client_health_scores",
+        table: "client_health_daily",
         issue_type: "invalid",
         severity: "high",
         description: "Invalid health zone values",
@@ -628,14 +628,14 @@ serve(async (req) => {
     const checkAll = tables.includes("all");
 
     // Run checks with individual error handling
-    if (checkAll || tables.includes("client_health_scores")) {
+    if (checkAll || tables.includes("client_health_daily")) {
       try {
         const healthIssues = await checkClientHealthScores();
         allIssues.push(...healthIssues);
       } catch (e) {
         console.error("[Data Quality] Error in checkClientHealthScores:", e);
         allIssues.push({
-          table: "client_health_scores",
+          table: "client_health_daily",
           issue_type: "invalid",
           severity: "high",
           description:
@@ -695,7 +695,7 @@ serve(async (req) => {
       } catch (e) {
         console.error("[Data Quality] Error in checkDuplicates:", e);
         allIssues.push({
-          table: "client_health_scores",
+          table: "client_health_daily",
           issue_type: "invalid",
           severity: "high",
           description:

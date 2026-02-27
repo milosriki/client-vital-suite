@@ -51,7 +51,7 @@ const dataCollectorNode: NodeFunction = async (state, supabase) => {
       supabase.from("leads").select("id", { count: "exact", head: true }),
       supabase.from("deals").select("id", { count: "exact", head: true }),
       supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("email, health_score, health_zone, churn_risk_score, health_trend, calculated_at")
         .order("calculated_at", { ascending: false })
         .limit(10),

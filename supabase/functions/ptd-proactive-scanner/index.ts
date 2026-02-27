@@ -24,7 +24,7 @@ serve(async (req) => {
 
     // 1. Check for Churn Risks (Guardian)
     const { data: atRiskClients } = await supabase
-      .from("client_health_scores")
+      .from("client_health_daily")
       .select("contact_id, email, health_score, health_zone, days_since_last_session, assigned_coach")
       .eq("health_zone", "red")
       .limit(5);

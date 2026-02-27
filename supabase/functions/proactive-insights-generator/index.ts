@@ -100,7 +100,7 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(100),
       supabase
-        .from("client_health_scores")
+        .from("client_health_daily")
         .select("id, email, client_name, health_score, health_zone, churn_risk_score, risk_level")
         .order("health_score", { ascending: true })
         .limit(50),

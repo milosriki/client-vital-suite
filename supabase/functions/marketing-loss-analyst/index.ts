@@ -13,7 +13,7 @@ import { handleError, ErrorCode } from "../_shared/error-handler.ts";
  * - agent-evaluation: Evidence-based reasoning with confidence scores
  * - analytics-tracking: Multi-signal correlation, not single-factor attribution
  *
- * Reads: contacts, deals, call_records, attribution_events, client_health_scores,
+ * Reads: contacts, deals, call_records, attribution_events, client_health_daily,
  *        historical_baselines (coach close rates for comparison)
  * Writes: loss_analysis
  * Cannot: Modify budgets, reassign coaches, approve actions
