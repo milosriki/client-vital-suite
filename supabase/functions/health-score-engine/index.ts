@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/error-handler.ts";
 
 /**
- * HEALTH SCORE ENGINE v2.0 — The Evolving Intelligence
+ * HEALTH SCORE ENGINE v3.0 — The Evolving Intelligence
  *
  * Computes daily health scores for ALL active package holders using pure AWS data.
  * Stores history, detects patterns, tracks trends. Gets smarter every day.
@@ -251,8 +251,12 @@ Deno.serve(async (req) => {
       else if (curr7 > 0) momentum = 4;
       else if (prev7 > 0) momentum = 2;
 
-      // --- TOTAL ---
-      const total = recency + frequency + consistency + pkgHealth + momentum;
+      // --- TOTAL (v3: base 100pts, satisfaction bonus up to +10) ---
+      const base = recency + frequency + consistency + pkgHealth + momentum;
+      // Satisfaction signal: look up avg review rating from client_health_daily cache
+      // (populated by future client_reviews sync — graceful fallback = 0)
+      const satisfactionBonus = 0; // TODO: wire to client_reviews.avg_rating when table exists
+      const total = Math.min(100, base + satisfactionBonus);
       const tier = getTier(total);
 
       // --- TREND DETECTION ---
