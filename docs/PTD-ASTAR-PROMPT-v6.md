@@ -32,6 +32,19 @@ Conflict policy:
 5. coding-agent-loops/coding-agent (execution)
 6. session-logs (loop-prevention post-check)
 
+## Systematic Debugging Protocol (Mandatory)
+**Iron Law:** No fixes before root-cause investigation.
+
+For every bug/test/runtime failure:
+1. **Reproduce consistently** (exact steps, exact failing route/component/query)
+2. **Read full error evidence** (stack trace, network payload, DB error code)
+3. **Trace to source** (where bad/null value originates; not where it crashes)
+4. **Check recent changes** (commits/migrations/env drift likely tied to regression)
+5. **Form one hypothesis** and run **one minimal test**
+6. **Create/keep failing test or reproducible probe** before permanent fix
+7. **Apply single fix**, re-verify, then expand
+8. If 3 attempts fail, **stop and redesign architecture path** (do not brute-force)
+
 ## Context7 Gate (before non-trivial edits)
 - Query 1: contract/API quick check
 - Query 2: edge-case + best-practice validation
