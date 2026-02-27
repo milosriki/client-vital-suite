@@ -74,3 +74,4 @@ telegram_tokens*.yaml
 *telegram*token*.yaml
 .env.stripe
 .env.stripe-check
+supabase/functions/deno.lock
