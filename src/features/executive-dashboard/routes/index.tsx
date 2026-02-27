@@ -418,7 +418,7 @@ export const ExecutiveDashboardRoute = () => {
                       >
                         <TableCell className="font-mono text-xs text-muted-foreground group-hover:text-primary transition-colors">
                           {tx.id ||
-                            `TX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`}
+                            `TX-${crypto.randomUUID().slice(0, 9).toUpperCase()}`}
                         </TableCell>
                         <TableCell className="font-medium text-sm text-foreground">
                           {tx.name || "Unknown Customer"}

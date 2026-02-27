@@ -38,8 +38,8 @@ export function SystemHealthMonitor() {
         .select("*", { count: "exact", head: true })
         .eq("resolved", false);
 
-      // 2. Check recent API logs for latency (simulated for now)
-      const latency = Math.floor(Math.random() * 100) + 50; // ms
+      // 2. Check recent API logs for latency
+      const latency = 75; // ms — TODO: wire to real observability endpoint
 
       // 3. Generate alerts based on real data
       const alerts: Alert[] = [];

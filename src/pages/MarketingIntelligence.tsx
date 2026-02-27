@@ -1225,7 +1225,7 @@ function CreativeDNATab() {
     const action = (rec?.action as Creative["action"]) ?? undefined;
 
     return {
-      id: adId || String(Math.random()),
+      id: adId || crypto.randomUUID(),
       name: String(row.ad_name || "Unknown Creative"),
       thumbnail: adId ? `https://pipeboard.com/api/meta/creative/${adId}/thumbnail` : "",
       spend,

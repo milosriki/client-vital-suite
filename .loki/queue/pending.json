@@ -1,117 +1,140 @@
 [
   {
-    "id": "A1",
-    "track": "A",
-    "title": "Fix useMarketingAnalytics — kill all fake data",
-    "file": "src/hooks/useMarketingAnalytics.ts",
-    "priority": "EXTREME",
-    "status": "pending",
-    "parallel_group": "track_a"
+    "id": "A1", "track": "A_security", "title": "Gitignore sensitive files + root debris",
+    "priority": "P0", "status": "pending", "parallel_group": "wave_1",
+    "spec": "Add to .gitignore: api-keys-report.json, telegram_tokens_safe.yaml, *.sqlite, .loki/. Remove api-keys-report.json from tracking with git rm --cached.",
+    "files": [".gitignore", "api-keys-report.json"]
   },
   {
-    "id": "A2",
-    "track": "A",
-    "title": "Fix useTruthTriangle — null crash guard",
-    "file": "src/hooks/useTruthTriangle.ts",
-    "priority": "EXTREME",
-    "status": "pending",
-    "parallel_group": "track_a"
+    "id": "A2", "track": "A_security", "title": "Fix CORS * on 2 active edge functions",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_1",
+    "spec": "In sales-aggression/index.ts and update-currency-rates/index.ts — replace hardcoded Access-Control-Allow-Origin: * with import from _shared/cors.ts.",
+    "files": ["supabase/functions/sales-aggression/index.ts", "supabase/functions/update-currency-rates/index.ts"]
   },
   {
-    "id": "A3",
-    "track": "A",
-    "title": "Fix useDeepIntelligence — Promise.allSettled",
-    "file": "src/hooks/useDeepIntelligence.ts",
-    "priority": "EXTREME",
-    "status": "pending",
-    "parallel_group": "track_a"
+    "id": "B1", "track": "B_kill_fake", "title": "Kill Math.random() in SystemHealthMonitor",
+    "priority": "P1", "status": "pending", "parallel_group": "wave_1",
+    "spec": "src/components/dashboard/SystemHealthMonitor.tsx line 42 uses Math.random()*100+50 for API latency. Replace with real data from ai_execution_metrics table (avg latency_ms). Show dash if no data.",
+    "files": ["src/components/dashboard/SystemHealthMonitor.tsx"]
   },
   {
-    "id": "B1",
-    "track": "B",
-    "title": "Verify TruthTriangle renders in Source Truth",
-    "file": "src/pages/MarketingIntelligence.tsx",
-    "priority": "HIGH",
-    "status": "blocked_by_A",
-    "parallel_group": "track_b"
+    "id": "B2", "track": "B_kill_fake", "title": "Kill Math.random() in MetricDrilldownModal",
+    "priority": "P1", "status": "pending", "parallel_group": "wave_1",
+    "spec": "Lines 76-102 use Math.random() for change %. Lines 181-182 generate 30 days of Math.random()*50000 for Trend tab. Lines 237-258 hardcoded AI Insights. Replace trends with real period-over-period from source table. Remove fake insights or link to AI Advisor.",
+    "files": ["src/components/dashboard/MetricDrilldownModal.tsx"]
   },
   {
-    "id": "B2",
-    "track": "B",
-    "title": "Fix Creative DNA thumbnails from Pipeboard",
-    "file": "src/pages/MarketingIntelligence.tsx",
-    "priority": "HIGH",
-    "status": "blocked_by_A",
-    "parallel_group": "track_b"
+    "id": "B3", "track": "B_kill_fake", "title": "Fix hardcoded 65% renewal in PredictiveIntelligence",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_1",
+    "spec": "Line 327 hardcoded '65% renewal rate'. Calculate from real deals data or show dash.",
+    "files": ["src/pages/PredictiveIntelligence.tsx"]
   },
   {
-    "id": "B3",
-    "track": "B",
-    "title": "Unhide Deep Intel tab + wire data",
-    "file": "src/pages/MarketingIntelligence.tsx",
-    "priority": "HIGH",
-    "status": "blocked_by_A",
-    "parallel_group": "track_b"
+    "id": "C1", "track": "C_types", "title": "Regenerate Supabase types.ts",
+    "priority": "P1", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Run: npx supabase gen types typescript --project-id ztjndilxurtsfqdsvfds > src/integrations/supabase/types.ts",
+    "files": ["src/integrations/supabase/types.ts"]
   },
   {
-    "id": "B4",
-    "track": "B",
-    "title": "Wire StressTestDashboard into page",
-    "file": "src/pages/MarketingIntelligence.tsx",
-    "priority": "MEDIUM",
-    "status": "blocked_by_A",
-    "parallel_group": "track_b"
+    "id": "C2", "track": "C_types", "title": "Remove unnecessary as never casts",
+    "priority": "P2", "status": "blocked_by_C1", "parallel_group": "wave_2",
+    "spec": "Remove 'as never' from: useClientActivity.ts (2), useSessionIntelligence.ts (1), usePredictions.ts (2), useDailyOps.ts (1). Keep 'as never' on RPC calls.",
+    "files": ["src/hooks/useClientActivity.ts", "src/hooks/useSessionIntelligence.ts", "src/hooks/usePredictions.ts", "src/hooks/useDailyOps.ts"]
   },
   {
-    "id": "C1",
-    "track": "C",
-    "title": "Build SourceTruthMatrix component",
-    "file": "src/components/analytics/SourceTruthMatrix.tsx",
-    "priority": "HIGH",
-    "status": "blocked_by_A",
-    "parallel_group": "track_c"
+    "id": "C3", "track": "C_types", "title": "Fix as any casts where possible",
+    "priority": "P3", "status": "blocked_by_C1", "parallel_group": "wave_2",
+    "spec": "CoachLocations.tsx Leaflet window.L → proper global declaration. RevenueVsSpendChart.tsx Record<string,any> → typed metric interface.",
+    "files": ["src/pages/CoachLocations.tsx", "src/components/dashboard/RevenueVsSpendChart.tsx"]
   },
   {
-    "id": "C2",
-    "track": "C",
-    "title": "Build DailyOptimization + useDailyOptimization hook",
-    "files": ["src/hooks/useDailyOptimization.ts", "src/components/analytics/DailyOptimization.tsx"],
-    "priority": "HIGH",
-    "status": "blocked_by_A",
-    "parallel_group": "track_c"
+    "id": "D1", "track": "D_models", "title": "Fix unified-ai-client deprecated models",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "unified-ai-client.ts line 193 gemini-1.5-flash → gemini-2.0-flash. langsmith-tracing.ts line 292 same.",
+    "files": ["supabase/functions/_shared/unified-ai-client.ts", "supabase/functions/_shared/langsmith-tracing.ts"]
   },
   {
-    "id": "C3",
-    "track": "C",
-    "title": "Build CohortWaterfall + useCohortProgression hook",
-    "files": ["src/hooks/useCohortProgression.ts", "src/components/analytics/CohortWaterfall.tsx"],
-    "priority": "HIGH",
-    "status": "blocked_by_A",
-    "parallel_group": "track_c"
+    "id": "D2", "track": "D_models", "title": "Fix ai-ceo-master hardcoded model",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Lines 319,361 hardcode gemini-2.0-flash. Use UnifiedAI cascade instead.",
+    "files": ["supabase/functions/ai-ceo-master/index.ts"]
   },
   {
-    "id": "D1",
-    "track": "D",
-    "title": "Final wiring — import + mount all in MarketingIntelligence.tsx",
-    "file": "src/pages/MarketingIntelligence.tsx",
-    "priority": "EXTREME",
-    "status": "blocked_by_BC",
-    "parallel_group": "track_d"
+    "id": "D3", "track": "D_models", "title": "Fix multi-agent-orchestrator hardcoded model",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Lines 128,172 hardcode gemini-2.0-flash. Use UnifiedAI cascade.",
+    "files": ["supabase/functions/multi-agent-orchestrator/index.ts"]
   },
   {
-    "id": "D2",
-    "track": "D",
-    "title": "Build verification — npm run build + tsc",
-    "priority": "EXTREME",
-    "status": "blocked_by_D1",
-    "parallel_group": "track_d"
+    "id": "D4", "track": "D_models", "title": "Fix ptd-ultimate-intelligence hardcoded model",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Lines 699,747,783 hardcode gemini-2.0-flash (3 calls). Use UnifiedAI cascade.",
+    "files": ["supabase/functions/ptd-ultimate-intelligence/index.ts"]
   },
   {
-    "id": "D3",
-    "track": "D",
-    "title": "Atomic commit",
-    "priority": "EXTREME",
-    "status": "blocked_by_D2",
-    "parallel_group": "track_d"
+    "id": "D5", "track": "D_models", "title": "Fix smart-ai-advisor hardcoded model",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Line 253 hardcodes gemini-2.0-flash. Use UnifiedAI cascade.",
+    "files": ["supabase/functions/smart-ai-advisor/index.ts"]
+  },
+  {
+    "id": "D6", "track": "D_models", "title": "Fix vision-analytics hardcoded model",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Line 29 hardcodes gemini-2.0-flash. Use UnifiedAI cascade.",
+    "files": ["supabase/functions/vision-analytics/index.ts"]
+  },
+  {
+    "id": "D7", "track": "D_models", "title": "Fix marketing-copywriter deprecated model",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_2",
+    "spec": "Line 156 uses gemini-1.5-flash. Update to gemini-2.0-flash or UnifiedAI.",
+    "files": ["supabase/functions/marketing-copywriter/index.ts"]
+  },
+  {
+    "id": "E1", "track": "E_perf", "title": "Remove refetchInterval violations",
+    "priority": "P3", "status": "pending", "parallel_group": "wave_3",
+    "spec": "Remove refetchInterval from: SystemHealthMonitor (30s), DataFreshnessWidget (60s), DataFreshnessBanner (5min). Use staleTime + manual refetch.",
+    "files": ["src/components/dashboard/SystemHealthMonitor.tsx", "src/components/dashboard/DataFreshnessWidget.tsx", "src/components/DataFreshnessBanner.tsx"]
+  },
+  {
+    "id": "E2", "track": "E_perf", "title": "Add limits to unbounded select(*) queries",
+    "priority": "P3", "status": "pending", "parallel_group": "wave_3",
+    "spec": "Add .limit() to: MarketingIntelligence.tsx:1164 (500), ExecutiveOverview.tsx:77 (30), SalesPipelineFeed.tsx:55 (500), ProactiveInsightsPanel.tsx:75 (100), ptd-unlimited-agent.ts:410 (50).",
+    "files": ["src/pages/MarketingIntelligence.tsx", "src/pages/ExecutiveOverview.tsx", "src/components/dashboard/SalesPipelineFeed.tsx", "src/components/ProactiveInsightsPanel.tsx", "src/lib/ptd-unlimited-agent.ts"]
+  },
+  {
+    "id": "E3", "track": "E_perf", "title": "Add WidgetErrorBoundary for dashboard widgets",
+    "priority": "P3", "status": "pending", "parallel_group": "wave_3",
+    "spec": "Create WidgetErrorBoundary component. Wrap main dashboard widgets in ExecutiveOverview, CommandCenter, DailyOps so one widget crash doesn't take down the page.",
+    "files": ["src/components/ui/widget-error-boundary.tsx", "src/pages/ExecutiveOverview.tsx", "src/pages/CommandCenter.tsx"]
+  },
+  {
+    "id": "F1", "track": "F_console", "title": "Remove console.log from 48 production files",
+    "priority": "P3", "status": "pending", "parallel_group": "wave_3",
+    "spec": "Remove/replace console.log/warn/error in active src/ files. Keep console.error only in catch blocks that re-throw. Priority: ptd-auto-learn.ts (14), PTDUnlimitedChat.tsx (11), PTDControlChat.tsx (10), ptd-memory.ts (8). Do NOT touch _archived/.",
+    "files": ["src/lib/ptd-auto-learn.ts", "src/components/ai/PTDUnlimitedChat.tsx", "src/components/ai/PTDControlChat.tsx", "src/lib/ptd-memory.ts"]
+  },
+  {
+    "id": "G1", "track": "G_stripe", "title": "Verify stripe-webhook configuration",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_4",
+    "spec": "Read stripe-webhook/index.ts. Document: what events it handles, does it insert into stripe_transactions, is STRIPE_WEBHOOK_SECRET set. Report findings only — do NOT modify.",
+    "files": ["supabase/functions/stripe-webhook/index.ts"]
+  },
+  {
+    "id": "G2", "track": "G_stripe", "title": "Check stripe-backfill function existence",
+    "priority": "P2", "status": "pending", "parallel_group": "wave_4",
+    "spec": "Check if stripe-backfill edge function exists. Document what's needed to backfill. Do NOT run anything — report only.",
+    "files": []
+  },
+  {
+    "id": "H1", "track": "H_cleanup", "title": "Organize root-level debris to docs/archive",
+    "priority": "P4", "status": "pending", "parallel_group": "wave_4",
+    "spec": "Move stale root .json/.md/.sh/.py files to docs/archive/. Keep: package.json, tsconfig.json, vite.config.ts, tailwind.config.ts, CLAUDE.md, README.md, .env*. Do NOT delete anything.",
+    "files": []
+  },
+  {
+    "id": "H2", "track": "H_cleanup", "title": "Update .gitignore comprehensively",
+    "priority": "P4", "status": "pending", "parallel_group": "wave_4",
+    "spec": "Add: .loki/, api-keys-report.json, telegram_tokens_safe.yaml, *.sqlite, docs/archive/",
+    "files": [".gitignore"]
   }
 ]

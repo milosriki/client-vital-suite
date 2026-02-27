@@ -109,7 +109,7 @@ function getSessionId(): string {
   let sessionId = localStorage.getItem(SESSION_ID_KEY);
 
   if (!sessionId) {
-    sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    sessionId = `session_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
     localStorage.setItem(SESSION_ID_KEY, sessionId);
   }
 
@@ -121,7 +121,7 @@ function getSessionId(): string {
  */
 export function generateThreadId(): string {
   const sessionId = getSessionId();
-  const threadId = `thread_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const threadId = `thread_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
 
   // Store in localStorage
   localStorage.setItem(THREAD_ID_KEY, threadId);

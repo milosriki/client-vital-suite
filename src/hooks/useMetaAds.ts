@@ -194,7 +194,7 @@ export function useMetaAds(options: {
     });
   }, []);
 
-  const genId = () => `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const genId = () => `msg_${Date.now()}_${crypto.randomUUID().slice(0, 5)}`;
 
   const sendMessage = useCallback(async (
     prompt: string,

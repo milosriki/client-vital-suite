@@ -1,32 +1,57 @@
 {
   "currentPhase": "DEVELOPMENT",
-  "sprint": "marketing-intelligence-completion",
+  "sprint": "deep-clean-all-pages",
   "tasksCompleted": 0,
   "tasksFailed": 0,
+  "totalTasks": 32,
   "tracks": {
-    "A_fix_hooks": {
+    "A_security": {
       "status": "pending",
-      "tasks": ["A1_useMarketingAnalytics", "A2_useTruthTriangle", "A3_useDeepIntelligence"],
+      "tasks": ["A1_gitignore_debris", "A2_cors_fix"],
       "blockedBy": [],
       "parallel": true
     },
-    "B_fix_tabs": {
-      "status": "blocked",
-      "tasks": ["B1_wire_TruthTriangle", "B2_fix_thumbnails", "B3_unhide_DeepIntel", "B4_wire_StressTest"],
-      "blockedBy": ["A_fix_hooks"],
+    "B_kill_fake_data": {
+      "status": "pending",
+      "tasks": ["B1_SystemHealthMonitor", "B2_MetricDrilldown_trends", "B3_MetricDrilldown_insights", "B4_PredictiveIntel_hardcoded"],
+      "blockedBy": [],
       "parallel": true
     },
-    "C_new_components": {
-      "status": "blocked",
-      "tasks": ["C1_SourceTruthMatrix", "C2_DailyOptimization", "C3_CohortWaterfall"],
-      "blockedBy": ["A_fix_hooks"],
-      "parallel": true
-    },
-    "D_final_wiring": {
-      "status": "blocked",
-      "tasks": ["D1_wire_page", "D2_build_check", "D3_commit"],
-      "blockedBy": ["B_fix_tabs", "C_new_components"],
+    "C_types_casts": {
+      "status": "pending",
+      "tasks": ["C1_regen_types", "C2_remove_as_never", "C3_fix_as_any"],
+      "blockedBy": [],
       "parallel": false
+    },
+    "D_fix_models": {
+      "status": "pending",
+      "tasks": ["D1_unified_ai_client", "D2_ai_ceo_master", "D3_multi_agent_orchestrator", "D4_ptd_ultimate_intelligence", "D5_smart_ai_advisor", "D6_vision_analytics", "D7_marketing_copywriter"],
+      "blockedBy": [],
+      "parallel": true
+    },
+    "E_performance": {
+      "status": "pending",
+      "tasks": ["E1_remove_refetchIntervals", "E2_add_query_limits", "E3_widget_error_boundaries"],
+      "blockedBy": [],
+      "parallel": true
+    },
+    "F_console_cleanup": {
+      "status": "pending",
+      "tasks": ["F1_remove_console_logs"],
+      "blockedBy": [],
+      "parallel": false
+    },
+    "G_stripe": {
+      "status": "blocked",
+      "tasks": ["G1_verify_stripe_webhook", "G2_run_stripe_backfill"],
+      "blockedBy": ["A_security"],
+      "parallel": false
+    },
+    "H_cleanup": {
+      "status": "pending",
+      "tasks": ["H1_root_debris", "H2_gitignore_update"],
+      "blockedBy": [],
+      "parallel": true
     }
   }
 }

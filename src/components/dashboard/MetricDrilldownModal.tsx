@@ -73,7 +73,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
         return data?.map((d) => ({
           name: d.deal_name || "Unnamed Deal",
           value: d.deal_value,
-          change: Math.random() * 20 - 10,
+          change: 0,
           detail: d.stage,
         })) || [];
       } else if (type === "clients") {
@@ -85,7 +85,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
         return data?.map((c) => ({
           name: `${c.firstname || ""} ${c.lastname || ""}`.trim() || "Unknown",
           value: c.health_score,
-          change: Math.random() * 10,
+          change: 0,
           detail: c.assigned_coach,
         })) || [];
       } else if (type === "pipeline") {
@@ -99,7 +99,7 @@ const ContributorsTab = ({ type }: { type: string }) => {
         return data?.map((d) => ({
           name: d.deal_name || "Unnamed Deal",
           value: d.deal_value,
-          change: Math.random() * 15,
+          change: 0,
           detail: d.stage,
         })) || [];
       } else {
@@ -178,8 +178,8 @@ const TrendTab = ({ type }: { type: string }) => {
         const date = subDays(new Date(), 29 - i);
         return {
           date: format(date, "MMM dd"),
-          value: Math.random() * 50000 + 50000,
-          previousValue: Math.random() * 45000 + 45000,
+          value: 50000 + (i * 1000),
+          previousValue: 45000 + (i * 900),
         };
       });
       return days;

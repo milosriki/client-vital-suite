@@ -1,58 +1,35 @@
-# LOKI CONTINUITY — Marketing Intelligence Sprint
+# LOKI CONTINUITY — Deep Clean Sprint
 
 ## Current State
-- Sprint: marketing-intelligence-completion
+- Sprint: deep-clean-all-pages
 - Branch: main
 - Phase: DEVELOPMENT
-- Tasks: 0/14 complete
+- Tasks: 0/32 complete
 
 ## Sprint Objective
-Complete Marketing Intelligence page to 100%. Kill ALL fake data in hooks. Build 3 missing components. Wire everything with real Supabase data. Zero mocks.
+Fix ALL 195 issues found in deep audit. Zero fake data. Zero broken queries. Zero deprecated models. Clean types. Clean console. Production-grade.
 
 ## Track Status
-- **Track A (Fix Hooks):** DONE — A1 (useMarketingAnalytics), A2 (useTruthTriangle), A3 (useDeepIntelligence)
-- **Track B (Fix Tabs):** DONE — B1 (TruthTriangle already wired), B2 (thumbnails), B3 (Deep Intel unhidden), B4 (StressTest wired)
-- **Track C (New Components):** DONE — C1 (SourceTruthMatrix), C2 (DailyOptimization), C3 (CohortWaterfall)
-- **Track D (Final Wiring):** DONE — D1 (8 tabs wired), D2 (build passes), D3 (committed d22a8eb)
+- **Track A (Security):** NOT STARTED — A1 (gitignore api-keys), A2 (CORS fix 2 functions)
+- **Track B (Kill Fake Data):** NOT STARTED — B1 (SystemHealthMonitor), B2 (MetricDrilldownModal trends), B3 (MetricDrilldownModal insights), B4 (PredictiveIntelligence hardcoded)
+- **Track C (Regen Types + Fix Casts):** NOT STARTED — C1 (regen types.ts), C2 (remove unnecessary `as never`), C3 (fix remaining `as any`)
+- **Track D (Fix Models):** NOT STARTED — D1 (unified-ai-client 1.5-flash), D2 (ai-ceo-master), D3 (multi-agent-orchestrator), D4 (ptd-ultimate-intelligence), D5 (smart-ai-advisor), D6 (vision-analytics), D7 (marketing-copywriter)
+- **Track E (Performance):** NOT STARTED — E1 (remove refetchIntervals), E2 (add limits to select *), E3 (error boundaries per widget)
+- **Track F (Console Cleanup):** NOT STARTED — F1 (remove 125 console.log/error from 48 files)
+- **Track G (Stripe Pipeline):** NOT STARTED — G1 (verify stripe-webhook), G2 (run stripe-backfill)
+- **Track H (Cleanup):** NOT STARTED — H1 (root debris), H2 (gitignore updates)
 
 ## Key Constraints
-- NO mock data — every number from real Supabase queries
+- NO mock data — every number from real Supabase queries or show "—"
 - AED currency — do NOT divide by 100
-- Empty tables show "—" not fake numbers
-- stripe_transactions = 0 rows (handle gracefully, backfill later)
-- Use ad_creative_funnel VIEW for true ROAS (already joins FB→contacts→deals→Stripe)
-- React 19, shadcn/ui, TanStack Query, Tailwind
 - Must pass: npm run build + npx tsc --noEmit
-
-## Data Available (real, live)
-- facebook_ads_insights: 1663+ rows
-- contacts: 12,720 rows
-- deals: 19,506 rows
-- call_records: 33,528 rows
-- attribution_events: 1,954 rows
-- ad_creative_funnel VIEW: per-ad true ROAS
-- view_truth_triangle VIEW: monthly Meta/HubSpot/Stripe
-- source_discrepancy_matrix VIEW: daily trust verdicts
-- historical_baselines table: dimension-level baselines
-- loss_analysis table: contact-level loss reasons
-- funnel_metrics table: stage conversion rates
-- daily_business_metrics table: daily KPIs
-- marketing_recommendations table: KILL/SCALE signals
+- Do NOT touch webhook functions
+- Do NOT run supabase db reset
+- Edge functions: use UnifiedAI cascade, not raw GoogleGenerativeAI
+- Model cascade: gemini-3.1-pro → gemini-3.1-flash → gemini-2.0-flash
 
 ## Completed
-- A1: useMarketingAnalytics — killed Math.random(), fake ROAS, hardcoded deltas, payback. Now uses ad_creative_funnel view + real period-over-period
-- A2: useTruthTriangle — null guard added, Number() wrapping for safety
-- A3: useDeepIntelligence — Promise.allSettled with safeResult helper, partial failure resilient
-- B1: TruthTriangle — was already rendered at line 1068 (confirmed)
-- B2: Creative DNA thumbnails — now use pipeboard.com/api/meta/creative/${ad_id}/thumbnail
-- B3: Deep Intel — tab unhidden, baselines + lossReasons wired from useDeepIntelligence
-- B4: StressTestDashboard — wired into Deep Intel section
-- C1: SourceTruthMatrix — built + wired into Source Truth tab, uses real SourceDiscrepancy interface
-- C2: DailyOptimization + useDailyOptimization — built, queries daily_business_metrics
-- C3: CohortWaterfall + useCohortProgression — built, queries funnel_metrics + deals
-- D1: All 8 tabs wired in MarketingIntelligence.tsx
-- D2: npm run build — PASSES (3.64s, 0 errors)
-- D3: Committed — d22a8eb
+(none yet)
 
 ## Mistakes & Learnings
 (none yet)

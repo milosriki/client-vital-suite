@@ -52,7 +52,7 @@ interface ProactiveInsight {
 export function AIAssistantPanel() {
   const [query, setQuery] = useState("");
   const [sessionId] = useState(
-    () => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    () => `session_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
   );
   const [isExpanded, setIsExpanded] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
