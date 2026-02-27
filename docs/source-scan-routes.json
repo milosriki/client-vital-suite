@@ -1,0 +1,699 @@
+[
+  {
+    "route": "/login",
+    "component": "Login",
+    "file": "src/pages/Login.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": []
+  },
+  {
+    "route": "/dashboard",
+    "component": "ExecutiveOverview",
+    "file": "src/pages/ExecutiveOverview.tsx",
+    "hits": {
+      "supabase_from": 2,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 7
+    },
+    "evidence": [
+      "L76: .from(\"daily_marketing_briefs\")",
+      "L284: Array.from({ length: 8 }).map((_, i) => ("
+    ]
+  },
+  {
+    "route": "/command-center",
+    "component": "CommandCenter",
+    "file": "src/pages/CommandCenter.tsx",
+    "hits": {
+      "supabase_from": 1,
+      "supabase_rpc": 1,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 39,
+      "aws": 2
+    },
+    "evidence": [
+      "L68: const { data, error } = await supabase.rpc(",
+      "L123: let query = supabase.from(\"lead_full_journey\").select(\"first_name, last_name, email, phone, deal_stage, deal_stage_label, attribution_campaign, fb_adset_name, fb_ad_name, attributi",
+      "L485: Per ad creative: spend, leads, revenue, video completion, Meta quality signals"
+    ]
+  },
+  {
+    "route": "/marketing",
+    "component": "MarketingIntelligence",
+    "file": "src/pages/MarketingIntelligence.tsx",
+    "hits": {
+      "supabase_from": 6,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 16,
+      "callgear": 0,
+      "meta": 57,
+      "aws": 3
+    },
+    "evidence": [
+      "L64: import { useDeepAnalysis, useMetaAds, useMoneyMap } from \"@/hooks/useMarketingAnalytics\";",
+      "L220: summary=\"True ROAS = total Stripe cash collected \u00f7 total Meta ad spend. Target: > 3.0x for profitable scaling.\"",
+      "L253: { label: \"Platform\", value: \"Meta Ads\" },",
+      "L256: summary=\"Total spend synced from Meta Business API via fetch-facebook-insights \u2192 facebook_ads_insights table.\"",
+      "L261: subtext=\"Meta Ads\"",
+      "L272: { label: \"Source\", value: \"HubSpot + Organic\" },"
+    ]
+  },
+  {
+    "route": "/sales-pipeline",
+    "component": "SalesPipeline",
+    "file": "src/pages/SalesPipeline.tsx",
+    "hits": {
+      "supabase_from": 9,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 5,
+      "callgear": 0,
+      "meta": 20,
+      "aws": 15
+    },
+    "evidence": [
+      "L50: // Sync from HubSpot mutation",
+      "L51: const syncFromHubspot = useMutation({",
+      "L53: const { data, error } = await supabase.functions.invoke(",
+      "L54: \"sync-hubspot-to-supabase\",",
+      "L171: let query = supabase.from(\"dynamic_funnel_view\").select(\"funnel_stage, lead_source, owner, campaign, created_at\");",
+      "L213: .from(\"client_payment_history\")"
+    ]
+  },
+  {
+    "route": "/revenue",
+    "component": "RevenueIntelligence",
+    "file": "src/pages/RevenueIntelligence.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 42,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 4
+    },
+    "evidence": [
+      "L5: import { usePipelineData, useHubSpotHealth, useLiveData, useRevenueByChannel } from \"@/hooks/useRevenueIntelligence\";",
+      "L54: const { data, error } = await supabase.functions.invoke(\"stripe-dashboard-data\", {",
+      "L65: hubspotRefetch();",
+      "L76: // Tab 3: HubSpot Health Data (Real Supabase data)",
+      "L78: data: hubspotData,",
+      "L79: isLoading: hubspotLoading,"
+    ]
+  },
+  {
+    "route": "/attribution",
+    "component": "MarketingIntelligence",
+    "file": "src/pages/MarketingIntelligence.tsx",
+    "hits": {
+      "supabase_from": 6,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 16,
+      "callgear": 0,
+      "meta": 57,
+      "aws": 3
+    },
+    "evidence": [
+      "L64: import { useDeepAnalysis, useMetaAds, useMoneyMap } from \"@/hooks/useMarketingAnalytics\";",
+      "L220: summary=\"True ROAS = total Stripe cash collected \u00f7 total Meta ad spend. Target: > 3.0x for profitable scaling.\"",
+      "L253: { label: \"Platform\", value: \"Meta Ads\" },",
+      "L256: summary=\"Total spend synced from Meta Business API via fetch-facebook-insights \u2192 facebook_ads_insights table.\"",
+      "L261: subtext=\"Meta Ads\"",
+      "L272: { label: \"Source\", value: \"HubSpot + Organic\" },"
+    ]
+  },
+  {
+    "route": "/clients",
+    "component": "Clients",
+    "file": "src/pages/Clients.tsx",
+    "hits": {
+      "supabase_from": 1,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 1,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": [
+      "L38: .from('client_health_daily' as never)",
+      "L81: onClick={() => toast.info(\"Client creation is managed through HubSpot CRM. New clients will sync automatically.\")}"
+    ]
+  },
+  {
+    "route": "/clients/:email",
+    "component": "ClientDetail",
+    "file": "src/pages/ClientDetail.tsx",
+    "hits": {
+      "supabase_from": 2,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 3,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": [
+      "L46: .from(\"client_health_daily\")",
+      "L47: .select(\"id, email, firstname, lastname, health_score, health_zone, health_trend, churn_risk_score, outstanding_sessions, package_type, days_since_last_session, sessions_last_7d, s",
+      "L69: .from(\"intervention_log\")",
+      "L479: <p className=\"text-sm text-slate-300 mb-1\">HubSpot Contact ID</p>",
+      "L481: {client.hubspot_contact_id || \"N/A\"}"
+    ]
+  },
+  {
+    "route": "/coaches",
+    "component": "Coaches",
+    "file": "src/pages/Coaches.tsx",
+    "hits": {
+      "supabase_from": 8,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 12
+    },
+    "evidence": [
+      "L25: type ClientPackageLive = Database[\"public\"][\"Tables\"][\"client_packages_live\"][\"Row\"];",
+      "L28: type TrainingSessionLive = Database[\"public\"][\"Tables\"][\"training_sessions_live\"][\"Row\"];",
+      "L128: .from(\"coach_performance\")",
+      "L135: .from(\"coach_performance\")",
+      "L148: const { data, error } = await supabase.from(\"client_packages_live\").select(\"client_id, client_name, client_email, client_phone, last_coach, remaining_sessions, pack_size, package_v",
+      "L158: const { data, error } = await supabase.from(\"client_predictions\").select(\"client_id, churn_score, churn_factors, revenue_at_risk, predicted_churn_date\");"
+    ]
+  },
+  {
+    "route": "/interventions",
+    "component": "Interventions",
+    "file": "src/pages/Interventions.tsx",
+    "hits": {
+      "supabase_from": 4,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": [
+      "L39: .from(\"intervention_log\")",
+      "L84: .from(\"intervention_log\")",
+      "L105: .from(\"intervention_log\")",
+      "L130: .from(\"intervention_log\")"
+    ]
+  },
+  {
+    "route": "/global-brain",
+    "component": "GlobalBrain",
+    "file": "src/pages/GlobalBrain.tsx",
+    "hits": {
+      "supabase_from": 1,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 1,
+      "aws": 0
+    },
+    "evidence": [
+      "L34: meta?: {",
+      "L171: .from(\"agent_memory\")"
+    ]
+  },
+  {
+    "route": "/ai-advisor",
+    "component": "EnterpriseAIAdvisor",
+    "file": "src/pages/enterprise/AIAdvisor.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": [
+      "L29: const { data, error } = await supabase.functions.invoke("
+    ]
+  },
+  {
+    "route": "/sales-tracker",
+    "component": "SalesCoachTracker",
+    "file": "src/pages/SalesCoachTracker.tsx",
+    "hits": {
+      "supabase_from": 5,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 1,
+      "callgear": 0,
+      "meta": 12,
+      "aws": 3
+    },
+    "evidence": [
+      "L115: .from(\"deals\")",
+      "L131: .from(\"deals\")",
+      "L147: .from(\"setter_funnel_matrix\")",
+      "L159: .from(\"assessment_truth_matrix\")",
+      "L163: \"HUBSPOT_ONLY_NO_AWS_PROOF\",",
+      "L176: .from(\"coach_performance\")"
+    ]
+  },
+  {
+    "route": "/calls",
+    "component": "CallTracking",
+    "file": "src/pages/CallTracking.tsx",
+    "hits": {
+      "supabase_from": 15,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 4,
+      "callgear": 0,
+      "meta": 5,
+      "aws": 41
+    },
+    "evidence": [
+      "L57: .from(\"call_records\")",
+      "L58: .select(\"id, call_status, call_outcome, duration_seconds, created_at, started_at, hubspot_owner_id, caller_number, call_direction, appointment_set\")",
+      "L71: .from(\"deals\")",
+      "L83: .from(\"contacts\")",
+      "L96: .from(\"call_records\")",
+      "L109: .from(\"contacts\")"
+    ]
+  },
+  {
+    "route": "/setter-command-center",
+    "component": "SetterCommandCenter",
+    "file": "src/pages/SetterCommandCenter.tsx",
+    "hits": {
+      "supabase_from": 5,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 2,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 10
+    },
+    "evidence": [
+      "L112: hubspot_contact_id: string | null;",
+      "L149: .from(\"call_records\")",
+      "L164: .from(\"contacts\")",
+      "L179: .from(\"view_delegation_analytics\")",
+      "L193: .from(\"view_hot_potato_leads\")",
+      "L194: .select(\"contact_id, contact_name, email, phone, total_delegations, unique_owners, owner_names, auto_delegations, manual_delegations, bulk_delegations, first_assignment, last_assig"
+    ]
+  },
+  {
+    "route": "/skills",
+    "component": "SkillCommandCenter",
+    "file": "src/pages/SkillCommandCenter.tsx",
+    "hits": {
+      "supabase_from": 1,
+      "supabase_rpc": 0,
+      "supabase_fn": 2,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": [
+      "L98: .from(\"agent_knowledge\")",
+      "L113: const { data, error } = await supabase.functions.invoke(",
+      "L244: const { data, error } = await supabase.functions.invoke("
+    ]
+  },
+  {
+    "route": "/war-room",
+    "component": "WarRoom",
+    "file": "src/pages/WarRoom.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 2,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": [
+      "L53: const { error } = await supabase.functions.invoke(\"ptd-24x7-monitor\", {",
+      "L85: await supabase.functions.invoke(\"ptd-24x7-monitor\", {"
+    ]
+  },
+  {
+    "route": "/intelligence",
+    "component": "BusinessIntelligenceAI",
+    "file": "src/pages/BusinessIntelligenceAI.tsx",
+    "hits": {
+      "supabase_from": 8,
+      "supabase_rpc": 0,
+      "supabase_fn": 2,
+      "hubspot": 1,
+      "callgear": 0,
+      "meta": 30,
+      "aws": 4
+    },
+    "evidence": [
+      "L61: supabase.from(\"deals\").select(\"id, deal_value, amount, stage, created_at, close_date, owner_id\").gte(\"created_at\", start),",
+      "L62: supabase.from(\"contacts\").select(\"id, email, lifecycle_stage, lead_status, owner_id, created_at\", { count: \"exact\" }).gte(\"created_at\", start),",
+      "L63: supabase.from(\"call_records\").select(\"id, call_type, duration_seconds, is_lost, owner_name, created_at\").gte(\"created_at\", start),",
+      "L64: supabase.from(\"facebook_ads_insights\").select(\"spend, impressions, clicks, leads, ctr, cpc, purchase_value, campaign_name, date\").gte(\"date\", start),",
+      "L65: supabase.from(\"client_health_daily\").select(\"health_score, health_zone, outstanding_sessions, package_value_aed, assigned_coach\").order(\"calculated_at\", { ascending: false }).limit",
+      "L66: supabase.from(\"coach_performance\").select(\"id, coach_name, total_clients, avg_client_health, clients_improving, clients_declining, health_trend\").limit(50),"
+    ]
+  },
+  {
+    "route": "/daily-ops",
+    "component": "DailyOps",
+    "file": "src/pages/DailyOps.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": []
+  },
+  {
+    "route": "/client-activity",
+    "component": "ClientActivity",
+    "file": "src/pages/ClientActivity.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": []
+  },
+  {
+    "route": "/predictions",
+    "component": "PredictiveIntelligence",
+    "file": "src/pages/PredictiveIntelligence.tsx",
+    "hits": {
+      "supabase_from": 1,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": [
+      "L248: .from(\"client_packages_live\")"
+    ]
+  },
+  {
+    "route": "/conversion-funnel",
+    "component": "ConversionFunnel",
+    "file": "src/pages/ConversionFunnel.tsx",
+    "hits": {
+      "supabase_from": 4,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 1,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": [
+      "L108: .from(\"deals\")",
+      "L139: let q = supabase.from(\"contacts\").select(\"lifecycle_stage, created_at\");",
+      "L166: .from(\"contacts\")",
+      "L173: .from(\"deals\")",
+      "L345: HubSpot deal pipeline & contact lifecycle \u2014 real data"
+    ]
+  },
+  {
+    "route": "/alert-center",
+    "component": "AlertCenter",
+    "file": "src/pages/AlertCenter.tsx",
+    "hits": {
+      "supabase_from": 6,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 3
+    },
+    "evidence": [
+      "L20: type ClientPackageLive = Database[\"public\"][\"Tables\"][\"client_packages_live\"][\"Row\"];",
+      "L59: const { data, error } = await supabase.from(\"client_packages_live\").select(\"id, client_id, client_name, client_email, client_phone, last_coach, remaining_sessions, package_value, l",
+      "L69: const { data, error } = await supabase.from(\"client_predictions\").select(\"client_id, churn_score, churn_factors, revenue_at_risk\");",
+      "L80: .from(\"client_health_daily\")",
+      "L87: .from(\"client_health_daily\")",
+      "L101: .from(\"session_depletion_alerts\")"
+    ]
+  },
+  {
+    "route": "/audit",
+    "component": "AuditTrail",
+    "file": "src/pages/AuditTrail.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 8,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": [
+      "L60: \"email\" | \"phone\" | \"hubspot_id\"",
+      "L76: const { data, error } = await supabase.functions.invoke(",
+      "L93: description: \"Please enter an email, phone, or HubSpot ID\",",
+      "L182: Forensic view of all changes to contacts in HubSpot",
+      "L199: onValueChange={(v: \"email\" | \"phone\" | \"hubspot_id\") =>",
+      "L209: <SelectItem value=\"hubspot_id\">HubSpot ID</SelectItem>"
+    ]
+  },
+  {
+    "route": "/coach-locations",
+    "component": "CoachLocations",
+    "file": "src/pages/CoachLocations.tsx",
+    "hits": {
+      "supabase_from": 7,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 3
+    },
+    "evidence": [
+      "L421: .from(\"coach_client_notes\")",
+      "L445: const { error } = await supabase.from(\"coach_client_notes\").insert({",
+      "L465: .from(\"coach_client_notes\")",
+      "L1047: const { data, error } = await supabase.from(\"mdm_devices\").select(\"tinymdm_device_id,device_name,coach_name,battery_level,is_online,os_version,manufacturer,last_sync_at,last_lat,la",
+      "L1057: .from(\"mdm_location_events\")",
+      "L1071: .from(\"mdm_visits\")"
+    ]
+  },
+  {
+    "route": "/meta-ads",
+    "component": "MetaAds",
+    "file": "src/pages/MetaAds.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 4,
+      "aws": 0
+    },
+    "evidence": [
+      "L1: import MetaAdsPage from \"@/components/meta-ads/MetaAdsPage\";",
+      "L2: export default MetaAdsPage;"
+    ]
+  },
+  {
+    "route": "/lead-tracking",
+    "component": "LeadTracking",
+    "file": "src/pages/LeadTracking.tsx",
+    "hits": {
+      "supabase_from": 4,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": [
+      "L119: .from(\"contacts\")",
+      "L133: .from(\"enhanced_leads\")",
+      "L147: .from(\"deals\")",
+      "L375: return Array.from(s).sort();"
+    ]
+  },
+  {
+    "route": "/enterprise/strategy",
+    "component": "EnterpriseStrategy",
+    "file": "src/pages/enterprise/EnterpriseStrategy.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 3,
+      "aws": 1
+    },
+    "evidence": [
+      "L107: <GenomeTable data={genome.data ?? []} />",
+      "L111: <GenomeTable data={leaks} />",
+      "L144: function GenomeTable({ data }: { data: TruthGenomeRecord[] }) {"
+    ]
+  },
+  {
+    "route": "/enterprise/call-analytics",
+    "component": "EnterpriseCallAnalytics",
+    "file": "src/pages/enterprise/CallAnalytics.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 2
+    },
+    "evidence": []
+  },
+  {
+    "route": "/enterprise/observability",
+    "component": "EnterpriseSystemObservability",
+    "file": "src/pages/enterprise/SystemObservability.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": []
+  },
+  {
+    "route": "/enterprise/ai-advisor",
+    "component": "EnterpriseAIAdvisor",
+    "file": "src/pages/enterprise/AIAdvisor.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 1,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": [
+      "L29: const { data, error } = await supabase.functions.invoke("
+    ]
+  },
+  {
+    "route": "/enterprise/client-health",
+    "component": "EnterpriseClientHealth",
+    "file": "src/pages/enterprise/ClientHealth.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 1
+    },
+    "evidence": []
+  },
+  {
+    "route": "/enterprise/coach-performance",
+    "component": "EnterpriseCoachPerformance",
+    "file": "src/pages/enterprise/CoachPerformance.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 1,
+      "aws": 2
+    },
+    "evidence": []
+  },
+  {
+    "route": "/enterprise/knowledge-base",
+    "component": "EnterpriseKnowledgeBase",
+    "file": "src/pages/enterprise/KnowledgeBase.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": []
+  },
+  {
+    "route": "*",
+    "component": "NotFound",
+    "file": "src/pages/NotFound.tsx",
+    "hits": {
+      "supabase_from": 0,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 0
+    },
+    "evidence": []
+  },
+  {
+    "route": "/",
+    "component": "ExecutiveOverview",
+    "file": "src/pages/ExecutiveOverview.tsx",
+    "hits": {
+      "supabase_from": 2,
+      "supabase_rpc": 0,
+      "supabase_fn": 0,
+      "hubspot": 0,
+      "callgear": 0,
+      "meta": 0,
+      "aws": 7
+    },
+    "evidence": [
+      "L76: .from(\"daily_marketing_briefs\")",
+      "L284: Array.from({ length: 8 }).map((_, i) => ("
+    ]
+  }
+]
