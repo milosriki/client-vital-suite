@@ -3,10 +3,13 @@
 # Evolved Agent Protocol 1: Strict Validation Script
 
 # Config
-SUPA_URL="https://ztjndilxurtsfqdsvfds.supabase.co/rest/v1"
-# Trying to grep key from local files or environment. 
-# fallback to the known anon key from MEMORY.md if env var not set.
-SUPA_KEY="${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo}"
+SUPA_URL="${SUPABASE_URL:-https://ztjndilxurtsfqdsvfds.supabase.co}/rest/v1"
+SUPA_KEY="${SUPABASE_SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_KEY:-}}"
+
+if [[ -z "$SUPA_KEY" ]]; then
+  echo "❌ [FAIL] Missing SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY) env var."
+  exit 1
+fi
 
 echo "🔎 [TEST] Verifying Stripe Sync Status..."
 

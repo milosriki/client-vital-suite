@@ -15,19 +15,25 @@
 
 const { Client: PGClient } = require('pg');
 
+const requiredEnv = (name) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} env var required`);
+  return value;
+};
+
 const RDS_CONFIG = {
-  host: 'ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com',
-  port: 5432,
-  user: '4revops',
-  password: 'vakiphetH1qospuS',
-  database: 'ptd',
+  host: process.env.RDS_HOST || 'ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com',
+  port: Number(process.env.RDS_PORT || 5432),
+  user: process.env.RDS_USER || '4revops',
+  password: requiredEnv('RDS_PASSWORD'),
+  database: process.env.RDS_DATABASE || 'ptd',
   ssl: { rejectUnauthorized: false },
   statement_timeout: 120000,
 };
 
-const SUPABASE_URL = 'https://ztjndilxurtsfqdsvfds.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDEyMDYwNywiZXhwIjoyMDY5Njk2NjA3fQ.1YKDkcl8EQ6eRG1y_-LaIfd03tEJffYNCVEyTrUuNCY';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ztjndilxurtsfqdsvfds.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_SERVICE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY env var required');
 
 const BATCH_SIZE = 500;
 

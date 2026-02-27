@@ -19,6 +19,12 @@ async function run() {
     return;
   }
 
+  const newPassword = process.env.NEW_PASSWORD;
+  if (!newPassword) {
+    console.error("Missing NEW_PASSWORD env var");
+    return;
+  }
+
   const supabase = createClient(url, key, {
     auth: {
       autoRefreshToken: false,
@@ -50,7 +56,7 @@ async function run() {
 
   const { data: updateData, error: updateError } =
     await supabase.auth.admin.updateUserById(user.id, {
-      password: "richard200@",
+      password: newPassword,
       user_metadata: { role: "admin" },
       email_confirm: true,
     });

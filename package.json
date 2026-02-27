@@ -23,7 +23,8 @@
     "supabase:deploy:all": "supabase functions deploy --all",
     "supabase:db:diff": "supabase db diff",
     "supabase:db:push": "supabase db push",
-    "supabase:gen:types": "supabase gen types typescript --local > src/types/supabase.ts"
+    "supabase:gen:types": "supabase gen types typescript --local > src/types/supabase.ts",
+    "security:scan-secrets": "bash scripts/check-staged-secrets.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

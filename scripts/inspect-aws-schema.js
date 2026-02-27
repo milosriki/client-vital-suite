@@ -1,12 +1,18 @@
 import pg from "pg";
 const { Client } = pg;
 
+const requiredEnv = (name) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} env var required`);
+  return value;
+};
+
 const RDS_CONFIG = {
-  host: "ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com",
-  port: 5432,
-  user: "4revops",
-  password: "vakiphetH1qospuS",
-  database: "ptd",
+  host: process.env.RDS_HOST || "ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com",
+  port: Number(process.env.RDS_PORT || 5432),
+  user: process.env.RDS_USER || "4revops",
+  password: requiredEnv("RDS_PASSWORD"),
+  database: process.env.RDS_DATABASE || "ptd",
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000,
 };

@@ -16,19 +16,25 @@
 
 const { Client: PGClient } = require('pg');
 
+const requiredEnv = (name) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} env var required`);
+  return value;
+};
+
 const RDS_CONFIG = {
-  host: 'ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com',
-  port: 5432,
-  user: '4revops',
-  password: 'vakiphetH1qospuS',
-  database: 'ptd',
+  host: process.env.RDS_HOST || 'ptd-prod-replica-1.c5626gic29ju.me-central-1.rds.amazonaws.com',
+  port: Number(process.env.RDS_PORT || 5432),
+  user: process.env.RDS_USER || '4revops',
+  password: requiredEnv('RDS_PASSWORD'),
+  database: process.env.RDS_DATABASE || 'ptd',
   ssl: { rejectUnauthorized: false },
   statement_timeout: 60000,
 };
 
-const SUPABASE_URL = 'https://ztjndilxurtsfqdsvfds.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0am5kaWx4dXJ0c2ZxZHN2ZmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMjA2MDcsImV4cCI6MjA2OTY5NjYwN30.e665i3sdaMOBcD_OLzA6xjnTLQZ-BpiQ6GlgYkV15Lo';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ztjndilxurtsfqdsvfds.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_SERVICE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY env var required');
 
 const args = process.argv.slice(2);
 const QUICK_MODE = args.includes('--quick');
@@ -36,7 +42,7 @@ const REPORT_ONLY = args.includes('--report');
 
 async function supabaseUpsert(table, rows, onConflict) {
   if (!rows.length) return { count: 0 };
-  const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+  const key = SUPABASE_SERVICE_KEY;
   
   // Batch in chunks of 500
   let total = 0;
@@ -358,7 +364,7 @@ async function main() {
     };
 
     try {
-      const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+      const key = SUPABASE_SERVICE_KEY;
       // Try PATCH first (update existing), fall back to POST (insert new)
       let res = await fetch(`${SUPABASE_URL}/rest/v1/aws_ops_snapshot?snapshot_date=eq.${snapshot.snapshot_date}`, {
         method: 'PATCH',
@@ -420,7 +426,7 @@ async function main() {
         synced_at: new Date().toISOString(),
       }));
       // Delete all existing and re-insert (full refresh)
-      const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+      const key = SUPABASE_SERVICE_KEY;
       await fetch(`${SUPABASE_URL}/rest/v1/client_packages_live?id=not.is.null`, {
         method: 'DELETE',
         headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
@@ -451,7 +457,7 @@ async function main() {
         location: r.location,
         synced_at: new Date().toISOString(),
       }));
-      const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+      const key = SUPABASE_SERVICE_KEY;
       // Delete old and re-insert
       await fetch(`${SUPABASE_URL}/rest/v1/training_sessions_live?id=not.is.null`, {
         method: 'DELETE',
