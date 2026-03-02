@@ -193,7 +193,7 @@ export default function MetaAdsCreatives({ topCreatives, isLoading, onRefresh }:
     const rows = filtered.map(c => [
       c.ad_name, c.campaign_name, c.format, c.title, c.body, c.cta_type, c.link_url,
       c.spend, c.impressions, c.clicks, c.conversions,
-      (c.ctr * 100).toFixed(2), c.cpa.toFixed(0), c.roas.toFixed(2),
+      ((c.ctr ?? 0) * 100).toFixed(2), (c.cpa ?? 0).toFixed(0), (c.roas ?? 0).toFixed(2),
       c.quality_ranking, c.engagement_rate_ranking, c.conversion_rate_ranking,
     ]);
     downloadCSV(headers, rows, 'meta-ads-creatives');
@@ -414,11 +414,11 @@ function CreativeGrid({ creatives, onClick }: { creatives: Creative[]; onClick: 
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] text-zinc-500">CPA</p>
-                  <p className={`text-xs font-medium ${metricColor('cpa', c.cpa)}`}>{c.cpa.toFixed(0)}</p>
+                  <p className={`text-xs font-medium ${metricColor('cpa', c.cpa)}`}>{(c.cpa ?? 0).toFixed(0)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] text-zinc-500">ROAS</p>
-                  <p className={`text-xs font-medium ${metricColor('roas', c.roas)}`}>{c.roas.toFixed(1)}x</p>
+                  <p className={`text-xs font-medium ${metricColor('roas', c.roas)}`}>{(c.roas ?? 0).toFixed(1)}x</p>
                 </div>
               </div>
             </CardContent>
@@ -475,9 +475,9 @@ function CreativeList({ creatives, onClick }: { creatives: Creative[]; onClick: 
               <TableCell className="text-xs text-zinc-400 truncate max-w-[150px]">{c.title ?? '—'}</TableCell>
               <TableCell className="text-xs text-zinc-300">{c.spend.toLocaleString()} AED</TableCell>
               <TableCell className="text-xs text-zinc-300 font-medium">{c.conversions}</TableCell>
-              <TableCell className={`text-xs font-medium ${metricColor('cpa', c.cpa)}`}>{c.cpa.toFixed(0)} AED</TableCell>
-              <TableCell className={`text-xs font-medium ${metricColor('roas', c.roas)}`}>{c.roas.toFixed(1)}x</TableCell>
-              <TableCell className={`text-xs font-medium ${metricColor('ctr', c.ctr)}`}>{(c.ctr * 100).toFixed(2)}%</TableCell>
+              <TableCell className={`text-xs font-medium ${metricColor('cpa', c.cpa)}`}>{(c.cpa ?? 0).toFixed(0)} AED</TableCell>
+              <TableCell className={`text-xs font-medium ${metricColor('roas', c.roas)}`}>{(c.roas ?? 0).toFixed(1)}x</TableCell>
+              <TableCell className={`text-xs font-medium ${metricColor('ctr', c.ctr)}`}>{((c.ctr ?? 0) * 100).toFixed(2)}%</TableCell>
               <TableCell>{rankingBadge(c.quality_ranking)}</TableCell>
             </TableRow>
           ))}
@@ -585,10 +585,10 @@ function CreativeDetail({ creative: c }: { creative: Creative }) {
               { label: 'Impressions', value: c.impressions.toLocaleString() },
               { label: 'Clicks', value: c.clicks.toLocaleString() },
               { label: 'Conversions', value: c.conversions.toLocaleString() },
-              { label: 'CTR', value: `${(c.ctr * 100).toFixed(2)}%`, color: metricColor('ctr', c.ctr) },
-              { label: 'CPC', value: `${c.cpc.toFixed(0)} AED` },
-              { label: 'CPA', value: `${c.cpa.toFixed(0)} AED`, color: metricColor('cpa', c.cpa) },
-              { label: 'ROAS', value: `${c.roas.toFixed(2)}x`, color: metricColor('roas', c.roas) },
+              { label: 'CTR', value: `${((c.ctr ?? 0) * 100).toFixed(2)}%`, color: metricColor('ctr', c.ctr) },
+              { label: 'CPC', value: `${(c.cpc ?? 0).toFixed(0)} AED` },
+              { label: 'CPA', value: `${(c.cpa ?? 0).toFixed(0)} AED`, color: metricColor('cpa', c.cpa) },
+              { label: 'ROAS', value: `${(c.roas ?? 0).toFixed(2)}x`, color: metricColor('roas', c.roas) },
             ].map(m => (
               <div key={m.label} className="text-center p-2 bg-zinc-900/50 rounded-lg">
                 <p className="text-[10px] text-zinc-500">{m.label}</p>

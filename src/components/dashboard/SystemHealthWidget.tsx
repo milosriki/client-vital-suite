@@ -107,7 +107,7 @@ export function SystemHealthWidget() {
             ) : (
               <AlertTriangle className="h-3 w-3" />
             )}
-            {healthPercentage.toFixed(0)}%
+            {(healthPercentage ?? 0).toFixed(0)}%
           </Badge>
         </div>
       </CardHeader>

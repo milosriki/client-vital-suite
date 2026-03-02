@@ -160,9 +160,9 @@ Proposed v3 (with PowerBI data):
 
 ## TODO for Claude Code
 
-1. Fix priority in `src/pages/Coaches.tsx` to include churn risk (not just depletion)
-2. Switch sync bridge to use PowerBI views (richer columns)
-3. Build Health Score v3 with satisfaction + pricing data
-4. Sync client reviews to Supabase (new table `client_reviews`)
-5. Sync client demographics to Supabase (enrich `clients_full` or new table)
-6. Fix cancel rate calculations everywhere to use correct status filters
+1. ~~Fix priority in `src/pages/Coaches.tsx` to include churn risk (not just depletion)~~ ✅ DONE
+2. ~~Switch sync bridge to use PowerBI views (richer columns)~~ ✅ DONE (aws-sync-bridge.cjs)
+3. Build Health Score v3 with satisfaction + pricing data (partial: client_reviews wired)
+4. ~~Sync client reviews to Supabase (new table `client_reviews`)~~ ✅ DONE
+5. ~~Sync client demographics to Supabase (enrich `clients_full` or new table)~~ ✅ DONE
+6. ~~Fix cancel rate calculations everywhere to use correct status filters~~ ✅ DONE (sync-aws-full.cjs:143 fixed 2026-03-01)

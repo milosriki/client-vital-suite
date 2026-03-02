@@ -52,7 +52,7 @@ export function DailyTrends({ data, isLoading }: Props) {
                   <div
                     key={day.date}
                     className="flex-1 flex flex-col justify-end relative group cursor-pointer"
-                    title={`${day.date}: ${day.total} calls, ${day.answeredRate.toFixed(0)}% answered`}
+                    title={`${day.date}: ${day.total} calls, ${(day.answeredRate ?? 0).toFixed(0)}% answered`}
                   >
                     {/* Missed portion */}
                     <div
@@ -69,7 +69,7 @@ export function DailyTrends({ data, isLoading }: Props) {
                       <div className="bg-popover border rounded-lg shadow-lg p-2 text-xs whitespace-nowrap">
                         <p className="font-medium">{day.date}</p>
                         <p>{day.total} calls</p>
-                        <p className="text-emerald-500">{day.answeredRate.toFixed(0)}% answered</p>
+                        <p className="text-emerald-500">{(day.answeredRate ?? 0).toFixed(0)}% answered</p>
                       </div>
                     </div>
                   </div>
@@ -83,7 +83,7 @@ export function DailyTrends({ data, isLoading }: Props) {
                   <div
                     className="w-2 h-2 rounded-full bg-yellow-400"
                     style={{ opacity: day.answeredRate / 100 }}
-                    title={`${day.answeredRate.toFixed(0)}%`}
+                    title={`${(day.answeredRate ?? 0).toFixed(0)}%`}
                   />
                 </div>
               ))}

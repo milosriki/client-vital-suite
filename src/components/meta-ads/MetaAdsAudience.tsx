@@ -50,9 +50,9 @@ export default function MetaAdsAudience({ audience, isLoading, onRefresh }: Meta
   const exportAll = () => {
     const headers = ['Segment', 'Type', 'Spend (AED)', 'Conversions', 'CPA (AED)', '% of Spend'];
     const rows = [
-      ...audience.by_age.map(a => [a.range, 'Age', a.spend, a.conversions, a.cpa?.toFixed(0), totalSpend > 0 ? ((a.spend / totalSpend) * 100).toFixed(1) : '0']),
-      ...audience.by_gender.map(g => [g.gender, 'Gender', g.spend, g.conversions, g.cpa?.toFixed(0), totalSpend > 0 ? ((g.spend / totalSpend) * 100).toFixed(1) : '0']),
-      ...audience.by_placement.map(p => [p.placement, 'Placement', p.spend, p.conversions, p.cpa?.toFixed(0), totalSpend > 0 ? ((p.spend / totalSpend) * 100).toFixed(1) : '0']),
+      ...audience.by_age.map(a => [a.range, 'Age', a.spend, a.conversions, (a.cpa ?? 0).toFixed(0), totalSpend > 0 ? ((a.spend ?? 0) / totalSpend * 100).toFixed(1) : '0']),
+      ...audience.by_gender.map(g => [g.gender, 'Gender', g.spend, g.conversions, (g.cpa ?? 0).toFixed(0), totalSpend > 0 ? ((g.spend ?? 0) / totalSpend * 100).toFixed(1) : '0']),
+      ...audience.by_placement.map(p => [p.placement, 'Placement', p.spend, p.conversions, (p.cpa ?? 0).toFixed(0), totalSpend > 0 ? ((p.spend ?? 0) / totalSpend * 100).toFixed(1) : '0']),
     ];
     downloadCSV(headers, rows, 'meta-ads-audience');
   };

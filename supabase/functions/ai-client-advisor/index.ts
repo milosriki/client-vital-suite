@@ -1,7 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
+import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+
+const AdvisorOutputSchema = z.object({
+  clients: z.array(z.object({
+    name: z.string(),
+    status_summary: z.string(),
+    root_cause: z.string(),
+    specific_action: z.string(),
+    talking_points: z.array(z.string()),
+    revenue_impact: z.string(),
+    priority: z.enum(["CRITICAL", "HIGH", "MEDIUM"]),
+  })),
+});
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -45,6 +59,7 @@ Deno.serve(async (req) => {
 
     const { data: allPackages } = await sb.from("client_packages_live").select("*");
     const pkgByClientId = new Map<string, any>();
+    const pkgByEmail = new Map<string, any>();
     for (const p of allPackages ?? []) {
       pkgByClientId.set(p.client_id, p);
       if (p.client_email) pkgByEmail.set(p.client_email.toLowerCase(), p);
@@ -90,36 +105,86 @@ CLIENT: ${pred.client_name}
       `.trim());
     }
 
-    const prompt = `You are a senior fitness business retention consultant. Today is ${now.toLocaleDateString()}.
+    const constitutionalPrefix = getConstitutionalSystemMessage();
+    const systemPrompt = `${constitutionalPrefix}
+You are a senior fitness business retention consultant for PTD Fitness Dubai. Today is ${now.toLocaleDateString()}.
 
-Analyze these at-risk clients and provide SPECIFIC, ACTIONABLE intervention plans.
+OUTPUT FORMAT (strict JSON):
+{
+  "clients": [
+    {
+      "name": "<client name>",
+      "status_summary": "<1-line summary: name, score, key issue>",
+      "root_cause": "<why they are churning>",
+      "specific_action": "<EXACTLY what to do, with names, phones, dates>",
+      "talking_points": ["<point 1>", "<point 2>", "<point 3>"],
+      "revenue_impact": "<what we lose if we don't act>",
+      "priority": "<CRITICAL | HIGH | MEDIUM>"
+    }
+  ]
+}
 
-For EACH client, provide:
-1. **Status Summary** (1 line: name, score, key issue)
-2. **Root Cause** (why are they churning?)
-3. **Specific Action** (EXACTLY what to do — not "monitor" but "Call [name] at [phone] about [specific issue] by [date]")
-4. **Script/Talking Points** (2-3 bullet points for the call/message)
-5. **Revenue Impact** (what we lose if we don't act)
-6. **Priority** (CRITICAL/HIGH/MEDIUM with deadline)
+ERROR RECOVERY:
+- If a client has incomplete data (no phone, no email), still provide advice but note "Contact info unavailable — ask reception".
+- If churn_score is below 50, classify as MEDIUM and suggest proactive check-in rather than urgent intervention.
+- If session data is empty, note "No session history available" and recommend a re-engagement call.
 
-BE SPECIFIC. Use their actual data. Reference exact dates, session counts, package details.
+FEW-SHOT EXAMPLES:
 
-${clientContexts.join("\n\n---\n\n")}`;
+Example 1 (CRITICAL — inactive high-value):
+{
+  "name": "Ahmed K.",
+  "status_summary": "Ahmed K. — Score 92/100 — No sessions in 21 days, 3 sessions left on premium package expiring March 15",
+  "root_cause": "Likely schedule conflict or dissatisfaction — went from 3x/week to zero with no cancellation call",
+  "specific_action": "Call Ahmed at +971-50-XXX-XXXX today. Ask about schedule availability. Offer to rebook his remaining 3 sessions this week with Coach Sara.",
+  "talking_points": ["We noticed you haven't been in — is everything okay with your schedule?", "You have 3 sessions left before March 15, let's make sure you get full value", "Coach Sara has morning slots Tuesday/Thursday if that works better"],
+  "revenue_impact": "AED 4,500 package at risk + potential AED 18,000 annual renewal",
+  "priority": "CRITICAL"
+}
+
+Example 2 (HIGH — declining frequency):
+{
+  "name": "Fatima R.",
+  "status_summary": "Fatima R. — Score 71/100 — Dropped from 4 sessions/week to 1 over past month",
+  "root_cause": "Gradual disengagement — cancellation rate jumped to 40%, possibly losing motivation",
+  "specific_action": "WhatsApp Fatima by tomorrow. Share her progress photos from month 1 vs now. Suggest a goal review session with her coach.",
+  "talking_points": ["Your transformation has been incredible — look at your month 1 vs now!", "Let's set a new 90-day goal to keep the momentum", "Would a different training time work better for your new schedule?"],
+  "revenue_impact": "AED 2,800/month recurring revenue, AED 33,600 annual value",
+  "priority": "HIGH"
+}
+
+BE SPECIFIC. Use actual data from the context. Reference exact dates, session counts, package details.`;
+
+    const prompt = `Analyze these at-risk clients and return the JSON output:\n\n${clientContexts.join("\n\n---\n\n")}`;
 
     const aiResponse = await unifiedAI.chat(
       [
-        { role: "system", content: "You are a fitness business retention advisor. Give SPECIFIC, ACTIONABLE advice with names, dates, and exact steps. Never be generic." },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt }
       ],
       {
-        max_tokens: 2000,
+        jsonMode: true,
+        max_tokens: 2500,
         temperature: 0.3,
-        agentType: "atlas", // Use high-budget agent profile
+        agentType: "atlas",
         functionName: "ai-client-advisor"
       }
     );
 
-    const advisoryText = aiResponse.content;
+    let advisoryText: string;
+    try {
+      const parsed = AdvisorOutputSchema.safeParse(JSON.parse(aiResponse.content));
+      if (parsed.success) {
+        advisoryText = parsed.data.clients
+          .map(c => `**${c.name}** [${c.priority}]\n${c.status_summary}\nRoot Cause: ${c.root_cause}\nAction: ${c.specific_action}\nTalking Points:\n${c.talking_points.map(t => `  - ${t}`).join("\n")}\nRevenue Impact: ${c.revenue_impact}`)
+          .join("\n\n---\n\n");
+      } else {
+        console.warn("[ai-client-advisor] Zod validation failed:", parsed.error.issues);
+        advisoryText = aiResponse.content;
+      }
+    } catch {
+      advisoryText = aiResponse.content;
+    }
 
     // Store interventions
     const interventions = predictions.map(pred => {

@@ -37,7 +37,7 @@ export const HealthChart = ({ data, total }: HealthChartProps) => {
                   key={zone.name}
                   className={`${zone.color} transition-all duration-500 ease-in-out hover:opacity-80 cursor-pointer`}
                   style={{ width: `${zone.percentage}%` }}
-                  title={`${zone.name}: ${zone.count} clients (${zone.percentage.toFixed(1)}%)`}
+                  title={`${zone.name}: ${zone.count} clients (${(zone.percentage ?? 0).toFixed(1)}%)`}
                 />
               )
             ))}
@@ -51,7 +51,7 @@ export const HealthChart = ({ data, total }: HealthChartProps) => {
                 <div className="flex-1">
                   <p className="text-sm font-medium">{zone.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {zone.count} ({zone.percentage.toFixed(1)}%)
+                    {zone.count} ({(zone.percentage ?? 0).toFixed(1)}%)
                   </p>
                 </div>
               </div>

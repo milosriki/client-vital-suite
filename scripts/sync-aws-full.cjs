@@ -140,7 +140,8 @@ async function main() {
       (SELECT COUNT(*) FROM enhancesch.vw_schedulers s 
        WHERE s.id_client = m.id_client AND s.training_date_utc > NOW() - INTERVAL '365 days') as sessions_365d,
       (SELECT COUNT(*) FROM enhancesch.vw_schedulers s 
-       WHERE s.id_client = m.id_client AND s.status = 'Cancelled-Client is not Charged' 
+       WHERE s.id_client = m.id_client 
+       AND s.status LIKE 'Cancelled-%' AND s.status != 'Cancelled-Rebooked'
        AND s.training_date_utc > NOW() - INTERVAL '90 days') as cancellations_90d
     FROM enhancesch.vw_client_master m
     WHERE EXISTS (SELECT 1 FROM enhancesch.vw_client_packages p WHERE p.id_client = m.id_client)

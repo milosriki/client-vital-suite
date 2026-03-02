@@ -172,7 +172,7 @@ export default function DashboardTab({ mode }: DashboardTabProps) {
               <Activity className="h-4 w-4 text-primary" />
               <p className="text-xs font-medium text-muted-foreground">Avg Score</p>
             </div>
-            <div className="text-3xl font-bold">{stats.avgScore.toFixed(1)}</div>
+            <div className="text-3xl font-bold">{(stats.avgScore ?? 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {stats.total} total clients
             </p>

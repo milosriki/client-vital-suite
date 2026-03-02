@@ -91,7 +91,7 @@ export function OwnerPerformance({ data, isLoading }: Props) {
                       <TableCell className="text-green-500">{row.answered}</TableCell>
                       <TableCell className="text-red-500">{row.missed}</TableCell>
                       <TableCell>{Math.floor(row.avgDuration / 60)}:{String(Math.round(row.avgDuration % 60)).padStart(2, '0')}</TableCell>
-                      <TableCell className={getRateColor(row.conversionRate)}>{row.conversionRate.toFixed(1)}%</TableCell>
+                      <TableCell className={getRateColor(row.conversionRate)}>{(row.conversionRate ?? 0).toFixed(1)}%</TableCell>
                     </TableRow>
                   );
                 })}

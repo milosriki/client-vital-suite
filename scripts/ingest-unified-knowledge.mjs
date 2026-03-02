@@ -85,6 +85,23 @@ function collectChunks() {
     }
   }
 
+  if (source === "findings" || source === "all") {
+    const crawPath = path.join(ROOT, "CRAW-FINDINGS-2026-02-26.md");
+    if (fs.existsSync(crawPath)) {
+      const content = fs.readFileSync(crawPath, "utf-8");
+      const sections = chunkByHeaders(content);
+      for (const s of sections) {
+        chunks.push({
+          category: "findings",
+          title: `CRAW-Feb26: ${s.title}`,
+          content: s.content,
+          source: "CRAW-FINDINGS-2026-02-26.md",
+        });
+      }
+      console.log(`  CRAW-FINDINGS: ${sections.length} chunks`);
+    }
+  }
+
   if (source === "plans" || source === "all") {
     const plansDir = path.join(ROOT, "docs", "plans");
     if (fs.existsSync(plansDir)) {

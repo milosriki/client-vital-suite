@@ -106,7 +106,9 @@ export const useWarRoomData = () => {
   // Calculate Unit Economics
   const newCustomersThisMonth =
     clients?.filter((c) => {
-      const created = new Date(c.created_at || "");
+      if (!c.created_at) return false;
+      const created = new Date(c.created_at);
+      if (isNaN(created.getTime())) return false;
       const now = new Date();
       return (
         created.getMonth() === now.getMonth() &&
@@ -123,7 +125,9 @@ export const useWarRoomData = () => {
   const avgRetentionMonths = clients?.length
     ? Math.round(
         clients.reduce((sum, c) => {
-          const created = new Date(c.created_at || "");
+          if (!c.created_at) return sum + 1;
+          const created = new Date(c.created_at);
+          if (isNaN(created.getTime())) return sum + 1;
           const now = new Date();
           const months =
             (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24 * 30);
@@ -139,7 +143,9 @@ export const useWarRoomData = () => {
   const monthlyBurn = adSpend * 1.5;
   const thisMonthDeals =
     deals?.filter((d) => {
-      const created = new Date(d.created_at || "");
+      if (!d.created_at) return false;
+      const created = new Date(d.created_at);
+      if (isNaN(created.getTime())) return false;
       const now = new Date();
       return (
         created.getMonth() === now.getMonth() &&
@@ -156,7 +162,9 @@ export const useWarRoomData = () => {
   // Calculate Leakage
   const buriedLeads =
     leads?.filter((l) => {
-      const created = new Date(l.created_at || "");
+      if (!l.created_at) return false;
+      const created = new Date(l.created_at);
+      if (isNaN(created.getTime())) return false;
       const daysSince =
         (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
       return (
@@ -166,7 +174,10 @@ export const useWarRoomData = () => {
 
   const stalledDeals =
     deals?.filter((d) => {
-      const updated = new Date(d.updated_at || d.created_at || "");
+      const dateStr = d.updated_at || d.created_at;
+      if (!dateStr) return false;
+      const updated = new Date(dateStr);
+      if (isNaN(updated.getTime())) return false;
       const daysSince =
         (Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24);
       return daysSince > 14 && d.status !== "closed" && d.status !== "lost";

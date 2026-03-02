@@ -11,6 +11,7 @@ import { UnitEconomics } from "@/components/war-room/UnitEconomics";
 import { PredictiveForecasting } from "@/components/war-room/PredictiveForecasting";
 import { RevenueIntegrity } from "@/components/war-room/RevenueIntegrity";
 import { MarketPulse } from "@/components/war-room/MarketPulse";
+import MillionDollarPanel from "@/components/ceos/MillionDollarPanel";
 
 const WarRoom = () => {
   const {
@@ -165,6 +166,9 @@ const WarRoom = () => {
 
       {/* Section 4: Market Pulse */}
       <MarketPulse />
+
+      {/* Section 5: Million Dollar Decisions */}
+      <MillionDollarPanel />
 
       {/* Auto-Pilot Status Footer */}
       {autoPilotEnabled && (

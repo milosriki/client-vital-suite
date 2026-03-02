@@ -13,7 +13,7 @@ function formatValue(value: number, format: DailyMetricItem["format"]): string {
     return `AED ${Math.round(value).toLocaleString()}`;
   }
   if (format === "ratio") {
-    return `${value.toFixed(2)}x`;
+    return `${(value ?? 0).toFixed(2)}x`;
   }
   return Math.round(value).toLocaleString();
 }

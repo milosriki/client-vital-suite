@@ -273,9 +273,6 @@ verify_jwt = false
 [functions.calculate-health-scores]
 verify_jwt = true
 
-[functions.dialogflow-fulfillment]
-verify_jwt = false
-
 [functions.setup-db]
 verify_jwt = true
 

@@ -100,16 +100,15 @@ export function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
-const PTD_INTERNAL_KEY = import.meta.env.VITE_PTD_INTERNAL_ACCESS_KEY ?? "";
-
 /**
  * Headers for internal PTD API routes (brain, threads, query, session, memory, user-memory).
- * Includes x-ptd-key when VITE_PTD_INTERNAL_ACCESS_KEY is set (required in production).
+ * In production, Vercel API routes inject the internal key server-side.
+ * The frontend sends the Supabase auth token for identity verification.
  */
 export function getPtdInternalHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (PTD_INTERNAL_KEY) {
-    headers["x-ptd-key"] = PTD_INTERNAL_KEY;
+  if (SUPABASE_ANON_KEY) {
+    headers["Authorization"] = `Bearer ${SUPABASE_ANON_KEY}`;
   }
   return headers;
 }

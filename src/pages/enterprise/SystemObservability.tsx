@@ -3,6 +3,7 @@ import { Activity, Cpu, ShieldCheck, Code, RefreshCw, AlertCircle, Database } fr
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
 import { useSystemObservability } from "@/hooks/enterprise/useSystemObservability";
+import { useAgentCostSummary, useTokenUsageMetrics } from "@/hooks/useHiddenViews";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +14,8 @@ type TimeRange = '1h' | '24h' | '7d';
 export default function SystemObservability() {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const { functions, globalStats, isLoading } = useSystemObservability(timeRange);
+  const { data: agentCosts } = useAgentCostSummary();
+  const { data: tokenMetrics } = useTokenUsageMetrics();
 
   if (isLoading) {
     return (
@@ -47,6 +50,43 @@ export default function SystemObservability() {
         <MetricCard label="Total Calls" value={globalStats.totalCalls.toLocaleString()} icon={Cpu} />
         <MetricCard label="Total Cost" value={`AED ${Number(globalStats?.totalCost ?? 0).toFixed(4)}`} icon={Database} />
       </div>
+
+      {/* Agent Cost Breakdown */}
+      {agentCosts && agentCosts.length > 0 && (
+        <div className="p-6 rounded-2xl border border-border bg-card">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Agent Cost Breakdown</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {agentCosts.slice(0, 12).map((agent: any, i: number) => (
+              <div key={i} className="p-3 rounded-xl bg-muted/20 border border-border/50">
+                <div className="text-xs text-muted-foreground truncate">{agent.function_name || agent.agent_name || "Unknown"}</div>
+                <div className="text-lg font-bold">${Number(agent.total_cost || 0).toFixed(4)}</div>
+                <div className="text-xs text-muted-foreground">{Number(agent.total_tokens || 0).toLocaleString()} tokens</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Token Usage Over Time */}
+      {tokenMetrics && tokenMetrics.length > 0 && (
+        <div className="p-6 rounded-2xl border border-border bg-card">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Recent Token Usage ({tokenMetrics.length} records)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-muted/20">
+              <div className="text-xs text-muted-foreground">Total Tokens (recent)</div>
+              <div className="text-2xl font-bold">{tokenMetrics.reduce((sum: number, t: any) => sum + (t.total_tokens || 0), 0).toLocaleString()}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/20">
+              <div className="text-xs text-muted-foreground">Total Cost (recent)</div>
+              <div className="text-2xl font-bold">${tokenMetrics.reduce((sum: number, t: any) => sum + (t.estimated_cost_usd || 0), 0).toFixed(4)}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/20">
+              <div className="text-xs text-muted-foreground">Avg Latency</div>
+              <div className="text-2xl font-bold">{Math.round(tokenMetrics.reduce((sum: number, t: any) => sum + (t.latency_ms || 0), 0) / tokenMetrics.length)}ms</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Function Registry */}

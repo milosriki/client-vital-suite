@@ -219,13 +219,6 @@ export const ALL_EDGE_FUNCTIONS: EdgeFunction[] = [
     hasCors: true,
   },
   {
-    name: "dialogflow-fulfillment",
-    hasIndex: true,
-    hasSecrets: true,
-    isScheduled: true,
-    hasCors: true,
-  },
-  {
     name: "emergency-forensics",
     hasIndex: true,
     hasSecrets: true,

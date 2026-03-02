@@ -1,5 +1,8 @@
 {
   "mcpServers": {
+    "vercel": {
+      "url": "https://mcp.vercel.com"
+    },
     "hubspot-advanced": {
       "command": "node",
       "args": [

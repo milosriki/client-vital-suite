@@ -29,19 +29,28 @@ interface StrategyData {
   };
 }
 
+function formatArrLabel(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M ARR`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k ARR`;
+  return `${value.toLocaleString()} ARR`;
+}
+
 interface NorthStarWidgetProps {
   data: StrategyData;
-  /** Display label for the north star goal. Defaults to "500k ARR". */
+  /** Override label. When omitted, derived from the revenue target in OKR data. */
   northStarLabel?: string;
 }
 
-export function NorthStarWidget({ data, northStarLabel = "500k ARR" }: NorthStarWidgetProps) {
+export function NorthStarWidget({ data, northStarLabel }: NorthStarWidgetProps) {
   if (!data?.okrs) return null;
 
   const arrMetric = data.okrs.key_results.find(
     (k) => k.metric === "total_revenue_booked",
   );
   const progress = arrMetric ? (arrMetric.current / arrMetric.target) * 100 : 0;
+
+  const resolvedLabel = northStarLabel
+    ?? (arrMetric ? formatArrLabel(arrMetric.target) : "ARR Target");
 
   return (
     <Card className="border-border bg-card h-full flex flex-col">
@@ -60,9 +69,9 @@ export function NorthStarWidget({ data, northStarLabel = "500k ARR" }: NorthStar
         {/* North Star Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">North Star: {northStarLabel}</span>
+            <span className="text-muted-foreground">North Star: {resolvedLabel}</span>
             <span className="text-foreground font-bold">
-              {progress.toFixed(1)}%
+              {(progress ?? 0).toFixed(1)}%
             </span>
           </div>
           <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">

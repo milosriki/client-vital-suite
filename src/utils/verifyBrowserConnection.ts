@@ -125,11 +125,7 @@ export async function verifyAllConnections(): Promise<ConnectionStatus> {
   };
 }
 
-// Make available in browser console
-if (typeof window !== 'undefined') {
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as any).verifyConnections = verifyAllConnections;
   (window as any).verifySupabase = verifySupabaseConnection;
-  
-  
-  
 }

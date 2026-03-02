@@ -80,7 +80,22 @@ serve(async (req) => {
     );
 
     // HubSpot sends an array of events
-    const events = Array.isArray(payload) ? payload : [payload];
+    const allEvents = Array.isArray(payload) ? payload : [payload];
+
+    // Loop protection: skip events triggered by our own updates
+    const events = allEvents.filter((evt: any) => {
+      const updatedBy = evt.updated_by || evt.propertyValue?.updated_by;
+      if (updatedBy === "vital-suite" || updatedBy === "supabase") {
+        console.log(`⏭️ Skipping self-triggered event (updated_by: ${updatedBy})`);
+        return false;
+      }
+      return true;
+    });
+
+    if (events.length === 0) {
+      console.log("⏭️ All events were self-triggered — returning 200 OK");
+      return apiSuccess({ message: "Skipped (loop protection)", stats: { skipped: allEvents.length } });
+    }
     const results = { upserted: 0, errors: 0 };
 
     for (const event of events) {

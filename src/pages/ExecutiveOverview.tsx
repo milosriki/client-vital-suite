@@ -35,6 +35,7 @@ import { chartTheme } from "@/components/dashboard/cards/ChartCard";
 import { useExecutiveData } from "@/hooks/useExecutiveData";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/config/queryKeys";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type DailyMarketingBriefRow = Database["public"]["Tables"]["daily_marketing_briefs"]["Row"];
 
@@ -111,7 +112,8 @@ export default function ExecutiveOverview() {
   }));
 
   return (
-    <div className="p-6 space-y-6">
+    <ErrorBoundary>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <DashboardHeader
         title="Executive Overview"
@@ -260,7 +262,7 @@ export default function ExecutiveOverview() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-400">🔴</span>
-                  <span><strong className="text-white">{(data?.raw?.deals ?? []).filter(d => !d.close_date && Date.now() - new Date(d.created_at || "").getTime() > 30 * 24 * 60 * 60 * 1000).length || 0}</strong> <span className="text-slate-300">deals stuck &gt;30 days — review pipeline</span></span>
+                  <span><strong className="text-white">{(data?.raw?.deals ?? []).filter(d => !d.close_date && d.created_at && Date.now() - new Date(d.created_at).getTime() > 30 * 24 * 60 * 60 * 1000).length || 0}</strong> <span className="text-slate-300">deals stuck &gt;30 days — review pipeline</span></span>
                 </li>
                 {(data?.staleLeads?.length || 0) > 0 && (
                   <li className="flex items-start gap-2">
@@ -539,5 +541,6 @@ export default function ExecutiveOverview() {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

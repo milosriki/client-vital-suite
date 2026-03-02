@@ -36,6 +36,7 @@ import {
   type CoachLeaderboardEntry,
   type DecliningClient,
 } from "@/hooks/useDailyOps";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // ── CSV Export Utility ──
 
@@ -207,7 +208,8 @@ export default function DailyOps() {
   ];
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <ErrorBoundary>
+      <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -287,6 +289,7 @@ export default function DailyOps() {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 }
 

@@ -90,14 +90,11 @@ async function getCostOptimizerData(supabase: any) {
     .order("created_at", { ascending: false })
     .limit(20);
 
-  // Fallback mock if no live data
-  return (
-    campaigns || [
-      { name: "Video A", spend: 5200, revenue: 15000, roas: 2.88 },
-      { name: "Video B", spend: 3100, revenue: 3000, roas: 0.96 },
-      { name: "Carousel Success", spend: 6200, revenue: 24000, roas: 3.87 },
-    ]
-  );
+  if (!campaigns?.length) {
+    console.warn("[multi-agent-orchestrator] No campaign data available — returning empty");
+    return [];
+  }
+  return campaigns;
 }
 
 async function getPaymentData(supabase: any) {

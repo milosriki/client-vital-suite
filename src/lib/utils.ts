@@ -11,6 +11,19 @@ export function safeFixed(value: unknown, digits = 1): string {
   return isNaN(n) ? "0" : n.toFixed(digits);
 }
 
+/** Safe Date parser — returns null instead of Invalid Date */
+export function safeDate(value: unknown): Date | null {
+  if (!value) return null;
+  const d = new Date(value as string);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Safe number — returns fallback instead of NaN */
+export function safeNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 /** Safe number formatting with locale string */
 export function safeNum(value: unknown): string {
   const n = Number(value);

@@ -53,6 +53,7 @@ import {
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useDailyOps } from "@/hooks/useDailyOps";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type Period = "7" | "30" | "90";
 
@@ -197,7 +198,8 @@ export default function CommandCenter() {
   };
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary>
+      <div className="space-y-6">
       {/* ── Header + Period Selector ── */}
       <div className="flex items-center justify-between">
         <div>
@@ -1008,5 +1010,6 @@ export default function CommandCenter() {
         </CardContent>
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }

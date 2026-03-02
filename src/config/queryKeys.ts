@@ -385,6 +385,9 @@ export const QUERY_KEYS = {
     results: (query: string, category?: string) => ['knowledge-search', query, category] as const,
     stats: ['knowledge-search', 'stats'] as const,
   },
+
+  RECOMMENDATIONS: 'recommendations',
+  HEALTH_ALERTS: 'health-alerts',
 } as const;
 
 /**

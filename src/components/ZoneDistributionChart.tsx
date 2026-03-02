@@ -82,8 +82,8 @@ export function ZoneDistributionChart({ clients, selectedZone, onZoneSelect }: Z
                 <TooltipContent>
                   <div className="space-y-1">
                     <p className="font-semibold">{zone.label}</p>
-                    <p className="text-sm">{zone.count} clients ({zone.percentage.toFixed(1)}%)</p>
-                    <p className="text-sm">Avg Health Score: {zone.avgScore.toFixed(1)}</p>
+                    <p className="text-sm">{zone.count} clients ({(zone.percentage ?? 0).toFixed(1)}%)</p>
+                    <p className="text-sm">Avg Health Score: {(zone.avgScore ?? 0).toFixed(1)}</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -113,7 +113,7 @@ export function ZoneDistributionChart({ clients, selectedZone, onZoneSelect }: Z
             </div>
             <p className="text-lg font-bold">{zone.count}</p>
             <p className="text-xs text-muted-foreground">
-              {zone.percentage.toFixed(1)}%
+              {(zone.percentage ?? 0).toFixed(1)}%
             </p>
           </button>
         ))}

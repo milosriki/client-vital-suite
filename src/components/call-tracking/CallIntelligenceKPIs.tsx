@@ -17,11 +17,11 @@ interface Props {
 
 export function CallIntelligenceKPIs({ data, isLoading }: Props) {
   const kpis = [
-    { label: "Total Calls", value: data.totalCalls.toLocaleString(), icon: Phone, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Answered Rate", value: `${data.answeredRate.toFixed(1)}%`, icon: PhoneIncoming, color: "text-green-500", bg: "bg-green-500/10" },
-    { label: "Avg Duration", value: `${Math.floor(data.avgDuration / 60)}:${String(Math.round(data.avgDuration % 60)).padStart(2, '0')}`, icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Missed Calls", value: data.missedCalls.toLocaleString(), icon: PhoneMissed, color: "text-red-500", bg: "bg-red-500/10" },
-    { label: "Avg Wait Time", value: data.avgWaitTime > 0 ? `${data.avgWaitTime.toFixed(0)}s` : "N/A", icon: Timer, color: "text-orange-500", bg: "bg-orange-500/10" },
+    { label: "Total Calls", value: (data.totalCalls ?? 0).toLocaleString(), icon: Phone, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Answered Rate", value: `${(data.answeredRate ?? 0).toFixed(1)}%`, icon: PhoneIncoming, color: "text-green-500", bg: "bg-green-500/10" },
+    { label: "Avg Duration", value: `${Math.floor((data.avgDuration ?? 0) / 60)}:${String(Math.round((data.avgDuration ?? 0) % 60)).padStart(2, '0')}`, icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10" },
+    { label: "Missed Calls", value: (data.missedCalls ?? 0).toLocaleString(), icon: PhoneMissed, color: "text-red-500", bg: "bg-red-500/10" },
+    { label: "Avg Wait Time", value: (data.avgWaitTime ?? 0) > 0 ? `${(data.avgWaitTime ?? 0).toFixed(0)}s` : "N/A", icon: Timer, color: "text-orange-500", bg: "bg-orange-500/10" },
   ];
 
   return (

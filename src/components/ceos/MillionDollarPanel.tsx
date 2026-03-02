@@ -199,7 +199,7 @@ export default function MillionDollarPanel() {
     ? "System is syncing Ad Spend & Revenue. Check back in 5 minutes."
     : roas >= 3
       ? "You are printing money. For every $1 in, you get $" +
-        roas.toFixed(2) +
+        (roas ?? 0).toFixed(2) +
         " out."
       : roas >= 1.5
         ? "Profitable, but margins are tight. Improve creatives before scaling."
@@ -299,7 +299,7 @@ export default function MillionDollarPanel() {
             value={leads.toString()}
             subtext={
               adSpend && leads
-                ? `CPL: ${(adSpend.amount / leads).toFixed(0)} ${adSpend.currency}`
+                ? `CPL: ${(leads > 0 ? (adSpend.amount / leads) : 0).toFixed(0)} ${adSpend.currency}`
                 : "---"
             }
             trend="up"
@@ -330,7 +330,7 @@ export default function MillionDollarPanel() {
               <span
                 className={`text-6xl font-black tracking-tighter ${roas >= 3 ? "text-emerald-500" : roas < 1 ? "text-rose-500" : "text-primary"}`}
               >
-                {loading ? "---" : roas.toFixed(2)}x
+                {loading ? "---" : (roas ?? 0).toFixed(2)}x
               </span>
               <span className="text-muted-foreground text-sm max-w-[200px]">
                 Return on Ad Spend (Live)

@@ -41,14 +41,17 @@ Deno.serve(async (req) => {
       const embedding = await unifiedAI.embed(text);
       if (!embedding?.length) continue;
 
-      const { error } = await supabase.from("agent_knowledge").insert({
-        category: c.category,
-        title: c.title,
-        content: c.content,
-        source: c.source,
-        embedding,
-        is_active: true,
-      });
+      const { error } = await supabase.from("agent_knowledge").upsert(
+        {
+          category: c.category,
+          title: c.title,
+          content: c.content,
+          source: c.source,
+          embedding,
+          is_active: true,
+        },
+        { onConflict: "source,title", ignoreDuplicates: false }
+      );
 
       if (!error) inserted++;
       await new Promise((r) => setTimeout(r, 150)); // Rate limit

@@ -1,0 +1,7 @@
+{
+  "projectContainerTag": "vital-suite",
+  "similarityThreshold": 0.3,
+  "maxMemories": 15,
+  "maxProjectMemories": 10,
+  "injectProfile": true
+}

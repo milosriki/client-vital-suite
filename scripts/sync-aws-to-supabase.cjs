@@ -174,7 +174,7 @@ async function main() {
       SELECT trainer_name, training_date_utc::date as d, 
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'Completed') as completed,
-        COUNT(*) FILTER (WHERE status LIKE 'Cancelled%') as cancelled,
+        COUNT(*) FILTER (WHERE status LIKE 'Cancelled-%' AND status != 'Cancelled-Rebooked') as cancelled,
         COUNT(DISTINCT id_client) as unique_clients
       FROM enhancesch.vw_schedulers
       WHERE training_date_utc >= CURRENT_DATE - 30
@@ -222,7 +222,7 @@ async function main() {
       training_date_utc::date as date,
       COUNT(*) as total_sessions,
       COUNT(*) FILTER (WHERE status = 'Completed') as completed,
-      COUNT(*) FILTER (WHERE status LIKE 'Cancelled%') as cancelled,
+      COUNT(*) FILTER (WHERE status LIKE 'Cancelled-%' AND status != 'Cancelled-Rebooked') as cancelled,
       COUNT(*) FILTER (WHERE status = 'Confirmed') as confirmed,
       COUNT(DISTINCT id_client) as unique_clients,
       COUNT(DISTINCT CASE WHEN status = 'Completed' THEN id_personal END) as active_coaches

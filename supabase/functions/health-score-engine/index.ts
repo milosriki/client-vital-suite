@@ -129,6 +129,30 @@ Deno.serve(async (req) => {
       prevMap.set(p.client_name, { score: p.total_score, tier: p.tier, trend: p.trend });
     });
 
+    // 3b. Fetch avg review ratings per client (from client_reviews table)
+    const reviewMap = new Map<string, number>();
+    try {
+      const { data: reviews } = await supabase
+        .from("client_reviews")
+        .select("client_name, rating")
+        .not("rating", "is", null);
+      if (reviews?.length) {
+        const sums = new Map<string, { total: number; count: number }>();
+        for (const r of reviews) {
+          if (!r.client_name || !r.rating) continue;
+          const s = sums.get(r.client_name) || { total: 0, count: 0 };
+          s.total += r.rating;
+          s.count++;
+          sums.set(r.client_name, s);
+        }
+        for (const [name, s] of sums) {
+          reviewMap.set(name, s.total / s.count);
+        }
+      }
+    } catch {
+      // client_reviews table may not exist yet — graceful fallback
+    }
+
     // 4. Build per-client session stats
     const clientStats = new Map<string, {
       completed_30d: number; cancelled_30d: number;
@@ -163,10 +187,13 @@ Deno.serve(async (req) => {
           cs.completed_30d++;
           if (!cs.last_completed || td > cs.last_completed) cs.last_completed = td;
         } else if (status.includes("Cancelled")) {
-          cs.cancelled_30d++;
-          if (status.includes("Client")) cs.client_cancels++;
-          else if (status.includes("Trainer")) cs.coach_cancels++;
-          else if (status.includes("Rebooked")) cs.rebooked++;
+          if (status.includes("Rebooked")) {
+            cs.rebooked++;
+          } else {
+            cs.cancelled_30d++;
+            if (status.includes("Client")) cs.client_cancels++;
+            else if (status.includes("Trainer")) cs.coach_cancels++;
+          }
         }
       }
 
@@ -255,7 +282,8 @@ Deno.serve(async (req) => {
       const base = recency + frequency + consistency + pkgHealth + momentum;
       // Satisfaction signal: look up avg review rating from client_health_daily cache
       // (populated by future client_reviews sync — graceful fallback = 0)
-      const satisfactionBonus = 0; // TODO: wire to client_reviews.avg_rating when table exists
+      const avgRating = reviewMap.get(cn);
+      const satisfactionBonus = avgRating && avgRating >= 4.0 ? Math.round((avgRating - 3) * 5) : 0;
       const total = Math.min(100, base + satisfactionBonus);
       const tier = getTier(total);
 

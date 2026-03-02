@@ -3,6 +3,7 @@ import { DollarSign, TrendingUp, Users, AlertCircle, Activity, RefreshCw, Loader
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePipelineData, useHubSpotHealth, useLiveData, useRevenueByChannel } from "@/hooks/useRevenueIntelligence";
+import { useDealStripeRevenue } from "@/hooks/useHiddenViews";
 import { DashboardHeader } from "@/components/dashboard/layout/DashboardHeader";
 import { FilterBar, DATE_RANGE_PRESETS } from "@/components/dashboard/layout/FilterBar";
 import { MetricCard } from "@/components/dashboard/cards/MetricCard";
@@ -283,7 +284,7 @@ export default function RevenueIntelligence() {
     stage: deal.stage || "Unknown",
     value: deal.deal_value,
     owner: deal.owner_name || "Unassigned",
-    created: new Date(deal.created_at || "").toLocaleTimeString(),
+    created: deal.created_at ? new Date(deal.created_at).toLocaleTimeString() : "—",
     source: "HubSpot",
   }));
 
@@ -327,6 +328,7 @@ export default function RevenueIntelligence() {
           <TabsTrigger value="hubspot">HubSpot Health</TabsTrigger>
           <TabsTrigger value="live">Live Data</TabsTrigger>
           <TabsTrigger value="channels">Revenue by Channel</TabsTrigger>
+          <TabsTrigger value="deal-stripe">Deal-Stripe Verification</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Stripe Data */}
@@ -950,7 +952,41 @@ export default function RevenueIntelligence() {
             </>
           )}
         </TabsContent>
+
+        <TabsContent value="deal-stripe" className="space-y-6">
+          <DealStripeVerificationTab />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function DealStripeVerificationTab() {
+  const { data: dealStripe, isLoading } = useDealStripeRevenue();
+
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
+  const rows = dealStripe ?? [];
+  const matched = rows.filter((r: any) => r.stripe_amount && r.deal_value);
+  const unmatched = rows.filter((r: any) => !r.stripe_amount || !r.deal_value);
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <MetricCard title="Total Deals Checked" value={rows.length} icon={DollarSign} />
+        <MetricCard title="Stripe-Verified" value={matched.length} icon={TrendingUp} trend={rows.length > 0 ? { value: Math.round(matched.length / rows.length * 100), isPositive: true } : undefined} />
+        <MetricCard title="Unverified" value={unmatched.length} icon={AlertCircle} trend={unmatched.length > 0 ? { value: unmatched.length, isPositive: false } : undefined} />
+      </div>
+      <DataTableCard
+        title="Deal-Stripe Revenue Matching"
+        data={rows.slice(0, 50)}
+        columns={[
+          { key: "contact_email", label: "Contact" },
+          { key: "deal_value", label: "Deal (AED)", render: (r: any) => r.deal_value ? `AED ${Number(r.deal_value).toLocaleString()}` : "—" },
+          { key: "stripe_amount", label: "Stripe (AED)", render: (r: any) => r.stripe_amount ? `AED ${Number(r.stripe_amount).toLocaleString()}` : "—" },
+          { key: "match_status", label: "Status", render: (r: any) => <StatusBadge status={r.stripe_amount ? "active" : "at_risk"} label={r.stripe_amount ? "Verified" : "No Payment"} /> },
+        ]}
+      />
+    </>
   );
 }

@@ -20,7 +20,7 @@ export const HealthScoreBadge = ({ score, zone, size = 'md' }: HealthScoreBadgeP
 
   return (
     <div className={`${sizeClasses[size]} ${colorClasses[zone]} rounded-full flex items-center justify-center text-white font-bold shadow-lg`}>
-      {score.toFixed(0)}
+      {(score ?? 0).toFixed(0)}
     </div>
   );
 };

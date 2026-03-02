@@ -78,10 +78,12 @@ export function usePipelineData(dateRange: string) {
       // Calculate average time in pipeline (velocity)
       const completedDeals = deals?.filter(d => d.close_date) || [];
       const avgVelocity = completedDeals.reduce((sum, deal) => {
-        const created = new Date(deal.created_at || "");
-        const closed = new Date(deal.close_date || "");
+        if (!deal.created_at || !deal.close_date) return sum;
+        const created = new Date(deal.created_at);
+        const closed = new Date(deal.close_date);
+        if (isNaN(created.getTime()) || isNaN(closed.getTime())) return sum;
         const days = Math.floor((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
-        return sum + days;
+        return sum + Math.max(0, days);
       }, 0) / (completedDeals.length || 1);
 
       // Get active deals for table

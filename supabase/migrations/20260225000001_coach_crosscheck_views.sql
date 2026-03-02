@@ -6,8 +6,8 @@ WITH session_stats AS (
   SELECT coach_name,
     COUNT(*) as total_sessions,
     COUNT(*) FILTER (WHERE status = 'Completed') as completed,
-    COUNT(*) FILTER (WHERE status LIKE 'Cancelled%') as cancelled,
-    ROUND(COUNT(*) FILTER (WHERE status LIKE 'Cancelled%')::numeric / NULLIF(COUNT(*), 0) * 100, 1) as cancel_rate
+    COUNT(*) FILTER (WHERE status LIKE 'Cancelled-%' AND status != 'Cancelled-Rebooked') as cancelled,
+    ROUND(COUNT(*) FILTER (WHERE status LIKE 'Cancelled-%' AND status != 'Cancelled-Rebooked')::numeric / NULLIF(COUNT(*), 0) * 100, 1) as cancel_rate
   FROM training_sessions_live
   WHERE training_date >= CURRENT_DATE - interval '30 days'
   GROUP BY coach_name

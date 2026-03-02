@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
@@ -12,6 +13,17 @@ import {
   handleError,
   ErrorCode,
 } from "../_shared/error-handler.ts";
+
+const ObjectionResponseSchema = z.object({
+  response: z.string().min(1),
+  technique: z.enum(["diffuse", "reframe", "question", "nepq_combined"]),
+  confidence: z.number().min(0).max(1),
+});
+
+const ObjectionAnalysisSchema = z.object({
+  classification: z.string(),
+  responses: z.array(ObjectionResponseSchema).min(1).max(5),
+});
 
 serve(async (req) => {
   try {
@@ -48,18 +60,23 @@ serve(async (req) => {
         `,
     });
 
-    // 2. User Prompt
-    const userPrompt = `
-        OBJECTION: "${objection_text}"
-        
-        YOUR TASK:
-        Provide 3 specific responses using NEPQ logic:
-        1. "The Diffuse" (Soft, disarming)
-        2. "The Re-Frame" (Shift perspective)
-        3. "The Question" (Put ball back in their court)
-        
-        Also provide a strict "Classification" of this objection (e.g., Financial, Spousal, Fear, Timing).
-    `;
+    // 2. User Prompt with structured output spec
+    const userPrompt = `OBJECTION: "${objection_text}"
+
+YOUR TASK: Provide 3 specific responses using NEPQ logic.
+Return strict JSON:
+{
+  "classification": "<Financial | Spousal | Fear | Timing | Commitment | Trust | Other>",
+  "responses": [
+    { "response": "<The Diffuse — soft, disarming>", "technique": "diffuse", "confidence": <0-1> },
+    { "response": "<The Re-Frame — shift perspective>", "technique": "reframe", "confidence": <0-1> },
+    { "response": "<The Question — put ball back in their court>", "technique": "question", "confidence": <0-1> }
+  ]
+}
+
+ERROR RECOVERY:
+- If the objection is vague or unclear, still classify it as "Other" and provide generic NEPQ responses with confidence below 0.4.
+- Never return an empty responses array. Always provide at least one response.`;
 
     // 3. Execute AI
     const aiResponse = await unifiedAI.chat(
@@ -73,10 +90,24 @@ serve(async (req) => {
       },
     );
 
+    let analysis: z.infer<typeof ObjectionAnalysisSchema> | Record<string, unknown>;
+    try {
+      const raw = JSON.parse(aiResponse.content);
+      const parsed = ObjectionAnalysisSchema.safeParse(raw);
+      if (parsed.success) {
+        analysis = parsed.data;
+      } else {
+        console.warn("[sales-objection-handler] Zod validation failed:", parsed.error.issues);
+        analysis = raw;
+      }
+    } catch {
+      analysis = { raw_response: aiResponse.content, validation_error: "Failed to parse JSON" };
+    }
+
     return apiSuccess({
         success: true,
         objection: objection_text,
-        analysis: JSON.parse(aiResponse.content),
+        analysis,
       });
   } catch (error: unknown) {
     return handleError(error, "sales-objection-handler", {

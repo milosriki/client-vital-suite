@@ -139,7 +139,7 @@ export function CoachLeaderboard() {
                       "stat-number text-sm shrink-0",
                       index === 0 ? "text-yellow-400" : "text-muted-foreground"
                     )}>
-                      {score.toFixed(0)}
+                      {(score ?? 0).toFixed(0)}
                     </span>
                   </div>
                   

@@ -26,11 +26,20 @@ import { getConstitutionalSystemMessage } from "../_shared/constitutional-framin
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateRequest } from "../_shared/validators.ts";
 
-// Phase 2.1: Zod schema for ai-ceo-master requests
 const AiCeoRequestSchema = z.object({
   command: z.string().min(1, "Command is required"),
   session_id: z.string().uuid().optional(),
 });
+
+const AiCeoResponseSchema = z.object({
+  answer: z.string().min(1),
+  confidence: z.number().min(0).max(1).optional(),
+  data: z.record(z.unknown()).optional(),
+  actions: z.array(z.object({
+    tool: z.string(),
+    result: z.string().optional(),
+  })).optional(),
+}).passthrough();
 
 const GEMINI_API_KEY =
   Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
@@ -371,7 +380,12 @@ RESPOND WITH VALID JSON ONLY:
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON found in response");
-    return JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]);
+    const validated = AiCeoResponseSchema.safeParse(parsed);
+    if (!validated.success) {
+      console.warn("[ai-ceo-master] Output validation warning:", validated.error.issues);
+    }
+    return parsed;
   } catch (error: unknown) {
     await childRun.end({
       error: error instanceof Error ? error.message : String(error),

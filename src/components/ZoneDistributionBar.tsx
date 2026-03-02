@@ -41,7 +41,7 @@ export const ZoneDistributionBar = ({ data, total, onZoneClick }: ZoneDistributi
                 className={`${zone.color} cursor-pointer hover:opacity-80 transition-opacity`}
                 style={{ width: `${percentage}%` }}
                 onClick={() => onZoneClick?.(zone.key)}
-                title={`${zone.label}: ${count} clients (${percentage.toFixed(1)}%)`}
+                title={`${zone.label}: ${count} clients (${(percentage ?? 0).toFixed(1)}%)`}
               />
             );
           })}
@@ -64,7 +64,7 @@ export const ZoneDistributionBar = ({ data, total, onZoneClick }: ZoneDistributi
                   <span className="text-sm font-medium">{zone.label}</span>
                 </div>
                 <p className="text-2xl font-bold">{count}</p>
-                <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
+                <p className="text-xs text-muted-foreground">{(percentage ?? 0).toFixed(1)}%</p>
               </div>
             );
           })}

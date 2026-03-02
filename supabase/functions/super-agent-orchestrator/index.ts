@@ -7,9 +7,17 @@ import {
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+
+const SynthesisOutputSchema = z.object({
+  summary: z.string().min(10),
+  status: z.enum(["perfect", "degraded", "cached", "critical"]),
+  improvements: z.array(z.string()),
+  risk_level: z.enum(["low", "medium", "high", "critical"]),
+});
 
 // ============================================================================
 // BULLETPROOF SUPER-AGENT ORCHESTRATOR
@@ -777,8 +785,10 @@ async function synthesize(state: SystemState, supabase: any): Promise<string> {
   const runId = await traceStart("synthesize", {});
   console.log("[Phase 5] Synthesizing report...");
 
-  const prompt = `
-You are a system intelligence synthesizer. Generate a brief (2-3 sentences) executive summary.
+  const degradedCount = Object.values({ ...state.validation_results, ...state.intelligence_results }).filter((r) => r.status === "degraded").length;
+  const cachedCount = Object.values({ ...state.validation_results, ...state.intelligence_results }).filter((r) => r.status === "cached").length;
+
+  const prompt = `Analyze this system state and return strict JSON:
 
 SYSTEM STATE:
 - Tables discovered: ${state.tables_discovered}
@@ -786,34 +796,61 @@ SYSTEM STATE:
 - API Connections: ${JSON.stringify(state.api_connections)}
 - Validation agents run: ${Object.keys(state.validation_results).length}
 - Intelligence agents run: ${Object.keys(state.intelligence_results).length}
-- Degraded agents: ${Object.values({ ...state.validation_results, ...state.intelligence_results }).filter((r) => r.status === "degraded").length}
-- Cached agents: ${Object.values({ ...state.validation_results, ...state.intelligence_results }).filter((r) => r.status === "cached").length}
+- Degraded agents: ${degradedCount}
+- Cached agents: ${cachedCount}
 - Improvements needed: ${state.improvements.length}
+- Current improvements: ${JSON.stringify(state.improvements)}
 
 STATUS: ${state.final_status}
 
-Generate a concise summary.`;
+OUTPUT FORMAT (strict JSON):
+{
+  "summary": "<2-3 sentence executive summary>",
+  "status": "<perfect | degraded | cached | critical>",
+  "improvements": ["<actionable improvement 1>", "<improvement 2>"],
+  "risk_level": "<low | medium | high | critical>"
+}
+
+ERROR RECOVERY:
+- If all agents succeeded, status should be "perfect" and risk_level "low".
+- If any agent is degraded, status should be "degraded" and risk_level at least "medium".
+- If more than 3 agents are degraded, set risk_level to "high" or "critical".
+- Always provide at least one improvement suggestion even if the system is healthy.`;
 
   try {
-    // Use UnifiedAI for synthesis (handles fallback automatically)
     const response = await unifiedAI.chat(
       [
         {
           role: "system",
           content: buildAgentPrompt("ORCHESTRATOR", {
             additionalContext:
-              "Route to: smart-agent (queries), churn-predictor (risk), intervention-recommender (actions). Max 3 sentences.",
+              "Route to: smart-agent (queries), churn-predictor (risk), intervention-recommender (actions). Return structured JSON synthesis.",
           }),
         },
         { role: "user", content: prompt },
       ],
       {
-        max_tokens: 300,
-        temperature: 0.7,
+        jsonMode: true,
+        max_tokens: 400,
+        temperature: 0.5,
       },
     );
 
-    const report = response.content || generateFallbackReport(state);
+    let report: string;
+    try {
+      const parsed = SynthesisOutputSchema.safeParse(JSON.parse(response.content));
+      if (parsed.success) {
+        state.improvements = parsed.data.improvements;
+        report = parsed.data.summary;
+        console.log(`[Phase 5] Synthesis validated — status: ${parsed.data.status}, risk: ${parsed.data.risk_level}`);
+      } else {
+        console.warn("[super-agent-orchestrator] Synthesis Zod validation failed:", parsed.error.issues);
+        report = response.content || generateFallbackReport(state);
+      }
+    } catch {
+      report = response.content || generateFallbackReport(state);
+    }
+
     await traceEnd(runId, { source: "unified_ai", report });
     return report;
   } catch (error: unknown) {

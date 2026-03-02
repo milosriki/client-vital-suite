@@ -10,10 +10,7 @@ const API_BASE = typeof import.meta !== "undefined" && import.meta.env?.VITE_API
   : "https://client-vital-suite.vercel.app";
 
 function getPtdHeaders(): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  const key = typeof import.meta !== "undefined" && import.meta.env?.VITE_PTD_INTERNAL_ACCESS_KEY;
-  if (key) h["x-ptd-key"] = key;
-  return h;
+  return { "Content-Type": "application/json" };
 }
 
 // Session management

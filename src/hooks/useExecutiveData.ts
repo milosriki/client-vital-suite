@@ -185,7 +185,7 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       const now = Date.now();
       const staleLeads = staleLeadsRaw
         .filter(l => {
-          const lastActivity = l.last_activity_date ? new Date(l.last_activity_date).getTime() : new Date(l.created_at || "").getTime();
+          const lastActivity = l.last_activity_date ? new Date(l.last_activity_date).getTime() : l.created_at ? new Date(l.created_at).getTime() : 0;
           const hoursSinceActivity = (now - lastActivity) / (1000 * 60 * 60);
           return hoursSinceActivity > 48;
         })

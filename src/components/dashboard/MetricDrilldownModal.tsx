@@ -152,9 +152,9 @@ const ContributorsTab = ({ type }: { type: string }) => {
                       : `AED ${item.value?.toLocaleString()}`
                     : item.value}
                 </p>
-                <div className={`flex items-center gap-1 text-xs ${item.change >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                  {item.change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {Math.abs(item.change).toFixed(1)}%
+                <div className={`flex items-center gap-1 text-xs ${(item.change ?? 0) >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                  {(item.change ?? 0) >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {Math.abs(item.change ?? 0).toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -203,7 +203,7 @@ const TrendTab = ({ type }: { type: string }) => {
         </div>
         <Badge className={change >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}>
           {change >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-          {Math.abs(change).toFixed(1)}%
+          {Math.abs(change ?? 0).toFixed(1)}%
         </Badge>
       </div>
 
@@ -234,30 +234,54 @@ const TrendTab = ({ type }: { type: string }) => {
 };
 
 const RecommendationsTab = ({ type }: { type: string }) => {
-  const recommendations = {
-    revenue: [
-      { icon: "🎯", text: "Focus on enterprise deals - they have 3x higher close rate this month" },
-      { icon: "📅", text: "Schedule follow-ups for 7 stalled deals worth AED 45,000" },
-      { icon: "🔥", text: "Hot lead: Ahmed K. ready to close - reach out today" },
-    ],
-    clients: [
-      { icon: "⚠️", text: "5 clients haven't had sessions in 14+ days - schedule check-ins" },
-      { icon: "🌟", text: "Top performer Coach Sarah - replicate her engagement strategy" },
-      { icon: "📊", text: "Health scores improving 8% month-over-month" },
-    ],
-    pipeline: [
-      { icon: "💰", text: "AED 120,000 in deals expected to close this week" },
-      { icon: "🏃", text: "Accelerate 3 deals in 'Proposal' stage with follow-up calls" },
-      { icon: "📈", text: "Pipeline value up 15% - maintain momentum" },
-    ],
-    attention: [
-      { icon: "🚨", text: "Immediate action needed for 3 clients with churn risk > 80%" },
-      { icon: "📞", text: "Schedule intervention calls with at-risk clients" },
-      { icon: "💡", text: "Assign personal trainer sessions to boost engagement" },
-    ],
-  };
+  const { data: liveRecs } = useDedupedQuery({
+    queryKey: [QUERY_KEYS.RECOMMENDATIONS, type],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("marketing_recommendations")
+        .select("action, reasoning, confidence")
+        .eq("status", "active")
+        .order("confidence", { ascending: false })
+        .limit(3);
+      return data || [];
+    },
+    staleTime: 60_000,
+  });
 
-  const items = recommendations[type as keyof typeof recommendations] || [];
+  const { data: healthAlerts } = useDedupedQuery({
+    queryKey: [QUERY_KEYS.HEALTH_ALERTS, type],
+    queryFn: async () => {
+      if (type !== "clients" && type !== "attention") return [];
+      const { data } = await supabase
+        .from("client_health_daily")
+        .select("client_name, total_score, tier, trend")
+        .eq("tier", "RED")
+        .order("total_score", { ascending: true })
+        .limit(5);
+      return data || [];
+    },
+    staleTime: 60_000,
+  });
+
+  const items: { icon: string; text: string }[] = [];
+
+  if (type === "revenue" || type === "pipeline") {
+    if (liveRecs?.length) {
+      for (const r of liveRecs) {
+        items.push({ icon: r.action === "SCALE" ? "🚀" : r.action === "KILL" ? "🛑" : "📊", text: `${r.action}: ${r.reasoning}` });
+      }
+    } else {
+      items.push({ icon: "📊", text: "No active recommendations — check back after the next analytics run" });
+    }
+  } else if (type === "clients" || type === "attention") {
+    if (healthAlerts?.length) {
+      for (const a of healthAlerts) {
+        items.push({ icon: a.trend === "crashing" ? "🚨" : "⚠️", text: `${a.client_name}: score ${a.total_score}/100 (${a.trend})` });
+      }
+    } else {
+      items.push({ icon: "✅", text: "No critical health alerts right now" });
+    }
+  }
 
   return (
     <div className="space-y-3">

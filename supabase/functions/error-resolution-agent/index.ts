@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { ErrorService, ErrorRecord } from "../_shared/error-service.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
@@ -12,6 +13,16 @@ import { apiSuccess, apiError, apiValidationError, apiCorsPreFlight } from "../_
 import { validateOrThrow } from "../_shared/data-contracts.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+import { unifiedAI } from "../_shared/unified-ai-client.ts";
+
+const TriageResultSchema = z.object({
+  resolution: z.string(),
+  confidence: z.number().min(0).max(1),
+  suggested_action: z.string(),
+  root_cause: z.string(),
+});
+
+type TriageResult = z.infer<typeof TriageResultSchema>;
 
 const FUNCTION_NAME = "error-resolution-agent";
 
@@ -44,38 +55,74 @@ serve(async (req) => {
       const errorBatch = errors || [];
 
       if (errorBatch.length > 0) {
-        // AI Deep Reasoning Step
         const constitutionalPrefix = getConstitutionalSystemMessage();
         const systemPrompt = `${constitutionalPrefix}
-You are an Expert Systems Engineer.
-        TASK: Analyze these sync errors.
-        OUTPUT: JSON with 'thought_process' (analysis, hypothesis, strategy) and 'triage_results' array.
-        `;
+You are an Expert Systems Engineer specializing in error triage and resolution.
 
-        // Mocking the AI call for now or we can implement actual call if unifiedAI is imported
-        // For this step, we will enhance the individual processing with a "simulated" thought process structure
+TASK: Analyze each sync error and produce a JSON resolution object.
+
+OUTPUT FORMAT (strict JSON):
+{
+  "resolution": "<what to do to fix this>",
+  "confidence": <0.0 to 1.0>,
+  "suggested_action": "<retry | escalate | ignore | fix_config | manual_review>",
+  "root_cause": "<concise root cause>"
+}
+
+ERROR RECOVERY:
+- If an error message is empty or unclear, set confidence below 0.3 and suggested_action to "manual_review".
+- If the error involves connectivity, suggest "retry" with a backoff strategy.
+- If the error involves data integrity, suggest "fix_config" or "escalate".
+- Always provide actionable resolution text, never generic advice.`;
 
         for (const error of errorBatch) {
           const cat = service.categorizeError(error);
           const prio = service.calculatePriority(error, cat.category);
-          const rootCause = service.analyzeRootCause(error);
+          const localRootCause = service.analyzeRootCause(error);
 
-          // ENHANCEMENT: Add Thinking Data
-          const thoughtProcess = {
-            analysis: `Detected error type: ${cat.category}`,
-            hypothesis: `Potential cause: ${rootCause}`,
-            strategy: `Priority set to ${prio}, attempting auto-resolution`,
-          };
+          let aiTriage: TriageResult | null = null;
+          try {
+            const aiResponse = await unifiedAI.chat([
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Error to analyze:\nType: ${error.error_type}\nSource: ${error.source}\nMessage: ${error.error_message}\nRetry Count: ${error.retry_count}\nLocal Root Cause: ${localRootCause}` },
+            ], {
+              jsonMode: true,
+              max_tokens: 300,
+              temperature: 0.2,
+            });
 
-          // Update DB
+            const parsed = TriageResultSchema.safeParse(
+              JSON.parse(aiResponse.content)
+            );
+            if (parsed.success) {
+              aiTriage = parsed.data;
+            } else {
+              console.warn(`[ErrorResolutionAgent] Zod validation failed for error ${error.id}:`, parsed.error.issues);
+              aiTriage = {
+                resolution: `Heuristic: ${localRootCause}`,
+                confidence: 0.4,
+                suggested_action: "manual_review",
+                root_cause: localRootCause,
+              };
+            }
+          } catch (aiErr) {
+            console.error(`[ErrorResolutionAgent] AI call failed for error ${error.id}:`, aiErr);
+            aiTriage = {
+              resolution: `Fallback heuristic: ${localRootCause}`,
+              confidence: 0.2,
+              suggested_action: "manual_review",
+              root_cause: localRootCause,
+            };
+          }
+
           await supabase
             .from("sync_errors")
             .update({
               error_details: {
                 ...error.error_details,
                 triage: { ...cat, priority: prio },
-                root_cause: rootCause,
-                ai_reasoning: thoughtProcess, // Saving the "Thought"
+                root_cause: aiTriage.root_cause,
+                ai_reasoning: aiTriage,
               },
             })
             .eq("id", error.id);
@@ -84,13 +131,11 @@ You are an Expert Systems Engineer.
             id: error.id,
             ...cat,
             priority: prio,
-            reasoning: thoughtProcess,
+            reasoning: aiTriage,
           });
         }
       }
-      return apiError("INTERNAL_ERROR", JSON.stringify({ success: true, results }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return apiSuccess({ success: true, results });
     }
 
     // 2. RESOLVE Action
@@ -108,9 +153,7 @@ You are an Expert Systems Engineer.
           results.push({ id: error.id, ...res });
         }
       }
-      return apiError("BAD_REQUEST", JSON.stringify({ success: true, results }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return apiSuccess({ success: true, results });
     }
 
     // 3. ANALYZE PATTERNS Action

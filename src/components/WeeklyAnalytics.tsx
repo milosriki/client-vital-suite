@@ -98,7 +98,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
                 {renderTrend(greenChange)}
                 {greenChange !== null && (
                   <span className={`text-xs ${greenChange > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {greenChange > 0 ? '+' : ''}{greenChange.toFixed(1)}%
+                    {greenChange > 0 ? '+' : ''}{(greenChange ?? 0).toFixed(1)}%
                   </span>
                 )}
               </div>
@@ -114,7 +114,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
                 {renderTrend(yellowChange)}
                 {yellowChange !== null && (
                   <span className={`text-xs ${yellowChange < 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {yellowChange > 0 ? '+' : ''}{yellowChange.toFixed(1)}%
+                    {yellowChange > 0 ? '+' : ''}{(yellowChange ?? 0).toFixed(1)}%
                   </span>
                 )}
               </div>
@@ -130,7 +130,7 @@ export const WeeklyAnalytics = ({ patterns }: WeeklyAnalyticsProps) => {
                 {renderTrend(redChange)}
                 {redChange !== null && (
                   <span className={`text-xs ${redChange < 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {redChange > 0 ? '+' : ''}{redChange.toFixed(1)}%
+                    {redChange > 0 ? '+' : ''}{(redChange ?? 0).toFixed(1)}%
                   </span>
                 )}
               </div>

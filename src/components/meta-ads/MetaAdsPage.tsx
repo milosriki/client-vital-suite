@@ -5,6 +5,7 @@ import MetaAdsDashboard from '@/components/meta-ads/MetaAdsDashboard';
 import MetaAdsCreatives from '@/components/meta-ads/MetaAdsCreatives';
 import MetaAdsAudience from '@/components/meta-ads/MetaAdsAudience';
 import MetaAdsAttribution from '@/components/meta-ads/MetaAdsAttribution';
+import { VisionAnalysisWidget } from '@/components/dashboard/bi/VisionAnalysisWidget';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
@@ -55,6 +56,9 @@ export default function MetaAdsPage() {
           <TabsTrigger value="attribution" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
             <Link2 className="w-3.5 h-3.5" /> Attribution
           </TabsTrigger>
+          <TabsTrigger value="vision" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
+            <Sparkles className="w-3.5 h-3.5" /> Vision AI
+          </TabsTrigger>
           <TabsTrigger value="settings" className="gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors duration-200">
             <Settings className="w-3.5 h-3.5" /> Settings
           </TabsTrigger>
@@ -86,6 +90,10 @@ export default function MetaAdsPage() {
 
         <TabsContent value="attribution">
           <MetaAdsAttribution />
+        </TabsContent>
+
+        <TabsContent value="vision">
+          <VisionAnalysisWidget />
         </TabsContent>
 
         <TabsContent value="settings">

@@ -1,12 +1,19 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { unifiedAI } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { getConstitutionalSystemMessage } from "../_shared/constitutional-framing.ts";
+
+const LeadReplySchema = z.object({
+  reply: z.string().min(10).max(500),
+  tone: z.enum(["warm", "professional", "urgent", "casual"]).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
     return apiSuccess(body);
@@ -80,6 +87,13 @@ You are an expert sales consultant at PTD Fitness Dubai - a premium mobile perso
 
 ROLE: Generate personalized first-contact replies for new fitness leads.
 
+OUTPUT FORMAT (strict JSON):
+{
+  "reply": "<your personalized 2-3 sentence reply, plain text, no markdown>",
+  "tone": "<warm | professional | urgent | casual>",
+  "confidence": <0.0 to 1.0>
+}
+
 BRAND VOICE:
 - Warm yet professional
 - Results-focused
@@ -95,25 +109,43 @@ CONVERSION TACTICS:
 - Address their specific goal
 - Create curiosity about results
 - Make booking consultation feel easy
-- Match message length to budget tier`;
+- Match message length to budget tier
 
+ERROR RECOVERY:
+- If the lead's goal is missing or unclear, write a general fitness-focused reply and set confidence below 0.5.
+- If the name is missing, address them as "there" (e.g., "Hi there").
+- Never leave the reply empty. Always produce at least a generic warm outreach.`;
+
+                const leadName = lead.first_name || lead.last_name ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : (lead as any).name || "Prospect";
                 const prompt = `Lead Details:
-- Name: ${lead.first_name || lead.last_name ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : (lead as any).name || "Prospect"}
+- Name: ${leadName}
 - Goal: ${lead.fitness_goal || lead?.metadata?.fitness_goal || "Not specified"}
 - Budget: ${lead.budget_range || lead?.metadata?.budget_range || "Not specified"}
 - Location: ${lead.location || lead?.metadata?.location || "Dubai"}
 
-Write a SHORT (2-3 sentences) personalized initial reply. No markdown or formatting.`;
+Return JSON with reply, tone, and confidence.`;
 
                 const response = await unifiedAI.chat([
                     { role: "system", content: systemPrompt },
                     { role: "user", content: prompt }
                 ], {
-                    max_tokens: 200,
+                    jsonMode: true,
+                    max_tokens: 250,
                     temperature: 0.7
                 });
 
-                const suggestedReply = response.content;
+                let suggestedReply: string;
+                try {
+                    const parsed = LeadReplySchema.safeParse(JSON.parse(response.content));
+                    if (parsed.success) {
+                        suggestedReply = parsed.data.reply;
+                    } else {
+                        console.warn(`[generate-lead-replies] Zod validation failed for lead ${lead.id}:`, parsed.error.issues);
+                        suggestedReply = response.content;
+                    }
+                } catch {
+                    suggestedReply = response.content;
+                }
 
                 if (suggestedReply) {
                     const updatePayload: Record<string, any> = { ai_suggested_reply: suggestedReply };

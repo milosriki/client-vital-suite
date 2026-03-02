@@ -80,7 +80,7 @@ async function main() {
         NULL AS location
       FROM enhancesch.vw_schedulers s
       LEFT JOIN enhancesch.vw_client_master m ON s.id_client = m.id_client
-      WHERE s.status IN ('Completed', 'Attended', 'Confirmed', 'Cancelled', 'No Show')
+      WHERE (s.status IN ('Completed', 'Attended', 'Confirmed', 'No Show') OR s.status LIKE 'Cancelled-%')
       ${dateFilter}
       ORDER BY s.training_date_utc DESC
     `;

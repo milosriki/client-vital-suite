@@ -362,7 +362,7 @@ export function EnhancedInterventionTracker({ interventions, isLoading }: Interv
                             Created {formatDistanceToNow(new Date(intervention.triggered_at), { addSuffix: true })}
                           </span>
                           {intervention.success_probability && (
-                            <span>Success: {intervention.success_probability.toFixed(0)}%</span>
+                            <span>Success: {(intervention.success_probability ?? 0).toFixed(0)}%</span>
                           )}
                         </div>
                       </div>

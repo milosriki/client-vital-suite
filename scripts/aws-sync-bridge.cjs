@@ -133,8 +133,13 @@ async function syncSessions(rds, days) {
       s.training_date_utc AS training_date,
       s.status,
       s.session_type,
-      m.email AS client_email
-    FROM enhancesch.vw_schedulers s
+      m.email AS client_email,
+      s.base_value,
+      s.price_for_comission,
+      s.client_review_trainer,
+      s.origin,
+      s.workout
+    FROM enhancesch.vw_powerbi_schedulers s
     LEFT JOIN enhancesch.vw_client_master m ON s.id_client = m.id_client
     WHERE 1=1
     ${dateFilter}
@@ -166,6 +171,10 @@ async function syncSessions(rds, days) {
       training_date: r.training_date || null,
       status: r.status || null,
       session_type: r.session_type || null,
+      base_value: r.base_value ? parseFloat(r.base_value) : null,
+      review_rating: r.client_review_trainer ? parseFloat(r.client_review_trainer) : null,
+      origin: r.origin || null,
+      workout_type: r.workout || null,
       synced_at: new Date().toISOString(),
     }));
 
@@ -206,8 +215,12 @@ async function syncPackages(rds) {
       p.remainingsessions AS remaining_sessions,
       p.amounttotal::numeric AS package_value,
       p.settlement_date_utc AS purchase_date,
-      p.expiry_date_utc AS expiry_date
-    FROM enhancesch.vw_client_packages p
+      p.expiry_date_utc AS expiry_date,
+      p.base_value,
+      p.status AS package_status,
+      p.paymentprovider AS payment_provider,
+      p.purchase_origin
+    FROM enhancesch.vw_powerbi_clientpackages p
     LEFT JOIN enhancesch.vw_client_master m ON p.id_client = m.id_client
     ORDER BY p.remainingsessions ASC
   `);
@@ -234,6 +247,10 @@ async function syncPackages(rds) {
       package_value: parseFloat(r.package_value) || 0,
       purchase_date: r.purchase_date || null,
       expiry_date: r.expiry_date || null,
+      base_value: r.base_value ? parseFloat(r.base_value) : null,
+      package_status: r.package_status || null,
+      payment_provider: r.payment_provider || null,
+      purchase_origin: r.purchase_origin || null,
       synced_at: new Date().toISOString(),
     }));
 
@@ -354,6 +371,121 @@ async function enrichPackages(rds) {
   return { updated, errors, total: enrichData.length };
 }
 
+// ═══ SYNC CLIENT REVIEWS (from PowerBI views) ═══
+async function syncReviews(rds) {
+  log(`📡 Fetching client reviews from AWS...`);
+
+  const result = await rds.query(`
+    SELECT
+      r.id_client::text AS client_id,
+      r.id_personal::text AS coach_id,
+      r.trainer_name AS coach_name,
+      r.client_name,
+      r.training_date_utc AS review_date,
+      r.client_review_trainer AS rating,
+      r.session_id::text AS session_id
+    FROM enhancesch.vw_powerbi_schedulers r
+    WHERE r.client_review_trainer IS NOT NULL
+      AND r.client_review_trainer > 0
+    ORDER BY r.training_date_utc DESC
+    LIMIT 50000
+  `);
+
+  log(`   → ${result.rows.length} reviews fetched`);
+
+  let synced = 0;
+  let errors = 0;
+  for (let i = 0; i < result.rows.length; i += BATCH_SIZE) {
+    const batch = result.rows.slice(i, i + BATCH_SIZE).map((r) => ({
+      client_id: String(r.client_id),
+      coach_id: r.coach_id ? String(r.coach_id) : null,
+      coach_name: r.coach_name || null,
+      client_name: r.client_name || null,
+      review_date: r.review_date || null,
+      rating: r.rating ? parseFloat(r.rating) : null,
+      session_id: r.session_id || null,
+      synced_at: new Date().toISOString(),
+    }));
+
+    try {
+      await retry(
+        () => supabaseUpsert("client_reviews", batch, "session_id"),
+        `Reviews batch ${Math.floor(i / BATCH_SIZE) + 1}`
+      );
+      synced += batch.length;
+    } catch (e) {
+      errors += batch.length;
+      log(`❌ Reviews batch failed: ${e.message}`);
+    }
+  }
+
+  return { synced, errors, total: result.rows.length };
+}
+
+// ═══ SYNC CLIENT DEMOGRAPHICS (from PowerBI views) ═══
+async function syncDemographics(rds) {
+  log(`📡 Fetching client demographics from AWS...`);
+
+  const result = await rds.query(`
+    SELECT
+      c.id_client::text AS client_id,
+      c.full_name,
+      c.email,
+      c.phone_number,
+      c.city,
+      c.country,
+      c.birthdate,
+      c.gender,
+      c.nationality,
+      c.height,
+      c.weight,
+      c.injury,
+      c.goals,
+      c.marketing_campaign,
+      c.membership_type
+    FROM enhancesch.vw_powerbi_clients c
+    WHERE c.id_client IS NOT NULL
+  `);
+
+  log(`   → ${result.rows.length} client demographics fetched`);
+
+  let synced = 0;
+  let errors = 0;
+  for (let i = 0; i < result.rows.length; i += BATCH_SIZE) {
+    const batch = result.rows.slice(i, i + BATCH_SIZE).map((r) => ({
+      client_id: String(r.client_id),
+      full_name: r.full_name || null,
+      email: r.email || null,
+      phone: r.phone_number || null,
+      city: r.city || null,
+      country: r.country || null,
+      birthdate: r.birthdate || null,
+      gender: r.gender || null,
+      nationality: r.nationality || null,
+      height: r.height ? parseFloat(r.height) : null,
+      weight: r.weight ? parseFloat(r.weight) : null,
+      injury: r.injury || null,
+      goals: r.goals || null,
+      marketing_campaign: r.marketing_campaign || null,
+      membership_type: r.membership_type || null,
+      synced_at: new Date().toISOString(),
+    }));
+
+    try {
+      await retry(
+        () => supabaseUpsert("client_demographics", batch, "client_id"),
+        `Demographics batch ${Math.floor(i / BATCH_SIZE) + 1}`
+      );
+      synced += batch.length;
+    } catch (e) {
+      errors += batch.length;
+      log(`❌ Demographics batch failed: ${e.message}`);
+    }
+  }
+
+  return { synced, errors, total: result.rows.length };
+}
+
 async function reportSync(summary) {
   try {
     // Log sync result for the intelligence engine to see
@@ -401,12 +533,32 @@ async function main() {
     const enrichResult = await enrichPackages(rds);
     log(`✅ Enrichment: ${enrichResult.updated} packages enriched`);
 
+    // Sync client reviews (from PowerBI views)
+    let reviewResult = { synced: 0, errors: 0, total: 0 };
+    try {
+      reviewResult = await syncReviews(rds);
+      log(`✅ Reviews: ${reviewResult.synced} synced, ${reviewResult.errors} errors`);
+    } catch (e) {
+      log(`⚠️ Reviews sync skipped (table may not exist): ${e.message}`);
+    }
+
+    // Sync client demographics (from PowerBI views)
+    let demoResult = { synced: 0, errors: 0, total: 0 };
+    try {
+      demoResult = await syncDemographics(rds);
+      log(`✅ Demographics: ${demoResult.synced} synced, ${demoResult.errors} errors`);
+    } catch (e) {
+      log(`⚠️ Demographics sync skipped (table may not exist): ${e.message}`);
+    }
+
     const elapsed = Date.now() - startTime;
     const summary = {
       success: sessionResult.errors === 0 && packageResult.errors === 0,
       elapsed_ms: elapsed,
       sessions: sessionResult,
       packages: packageResult,
+      reviews: reviewResult,
+      demographics: demoResult,
       mode: fullSync ? "full" : `${days}d`,
       timestamp: new Date().toISOString(),
     };
@@ -416,6 +568,8 @@ async function main() {
     log(`  Sessions: ${sessionResult.synced}/${sessionResult.total}`);
     log(`  Packages: ${packageResult.synced}/${packageResult.total}`);
     log(`  Enriched: ${enrichResult.updated} packages`);
+    log(`  Reviews: ${reviewResult.synced}/${reviewResult.total}`);
+    log(`  Demographics: ${demoResult.synced}/${demoResult.total}`);
     log("═══════════════════════════════════════");
 
     await reportSync(summary);

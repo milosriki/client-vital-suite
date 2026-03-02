@@ -46,7 +46,7 @@ export const ClientCard = ({ client, onViewDetails }: ClientCardProps) => {
           </div>
           <div className="flex flex-col items-center">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center ${getHealthColor(client.health_zone)} font-bold text-xl shadow-md`}>
-              {client.health_score.toFixed(0)}
+              {(client.health_score ?? 0).toFixed(0)}
             </div>
           </div>
         </div>

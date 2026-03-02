@@ -65,7 +65,7 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
                   <span
                     className={`text-sm font-bold font-mono leading-none ${trueRoas > 2 ? "text-emerald-400" : "text-primary"}`}
                   >
-                    {trueRoas.toFixed(2)}x
+                    {(trueRoas ?? 0).toFixed(2)}x
                   </span>
                 </div>
               </div>
@@ -96,7 +96,7 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
                     CTR
                   </p>
                   <p className="text-sm font-bold font-mono text-emerald-500">
-                    {ad.ctr.toFixed(2)}%
+                    {(ad.ctr ?? 0).toFixed(2)}%
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -107,7 +107,7 @@ export function VisualDNA({ ads, integrityScore = 1.0 }: VisualDNAProps) {
                     className="text-sm font-bold font-mono text-muted-foreground"
                     title="Platform Reported ROAS"
                   >
-                    {platformRoas.toFixed(2)}x
+                    {(platformRoas ?? 0).toFixed(2)}x
                   </p>
                 </div>
                 <div className="space-y-1">

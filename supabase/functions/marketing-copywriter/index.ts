@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -59,32 +60,17 @@ OUTPUT FORMAT:
   "reasoning": "brief explanation of why these will work"
 }`;
 
-interface CopyOutput {
-  headlines: string[];
-  bodies: string[];
-  reasoning: string;
-}
+const CopyOutputSchema = z.object({
+  headlines: z.array(z.string().refine(h => h.split(/\s+/).length <= 30, "Headline exceeds 30-word limit")).length(3),
+  bodies: z.array(z.string().refine(b => b.split(/\s+/).length <= 100, "Body exceeds 100-word limit")).length(3),
+  reasoning: z.string().min(1, "Missing reasoning"),
+});
+
+type CopyOutput = z.infer<typeof CopyOutputSchema>;
 
 function validateCopyOutput(raw: string): CopyOutput {
   const parsed = JSON.parse(raw);
-
-  if (!Array.isArray(parsed.headlines) || parsed.headlines.length !== 3) {
-    throw new Error("Must have exactly 3 headlines");
-  }
-  if (!Array.isArray(parsed.bodies) || parsed.bodies.length !== 3) {
-    throw new Error("Must have exactly 3 body variants");
-  }
-  if (parsed.headlines.some((h: string) => h.split(/\s+/).length > 30)) {
-    throw new Error("Headline exceeds word limit");
-  }
-  if (parsed.bodies.some((b: string) => b.split(/\s+/).length > 100)) {
-    throw new Error("Body exceeds word limit");
-  }
-  if (typeof parsed.reasoning !== "string") {
-    throw new Error("Missing reasoning field");
-  }
-
-  return parsed as CopyOutput;
+  return CopyOutputSchema.parse(parsed);
 }
 
 const handler = async (req: Request): Promise<Response> => {

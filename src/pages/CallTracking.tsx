@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { useCallAttribution } from "@/hooks/useHiddenViews";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -465,6 +466,9 @@ export default function CallTracking() {
             <TabsTrigger value="outcomes" className="gap-2 cursor-pointer">
               <PieChart className="h-4 w-4" /> Outcomes
             </TabsTrigger>
+            <TabsTrigger value="attribution" className="gap-2 cursor-pointer">
+              <TrendingUp className="h-4 w-4" /> Ad Attribution
+            </TabsTrigger>
           </TabsList>
 
           {/* Calls Tab */}
@@ -668,6 +672,11 @@ export default function CallTracking() {
           <TabsContent value="outcomes">
             <OutcomeAnalysis data={outcomeAnalysis} isLoading={loadingIntel} />
           </TabsContent>
+
+          {/* Ad Attribution Tab */}
+          <TabsContent value="attribution">
+            <CallAttributionTab />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -795,6 +804,53 @@ export default function CallTracking() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function CallAttributionTab() {
+  const { data: attributions, isLoading } = useCallAttribution();
+
+  if (isLoading) return <div className="text-center py-8 text-muted-foreground">Loading attribution data...</div>;
+
+  const rows = attributions ?? [];
+  if (rows.length === 0) return <div className="text-center py-8 text-muted-foreground">No call attribution data available yet. Ensure AnyTrack webhook is capturing fbclid parameters.</div>;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Call-to-Ad Attribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-2 font-medium">Caller</th>
+                  <th className="pb-2 font-medium">Campaign</th>
+                  <th className="pb-2 font-medium">Ad Set</th>
+                  <th className="pb-2 font-medium">Call Date</th>
+                  <th className="pb-2 font-medium">Outcome</th>
+                  <th className="pb-2 font-medium">Deal Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 50).map((r: any, i: number) => (
+                  <tr key={i} className="border-b border-muted/30">
+                    <td className="py-2">{r.caller_name || r.caller_number || "Unknown"}</td>
+                    <td className="py-2">{r.campaign_name || "—"}</td>
+                    <td className="py-2">{r.adset_name || "—"}</td>
+                    <td className="py-2">{r.call_date ? new Date(r.call_date).toLocaleDateString() : "—"}</td>
+                    <td className="py-2"><Badge variant={r.outcome === "booked" ? "default" : "secondary"}>{r.outcome || "—"}</Badge></td>
+                    <td className="py-2">{r.deal_value ? `AED ${Number(r.deal_value).toLocaleString()}` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

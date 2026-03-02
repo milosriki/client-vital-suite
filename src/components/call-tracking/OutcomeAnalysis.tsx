@@ -51,7 +51,7 @@ export function OutcomeAnalysis({ data, isLoading }: Props) {
                   key={d.outcome}
                   className={`${COLORS[i % COLORS.length]} cursor-pointer transition-all hover:opacity-80`}
                   style={{ width: `${d.percentage}%` }}
-                  title={`${d.outcome}: ${d.count} (${d.percentage.toFixed(1)}%)`}
+                  title={`${d.outcome}: ${d.count} (${(d.percentage ?? 0).toFixed(1)}%)`}
                 />
               ))}
             </div>
@@ -63,7 +63,7 @@ export function OutcomeAnalysis({ data, isLoading }: Props) {
                   <div className={`w-3 h-3 rounded-full ${COLORS[i % COLORS.length]}`} />
                   <span className="flex-1 font-medium text-sm">{d.outcome || "Unknown"}</span>
                   <span className="text-sm text-muted-foreground">{d.count} calls</span>
-                  <span className="text-sm font-medium w-16 text-right">{d.percentage.toFixed(1)}%</span>
+                  <span className="text-sm font-medium w-16 text-right">{(d.percentage ?? 0).toFixed(1)}%</span>
                   {d.dealsLinked > 0 && (
                     <span className="text-xs bg-green-500/10 text-green-500 rounded-full px-2 py-0.5">
                       {d.dealsLinked} deals

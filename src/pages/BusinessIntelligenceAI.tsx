@@ -176,20 +176,23 @@ function useAIChat(snapshot: ReturnType<typeof useBusinessSnapshot>["data"]) {
     setIsLoading(true);
 
     try {
-      // Build context from snapshot
+      // Build context from snapshot (null-safe: snapshot.kpis/funnel/topCampaigns may be undefined)
+      const k = snapshot?.kpis;
+      const f = snapshot?.funnel;
+      const tc = snapshot?.topCampaigns ?? [];
       const context = snapshot ? `
 LIVE BUSINESS DATA (Last 30 Days):
-- Revenue: AED ${snapshot.kpis.totalRevenue.toLocaleString()}
-- Total Deals: ${snapshot.kpis.totalDeals} (Closed Won: ${snapshot.kpis.closedCount}, Lost: ${snapshot.kpis.lostDeals})
-- Close Rate: ${(snapshot.kpis?.closeRate ?? 0).toFixed(1)}%
-- New Leads: ${snapshot.kpis.newLeads}
-- Total Calls: ${snapshot.kpis.totalCalls} (Missed: ${snapshot.kpis.missedCalls})
-- Ad Spend: AED ${snapshot.kpis.totalAdSpend.toLocaleString()} | CPL: AED ${(snapshot.kpis?.avgCpl ?? 0).toFixed(0)} | ROAS: ${(snapshot.kpis?.roas ?? 0).toFixed(2)}x
-- FB Leads: ${snapshot.kpis.totalFbLeads}
-- Client Health: ${snapshot.kpis.criticalClients} critical, ${snapshot.kpis.warningClients} warning, ${snapshot.kpis.healthyClients} healthy
-- Revenue at Risk: AED ${snapshot.kpis.revenueAtRisk.toLocaleString()}
-- Conversion Funnel: ${snapshot.funnel.leads} leads → ${snapshot.funnel.assessments} assessments → ${snapshot.funnel.proposals} proposals → ${snapshot.funnel.closed} closed / ${snapshot.funnel.lost} lost
-- Top Campaigns: ${snapshot.topCampaigns.map(c => `${c.name}: AED ${(c.spend ?? 0).toFixed(0)} spend, ${c.leads} leads, CPL AED ${(c.cpl ?? 0).toFixed(0)}`).join(" | ")}
+- Revenue: AED ${(k?.totalRevenue ?? 0).toLocaleString()}
+- Total Deals: ${k?.totalDeals ?? 0} (Closed Won: ${k?.closedCount ?? 0}, Lost: ${k?.lostDeals ?? 0})
+- Close Rate: ${(k?.closeRate ?? 0).toFixed(1)}%
+- New Leads: ${k?.newLeads ?? 0}
+- Total Calls: ${k?.totalCalls ?? 0} (Missed: ${k?.missedCalls ?? 0})
+- Ad Spend: AED ${(k?.totalAdSpend ?? 0).toLocaleString()} | CPL: AED ${(k?.avgCpl ?? 0).toFixed(0)} | ROAS: ${(k?.roas ?? 0).toFixed(2)}x
+- FB Leads: ${k?.totalFbLeads ?? 0}
+- Client Health: ${k?.criticalClients ?? 0} critical, ${k?.warningClients ?? 0} warning, ${k?.healthyClients ?? 0} healthy
+- Revenue at Risk: AED ${(k?.revenueAtRisk ?? 0).toLocaleString()}
+- Conversion Funnel: ${f?.leads ?? 0} leads → ${f?.assessments ?? 0} assessments → ${f?.proposals ?? 0} proposals → ${f?.closed ?? 0} closed / ${f?.lost ?? 0} lost
+- Top Campaigns: ${tc.map(c => `${c.name}: AED ${(c.spend ?? 0).toFixed(0)} spend, ${c.leads ?? 0} leads, CPL AED ${(c.cpl ?? 0).toFixed(0)}`).join(" | ")}
 ` : "No data loaded yet.";
 
       // Call smart-ai-advisor first; only fall back to business-intelligence if it fails
@@ -621,7 +624,7 @@ export default function BusinessIntelligenceAI() {
         <div className="grid grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
         </div>
-      ) : snapshot ? (
+      ) : snapshot?.kpis ? (
         <KPIGrid kpis={snapshot.kpis} />
       ) : null}
 
@@ -629,9 +632,9 @@ export default function BusinessIntelligenceAI() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Funnel + Health + Campaigns */}
         <div className="lg:col-span-1 space-y-4">
-          {snapshot && <ConversionFunnel funnel={snapshot.funnel} />}
-          {snapshot && <HealthDistribution breakdown={snapshot.healthBreakdown} />}
-          {snapshot && <TopCampaigns campaigns={snapshot.topCampaigns} />}
+          {snapshot?.funnel && <ConversionFunnel funnel={snapshot.funnel} />}
+          {snapshot?.healthBreakdown && <HealthDistribution breakdown={snapshot.healthBreakdown} />}
+          {snapshot?.topCampaigns && <TopCampaigns campaigns={snapshot.topCampaigns} />}
         </div>
 
         {/* Right: AI Chat */}

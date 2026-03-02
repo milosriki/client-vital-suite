@@ -2768,3 +2768,12 @@ No WIRING_ANALYSIS.md.
 - **Backend:** Supabase (Postgres, Edge Functions)
 - **AI:** Gemini (unified-ai-client.ts)
 - **Deploy:** Vercel (frontend), Supabase (functions + DB)
+
+---
+
+## Supabase Edge Function Best Practices (Context7-Verified)
+
+- **Error response:** `return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } })`
+- **Success response:** `return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } })`
+- **Client-side:** Check `error instanceof FunctionsHttpError`; use `error.context.json()` for error message
+- **Validation:** Use Zod `safeParse` for request/response; on failure return 400 with `error.issues`

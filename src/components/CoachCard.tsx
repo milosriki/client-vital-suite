@@ -72,7 +72,7 @@ export const CoachCard = ({ coach, onViewClients }: CoachCardProps) => {
         <div className="mb-4">
           <p className="text-sm text-muted-foreground mb-1">Average Health Score</p>
           <p className={`text-3xl font-bold ${getScoreColor(avgHealth)}`}>
-            {avgHealth.toFixed(1)}
+            {(avgHealth ?? 0).toFixed(1)}
           </p>
         </div>
 

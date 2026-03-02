@@ -93,13 +93,8 @@ export async function quickTest(functionName: string = 'health-calculator') {
   return result;
 }
 
-// Make available in browser console
-if (typeof window !== 'undefined') {
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as any).testFunction = testFunction;
   (window as any).testAllFunctions = testAllFunctions;
   (window as any).quickTest = quickTest;
-  
-  
-  
-  
 }

@@ -5,6 +5,12 @@
     },
     "vercel": {
       "enabled": true
+    },
+    "supabase": {
+      "enabled": true
+    },
+    "continual-learning": {
+      "enabled": true
     }
   }
 }

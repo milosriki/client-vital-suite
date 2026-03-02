@@ -112,7 +112,7 @@ const CreativeCard = ({ creative }: { creative: Creative }) => {
                 : "bg-yellow-500/20 border-yellow-500 text-yellow-400",
           )}
         >
-          {creative.roas.toFixed(2)}x ROAS
+          {(creative.roas ?? 0).toFixed(2)}x ROAS
         </div>
 
         {/* Action Badge (top left) */}
@@ -161,7 +161,7 @@ const CreativeCard = ({ creative }: { creative: Creative }) => {
             <div>
               <div className="uppercase tracking-wider text-[10px] text-slate-500">CTR</div>
               <div className={cn("font-mono", creative.ctr_pct > 1.5 ? "text-emerald-400" : creative.ctr_pct < 0.5 ? "text-red-400" : "text-slate-200")}>
-                {creative.ctr_pct.toFixed(2)}%
+                {(creative.ctr_pct ?? 0).toFixed(2)}%
               </div>
             </div>
           )}
@@ -169,7 +169,7 @@ const CreativeCard = ({ creative }: { creative: Creative }) => {
             <div>
               <div className="uppercase tracking-wider text-[10px] text-slate-500">Frequency</div>
               <div className={cn("font-mono", creative.frequency >= 5 ? "text-red-400" : creative.frequency >= 3.5 ? "text-amber-400" : "text-slate-200")}>
-                {creative.frequency.toFixed(1)}
+                {(creative.frequency ?? 0).toFixed(1)}
               </div>
             </div>
           )}
