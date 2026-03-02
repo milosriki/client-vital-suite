@@ -100,7 +100,7 @@ function DropOffConnector({
                 : "text-red-400"
           )}
         >
-          {stage.conversionToNext.toFixed(1)}% converted
+          {(stage.conversionToNext ?? 0).toFixed(1)}% converted
         </span>
       </div>
 
@@ -108,7 +108,7 @@ function DropOffConnector({
       <div className="flex items-center gap-1.5">
         <ArrowDown className="w-3.5 h-3.5 text-red-400/70" />
         <span className="text-xs font-mono text-red-400/80">
-          {stage.dropOff.toFixed(1)}% lost
+          {(stage.dropOff ?? 0).toFixed(1)}% lost
         </span>
       </div>
     </div>
@@ -200,7 +200,7 @@ export function CohortWaterfall({ data, isLoading }: CohortWaterfallProps) {
                   : "text-red-400"
             )}
           >
-            {data.overallConversion.toFixed(1)}%
+            {(data.overallConversion ?? 0).toFixed(1)}%
           </span>
         </div>
 
@@ -211,9 +211,9 @@ export function CohortWaterfall({ data, isLoading }: CohortWaterfallProps) {
             <div className="text-xs text-red-300">
               <span className="font-bold">Biggest drop-off:</span>{" "}
               {data.bottleneckStage} stage has the lowest conversion rate at{" "}
-              {data.stages
+              {(data.stages
                 .find((s) => s.name === data.bottleneckStage)
-                ?.conversionToNext.toFixed(1)}
+                ?.conversionToNext ?? 0).toFixed(1)}
               %. Focus optimization efforts here for maximum funnel impact.
             </div>
           </div>

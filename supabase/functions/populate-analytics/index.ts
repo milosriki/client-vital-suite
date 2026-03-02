@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
+import { computeROAS, computeCPL, computeCPO } from "../_shared/metrics-calculator.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
@@ -162,7 +163,7 @@ serve(async (req) => {
 
         let bestWeek = "", bestRoas = 0, worstWeek = "", worstRoas = 999;
         for (const [wk, { spend, rev }] of weeklyRoas) {
-          const r = spend > 0 ? rev / spend : 0;
+          const r = computeROAS(rev, spend) ?? 0;
           if (r > bestRoas) { bestRoas = r; bestWeek = wk; }
           if (r < worstRoas && spend > 100) { worstRoas = r; worstWeek = wk; }
         }
@@ -171,9 +172,9 @@ serve(async (req) => {
           dimension_type: "overall",
           dimension_value: `${days}d`,
           period_days: days,
-          avg_roas: totalSpend > 0 ? Math.round(totalRevenue / totalSpend * 100) / 100 : 0,
-          avg_cpl: totalLeads > 0 ? Math.round(totalSpend / totalLeads * 100) / 100 : 0,
-          avg_cpa: totalWon > 0 ? Math.round(totalSpend / totalWon * 100) / 100 : 0,
+          avg_roas: computeROAS(totalRevenue, totalSpend) ?? 0,
+          avg_cpl: computeCPL(totalSpend, totalLeads) ?? 0,
+          avg_cpa: computeCPO(totalSpend, totalWon) ?? 0,
           avg_ghost_rate: 0,
           avg_close_rate: totalLeads > 0 ? Math.round(totalWon / totalLeads * 1000) / 10 : 0,
           total_spend: Math.round(totalSpend * 100) / 100,
@@ -208,8 +209,8 @@ serve(async (req) => {
             dimension_type: "campaign",
             dimension_value: name,
             period_days: days,
-            avg_roas: spend > 0 ? Math.round(totalRevenue * (leads / (totalLeads || 1)) / spend * 100) / 100 : 0,
-            avg_cpl: leads > 0 ? Math.round(spend / leads * 100) / 100 : 0,
+            avg_roas: computeROAS(totalRevenue * (leads / (totalLeads || 1)), spend) ?? 0,
+            avg_cpl: computeCPL(spend, leads) ?? 0,
             avg_cpa: 0,
             avg_ghost_rate: 0,
             avg_close_rate: 0,

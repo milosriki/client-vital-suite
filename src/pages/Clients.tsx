@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ClientCard } from "@/components/ClientCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { SourceBadge } from "@/components/dashboard/SourceBadge";
 
 const Clients = () => {
   const [searchParams] = useSearchParams();
@@ -22,7 +23,7 @@ const Clients = () => {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  const { data: clientsData, isLoading, error, refetch } = useClientHealthScores({
+  const { data: clientsData, isLoading, error, refetch, dataUpdatedAt: clientsDataUpdatedAt } = useClientHealthScores({
     healthZone: healthZoneFilter,
     segment: segmentFilter,
     coach: coachFilter,
@@ -67,8 +68,9 @@ const Clients = () => {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Client Directory</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground flex items-center gap-2">
             Manage and monitor client health scores and engagement.
+            <SourceBadge source="AWS-derived" freshness={clientsDataUpdatedAt} staleThresholdMs={24 * 60 * 60 * 1000} />
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -23,7 +23,7 @@ function DeltaBadge({ delta }: { delta: number }) {
     return (
       <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/20 text-slate-400">
         <Minus className="w-2.5 h-2.5" />
-        {Math.abs(delta).toFixed(0)}%
+        {(Math.abs(delta ?? 0)).toFixed(0)}%
       </div>
     );
   }
@@ -43,7 +43,7 @@ function DeltaBadge({ delta }: { delta: number }) {
       ) : (
         <TrendingDown className="w-2.5 h-2.5" />
       )}
-      {Math.abs(delta).toFixed(0)}%
+      {(Math.abs(delta ?? 0)).toFixed(0)}%
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { QUERY_KEYS } from "@/config/queryKeys";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
+import { computeCAC } from "@/lib/metrics-calculator";
 
 /**
  * Executive Overview Data Hook
@@ -232,7 +233,7 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       // CAC calculation (ad spend / leads)
       const totalAdSpend = adInsights.reduce((sum, ad) => sum + (Number(ad.spend) || 0), 0);
       const totalLeads = leads.length;
-      const cac = totalLeads > 0 ? totalAdSpend / totalLeads : 0;
+      const cac = computeCAC(totalAdSpend, totalLeads) ?? 0;
 
       // Churn calculation (based on at-risk clients)
       const atRiskCount = healthScores.filter(h => h.health_zone === "red" || h.churn_risk_score > 0.7).length;

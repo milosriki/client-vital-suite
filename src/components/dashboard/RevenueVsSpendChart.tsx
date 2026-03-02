@@ -16,6 +16,7 @@ import {
 import { TrendingUp, TrendingDown, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, subDays, eachDayOfInterval } from "date-fns";
+import { computeROAS } from "@/lib/metrics-calculator";
 
 export function RevenueVsSpendChart() {
   const { data: metrics, isLoading } = useDedupedQuery({
@@ -62,7 +63,7 @@ export function RevenueVsSpendChart() {
   const totals = useMemo(() => {
     const totalRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0);
     const totalSpend = chartData.reduce((sum, d) => sum + Number(d.spend), 0);
-    const roas = totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(1) : "0.0";
+    const roas = (computeROAS(totalRevenue, totalSpend) ?? 0).toFixed(1);
     
     return {
       revenue: totalRevenue,

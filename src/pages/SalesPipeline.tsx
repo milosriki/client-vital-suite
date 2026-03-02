@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { DollarSign } from "lucide-react";
 import { ActionIntercept } from "@/components/ui/action-intercept";
 import { SalesPipelineGhost } from "@/components/sales-pipeline/SalesPipelineGhost";
+import { SourceBadge } from "@/components/dashboard/SourceBadge";
 
 export default function SalesPipeline() {
   const queryClient = useQueryClient();
@@ -257,7 +258,7 @@ export default function SalesPipeline() {
   });
 
   // Fetch deals data
-  const { data: dealsData, isLoading: dealsLoading } = useDedupedQuery({
+  const { data: dealsData, isLoading: dealsLoading, dataUpdatedAt: dealsDataUpdatedAt } = useDedupedQuery({
     queryKey: ["deals-summary", daysFilter],
     queryFn: async () => {
       const dateFilter = getDateFilter();
@@ -392,8 +393,9 @@ export default function SalesPipeline() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Sales Pipeline</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground flex items-center gap-2">
             Dynamic Funnel: Track leads from Ad click to Closed Won
+            <SourceBadge source="HubSpot" freshness={dealsDataUpdatedAt} staleThresholdMs={15 * 60 * 1000} />
           </p>
         </div>
 

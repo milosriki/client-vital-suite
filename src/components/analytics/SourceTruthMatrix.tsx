@@ -108,7 +108,7 @@ function GapCell({ gap }: { gap: number }) {
       )}
     >
       {gap > 0 ? "+" : ""}
-      {gap.toFixed(1)}%
+      {(gap ?? 0).toFixed(1)}%
     </div>
   );
 }
@@ -202,11 +202,11 @@ export function SourceTruthMatrix({ data }: SourceTruthMatrixProps) {
           <TableRow className="hover:bg-white/5">
             <TableCell className="text-slate-300 text-xs font-bold uppercase tracking-wider">Avg</TableCell>
             <TableCell className="text-slate-300 text-xs">—</TableCell>
-            <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{avgFb.toFixed(0)}</TableCell>
-            <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{avgAnytrack.toFixed(0)}</TableCell>
-            <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{avgHubspot.toFixed(0)}</TableCell>
+            <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{(avgFb ?? 0).toFixed(0)}</TableCell>
+            <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{(avgAnytrack ?? 0).toFixed(0)}</TableCell>
+            <TableCell className="text-slate-200 text-xs font-mono font-bold text-right">{(avgHubspot ?? 0).toFixed(0)}</TableCell>
             <TableCell className="text-center">
-              <GapCell gap={avgGap} />
+              <GapCell gap={avgGap ?? 0} />
             </TableCell>
             <TableCell className="text-center">
               <VerdictCell verdict={overallVerdict} />

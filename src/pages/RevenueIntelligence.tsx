@@ -36,13 +36,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { chartTheme } from "@/components/dashboard/cards/ChartCard";
+import { SourceBadge } from "@/components/dashboard/SourceBadge";
 
 export default function RevenueIntelligence() {
   const [dateRange, setDateRange] = useState("this_month");
   const [activeTab, setActiveTab] = useState("stripe");
 
   // Fetch real Stripe data
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, refetch, isRefetching, dataUpdatedAt: stripeDataUpdatedAt } = useQuery({
     queryKey: ["stripe-dashboard-data", dateRange],
     queryFn: async () => {
       const now = new Date();
@@ -296,6 +297,7 @@ export default function RevenueIntelligence() {
       <DashboardHeader
         title="Revenue Intelligence"
         description="Comprehensive revenue analytics from Stripe, HubSpot, and sales pipeline"
+        badge={<SourceBadge source="Stripe + HubSpot" freshness={stripeDataUpdatedAt} staleThresholdMs={24 * 60 * 60 * 1000} />}
         actions={
           <>
             <Button

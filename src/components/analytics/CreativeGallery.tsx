@@ -154,7 +154,7 @@ const CreativeCard = ({ creative }: { creative: Creative }) => {
           {creative.cpa_aed !== undefined && creative.cpa_aed > 0 && (
             <div>
               <div className="uppercase tracking-wider text-[10px] text-slate-500">CPA</div>
-              <div className="text-slate-200 font-mono">AED {creative.cpa_aed.toFixed(0)}</div>
+              <div className="text-slate-200 font-mono">AED {(creative.cpa_aed ?? 0).toFixed(0)}</div>
             </div>
           )}
           {creative.ctr_pct !== undefined && (

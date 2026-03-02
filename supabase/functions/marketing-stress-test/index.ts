@@ -14,6 +14,7 @@ import {
   ErrorCode,
   corsHeaders,
 } from "../_shared/error-handler.ts";
+import { computeCPL, computeROAS, computeCPO } from "../_shared/metrics-calculator.ts";
 
 interface StressTestResult {
   question: string;
@@ -168,7 +169,7 @@ serve(async (req) => {
           qualified: 0,
         };
         const costPerQualified =
-          leads.qualified > 0 ? cp.spend / leads.qualified : null;
+          computeCPL(cp.spend, leads.qualified);
         return {
           campaign: cp.campaign_name,
           total_spend: cp.spend,
@@ -472,12 +473,12 @@ serve(async (req) => {
 
     const q5Results = Object.entries(campaignMetrics)
       .map(([campaign, metrics]) => {
-        const cpl = metrics.leads > 0 ? metrics.spend / metrics.leads : 0;
+        const cpl = computeCPL(metrics.spend, metrics.leads) ?? 0;
         const qualificationRate =
           metrics.leads > 0 ? (metrics.qualified / metrics.leads) * 100 : 0;
         const closeRate =
           metrics.leads > 0 ? (metrics.closed / metrics.leads) * 100 : 0;
-        const roas = metrics.spend > 0 ? metrics.revenue / metrics.spend : 0;
+        const roas = computeROAS(metrics.revenue, metrics.spend) ?? 0;
         return {
           campaign,
           cost_per_lead: cpl,

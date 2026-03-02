@@ -185,13 +185,13 @@ function SegmentTable({
                   />
                   <div className="absolute inset-0 flex items-center px-2">
                     <span className="text-[10px] text-white/90 font-medium drop-shadow">
-                      {item.spend.toLocaleString()} AED ({pct.toFixed(0)}%)
+                      {(item.spend ?? 0).toLocaleString()} AED ({(pct ?? 0).toFixed(0)}%)
                     </span>
                   </div>
                 </div>
                 <div className="w-16 text-right text-xs text-zinc-400 shrink-0">{item.conversions} conv</div>
                 <div className={`w-20 text-right text-xs font-medium shrink-0 ${metricColor('cpa', item.cpa)}`}>
-                  {item.conversions > 0 ? `${item.cpa.toFixed(0)} AED` : '—'}
+                  {item.conversions > 0 ? `${(item.cpa ?? 0).toFixed(0)} AED` : '—'}
                 </div>
               </div>
             </div>
@@ -240,10 +240,10 @@ function SegmentTable({
               <TableRow key={item.segment} className="hover:bg-muted/30 transition-colors duration-200">
                 <TableCell className="text-xs text-zinc-200 font-medium">{item.segment}</TableCell>
                 <TableCell className="text-xs text-zinc-300">{item.spend.toLocaleString()}</TableCell>
-                <TableCell className="text-xs text-zinc-400">{totalSpend > 0 ? ((item.spend / totalSpend) * 100).toFixed(1) : 0}%</TableCell>
+                <TableCell className="text-xs text-zinc-400">{totalSpend > 0 ? (((item.spend ?? 0) / totalSpend) * 100).toFixed(1) : 0}%</TableCell>
                 <TableCell className="text-xs text-zinc-300 font-medium">{item.conversions}</TableCell>
                 <TableCell className={`text-xs font-medium ${metricColor('cpa', item.cpa)}`}>
-                  {item.conversions > 0 ? item.cpa.toFixed(0) : '—'}
+                  {item.conversions > 0 ? (item.cpa ?? 0).toFixed(0) : '—'}
                 </TableCell>
               </TableRow>
             ))}

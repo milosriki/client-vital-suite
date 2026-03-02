@@ -54,6 +54,7 @@ import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useDailyOps } from "@/hooks/useDailyOps";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SourceBadge } from "@/components/dashboard/SourceBadge";
 
 type Period = "7" | "30" | "90";
 
@@ -63,7 +64,7 @@ export default function CommandCenter() {
   const [journeySearch, setJourneySearch] = useState("");
   const { data: dailyOps, isLoading: loadingDailyOps } = useDailyOps();
   // ── Single batch RPC replaces ~12 individual queries ──
-  const { data: ccData, isLoading: loadingAll } = useDedupedQuery({
+  const { data: ccData, isLoading: loadingAll, dataUpdatedAt: ccDataUpdatedAt } = useDedupedQuery({
     queryKey: ["cc-batch", period],
     queryFn: async () => {
       const { data, error } = await supabase.rpc(
@@ -204,8 +205,9 @@ export default function CommandCenter() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Command Center</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground flex items-center gap-2">
             Full-chain visibility: Ad Spend → Lead → Call → Book → Close
+            <SourceBadge source="Supabase Aggregated" freshness={ccDataUpdatedAt} staleThresholdMs={6 * 60 * 60 * 1000} />
           </p>
         </div>
         <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>

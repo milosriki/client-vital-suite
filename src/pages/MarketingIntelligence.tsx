@@ -69,6 +69,8 @@ import { CohortWaterfall } from "@/components/analytics/CohortWaterfall";
 import { useDailyOptimization } from "@/hooks/useDailyOptimization";
 import { useCohortProgression } from "@/hooks/useCohortProgression";
 import { StressTestDashboard } from "@/components/marketing/StressTestDashboard";
+import { SourceBadge } from "@/components/dashboard/SourceBadge";
+import { computeROAS, computeCPL } from "@/lib/metrics-calculator";
 
 const toFixedSafe = (value: unknown, digits = 2): string => {
   const n = Number(value);
@@ -1217,11 +1219,11 @@ function CreativeDNATab() {
 
     // Frequency comes from marketing_recommendations.metrics (stored by ad-creative-analyst)
     const frequency = Number(meta.frequency) || 0;
-    const cpa = leads > 0 ? spend / leads : 0;
+    const cpa = computeCPL(spend, leads) ?? 0;
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
     // Use view's true_roas or compute
     const viewRoas = Number(row.true_roas || row.roas) || 0;
-    const roas = viewRoas || (spend > 0 && revenue > 0 ? revenue / spend : 0);
+    const roas = viewRoas || (computeROAS(revenue, spend) ?? 0);
 
     let fatigueStatus: Creative["fatigue_status"] = "OK";
     if (frequency >= 5.0) fatigueStatus = "CRITICAL";
@@ -1459,7 +1461,7 @@ export default function MarketingIntelligence() {
   const [range, setRange] = useState<"today" | "week" | "month">("month");
   const { data: deltas } = usePeriodComparison();
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching, dataUpdatedAt: marketingDataUpdatedAt } = useQuery({
     queryKey: ["marketing-intelligence", range],
     queryFn: async () => {
       const response = await supabase.functions.invoke(
@@ -1494,8 +1496,9 @@ export default function MarketingIntelligence() {
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
             Marketing Command Center
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 flex items-center gap-2">
             Real-time intelligence across Stripe, HubSpot, and Meta Ads.
+            <SourceBadge source="Meta + HubSpot" freshness={marketingDataUpdatedAt} staleThresholdMs={6 * 60 * 60 * 1000} />
           </p>
         </div>
 

@@ -6,6 +6,7 @@ import { withTracing, structuredLog } from "../_shared/observability.ts";
 import { apiSuccess, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
+import { computeROAS, computeCPL, computeCPO } from "../_shared/metrics-calculator.ts";
 
 /**
  * True ROAS Calculator 💰
@@ -312,9 +313,9 @@ const handler = async (req: Request): Promise<Response> => {
         ? computeRevenue(contactEntry.contact_ids)
         : { revenue: 0, deals: 0 };
 
-      const roas = spend.spend > 0 && revenue > 0 ? revenue / spend.spend : 0;
-      const cpl = spend.fb_leads > 0 ? spend.spend / spend.fb_leads : spend.spend;
-      const cpo = deals > 0 ? spend.spend / deals : 0;
+      const roas = computeROAS(revenue, spend.spend) ?? 0;
+      const cpl = computeCPL(spend.spend, spend.fb_leads) ?? 0;
+      const cpo = computeCPO(spend.spend, deals) ?? 0;
       const frequency = spend.freq_count > 0 ? spend.freq_sum / spend.freq_count : 0;
 
       const { action, reason } = classifyAction(roas, frequency);
@@ -346,8 +347,8 @@ const handler = async (req: Request): Promise<Response> => {
         ? computeRevenue(contactEntry.contact_ids)
         : { revenue: 0, deals: 0 };
 
-      const roas = spend.spend > 0 && revenue > 0 ? revenue / spend.spend : 0;
-      const cpl = spend.fb_leads > 0 ? spend.spend / spend.fb_leads : spend.spend;
+      const roas = computeROAS(revenue, spend.spend) ?? 0;
+      const cpl = computeCPL(spend.spend, spend.fb_leads) ?? 0;
       const frequency = spend.freq_count > 0 ? spend.freq_sum / spend.freq_count : 0;
 
       const { action } = classifyAction(roas, frequency);
@@ -379,8 +380,8 @@ const handler = async (req: Request): Promise<Response> => {
         ? computeRevenue(contactEntry.contact_ids)
         : { revenue: 0, deals: 0 };
 
-      const roas = spend.spend > 0 && revenue > 0 ? revenue / spend.spend : 0;
-      const cpl = spend.fb_leads > 0 ? spend.spend / spend.fb_leads : spend.spend;
+      const roas = computeROAS(revenue, spend.spend) ?? 0;
+      const cpl = computeCPL(spend.spend, spend.fb_leads) ?? 0;
       const ctrPct = spend.impressions > 0 ? (spend.clicks / spend.impressions) * 100 : 0;
       const frequency = spend.freq_count > 0 ? spend.freq_sum / spend.freq_count : 0;
 
@@ -413,11 +414,11 @@ const handler = async (req: Request): Promise<Response> => {
     // ── Step 10: Top-level summary ───────────────────────────────────────────
     const totalSpend = campaignRoas.reduce((s, c) => s + c.spend_aed, 0);
     const totalRevenue = campaignRoas.reduce((s, c) => s + c.revenue_aed, 0);
-    const trueRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+    const trueRoas = computeROAS(totalRevenue, totalSpend) ?? 0;
     const totalLeads = campaignRoas.reduce((s, c) => s + c.leads, 0);
-    const globalCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
     const totalDeals = campaignRoas.reduce((s, c) => s + c.deals_count, 0);
-    const globalCpo = totalDeals > 0 ? totalSpend / totalDeals : 0;
+    const globalCpl = computeCPL(totalSpend, totalLeads) ?? 0;
+    const globalCpo = computeCPO(totalSpend, totalDeals) ?? 0;
 
     const killCampaigns = campaignRoas.filter((c) => c.action === "KILL");
     const scaleCampaigns = campaignRoas.filter((c) => c.action === "SCALE");

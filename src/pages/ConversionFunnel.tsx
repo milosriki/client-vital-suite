@@ -276,7 +276,7 @@ function FunnelBar({
         <div className="flex items-center gap-2">
           <ArrowDown className="h-4 w-4 text-zinc-500" />
           <span className={`text-xs font-medium ${conversionColor(conversionRate)}`}>
-            {conversionRate.toFixed(1)}%
+            {(conversionRate ?? 0).toFixed(1)}%
           </span>
         </div>
       )}
