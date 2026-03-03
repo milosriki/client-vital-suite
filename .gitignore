@@ -75,3 +75,5 @@ telegram_tokens*.yaml
 .env.stripe
 .env.stripe-check
 supabase/functions/deno.lock
+.agent/skills/
+docs/
