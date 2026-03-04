@@ -19,9 +19,9 @@
 
 import { readFileSync, writeFileSync } from 'fs';
 
-const ACCESS_TOKEN  = 'REDACTED_ROTATE_THIS_KEY';
-const ADVERTISER_ID = '7103482684956999682';
-const HUBSPOT_KEY   = 'REDACTED_ROTATE_THIS_KEY';
+const ACCESS_TOKEN  = process.env.TIKTOK_ACCESS_TOKEN || '';
+const ADVERTISER_ID = process.env.TIKTOK_ADVERTISER_ID || '7103482684956999682';
+const HUBSPOT_KEY   = process.env.HUBSPOT_API_KEY || '';
 
 // Persist processed lead IDs so we don't re-process on every run
 const SEEN_FILE = '/tmp/tiktok_seen_leads.json';
