@@ -212,7 +212,7 @@ export default function SalesPipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("client_payment_history")
-        .select("id, email, payment_date, amount, currency, payment_method, status, package_name, created_at");
+        .select("id, email, first_purchase_date, total_lifetime_value, failed_payment_count, last_three_packages, updated_at");
       if (error) throw error;
       return data || [];
     },
