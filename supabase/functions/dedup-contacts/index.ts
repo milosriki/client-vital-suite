@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 /**
  * Contact Deduplication Engine
@@ -18,12 +19,10 @@ import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.
 serve(async (req) => {
   if (req.method === "OPTIONS") return apiCorsPreFlight();
 
+  // Security: Verify authentication
+  verifyAuth(req);
+
   try {
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
-    if (!token || token.split(".").length !== 3) {
-      return apiError("UNAUTHORIZED", "Missing authentication", 401);
-    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

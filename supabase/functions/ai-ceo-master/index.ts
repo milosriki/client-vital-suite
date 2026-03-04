@@ -6,7 +6,6 @@ import {
 // supabase/functions/ai-ceo-master/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { RunTree } from "https://esm.sh/langsmith";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import {
   apiSuccess,
@@ -190,29 +189,16 @@ CEO Calibration: ${calibration?.length || 0} examples loaded.
 
     // 3. Generate Response
     let response;
-    const parentRun = new RunTree({
-      name: "ai_ceo_master",
-      run_type: "chain",
-      inputs: { command, persona: persona.name },
-      project_name: Deno.env.get("LANGCHAIN_PROJECT") || "ptd-fitness-agent",
-    });
-    await parentRun.postRun();
-
     try {
       // Always use Gemini - no Claude dependency
       response = await generateWithGemini(
         command,
         businessContext,
         persona,
-        parentRun,
         isCodeRequest,
         supabase,
       );
-      await parentRun.end({ outputs: { response } });
-      await parentRun.patchRun();
     } catch (error: unknown) {
-      await parentRun.end({ error: error.message });
-      await parentRun.patchRun();
       throw error;
     }
 

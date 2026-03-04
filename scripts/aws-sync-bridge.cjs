@@ -83,6 +83,11 @@ async function supabaseInsert(table, rows) {
   return res;
 }
 
+// Alias for backward compatibility
+async function supabasePost(table, rows) {
+  return supabaseInsert(table, rows);
+}
+
 async function supabaseDelete(table, filter) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
     method: "DELETE",

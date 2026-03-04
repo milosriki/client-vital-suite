@@ -2,7 +2,7 @@
 export default {
   preset: "ts-jest",
   testEnvironment: "jsdom",
-  roots: ["<rootDir>/tests", "<rootDir>/supabase/functions"],
+  roots: ["<rootDir>/tests"],
   testMatch: ["**/*.test.ts", "**/*.test.tsx"],
   testPathIgnorePatterns: [
     "<rootDir>/supabase/functions/_shared/",

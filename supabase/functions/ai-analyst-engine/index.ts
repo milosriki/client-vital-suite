@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 /**
  * AI ANALYST ENGINE v1.0
@@ -94,6 +95,9 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Security: Verify authentication
+  verifyAuth(req);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

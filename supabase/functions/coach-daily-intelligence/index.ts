@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 /**
  * Coach Daily Intelligence v2.0
@@ -15,6 +16,9 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Security: Verify authentication
+  verifyAuth(req);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
