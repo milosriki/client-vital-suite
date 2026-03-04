@@ -57,7 +57,7 @@ interface Contact {
   latest_source_data_2: string | null;
   created_at: string | null;
   city: string | null;
-  state: string | null;
+  ip_state: string | null;
 }
 
 interface EnhancedLead {

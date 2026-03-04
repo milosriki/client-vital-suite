@@ -3,6 +3,12 @@ import { QUERY_KEYS } from "@/config/queryKeys";
 import { useDedupedQuery } from "@/hooks/useDedupedQuery";
 import { computeCAC } from "@/lib/metrics-calculator";
 
+// Safe toFixed helper - returns "—" for null/undefined/non-finite values
+const toFixedSafe = (value: unknown, digits = 2): string => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : "—";
+};
+
 /**
  * Executive Overview Data Hook
  *
@@ -46,6 +52,11 @@ export function useExecutiveData(filters: ExecutiveFilters) {
   const dateFilter = getDateFilter(filters.dateRange);
   const dateFilterISO = dateFilter.toISOString();
 
+  // Calculate previous period dates (same duration, shifted back)
+  const periodDuration = Date.now() - dateFilter.getTime();
+  const previousPeriodStart = new Date(dateFilter.getTime() - periodDuration);
+  const previousPeriodStartISO = previousPeriodStart.toISOString();
+
   return useDedupedQuery({
     queryKey: QUERY_KEYS.dashboard.batch({ executive: true, ...filters }),
     dedupeIntervalMs: 1000,
@@ -63,6 +74,13 @@ export function useExecutiveData(filters: ExecutiveFilters) {
         recentActivityResult,
         topPerformersResult,
         staleLeadsResult,
+        // Previous period queries for delta calculation
+        prevRevenueResult,
+        prevDealsResult,
+        prevCallsResult,
+        prevHealthResult,
+        prevAdSpendResult,
+        prevLeadsResult,
       ] = await Promise.all([
         // Query 1: Monthly Revenue (closed won deals in period)
         supabase
@@ -140,6 +158,55 @@ export function useExecutiveData(filters: ExecutiveFilters) {
           .in("lifecycle_stage", ["lead", "subscriber", "marketingqualifiedlead", "salesqualifiedlead"])
           .order("created_at", { ascending: false })
           .limit(50),
+
+        // Previous period queries for delta calculations
+        // Query 12: Previous period revenue
+        supabase
+          .from("deals")
+          .select("deal_value, amount, close_date, created_at, stage_label")
+          .eq("stage", "closedwon")
+          .gte("close_date", previousPeriodStartISO)
+          .lt("close_date", dateFilterISO)
+          .order("close_date", { ascending: false }),
+
+        // Query 13: Previous period deals
+        supabase
+          .from("deals")
+          .select("id, deal_value, amount, stage, stage_label, status, created_at, close_date")
+          .gte("created_at", previousPeriodStartISO)
+          .lt("created_at", dateFilterISO)
+          .order("created_at", { ascending: false }),
+
+        // Query 14: Previous period calls
+        supabase
+          .from("call_records")
+          .select("id, duration_seconds, call_outcome, appointment_set, started_at, created_at")
+          .gte("created_at", previousPeriodStartISO)
+          .lt("created_at", dateFilterISO)
+          .order("created_at", { ascending: false }),
+
+        // Query 15: Previous period health scores
+        supabase
+          .from("client_health_daily")
+          .select("id, health_score, health_zone, churn_risk_score, calculated_on")
+          .order("calculated_on", { ascending: false })
+          .limit(200),
+
+        // Query 16: Previous period ad spend
+        supabase
+          .from("facebook_ads_insights")
+          .select("spend, clicks, leads, conversions, date, campaign_name")
+          .gte("date", previousPeriodStartISO.split('T')[0])
+          .lt("date", dateFilterISO.split('T')[0])
+          .order("date", { ascending: false }),
+
+        // Query 17: Previous period leads
+        supabase
+          .from("contacts")
+          .select("id, email, created_at, lifecycle_stage, attributed_campaign_id")
+          .gte("created_at", previousPeriodStartISO)
+          .lt("created_at", dateFilterISO)
+          .order("created_at", { ascending: false }),
       ]);
 
       // Handle errors (throw critical ones, warn on optional)
@@ -154,6 +221,13 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       if (recentActivityResult.error) console.warn("Recent activity error:", recentActivityResult.error);
       if (topPerformersResult.error) console.warn("Top performers error:", topPerformersResult.error);
       if (staleLeadsResult.error) console.warn("Stale leads error:", staleLeadsResult.error);
+      // Previous period errors
+      if (prevRevenueResult.error) console.warn("Previous revenue query error:", prevRevenueResult.error);
+      if (prevDealsResult.error) console.warn("Previous deals query error:", prevDealsResult.error);
+      if (prevCallsResult.error) console.warn("Previous calls query error:", prevCallsResult.error);
+      if (prevHealthResult.error) console.warn("Previous health query error:", prevHealthResult.error);
+      if (prevAdSpendResult.error) console.warn("Previous ad spend query error:", prevAdSpendResult.error);
+      if (prevLeadsResult.error) console.warn("Previous leads query error:", prevLeadsResult.error);
 
       // Calculate aggregated metrics
       const deals = dealsResult.data || [];
@@ -167,6 +241,14 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       const recentActivities = recentActivityResult.data || [];
       const todayCalls = topPerformersResult.data || [];
       const staleLeadsRaw = staleLeadsResult.data || [];
+
+      // Previous period data
+      const prevClosedDeals = prevRevenueResult.data || [];
+      const prevDeals = prevDealsResult.data || [];
+      const prevCalls = prevCallsResult.data || [];
+      const prevHealthScores = prevHealthResult.data || [];
+      const prevAdInsights = prevAdSpendResult.data || [];
+      const prevLeads = prevLeadsResult.data || [];
 
       // Top performers: aggregate calls by owner
       const performerMap = new Map<string, { calls: number; booked: number }>();
@@ -224,6 +306,31 @@ export function useExecutiveData(filters: ExecutiveFilters) {
       const avgHealthScore = healthScores.length > 0
         ? Math.round(healthScores.reduce((sum, h) => sum + (h.health_score || 0), 0) / healthScores.length)
         : 0;
+
+      // Calculate previous period metrics for delta calculations
+      const prevTotalRevenue = prevClosedDeals.reduce((sum, deal) => sum + (deal.deal_value || Number(deal.amount) || 0), 0);
+      const prevTotalDeals = prevDeals.length;
+      const prevTotalCalls = prevCalls.length;
+      const prevAvgHealthScore = prevHealthScores.length > 0
+        ? Math.round(prevHealthScores.reduce((sum, h) => sum + (h.health_score || 0), 0) / prevHealthScores.length)
+        : 0;
+      const prevTotalAdSpend = prevAdInsights.reduce((sum, ad) => sum + (Number(ad.spend) || 0), 0);
+      const prevTotalLeads = prevLeads.length;
+      const prevAvgDealValue = prevClosedDeals.length > 0
+        ? prevClosedDeals.reduce((sum, d) => sum + (d.deal_value || Number(d.amount) || 0), 0) / prevClosedDeals.length
+        : 0;
+      const prevCac = computeCAC(prevTotalAdSpend, prevTotalLeads) ?? 0;
+      const prevAtRiskCount = prevHealthScores.filter(h => h.health_zone === "red" || h.churn_risk_score > 0.7).length;
+      const prevTotalClients = prevHealthScores.length;
+      const prevChurnRate = prevTotalClients > 0 ? (prevAtRiskCount / prevTotalClients) * 100 : 0;
+
+      // Calculate deltas (period-over-period)
+      const ltvDelta = prevAvgDealValue > 0 ? ((avgDealValue - prevAvgDealValue) / prevAvgDealValue) * 100 : 0;
+      const cacDelta = prevCac > 0 ? ((cac - prevCac) / prevCac) * 100 : 0;
+      const churnDelta = prevChurnRate > 0 ? ((churnRate - prevChurnRate) / prevChurnRate) * 100 : 0;
+      const healthDelta = prevAvgHealthScore > 0 ? ((avgHealthScore - prevAvgHealthScore) / prevAvgHealthScore) * 100 : 0;
+      const dealsDelta = prevTotalDeals > 0 ? ((totalDeals - prevTotalDeals) / prevTotalDeals) * 100 : 0;
+      const callsDelta = prevTotalCalls > 0 ? ((totalCalls - prevTotalCalls) / prevTotalCalls) * 100 : 0;
 
       // LTV calculation (simplified: avg deal value)
       const avgDealValue = closedDeals.length > 0
@@ -295,32 +402,32 @@ export function useExecutiveData(filters: ExecutiveFilters) {
           {
             label: "LTV",
             value: formatCurrency(avgDealValue / 1000, 1) + "K",
-            delta: { value: 5, type: "positive" },
+            delta: { value: Math.round(ltvDelta * 10) / 10, type: ltvDelta >= 0 ? "positive" : "negative" },
           },
           {
             label: "CAC",
             value: formatCurrency(cac / 1000, 1) + "K",
-            delta: { value: -3, type: "positive" },
+            delta: { value: Math.round(cacDelta * 10) / 10, type: cacDelta <= 0 ? "positive" : "negative" },
           },
           {
             label: "Churn",
-            value: churnRate.toFixed(1) + "%",
-            delta: { value: -0.5, type: "positive" },
+            value: toFixedSafe(churnRate, 1) + "%",
+            delta: { value: Math.round(churnDelta * 10) / 10, type: churnDelta <= 0 ? "positive" : "negative" },
           },
           {
             label: "Health",
             value: `${avgHealthScore}/100`,
-            delta: { value: 2, type: "positive" },
+            delta: { value: Math.round(healthDelta * 10) / 10, type: healthDelta >= 0 ? "positive" : "negative" },
           },
           {
             label: "Deals",
             value: totalDeals.toString(),
-            delta: { value: 8, type: "positive" },
+            delta: { value: Math.round(dealsDelta * 10) / 10, type: dealsDelta >= 0 ? "positive" : "negative" },
           },
           {
             label: "Calls",
             value: totalCalls.toString(),
-            delta: { value: 15, type: "positive" },
+            delta: { value: Math.round(callsDelta * 10) / 10, type: callsDelta >= 0 ? "positive" : "negative" },
           },
         ],
 
