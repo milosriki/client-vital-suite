@@ -1,8 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Security: Verify authentication
+  verifyAuth(req);
 
   const { Client } = await import("https://deno.land/x/postgres@v0.19.3/mod.ts");
   const client = new Client(Deno.env.get("SUPABASE_DB_URL")!);

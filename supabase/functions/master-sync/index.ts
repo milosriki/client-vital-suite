@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { corsHeaders } from "../_shared/error-handler.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 /**
  * Master Sync Orchestrator
@@ -130,7 +131,7 @@ serve(async (req) => {
   ];
 
   try {
-    verifyCronOrAuth(req);
+    verifyAuth(req);
   } catch {
     return apiError("UNAUTHORIZED", "Missing or invalid authentication", 401);
   }

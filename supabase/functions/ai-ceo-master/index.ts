@@ -254,7 +254,6 @@ async function generateWithGemini(
   command: string,
   context: string,
   persona: any,
-  parentRun: any,
   isCodeRequest: boolean = false,
   supabase?: any,
 ) {

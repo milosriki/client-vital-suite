@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/error-handler.ts";
+import { verifyAuth } from "../_shared/auth-middleware.ts";
 
 /**
  * HEALTH SCORE ENGINE v3.0 — The Evolving Intelligence
@@ -71,20 +72,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: allow cron secret or JWT
-  const cronSecret = req.headers.get("X-Cron-Secret") || req.headers.get("x-cron-secret");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const authHeader = req.headers.get("Authorization");
+  // Security: Verify authentication
+  verifyAuth(req);
 
-  if (cronSecret !== serviceKey) {
-    const token = authHeader?.replace("Bearer ", "");
-    if (!token || token.split(".").length !== 3) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  }
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const startTime = Date.now();
   const supabase = createClient(

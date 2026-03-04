@@ -1,19 +1,9 @@
 // Unified Observability Wrapper
-// Combines LangSmith tracing with correlation IDs, cost tracking, and structured logging
-
-import { traceStart, traceEnd, isTracingEnabled, getLangSmithConfig } from "./langsmith-tracing.ts";
-import type { TraceRun } from "./langsmith-tracing.ts";
+// Combines correlation IDs, cost tracking, and structured logging
 
 // ============================================================================
 // TYPES
 // ============================================================================
-
-interface TracingOptions {
-  functionName: string;
-  runType?: "chain" | "llm" | "tool" | "retriever" | "embedding";
-  metadata?: Record<string, unknown>;
-  tags?: string[];
-}
 
 interface CostConfig {
   provider: "google" | "openai";
