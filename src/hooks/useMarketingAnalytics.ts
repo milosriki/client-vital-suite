@@ -6,6 +6,12 @@ type FacebookAdsInsight = Database["public"]["Tables"]["facebook_ads_insights"][
 type Deal = Database["public"]["Tables"]["deals"]["Row"];
 type StripeTransaction = Database["public"]["Tables"]["stripe_transactions"]["Row"];
 
+// Safe toFixed helper - returns "—" for null/undefined/non-finite values
+const toFixedSafe = (value: unknown, digits = 2): string => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : "—";
+};
+
 /**
  * Date range helper to calculate start/end dates based on preset
  */
@@ -207,7 +213,7 @@ export const useDeepAnalysis = (dateRange: string) => {
       const cohortAnalysis: CohortAnalysisEntry[] = cohortData.map((m, i) => {
         const prevMonthData = i > 0 ? cohortData[i - 1] : null;
         const trend = prevMonthData && prevMonthData.roas > 0
-          ? ((m.roas - prevMonthData.roas) / prevMonthData.roas * 100).toFixed(1) + "%"
+          ? `${toFixedSafe((m.roas - prevMonthData.roas) / prevMonthData.roas * 100, 1)}%`
           : "—";
         return { ...m, trend };
       });
@@ -298,7 +304,7 @@ export const useMetaAds = (dateRange: string) => {
         {
           label: "Impressions",
           value: totalImpressions >= 1000000
-            ? `${(totalImpressions / 1000000).toFixed(1)}M`
+            ? `${toFixedSafe(totalImpressions / 1000000, 1)}M`
             : totalImpressions.toLocaleString(),
           delta: calcDelta(totalImpressions, prior.impressions),
           icon: "BarChart3"
@@ -311,19 +317,19 @@ export const useMetaAds = (dateRange: string) => {
         },
         {
           label: "CTR",
-          value: `${avgCtr.toFixed(2)}%`,
+          value: `${toFixedSafe(avgCtr, 2)}%`,
           delta: calcDelta(avgCtr, priorAvgCtr),
           icon: "TrendingUp"
         },
         {
           label: "CPC",
-          value: `AED ${avgCpc.toFixed(0)}`,
+          value: `AED ${toFixedSafe(avgCpc, 0)}`,
           delta: calcDelta(avgCpc, priorAvgCpc),
           icon: "DollarSign"
         },
         {
           label: "Frequency",
-          value: avgFrequency.toFixed(1),
+          value: toFixedSafe(avgFrequency, 1),
           delta: calcDelta(avgFrequency, priorAvgFrequency),
           icon: "BarChart3"
         },
@@ -433,7 +439,7 @@ export const useMoneyMap = (dateRange: string) => {
 
       // Real payback calculation: months to recoup CAC from monthly LTV
       const payback = trueCac > 0 && ltv > 0
-        ? (trueCac / (ltv / 12)).toFixed(1) + " mo"
+        ? `${toFixedSafe(trueCac / (ltv / 12), 1)} mo`
         : "—";
 
       // Compute prior period for real deltas
@@ -491,25 +497,25 @@ export const useMoneyMap = (dateRange: string) => {
       const metrics = [
         {
           label: "Total ROI",
-          value: `${totalROI.toFixed(1)}x`,
+          value: `${toFixedSafe(totalROI, 1)}x`,
           delta: calcDelta(totalROI, priorROI),
           icon: "TrendingUp"
         },
         {
           label: "True CAC",
-          value: `AED ${trueCac.toFixed(0)}`,
+          value: `AED ${toFixedSafe(trueCac, 0)}`,
           delta: calcDelta(trueCac, priorCac),
           icon: "DollarSign"
         },
         {
           label: "LTV",
-          value: `AED ${ltv.toFixed(0)}`,
+          value: `AED ${toFixedSafe(ltv, 0)}`,
           delta: calcDelta(ltv, priorLtv),
           icon: "DollarSign"
         },
         {
           label: "LTV:CAC",
-          value: `${ltvCacRatio.toFixed(1)}:1`,
+          value: `${toFixedSafe(ltvCacRatio, 1)}:1`,
           delta: calcDelta(ltvCacRatio, priorLtvCacRatio),
           icon: "Target"
         },

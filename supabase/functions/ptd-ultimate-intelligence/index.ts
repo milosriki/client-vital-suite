@@ -8,16 +8,6 @@ import {
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// LangSmith imports — gracefully degrade if unavailable
-let RunTree: any = null;
-let _run: any = null;
-try {
-  const langsmith = await import("https://esm.sh/langsmith@0.1.40");
-  RunTree = langsmith.RunTree;
-  _run = langsmith.run;
-} catch {
-  console.warn("[ptd-ultimate-intelligence] LangSmith unavailable — tracing disabled");
-}
 import {
   handleError,
   ErrorCode,

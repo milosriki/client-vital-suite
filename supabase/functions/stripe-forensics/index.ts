@@ -2,7 +2,6 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -37,7 +36,6 @@ serve(async (req) => {
     return apiCorsPreFlight();
   }
 
-  // Start LangSmith trace for the entire request
   let body;
   try {
     body = await req.json();
@@ -45,16 +43,6 @@ serve(async (req) => {
     body = {};
   }
   const { action = "health-check", days = 30, includeSetupIntents = true } = body;
-
-  const traceRun = await traceStart(
-    {
-      name: `stripe-forensics:${action}`,
-      runType: "chain",
-      metadata: createStripeTraceMetadata(action, { days, includeSetupIntents }),
-      tags: ["stripe", "forensics", action],
-    },
-    { action, days, includeSetupIntents }
-  );
 
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");

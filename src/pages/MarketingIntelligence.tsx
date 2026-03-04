@@ -223,7 +223,7 @@ function CommandCenterTab({
           >
             <PulseCard
               title="True ROAS"
-              value={`${Number(data?.zone_a?.metrics?.true_roas ?? 0).toFixed(2)}x`}
+              value={`${toFixedSafe(data?.zone_a?.metrics?.true_roas, 2)}x`}
               subtext="Revenue / Ad Spend"
               icon={Target}
               trend={(deltas?.roas?.trend || (data?.zone_a?.metrics?.true_roas ?? 0) > 3) ? "up" : "down"}
@@ -298,7 +298,7 @@ function CommandCenterTab({
           >
             <PulseCard
               title="Cost Per Lead"
-              value={`AED ${Number(data?.zone_a?.metrics?.cpl ?? 0).toFixed(2)}`}
+              value={`AED ${toFixedSafe(data?.zone_a?.metrics?.cpl, 2)}`}
               subtext="Target: < AED 30"
               icon={ShoppingCart}
               color={Number(data?.zone_a?.metrics?.cpl ?? 0) > 50 ? "text-red-500" : "text-purple-500"}
@@ -310,13 +310,13 @@ function CommandCenterTab({
             insights={[
               { label: "Verified Rev", value: `AED ${(data?.zone_a?.metrics?.cash_collected ?? 0).toLocaleString()}`, color: "text-emerald-400" },
               { label: "Claimed Rev", value: "Dependent on Ad Source", color: "text-amber-400" },
-              { label: "Leak Score", value: `${((1 - Number(data?.zone_a?.metrics?.integrity_score || 1)) * 100).toFixed(1)}%`, color: "text-rose-400" },
+              { label: "Leak Score", value: `${toFixedSafe((1 - Number(data?.zone_a?.metrics?.integrity_score || 1)) * 100, 1)}%`, color: "text-rose-400" },
             ]}
             summary="The measure of truth. 100% means platform attribution matches bank deposits perfectly."
           >
             <PulseCard
               title="Integrity Score"
-              value={`${(Number(data?.zone_a?.metrics?.integrity_score || 1) * 100).toFixed(0)}%`}
+              value={`${toFixedSafe(Number(data?.zone_a?.metrics?.integrity_score || 1) * 100, 0)}%`}
               subtext="Platform Truth Match"
               icon={Zap}
               color={Number(data?.zone_a?.metrics?.integrity_score || 1) < 0.8 ? "text-red-500" : "text-emerald-500"}
@@ -536,14 +536,14 @@ function DeepIntelTab() {
                   {baselines.map((b, i) => (
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{b.period_days}d</td>
-                      <td className="py-2 px-3 text-right font-mono text-emerald-400">{Number(b?.avg_roas ?? 0).toFixed(2)}x</td>
-                      <td className="py-2 px-3 text-right font-mono">AED {Number(b?.avg_cpl ?? 0).toFixed(2)}</td>
-                      <td className="py-2 px-3 text-right font-mono">{Number((b?.avg_ghost_rate ?? 0) * 100).toFixed(0)}%</td>
-                      <td className="py-2 px-3 text-right font-mono">{Number((b?.avg_close_rate ?? 0) * 100).toFixed(0)}%</td>
+                      <td className="py-2 px-3 text-right font-mono text-emerald-400">{toFixedSafe(b?.avg_roas, 2)}x</td>
+                      <td className="py-2 px-3 text-right font-mono">AED {toFixedSafe(b?.avg_cpl, 2)}</td>
+                      <td className="py-2 px-3 text-right font-mono">{toFixedSafe((b?.avg_ghost_rate ?? 0) * 100, 0)}%</td>
+                      <td className="py-2 px-3 text-right font-mono">{toFixedSafe((b?.avg_close_rate ?? 0) * 100, 0)}%</td>
                       <td className="py-2 px-3 text-right font-mono">AED {b.total_spend?.toLocaleString()}</td>
                       <td className="py-2 px-3 text-right">
                         <Badge variant="outline" className={`font-mono text-[10px] ${b.trend_direction === "up" ? "text-emerald-400" : "text-rose-400"}`}>
-                          {b.trend_direction === "up" ? "↑" : "↓"} {Number(b?.trend_pct ?? 0).toFixed(1)}%
+                          {b.trend_direction === "up" ? "↑" : "↓"} {toFixedSafe(b?.trend_pct, 1)}%
                         </Badge>
                       </td>
                     </tr>
@@ -583,7 +583,7 @@ function DeepIntelTab() {
                   <span className="font-mono font-bold">{step.value?.toLocaleString() ?? 0}</span>
                   {step.pct !== null && step.pct !== undefined && (
                     <span className={`font-mono text-sm ${step.pct > 50 ? "text-emerald-400" : step.pct > 25 ? "text-amber-400" : "text-rose-400"}`}>
-                      {Number(step?.pct ?? 0).toFixed(1)}%
+                      {toFixedSafe(step?.pct, 1)}%
                     </span>
                   )}
                 </div>
@@ -807,8 +807,8 @@ function MetaAdsTab({ dateRange }: { dateRange: string }) {
                     </td>
                     <td className="py-2 px-3 text-right font-mono">AED {(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     <td className="py-2 px-3 text-right font-mono">{(c.leads ?? 0)}</td>
-                    <td className="py-2 px-3 text-right font-mono">AED {Number(c?.cpl ?? 0).toFixed(2)}</td>
-                    <td className="py-2 px-3 text-right font-mono text-emerald-400">{Number(c?.roas ?? 0).toFixed(2)}x</td>
+                    <td className="py-2 px-3 text-right font-mono">AED {toFixedSafe(c?.cpl, 2)}</td>
+                    <td className="py-2 px-3 text-right font-mono text-emerald-400">{toFixedSafe(c?.roas, 2)}x</td>
                   </tr>
                 ))}
               </tbody>
@@ -880,8 +880,8 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                     <td className="py-2 px-3 max-w-[200px] truncate">{c.campaign}</td>
                     <td className="py-2 px-3 text-right font-mono">AED {(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {(c.revenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                    <td className="py-2 px-3 text-right font-mono">{Number(c?.roi ?? 0).toFixed(2)}x</td>
-                    <td className="py-2 px-3 text-right font-mono">AED {Number(c?.cac ?? 0).toFixed(0)}</td>
+                    <td className="py-2 px-3 text-right font-mono">{toFixedSafe(c?.roi, 2)}x</td>
+                    <td className="py-2 px-3 text-right font-mono">AED {toFixedSafe(c?.cac, 0)}</td>
                     <td className={`py-2 px-3 text-right font-mono ${c.margin >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                       AED {(c.margin ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </td>
@@ -918,10 +918,10 @@ function MoneyMapTab({ dateRange }: { dateRange: string }) {
                     <tr key={i} className="border-b border-white/10 hover:bg-white/5">
                       <td className="py-2 px-3 font-mono">{c.month}</td>
                       <td className="py-2 px-3 text-right font-mono">{(c.leads ?? 0)}</td>
-                      <td className="py-2 px-3 text-right font-mono">{Number(c?.conv ?? 0).toFixed(1)}%</td>
+                      <td className="py-2 px-3 text-right font-mono">{toFixedSafe(c?.conv, 1)}%</td>
                       <td className="py-2 px-3 text-right font-mono text-emerald-400">AED {(c.revenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                      <td className="py-2 px-3 text-right font-mono">{Number(c?.roas ?? 0).toFixed(2)}x</td>
-                      <td className="py-2 px-3 text-right font-mono">AED {Number(c?.cac ?? 0).toFixed(0)}</td>
+                      <td className="py-2 px-3 text-right font-mono">{toFixedSafe(c?.roas, 2)}x</td>
+                      <td className="py-2 px-3 text-right font-mono">AED {toFixedSafe(c?.cac, 0)}</td>
                     </tr>
                   ))}
                 </tbody>

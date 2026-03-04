@@ -7,11 +7,6 @@ import {
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { buildAgentPrompt } from "../_shared/unified-prompts.ts";
-import {
-  traceStart,
-  traceEnd,
-  createStripeTraceMetadata,
-} from "../_shared/langsmith-tracing.ts";
 import { unifiedAI, ChatMessage } from "../_shared/unified-ai-client.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
@@ -36,19 +31,7 @@ serve(async (req) => {
   // Parse request body early for tracing
   const { mode, action, message, context, history } = await req.json();
 
-  // Start LangSmith trace for the entire request
-  const traceRun = await traceStart(
-    {
-      name: `stripe-payouts-ai:${action || "chat"}`,
-      runType: "chain",
-      metadata: createStripeTraceMetadata(action || "chat", {
-        mode,
-        hasMessage: !!message,
-      }),
-      tags: ["stripe", "payouts-ai", action || "chat"],
-    },
-    { mode, action, message, context },
-  );
+  console.log(`[stripe-payouts-ai] Starting: ${action || "chat"}`);
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -109,14 +92,6 @@ serve(async (req) => {
         treasuryTransfers: treasuryTransfers.data || [],
       };
 
-      // End trace with success
-      await traceEnd(traceRun, {
-        action: "fetch-data",
-        counts: {
-          payouts: payouts.data?.length || 0,
-          transfers: transfers.data?.length || 0,
-        },
-      });
 
       return apiSuccess(responseData);
     }
@@ -171,12 +146,6 @@ serve(async (req) => {
           results.invoiceError = `Invoice not found: ${invoiceId}`;
         }
       }
-
-      // End trace with success
-      await traceEnd(traceRun, {
-        action: "lookup",
-        found: Object.keys(results).filter((k) => !k.includes("Error")).length,
-      });
 
       return apiSuccess({ success: true, ...results });
     }
@@ -274,24 +243,12 @@ serve(async (req) => {
       const GEMINI_API_KEY =
         Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
 
-      // Check LangSmith configuration status
-      const langsmithKey = Deno.env.get("LANGSMITH_API_KEY");
-      const langsmithConfigured = !!langsmithKey;
-
       const basePrompt = buildAgentPrompt("STRIPE_PAYOUTS_AI", {
         additionalContext: `Focus on: payout reconciliation, fee analysis, chargeback detection
 
 === SYSTEM INTEGRATION STATUS ===
-When users ask about "LangSmith", "LangChain", "tracing", or "AI connection status":
-- LangSmith/LangChain Tracing: ${langsmithConfigured ? "✅ CONFIGURED AND ACTIVE" : "❌ NOT CONFIGURED"}
 - This AI is powered by: ${GEMINI_API_KEY ? "Google Gemini API (Direct)" : "Lovable AI Gateway"}
-- AI Model: gemini-3.1-flash-preview / gemini-3.1-flash-preview
-
-If asked about LangSmith/LangChain: ${
-          langsmithConfigured
-            ? "Tell the user: 'Yes! LangSmith is configured and active. All AI conversations are being traced for monitoring and debugging.'"
-            : "Tell the user: 'LangSmith is NOT configured. The LANGSMITH_API_KEY secret needs to be added to enable tracing.'"
-        }`,
+- AI Model: gemini-3.1-flash-preview / gemini-3.1-flash-preview`,
       });
 
       const systemPrompt = `${basePrompt}
@@ -365,12 +322,6 @@ If data is missing, say so explicitly.`;
 
       console.log("[STRIPE-PAYOUTS-AI] UnifiedAIClient response received");
 
-      // End trace with success
-      await traceEnd(traceRun, {
-        action: "chat",
-        responseLength: response.content.length,
-      });
-
       // Return as SSE event stream for compatibility with frontend
       const stream = new ReadableStream({
         start(controller) {
@@ -400,9 +351,6 @@ If data is missing, say so explicitly.`;
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     console.error("[STRIPE-PAYOUTS-AI] Error:", errorMessage);
-
-    // End trace with error
-    await traceEnd(traceRun, { error: errorMessage }, errorMessage);
 
     return errorToResponse(
       error instanceof Error ? error : new Error(errorMessage),

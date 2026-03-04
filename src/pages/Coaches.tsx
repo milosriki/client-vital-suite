@@ -241,10 +241,10 @@ export default function Coaches() {
       sessionsByClient.set(cid, arr);
     }
 
-    // Group packages by coach
+    // Group packages by coach (normalize names for consistent matching - case insensitive)
     const pkgByCoach = new Map<string, any[]>();
     for (const pkg of packages) {
-      const coach = pkg.last_coach || "Unassigned";
+      const coach = (pkg.last_coach || "Unassigned").trim().toLowerCase();
       const arr = pkgByCoach.get(coach) || [];
       arr.push(pkg);
       pkgByCoach.set(coach, arr);
@@ -253,7 +253,7 @@ export default function Coaches() {
     // Also group health scores by coach for inactive clients not in packages
     const healthByCoach = new Map<string, any[]>();
     for (const h of healthScores || []) {
-      const coach = h.assigned_coach || "Unassigned";
+      const coach = (h.assigned_coach || "Unassigned").trim().toLowerCase();
       const arr = healthByCoach.get(coach) || [];
       arr.push(h);
       healthByCoach.set(coach, arr);
@@ -262,8 +262,10 @@ export default function Coaches() {
     const summaries: CoachSummary[] = [];
 
     for (const coach of coaches) {
-      const coachPkgs = pkgByCoach.get(coach.coach_name) || [];
-      const coachHealth = healthByCoach.get(coach.coach_name) || [];
+      // Normalize coach name for lookup (case insensitive to match grouping)
+      const coachNameKey = (coach.coach_name || "").trim().toLowerCase();
+      const coachPkgs = pkgByCoach.get(coachNameKey) || [];
+      const coachHealth = healthByCoach.get(coachNameKey) || [];
       const enrichedClients: EnrichedClient[] = [];
       const seenEmails = new Set<string>();
 

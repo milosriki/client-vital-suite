@@ -18,6 +18,12 @@ interface DailyMetricsRow {
   total_revenue_booked: number | null;
 }
 
+// Safe toFixed helper
+const toFixedSafe = (value: unknown, digits = 2): string => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : "—";
+};
+
 function computeDelta(current: number, prior: number): PeriodDelta {
   if (prior === 0 && current === 0) {
     return { current, prior, delta: 0, trend: "neutral", label: "No change" };
@@ -31,7 +37,7 @@ function computeDelta(current: number, prior: number): PeriodDelta {
   const sign = delta > 0 ? "+" : "";
   const label =
     Math.abs(delta) >= 1
-      ? `${sign}${delta.toFixed(1)}%`
+      ? `${sign}${toFixedSafe(delta, 1)}%`
       : Math.abs(current - prior) >= 1
         ? `${sign}${Math.round(current - prior)}`
         : "No change";

@@ -361,60 +361,9 @@ const synthesizerNode: NodeFunction = async (state, supabase) => {
   return { ...state, currentNode: "__end__" };
 };
 
-// ============================================================================
-// LANGSMITH TRACING HELPERS
-// ============================================================================
-
-async function traceStart(name: string, inputs: any) {
-  const apiKey = Deno.env.get("LANGSMITH_API_KEY");
-  if (!apiKey) return null;
-
-  try {
-    const response = await fetch("https://api.smith.langchain.com/runs", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        run_type: "chain",
-        inputs,
-        start_time: new Date().toISOString(),
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.id;
-    }
-  } catch (e) {
-    console.error("LangSmith trace start failed:", e);
-  }
-  return null;
-}
-
-async function traceEnd(runId: string | null, outputs: any) {
-  if (!runId) return;
-  const apiKey = Deno.env.get("LANGSMITH_API_KEY");
-  if (!apiKey) return;
-
-  try {
-    await fetch(`https://api.smith.langchain.com/runs/${runId}`, {
-      method: "PATCH",
-      headers: {
-        "x-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        outputs,
-        end_time: new Date().toISOString(),
-      }),
-    });
-  } catch (e) {
-    console.error("LangSmith trace end failed:", e);
-  }
-}
+// No-op tracing stubs
+async function traceStart(_name: string, _inputs: any) { return null; }
+async function traceEnd(_runId: string | null, _outputs: any) {}
 
 // ============ GRAPH DEFINITION ============
 const nodes: Record<string, NodeFunction> = {

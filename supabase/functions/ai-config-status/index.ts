@@ -4,16 +4,11 @@ import {
   getCorrelationId,
 } from "../_shared/observability.ts";
 // AI Configuration Status Endpoint
-// Verifies the status of LangSmith, provider keys, and Stripe connectivity
+// Verifies the status of provider keys and Stripe connectivity
 // Enables operators to quickly check configuration before running forensic or agent tasks
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-  checkLangSmithStatus,
-  getLangSmithConfig,
-  isTracingEnabled,
-} from "../_shared/langsmith-tracing.ts";
 import { getCacheStats, getTelemetry } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
@@ -36,13 +31,9 @@ interface ProviderStatus {
 interface ConfigStatus {
   timestamp: string;
   overall: "healthy" | "degraded" | "error";
-  langsmith: {
-    configured: boolean;
-    connected: boolean;
-    tracingEnabled: boolean;
-    projectName: string | null;
-    endpoint: string;
-    error?: string;
+  tracingRemoved: {
+    status: string;
+    message: string;
   };
   providers: {
     gemini: ProviderStatus;
@@ -258,9 +249,7 @@ function determineOverallStatus(
   }
 
   // Check for degraded state (some services down but not critical)
-  const anyDegraded =
-    (status.langsmith.configured && !status.langsmith.connected) ||
-    aiProviders.some((p) => p.configured && !p.connected);
+  const anyDegraded = aiProviders.some((p) => p.configured && !p.connected);
 
   if (anyDegraded) {
     return "degraded";
@@ -285,28 +274,22 @@ serve(async (req) => {
     console.log("[ai-config-status] Checking configuration status...");
 
     // Run all checks in parallel
-    const [langsmithStatus, geminiStatus, stripeStatus, supabaseStatus] =
+    const [geminiStatus, stripeStatus, supabaseStatus] =
       await Promise.all([
-        checkLangSmithStatus(),
         checkGeminiStatus(),
         checkStripeStatus(),
         checkSupabaseStatus(),
       ]);
 
-    const langsmithConfig = getLangSmithConfig();
     const cacheStats = getCacheStats();
     const telemetry = getTelemetry();
 
     const status: ConfigStatus = {
       timestamp: new Date().toISOString(),
       overall: "healthy", // Will be updated below
-      langsmith: {
-        configured: langsmithStatus.configured,
-        connected: langsmithStatus.connected,
-        tracingEnabled: isTracingEnabled(),
-        projectName: langsmithConfig.projectName,
-        endpoint: langsmithConfig.endpoint,
-        error: langsmithStatus.error,
+      tracingRemoved: {
+        status: "removed",
+        message: "AI tracing removed",
       },
       providers: {
         gemini: geminiStatus,

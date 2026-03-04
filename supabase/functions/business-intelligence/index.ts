@@ -21,8 +21,6 @@ import {
   logError,
 } from "../_shared/error-handler.ts";
 
-// Note: LangSmith/LangGraph not used in Deno edge functions - use direct AI calls instead
-
 // This Agent answers: "How is my business actually doing today?"
 serve(async (req) => {
   try {

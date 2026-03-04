@@ -1,12 +1,10 @@
 import { withTracing, structuredLog, getCorrelationId } from "../_shared/observability.ts";
 // stripe-enterprise-intelligence - ENTERPRISE GRADE
 // Uses ALL available agents for multi-million dollar accuracy
-// Integrates with LangSmith for prompt management and tracing
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { pullPrompt } from "../_shared/prompt-manager.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
@@ -57,19 +55,8 @@ serve(async (req) => {
     return apiCorsPreFlight();
   }
 
-  // Parse request body early for tracing
+  // Parse request body
   const { action, message, dateRange, history } = await req.json();
-  
-  // Start LangSmith trace for the entire request
-  const traceRun = await traceStart(
-    {
-      name: `stripe-enterprise-intelligence:${action || "chat"}`,
-      runType: "chain",
-      metadata: createStripeTraceMetadata(action || "chat", { hasDateRange: !!dateRange, hasMessage: !!message }),
-      tags: ["stripe", "enterprise-intelligence", action || "chat"],
-    },
-    { action, message, dateRange }
-  );
 
   try {
     
@@ -207,9 +194,6 @@ serve(async (req) => {
         currency: context.metrics.currency
       });
 
-      // End trace with success
-      await traceEnd(traceRun, { action: "fetch-enterprise-data", transactionCount: transactions.length, dataQuality: context.dataQuality });
-
       return apiSuccess(context);
     }
 
@@ -218,12 +202,6 @@ serve(async (req) => {
     // ===================================================================
     if (action === "enterprise-chat") {
       const context = message.context as EnterpriseContext;
-      
-      // Try to pull prompt from LangSmith (ptdbooking or stripe-enterprise)
-      let langsmithPrompt = await pullPrompt("ptdbooking");
-      if (!langsmithPrompt) {
-        langsmithPrompt = await pullPrompt("stripe-enterprise");
-      }
       
       // Build context data for injection
       const contextData = {
@@ -247,18 +225,9 @@ serve(async (req) => {
         data_quality: context?.dataQuality || 'unknown'
       };
 
-      // Use LangSmith prompt if available, otherwise use local
       let systemPrompt: string;
       
-      if (langsmithPrompt) {
-        console.log("[ENTERPRISE] Using LangSmith prompt");
-        // Replace variables in LangSmith prompt template
-        systemPrompt = langsmithPrompt;
-        for (const [key, value] of Object.entries(contextData)) {
-          systemPrompt = systemPrompt.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
-        }
-      } else {
-        console.log("[ENTERPRISE] Using local prompt (LangSmith unavailable)");
+      {
         systemPrompt = `You are ATLAS, the Enterprise Financial Intelligence System for PTD Fitness - a multi-million dollar Dubai-based premium fitness business.
 
 === CRITICAL ANTI-HALLUCINATION PROTOCOL ===
@@ -318,8 +287,6 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
         { functionName: "stripe-enterprise-intelligence" }
       );
 
-      await traceEnd(traceRun, { action: "enterprise-chat", model: aiResult.model });
-
       // Return as SSE stream format for backward compatibility with frontend
       const encoder = new TextEncoder();
       const ssePayload = `data: ${JSON.stringify({ choices: [{ delta: { content: aiResult.content } }] })}\n\ndata: [DONE]\n\n`;
@@ -333,9 +300,6 @@ Provide enterprise-grade financial analysis. Every number you report MUST come f
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[ENTERPRISE] Error:", msg);
-    
-    // End trace with error
-    await traceEnd(traceRun, { error: msg }, msg);
     
     return apiError("INTERNAL_ERROR", JSON.stringify({ error: msg }), 500);
   }

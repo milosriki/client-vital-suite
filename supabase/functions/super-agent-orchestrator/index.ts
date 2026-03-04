@@ -37,11 +37,6 @@ import {
   corsHeaders,
 } from "../_shared/error-handler.ts";
 
-// LangSmith Configuration
-const LANGSMITH_API_KEY = Deno.env.get("LANGSMITH_API_KEY");
-const LANGSMITH_PROJECT = "super-agent-orchestrator";
-const LANGSMITH_ENDPOINT = "https://api.smith.langchain.com";
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -84,61 +79,9 @@ interface SystemState {
   successful_agents: number;
 }
 
-// ============================================================================
-// LANGSMITH TRACING (with fallback)
-// ============================================================================
-
-async function traceStart(
-  name: string,
-  inputs: Record<string, any>,
-): Promise<string | null> {
-  if (!LANGSMITH_API_KEY) return null;
-  try {
-    const runId = crypto.randomUUID();
-    await fetch(`${LANGSMITH_ENDPOINT}/runs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": LANGSMITH_API_KEY,
-      },
-      body: JSON.stringify({
-        id: runId,
-        name,
-        run_type: "chain",
-        inputs,
-        start_time: new Date().toISOString(),
-        session_name: LANGSMITH_PROJECT,
-      }),
-    });
-    return runId;
-  } catch {
-    return null;
-  }
-}
-
-async function traceEnd(
-  runId: string | null,
-  outputs: Record<string, any>,
-  error?: string,
-): Promise<void> {
-  if (!LANGSMITH_API_KEY || !runId) return;
-  try {
-    await fetch(`${LANGSMITH_ENDPOINT}/runs/${runId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": LANGSMITH_API_KEY,
-      },
-      body: JSON.stringify({
-        end_time: new Date().toISOString(),
-        outputs,
-        error,
-      }),
-    });
-  } catch {
-    // Ignore tracing errors
-  }
-}
+// No-op tracing stubs
+async function traceStart(_name: string, _inputs: Record<string, any>): Promise<string | null> { return null; }
+async function traceEnd(_runId: string | null, _outputs: Record<string, any>, _error?: string): Promise<void> {}
 
 // ============================================================================
 // BULLETPROOF FUNCTION INVOKER

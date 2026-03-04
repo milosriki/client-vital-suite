@@ -1,20 +1,18 @@
 // Centralized Prompt Management Utility
-// Provides versioned prompt pulling from LangSmith with fallbacks and telemetry
-
-import { getLangSmithConfig, isTracingEnabled } from "./langsmith-tracing.ts";
+// Provides versioned prompt pulling with fallbacks and telemetry
 
 interface PromptVersion {
   name: string;
   version: string | null;
   template: string;
-  source: "langsmith" | "fallback";
+  source: "fallback";
   fetchedAt: string;
   metadata?: Record<string, unknown>;
 }
 
 interface PromptTelemetry {
   promptName: string;
-  source: "langsmith" | "fallback";
+  source: "fallback";
   fetchDurationMs: number;
   success: boolean;
   error?: string;
@@ -126,14 +124,13 @@ Never make up information - only use what's in the context.
 If data is missing, clearly state that it's not available.`,
 };
 
-// Pull prompt from LangSmith Hub
+// Pull prompt (uses fallback only)
 export async function pullPrompt(
   promptName: string,
   config: PromptManagerConfig = {}
 ): Promise<PromptVersion> {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
   const startTime = Date.now();
-  const langsmithConfig = getLangSmithConfig();
 
   // Check cache first
   if (mergedConfig.cacheEnabled) {
@@ -147,75 +144,6 @@ export async function pullPrompt(
         timestamp: new Date().toISOString(),
       }, mergedConfig.telemetryEnabled);
       return cached.prompt;
-    }
-  }
-
-  // Try LangSmith if configured
-  if (langsmithConfig.apiKey && isTracingEnabled()) {
-    try {
-      const response = await fetch(
-        `${langsmithConfig.endpoint}/prompts/${promptName}/current`,
-        {
-          method: "GET",
-          headers: {
-            "x-api-key": langsmithConfig.apiKey,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(mergedConfig.timeoutMs),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const template = extractTemplate(data);
-        
-        if (template) {
-          const prompt: PromptVersion = {
-            name: promptName,
-            version: data.version || data.commit_hash || null,
-            template,
-            source: "langsmith",
-            fetchedAt: new Date().toISOString(),
-            metadata: {
-              repo: data.repo_name,
-              owner: data.owner,
-            },
-          };
-
-          // Cache the prompt
-          if (mergedConfig.cacheEnabled) {
-            promptCache.set(promptName, {
-              prompt,
-              expiresAt: Date.now() + mergedConfig.cacheTtlMs,
-            });
-          }
-
-          logTelemetry({
-            promptName,
-            source: "langsmith",
-            fetchDurationMs: Date.now() - startTime,
-            success: true,
-            timestamp: new Date().toISOString(),
-          }, mergedConfig.telemetryEnabled);
-
-          console.log(`[PromptManager] Pulled prompt from LangSmith: ${promptName}`);
-          return prompt;
-        }
-      }
-
-      // LangSmith returned non-OK or no template
-      console.log(`[PromptManager] LangSmith prompt not found: ${promptName}, using fallback`);
-    } catch (error) {
-      console.log(`[PromptManager] LangSmith error for ${promptName}: ${error instanceof Error ? error.message : "Unknown"}`);
-      
-      logTelemetry({
-        promptName,
-        source: "fallback",
-        fetchDurationMs: Date.now() - startTime,
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        timestamp: new Date().toISOString(),
-      }, mergedConfig.telemetryEnabled);
     }
   }
 
@@ -323,33 +251,10 @@ export function registerFallbackPrompt(name: string, template: string): void {
   console.log(`[PromptManager] Registered fallback prompt: ${name}`);
 }
 
-// Check if a prompt exists in LangSmith
+// Check if a prompt exists (always returns false)
 export async function promptExists(promptName: string): Promise<boolean> {
-  const langsmithConfig = getLangSmithConfig();
-  
-  if (!langsmithConfig.apiKey) {
-    return false;
-  }
-
-  try {
-    const response = await fetch(
-      `${langsmithConfig.endpoint}/prompts/${promptName}`,
-      {
-        method: "HEAD",
-        headers: {
-          "x-api-key": langsmithConfig.apiKey,
-        },
-        signal: AbortSignal.timeout(3000),
-      }
-    );
-    return response.ok;
-  } catch {
-    return false;
-  }
+  return false;
 }
-
-// Helper function to extract template from LangSmith response
-function extractTemplate(data: Record<string, unknown>): string | null {
   // Try different possible locations for the template
   if (typeof data.manifest === "object" && data.manifest !== null) {
     const manifest = data.manifest as Record<string, unknown>;

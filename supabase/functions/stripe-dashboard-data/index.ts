@@ -79,8 +79,6 @@ serve(async (req) => {
     await loadCurrencyRates();
 
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
-    const langsmithConfigured = !!Deno.env.get("LANGSMITH_API_KEY");
-
     if (!STRIPE_SECRET_KEY) {
       throw new Error("STRIPE_SECRET_KEY is not configured");
     }

@@ -2,7 +2,6 @@ import { withTracing, structuredLog, getCorrelationId } from "../_shared/observa
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { traceStart, traceEnd, createStripeTraceMetadata } from "../_shared/langsmith-tracing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { handleError, ErrorCode } from "../_shared/error-handler.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
@@ -54,16 +53,7 @@ serve(async (req) => {
   // Parse request body early for tracing
   const { action = "full-discovery", query } = await req.json().catch(() => ({}));
   
-  // Start LangSmith trace for the entire request
-  const traceRun = await traceStart(
-    {
-      name: `stripe-deep-agent:${action}`,
-      runType: "chain",
-      metadata: createStripeTraceMetadata(action, { query }),
-      tags: ["stripe", "deep-agent", action],
-    },
-    { action, query }
-  );
+  console.log(`[stripe-deep-agent] Starting: ${action}`);
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -605,16 +595,10 @@ serve(async (req) => {
       },
     };
 
-    // End trace with success
-    await traceEnd(traceRun, response);
-
     return apiSuccess(response);
 
   } catch (error: unknown) {
     console.error("[stripe-deep-agent] Error:", error);
-    
-    // End trace with error
-    await traceEnd(traceRun, { error: error.message }, error.message);
     
     return apiError("INTERNAL_ERROR", JSON.stringify({
       success: false,

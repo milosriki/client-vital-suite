@@ -5,7 +5,6 @@ import {
 } from "../_shared/observability.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { traceStart, traceEnd } from "../_shared/langsmith-tracing.ts";
 import { verifyAuth } from "../_shared/auth-middleware.ts";
 import { apiSuccess, apiError, apiCorsPreFlight } from "../_shared/api-response.ts";
 import { UnauthorizedError, errorToResponse } from "../_shared/app-errors.ts";
@@ -46,16 +45,6 @@ serve(async (req) => {
     body = {};
   }
   const { action = "analyze-calls", days = 30 } = body;
-
-  const traceRun = await traceStart(
-    {
-      name: `callgear-forensics:${action}`,
-      runType: "chain",
-      metadata: { action, days },
-      tags: ["callgear", "forensics", action],
-    },
-    { action, days },
-  );
 
   try {
     const CALLGEAR_API_KEY = Deno.env.get("CALLGEAR_API_KEY");
@@ -168,13 +157,10 @@ serve(async (req) => {
     throw new Error(`Unknown action: ${action}`);
   } catch (error: unknown) {
     console.error(`[CALLGEAR-FORENSICS] Error:`, error);
-    await traceEnd(traceRun, {}, error.message);
     return handleError(error, "callgear-forensics", {
       supabase,
       errorCode: ErrorCode.EXTERNAL_API_ERROR,
       context: { action, days },
     });
-  } finally {
-    await traceEnd(traceRun, {});
   }
 });

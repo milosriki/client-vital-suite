@@ -116,7 +116,7 @@ export default function LeadTracking() {
     queryKey: ["lead-tracking-contacts"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("contacts")
+        .from("active_contacts")
         .select("id, first_name, last_name, email, phone, lifecycle_stage, attribution_source, latest_source_data_1, latest_source_data_2, created_at, city, state")
         .limit(15000);
       if (error) throw error;
