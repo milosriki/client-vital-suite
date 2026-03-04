@@ -113,16 +113,17 @@ describe("Smart Pause v2.0", () => {
   // 7. Long message bonus — 35+ word message gets +300 ms
   // ---------------------------------------------------------------
   it("gives a long-message bonus for messages over 30 words", () => {
-    // Build two messages: one just under 30 words, one just over 30 words
-    // We keep them non-question and non-casual to isolate the bonus.
+    // Build two messages: one just under 30 words, one just over 30 words.
+    // Provide a short response ("ok") so typing time doesn't dominate
+    // and push both values to the 6000ms ceiling.
     const wordsUnder = Array(28).fill("word").join(" "); // 28 words
-    const wordsOver = Array(35).fill("word").join(" ");  // 35 words
+    const wordsOver = Array(32).fill("word").join(" ");  // 32 words
 
-    const avgUnder = averagePause(wordsUnder);
-    const avgOver = averagePause(wordsOver);
+    const avgUnder = averagePause(wordsUnder, "ok");
+    const avgOver = averagePause(wordsOver, "ok");
 
     // The difference should include the 300 ms LONG_MSG_BONUS plus the
-    // extra reading time for 7 more words. We check the over-30 version
+    // extra reading time for 4 more words. We check the over-30 version
     // is meaningfully higher (at least 200 ms on average, accounting for jitter).
     expect(avgOver - avgUnder).toBeGreaterThanOrEqual(200);
   });

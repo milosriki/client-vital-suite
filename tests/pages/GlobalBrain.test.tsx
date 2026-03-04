@@ -26,6 +26,7 @@ jest.mock('@/components/BrainVisualizer', () => ({
 // Mock API config
 jest.mock('@/config/api', () => ({
   getApiUrl: (endpoint: string) => `https://test.supabase.co/functions/v1${endpoint}`,
+  getPtdInternalHeaders: () => ({ 'Content-Type': 'application/json' }),
 }));
 
 // Import after mocking
@@ -78,11 +79,13 @@ describe('GlobalBrain', () => {
 
     // Mock empty stats response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: false }),
     });
 
     // Mock empty memories response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: false }),
     });
 
@@ -101,6 +104,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({
         ok: true,
         stats: {
@@ -113,6 +117,7 @@ describe('GlobalBrain', () => {
 
     // Mock empty memories response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -134,11 +139,13 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: false }),
     });
 
     // Mock memories response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({
         ok: true,
         memories: mockMemories,
@@ -162,6 +169,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -231,6 +239,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -287,6 +296,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -334,6 +344,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -367,6 +378,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -418,11 +430,13 @@ describe('GlobalBrain', () => {
 
     // Mock initial stats response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
     // Mock initial memories response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 
@@ -452,10 +466,12 @@ describe('GlobalBrain', () => {
 
     // Mock refresh responses
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: true, memories: mockMemories }),
     });
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ ok: true, stats: { total_memories: 43 } }),
     });
 
@@ -479,6 +495,7 @@ describe('GlobalBrain', () => {
 
     // Mock stats response
     (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ ok: true, memories: [] }),
     });
 

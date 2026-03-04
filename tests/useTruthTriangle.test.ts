@@ -72,12 +72,17 @@ describe("useTruthTriangle", () => {
       data: mockData,
       error: null,
     });
+    const mockMaybeSingle = jest.fn().mockResolvedValue({
+      data: mockData,
+      error: null,
+    });
 
     (supabase.from as jest.Mock).mockReturnValue({
       select: mockSelect,
       order: mockOrder,
       limit: mockLimit,
       single: mockSingle,
+      maybeSingle: mockMaybeSingle,
     });
 
     mockSelect.mockReturnValue({
@@ -88,6 +93,7 @@ describe("useTruthTriangle", () => {
     });
     mockLimit.mockReturnValue({
       single: mockSingle,
+      maybeSingle: mockMaybeSingle,
     });
 
     // Get the query function that would be called
@@ -134,12 +140,27 @@ describe("useTruthTriangle", () => {
       },
       error: null,
     });
+    const mockMaybeSingle = jest.fn().mockResolvedValue({
+      data: {
+        month: "2026-02",
+        meta_ad_spend: 10000,
+        hubspot_deal_value: 50000,
+        stripe_gross_revenue: 48000,
+        meta_reported_revenue: 40000,
+        hubspot_deal_count: 5,
+        gap_stripe_hubspot: 2000,
+        true_roas_cash: 4.8,
+        pipeline_roas_booked: 5.0,
+      },
+      error: null,
+    });
 
     (supabase.from as jest.Mock).mockReturnValue({
       select: mockSelect,
       order: mockOrder,
       limit: mockLimit,
       single: mockSingle,
+      maybeSingle: mockMaybeSingle,
     });
 
     mockSelect.mockReturnValue({
@@ -150,6 +171,7 @@ describe("useTruthTriangle", () => {
     });
     mockLimit.mockReturnValue({
       single: mockSingle,
+      maybeSingle: mockMaybeSingle,
     });
 
     (useQuery as jest.Mock).mockImplementation((config) => {
@@ -164,9 +186,9 @@ describe("useTruthTriangle", () => {
     await queryConfig.queryFn();
 
     expect(supabase.from).toHaveBeenCalledWith("view_truth_triangle");
-    expect(mockSelect).toHaveBeenCalledWith("*");
+    expect(mockSelect).toHaveBeenCalledWith("month, meta_ad_spend, hubspot_deal_value, stripe_gross_revenue, meta_reported_revenue, hubspot_deal_count, gap_stripe_hubspot, true_roas_cash, pipeline_roas_booked");
     expect(mockOrder).toHaveBeenCalledWith("month", { ascending: false });
     expect(mockLimit).toHaveBeenCalledWith(1);
-    expect(mockSingle).toHaveBeenCalled();
+    expect(mockMaybeSingle).toHaveBeenCalled();
   });
 });
