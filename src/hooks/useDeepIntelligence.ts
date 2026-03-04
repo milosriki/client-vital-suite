@@ -70,14 +70,11 @@ export interface AssessmentTruth {
   email: string;
   first_name: string;
   last_name: string;
-  coach: string;
-  hubspot_stage_name: string;
-  hubspot_says_completed: boolean;
-  aws_confirms_attended: boolean;
-  truth_status: string;
-  attribution_source: string;
+  assigned_coach: string;
+  deal_stage: string;
+  truth_category: string;
   health_score: number;
-  health_zone: string;
+  health_category: string;
 }
 
 export interface CeoBrief {
@@ -151,11 +148,11 @@ export function useDeepIntelligence() {
           method: "POST",
         }),
 
-        // 6. Assessment truth matrix — HubSpot vs AWS
+        // 6. Assessment truth matrix — actual DB columns
         supabase
           .from("assessment_truth_matrix")
-          .select("email, first_name, last_name, coach, hubspot_stage_name, hubspot_says_completed, aws_confirms_attended, truth_status, attribution_source, health_score, health_zone, stage_updated_at")
-          .order("stage_updated_at", { ascending: false })
+          .select("email, first_name, last_name, assigned_coach, deal_stage, truth_category, health_score, health_category")
+          .order("email", { ascending: true })
           .limit(50),
 
         // 7. Latest CEO morning brief
@@ -261,7 +258,7 @@ export function useDeepIntelligence() {
         PAST_ASSESSMENT_STAGE: 0,
       };
       truthData.forEach((row) => {
-        const status = row.truth_status || "UNKNOWN";
+        const status = row.truth_category || "UNKNOWN";
         if (status in truthCounts)
           truthCounts[status as keyof typeof truthCounts]++;
       });

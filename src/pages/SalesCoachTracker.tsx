@@ -70,18 +70,14 @@ interface SetterFunnel {
 }
 
 interface NoShowRecord {
-  contact_name: string | null;
   first_name: string | null;
-  deal_name: string | null;
+  last_name: string | null;
   email: string | null;
-  coach: string | null;
   assigned_coach: string | null;
-  stage_label: string | null;
   deal_stage: string | null;
-  stage: string | null;
-  truth_status: string | null;
-  utm_campaign: string | null;
-  source_campaign: string | null;
+  truth_category: string | null;
+  health_score: number | null;
+  health_category: string | null;
 }
 
 interface CoachPerfRecord {
@@ -157,8 +153,8 @@ const SalesCoachTracker = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_truth_matrix")
-        .select("contact_name, first_name, deal_name, email, coach, assigned_coach, stage_label, deal_stage, stage, truth_status, utm_campaign, source_campaign")
-        .in("truth_status", [
+        .select("first_name, last_name, email, assigned_coach, deal_stage, truth_category, health_score, health_category")
+        .in("truth_category", [
           "BOOKED_NOT_ATTENDED",
           "HUBSPOT_ONLY_NO_AWS_PROOF",
         ])
@@ -457,32 +453,29 @@ const SalesCoachTracker = () => {
                       <TableRow
                         key={i}
                         className="cursor-pointer transition-colors duration-200 hover:bg-muted/30"
-                        onClick={() => { setSelectedNoShow(ns); toast.info(`Viewing no-show: ${ns.contact_name || ns.first_name || 'Unknown'}`); }}
+                        onClick={() => { setSelectedNoShow(ns); toast.info(`Viewing no-show: ${ns.first_name || 'Unknown'}`); }}
                       >
                         <TableCell className="font-medium">
-                          {ns.contact_name ||
-                            ns.first_name ||
-                            ns.deal_name ||
-                            "Unknown"}
+                          {[ns.first_name, ns.last_name].filter(Boolean).join(" ") || "Unknown"}
                         </TableCell>
                         <TableCell className="text-sm">
                           {ns.email || "—"}
                         </TableCell>
                         <TableCell>
-                          {ns.coach || ns.assigned_coach || "—"}
+                          {ns.assigned_coach || "—"}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {ns.stage_label || ns.deal_stage || ns.stage || "—"}
+                          {ns.deal_stage || "—"}
                         </TableCell>
                         <TableCell>
                           <Badge variant="destructive" className="text-xs">
-                            {ns.truth_status === "BOOKED_NOT_ATTENDED"
+                            {ns.truth_category === "BOOKED_NOT_ATTENDED"
                               ? "No-Show"
                               : "Unverified"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {ns.utm_campaign || ns.source_campaign || "—"}
+                          —
                         </TableCell>
                       </TableRow>
                     ))}
@@ -702,10 +695,10 @@ const SalesCoachTracker = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-lg font-bold">
-                  {selectedNoShow.contact_name || selectedNoShow.first_name || selectedNoShow.deal_name || "Unknown"}
+                  {[selectedNoShow.first_name, selectedNoShow.last_name].filter(Boolean).join(" ") || "Unknown"}
                 </p>
                 <Badge variant="destructive" className="mt-1">
-                  {selectedNoShow.truth_status === "BOOKED_NOT_ATTENDED" ? "No-Show" : "Unverified"}
+                  {selectedNoShow.truth_category === "BOOKED_NOT_ATTENDED" ? "No-Show" : "Unverified"}
                 </Badge>
               </div>
 
@@ -720,18 +713,12 @@ const SalesCoachTracker = () => {
                 )}
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Coach</p>
-                  <p className="font-medium">{selectedNoShow.coach || selectedNoShow.assigned_coach || "—"}</p>
+                  <p className="font-medium">{selectedNoShow.assigned_coach || "—"}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">Stage</p>
-                  <p className="font-medium">{selectedNoShow.stage_label || selectedNoShow.deal_stage || selectedNoShow.stage || "—"}</p>
+                  <p className="font-medium">{selectedNoShow.deal_stage || "—"}</p>
                 </div>
-                {(selectedNoShow.utm_campaign || selectedNoShow.source_campaign) && (
-                  <div className="p-3 rounded-lg bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Campaign</p>
-                    <p className="font-medium">{selectedNoShow.utm_campaign || selectedNoShow.source_campaign}</p>
-                  </div>
-                )}
               </div>
 
               <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">

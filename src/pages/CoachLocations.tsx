@@ -52,14 +52,12 @@ interface LocationEvent {
 interface CoachVisit {
   id: string;
   device_id: string;
-  coach_name: string | null;
-  location_name: string;
-  latitude: number;
-  longitude: number;
-  arrival_time: string;
-  departure_time: string;
-  dwell_minutes: number;
-  is_ptd_location: boolean;
+  coach_id: string | null;
+  poi_id: string | null;
+  confidence: number | null;
+  start_ts: string;
+  end_ts: string;
+  duration_min: number;
   created_at: string;
 }
 
@@ -1069,8 +1067,8 @@ export default function CoachLocations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mdm_visits")
-        .select("id, device_id, coach_name, location_name, latitude, longitude, arrival_time, departure_time, dwell_minutes, is_ptd_location, created_at")
-        .order("arrival_time", { ascending: false })
+        .select("id, device_id, coach_id, poi_id, confidence, start_ts, end_ts, duration_min, created_at")
+        .order("start_ts", { ascending: false })
         .limit(5000);
       if (error) throw error;
       return (data || []) as CoachVisit[];
@@ -1153,25 +1151,25 @@ export default function CoachLocations() {
 
   const dwellSummary = useMemo(() => {
     const visits = dwellVisits || [];
-    const ptdHours = Math.round(visits.filter(v => v.is_ptd_location).reduce((s, v) => s + (v.dwell_minutes || 0), 0) / 60);
-    const extHours = Math.round(visits.filter(v => !v.is_ptd_location).reduce((s, v) => s + (v.dwell_minutes || 0), 0) / 60);
-    const avgSession = visits.length > 0 ? Math.round(visits.reduce((s, v) => s + (v.dwell_minutes || 0), 0) / visits.length) : 0;
+    const ptdHours = 0; // is_ptd_location not available in mdm_visits
+    const extHours = Math.round(visits.reduce((s, v) => s + (v.duration_min || 0), 0) / 60);
+    const avgSession = visits.length > 0 ? Math.round(visits.reduce((s, v) => s + (v.duration_min || 0), 0) / visits.length) : 0;
     const coachMin = new Map<string, number>();
     for (const v of visits) {
-      const name = v.coach_name || v.device_id;
-      coachMin.set(name, (coachMin.get(name) || 0) + (v.dwell_minutes || 0));
+      const name = v.coach_id || v.device_id;
+      coachMin.set(name, (coachMin.get(name) || 0) + (v.duration_min || 0));
     }
     const mostActive = [...coachMin.entries()].sort((a, b) => b[1] - a[1])[0];
     const byCoach = new Map<string, { ptd: number; ext: number; visits: number }>();
     for (const v of visits) {
-      const name = v.coach_name || v.device_id;
+      const name = v.coach_id || v.device_id;
       if (!byCoach.has(name)) byCoach.set(name, { ptd: 0, ext: 0, visits: 0 });
       const c = byCoach.get(name)!;
       c.visits++;
-      if (v.is_ptd_location) c.ptd += (v.dwell_minutes || 0); else c.ext += (v.dwell_minutes || 0);
+      c.ext += (v.duration_min || 0); // ptd not available, track all as ext
     }
     const today = new Date().toISOString().slice(0, 10);
-    const todayCoaches = new Set(visits.filter(v => (v.arrival_time || "").slice(0, 10) === today).map(v => v.coach_name || v.device_id));
+    const todayCoaches = new Set(visits.filter(v => (v.start_ts || "").slice(0, 10) === today).map(v => v.coach_id || v.device_id));
     return { ptdHours, extHours, avgSession, mostActive, byCoach, todayCoaches, total: visits.length };
   }, [dwellVisits]);
 
@@ -1545,16 +1543,16 @@ export default function CoachLocations() {
                       </TableHeader>
                       <TableBody>
                         {(dwellVisits || []).slice(0, 100).map((v) => (
-                          <TableRow key={v.id} className={v.is_ptd_location ? "bg-green-50 dark:bg-green-950/20" : ""}>
-                            <TableCell className="font-medium text-xs">{v.coach_name || v.device_id}</TableCell>
+                          <TableRow key={v.id}>
+                            <TableCell className="font-medium text-xs">{v.coach_id || v.device_id}</TableCell>
                             <TableCell>
-                              <Badge variant={v.is_ptd_location ? "default" : "secondary"} className={`text-xs ${v.is_ptd_location ? "bg-green-500" : ""}`}>
-                                {v.location_name}
+                              <Badge variant="secondary" className="text-xs">
+                                {v.poi_id || "—"}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-xs hidden md:table-cell">{v.arrival_time ? formatDubaiTime(v.arrival_time) : "—"}</TableCell>
-                            <TableCell className="text-xs hidden md:table-cell">{v.departure_time ? formatDubaiTime(v.departure_time) : "—"}</TableCell>
-                            <TableCell className="text-right font-mono">{v.dwell_minutes || 0}m</TableCell>
+                            <TableCell className="text-xs hidden md:table-cell">{v.start_ts ? formatDubaiTime(v.start_ts) : "—"}</TableCell>
+                            <TableCell className="text-xs hidden md:table-cell">{v.end_ts ? formatDubaiTime(v.end_ts) : "—"}</TableCell>
+                            <TableCell className="text-right font-mono">{v.duration_min || 0}m</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
